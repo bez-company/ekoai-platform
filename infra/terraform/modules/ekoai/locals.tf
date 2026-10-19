@@ -6,6 +6,7 @@ locals {
   name = "ekoai"
 
   apis = [
+    "apikeys.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
@@ -19,6 +20,10 @@ locals {
     "sqladmin.googleapis.com",
     "sts.googleapis.com",
   ]
+
+  # Domínio de entrada do Identity Platform e host da plataforma (domínios autorizados do login).
+  firebase_auth_domain = "${var.project_id}.firebaseapp.com"
+  platform_host        = replace(local.platform_url, "https://", "")
 
   # URL determinística do Cloud Run: serve de MEDIA_BASE_URL sem referência circular.
   platform_url = "https://${local.name}-platform-${data.google_project.this.number}.${var.region}.run.app"

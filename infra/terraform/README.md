@@ -80,6 +80,16 @@ renovados sozinho (a conta do app tem `secretVersionAdder` só nesses três).
 A federação só aceita o repositório `bez-company/ekoai-platform` na branch `main`. Não existe chave
 JSON de service account em lugar nenhum.
 
+## Login (Identity Platform)
+
+Ligado em cada projeto, com e-mail e senha e TOTP. O Terraform também cria a chave de API do
+navegador (restrita às APIs do login e ao referer da plataforma), publica os domínios autorizados e
+entrega ao Cloud Run `FIREBASE_WEB_API_KEY` e `FIREBASE_AUTH_DOMAIN`. O servidor deve ler os dois em
+runtime e passá-los ao cliente: uma variável `NEXT_PUBLIC_` seria fixada no build da imagem. Os
+textos dos e-mails de confirmação e de nova senha se editam no console (Authentication >
+Templates); a API recusa a edição. O remetente é `noreply@<projeto>.firebaseapp.com` até haver
+domínio próprio verificado.
+
 ## Segurança em resumo
 
 - Cloud SQL só com IP interno, TLS obrigatório, backup diário e recuperação a qualquer ponto de 7
