@@ -35,11 +35,11 @@ export default async function CalendarPage() {
       </div>
 
       {err && (
-        <div className="card border-amber-900/50 bg-amber-950/20 text-sm text-amber-200">{err}</div>
+        <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>
       )}
 
       {failed.length > 0 && (
-        <div className="card border-red-900/50 bg-red-950/20 text-sm text-red-200">
+        <div className="card border-danger/30 bg-danger/10 text-sm text-danger">
           {failed.length} post(s) falharam na publicação — veja abaixo e re-tente.
         </div>
       )}

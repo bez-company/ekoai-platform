@@ -19,17 +19,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // sem DB ainda (migration não aplicada) — segue sem badges
   }
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       <Nav badges={badges} />
-      {pause?.paused && (
-        <div className="border-b border-amber-900/60 bg-amber-950/40 px-4 py-2 text-center text-sm text-amber-100">
-          Publicação pausada{pause.pausedAt ? ` desde ${fmtDateTime(pause.pausedAt)}` : ''}. Nada sai até você retomar.{' '}
-          <Link href="/settings" className="underline underline-offset-2">
-            Retomar em Configurações
-          </Link>
-        </div>
-      )}
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <div className="min-w-0 pb-24 md:pb-0">
+        {pause?.paused && (
+          <div className="border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-center text-sm text-fg" role="status">
+            Publicação pausada{pause.pausedAt ? ` desde ${fmtDateTime(pause.pausedAt)}` : ''}. Nada sai até você retomar.{' '}
+            <Link href="/settings" className="font-semibold text-accent-text underline underline-offset-2">
+              Retomar em Configurações
+            </Link>
+          </div>
+        )}
+        <main className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-8">{children}</main>
+      </div>
     </div>
   );
 }

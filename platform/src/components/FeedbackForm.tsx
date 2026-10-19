@@ -114,7 +114,7 @@ export default function FeedbackForm({
               setSaved(false);
             }}
             className={`rounded-full border px-3 py-1 text-xs transition ${
-              aspect === a ? 'border-accent bg-accent/20 text-white' : 'border-edge text-muted hover:text-white'
+              aspect === a ? 'border-accent bg-accent/20 text-fg' : 'border-line text-muted hover:text-fg'
             }`}
           >
             {ASPECT_LABEL[a]}
@@ -130,7 +130,7 @@ export default function FeedbackForm({
         }}
         rows={3}
         placeholder={aspect ? PLACEHOLDER[aspect] : liked ? 'O que funcionou e por quê' : 'O que não funcionou e por quê'}
-        className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
       />
 
       <label className="flex items-center gap-2 text-xs text-muted">
@@ -138,8 +138,8 @@ export default function FeedbackForm({
         Vale para todas as redes, não só {channel}
       </label>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {saved && <p className="text-sm text-emerald-300">Registrado. Entra na próxima geração.</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
+      {saved && <p className="text-sm text-success">Registrado. Entra na próxima geração.</p>}
 
       <div className="flex gap-2">
         <button type="button" onClick={submit} disabled={busy} className={rejecting ? 'btn-danger' : 'btn-primary'}>

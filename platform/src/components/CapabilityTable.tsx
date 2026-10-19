@@ -23,7 +23,7 @@ export default function CapabilityTable() {
               .map(([fmt, cap]) => (
                 <li key={fmt} className="flex gap-3">
                   <span className="w-40 shrink-0">{cap.label}</span>
-                  <span className={`w-28 shrink-0 ${cap.publish === 'auto' ? 'text-emerald-300' : cap.publish === 'manual' ? 'text-amber-300' : 'text-muted'}`}>
+                  <span className={`w-28 shrink-0 ${cap.publish === 'auto' ? 'text-success' : cap.publish === 'manual' ? 'text-warning' : 'text-muted'}`}>
                     {MODE_LABEL[cap.publish]}
                   </span>
                   {cap.note && <span className="text-muted">{cap.note}</span>}

@@ -48,15 +48,15 @@ export default function EngageTargets({ targets }: { targets: EngageTarget[] }) 
       )}
       <div className="grid gap-1">
         {targets.map((t) => (
-          <div key={t.id} className="flex items-center gap-3 rounded-md border border-edge px-3 py-2 text-sm">
+          <div key={t.id} className="flex items-center gap-3 rounded-md border border-line px-3 py-2 text-sm">
             <div className="min-w-0 flex-1">
               <p>{t.name}</p>
               {t.note && <p className="text-xs text-muted">{t.note}</p>}
             </div>
-            <a href={activityUrl(t.profile_url)} target="_blank" rel="noopener" className="text-xs text-accent hover:underline">
+            <a href={activityUrl(t.profile_url)} target="_blank" rel="noopener" className="text-xs text-accent-text hover:underline">
               Ver posts recentes
             </a>
-            <button onClick={() => remove(t.id)} disabled={busy} className="text-xs text-red-400 hover:underline">
+            <button onClick={() => remove(t.id)} disabled={busy} className="text-xs text-danger hover:underline">
               Remover
             </button>
           </div>
@@ -68,27 +68,27 @@ export default function EngageTargets({ targets }: { targets: EngageTarget[] }) 
           onChange={(e) => setName(e.target.value)}
           placeholder="Nome"
           aria-label="Nome"
-          className="w-40 rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+          className="w-40 rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
         />
         <input
           value={profileUrl}
           onChange={(e) => setProfileUrl(e.target.value)}
           placeholder="linkedin.com/in/..."
           aria-label="Link do perfil"
-          className="min-w-56 flex-1 rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+          className="min-w-56 flex-1 rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
         />
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Por que acompanhar (opcional)"
           aria-label="Nota"
-          className="min-w-48 flex-1 rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+          className="min-w-48 flex-1 rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
         />
         <button onClick={add} disabled={busy} className="btn-ghost">
           Adicionar conta
         </button>
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

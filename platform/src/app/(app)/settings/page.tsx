@@ -42,7 +42,7 @@ export default async function SettingsPage() {
           Grade recorrente por canal. Aprovar um post o joga no próximo slot livre. Horário no fuso editorial (BRT).
         </p>
       </div>
-      {err && <div className="card border-amber-900/50 bg-amber-950/20 text-sm text-amber-200">{err}</div>}
+      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
       <SlotEditor initial={slots} />
 
       <div className="space-y-2">
