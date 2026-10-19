@@ -1,6 +1,6 @@
 # SPEC 010: migração para o Google Cloud da BEZ
 
-- **Status:** aprovada em 2026-10-19 (2 projetos, Cloud Run no lugar da Vercel). Fases 1 e 2 implementadas (ver o registro no fim); fase 0 e seguintes esperam o Google Cloud
+- **Status:** aprovada em 2026-10-19 (2 projetos, Cloud Run no lugar da Vercel). Fases 0, 1, 2 e 4 feitas, fase 3 feita no staging e na base de produção; restam o cutover (fase 6), a observabilidade (fase 5) e a limpeza (fase 7). Ver o registro no fim
 - **Data:** 2026-10-19
 - **Depende de:** [ADR 0006](../adr/0006-google-cloud-como-plataforma.md) (Google Cloud),
   [ADR 0007](../adr/0007-tres-papeis-de-conta.md) (papéis), [SPEC 008](008-banco-portavel-e-papeis.md),
@@ -39,14 +39,14 @@ então criar projeto e pasta não depende de ninguém.
 
 | # | Decisão | Recomendação | Por quê |
 | --- | --- | --- | --- |
-| D1 | Projetos | pasta `ekoai` com `ekoai-staging` e `ekoai-prod`; o bucket do estado do Terraform e o Artifact Registry ficam no `ekoai-prod` (versionado, com proteção contra exclusão) | IAM, Identity Platform e faturamento separados; erro em staging não toca dado de cliente (ADR 0006 item 1). Sem projeto de admin: complexidade a mais para uma pessoa. `My First Project` vira sandbox e é apagado no fim |
+| D1 | Projetos | pasta `ekoai` com `ekoai-staging` e `ekoai-prod`; o bucket do estado do Terraform fica no `ekoai-prod` (versionado) e cada projeto tem o seu Artifact Registry | IAM, Identity Platform e faturamento separados; erro em staging não toca dado de cliente (ADR 0006 item 1). Sem projeto de admin: complexidade a mais para uma pessoa. `My First Project` vira sandbox e é apagado no fim |
 | D2 | Cliente SQL | `pg` + pacote próprio `@ekoai/db` com a forma do supabase-js ([ADR 0008](../adr/0008-acesso-ao-postgres-sem-supabase-js.md)); era Kysely | o uso real é pequeno e uniforme (tabela única, sem join); manter a forma troca só o import e preserva o comportamento. Kysely entra depois, se houver join |
-| D3 | Conexão do Cloud Run com o Cloud SQL | IP privado (VPC direta do Cloud Run) com login IAM de banco, sem senha em segredo | some a senha do banco do cofre de segredos e o IP público |
+| D3 | Conexão do Cloud Run com o Cloud SQL | IP privado (egress direto do Cloud Run na VPC), TLS obrigatório; usuário único `ekoai` com senha gerada pelo Terraform e guardada só no Secret Manager (`database-url`). Era login IAM de banco | sem IP público. O login IAM exigiria o conector do Cloud SQL no código e um papel de superusuário para as migrations; fica como melhoria |
 | D4 | Migrations | Cloud Run Job `migrate`, disparado pelo CI após o deploy do staging e antes do prod | substitui `supabase db push` (ADR 0003); mantém o guard de comando destrutivo |
 | D5 | Deploy | GitHub Actions com Workload Identity Federation, sem chave JSON | política de organização barra chave de service account |
 | D6 | Segredos das redes | Secret Manager (uma versão nova por refresh) enquanto o produto é de um tenant | Cloud KMS por conta no banco é da fundação SaaS (SPEC 006 F3), não da migração |
 | D7 | Estado dos jobs | só no banco (`STATE_BACKEND=postgres`); no Cloud Run o job recusa subir sem ele (`assertStateBackend`); o caminho YAML sai na fase 7, junto dos workflows | container é efêmero e não tem credencial para commitar. Remover o YAML agora mexeria em 10 arquivos sem ganho: em produção ele nunca roda |
-| D8 | Staging | Cloud SQL ligado só quando há teste (parado paga só disco) | dois bancos 24 horas podem passar do orçamento de R$ 100 por mês (que só alerta) |
+| D8 | Staging | Cloud SQL `db-f1-micro` ligado enquanto o CI faz deploy nele a cada merge (parar o banco quebraria o deploy); parar só se o deploy automático for desligado | custo pequeno; dois bancos 24 horas podem passar de R$ 100 por mês (que só alerta) |
 | D9 | Hospedagem | Cloud Run no lugar da Vercel (confirmado); sem preview por PR no início, tags de revisão depois | ADR 0006 |
 | D10 | Domínio | `*.run.app` até o `ekoai.com.br` migrar para a BEZ; borda (Load Balancer + Cloud Armor) só com domínio | domínio ainda é pendência da BEZ |
 
@@ -92,25 +92,24 @@ então podem andar em paralelo com a 0.
 
 - Terraform (`infra/terraform`, módulos e `envs/staging`, `envs/prod`): VPC e acesso privado,
   Cloud SQL Postgres 17 (backup diário, PITR, proteção contra exclusão), Cloud Run service e
-  jobs, Cloud Scheduler (8 agendas, mesmos horários dos workflows), GCS, Secret Manager,
+  jobs, Cloud Scheduler (agendas dos jobs que restaram), GCS, Secret Manager,
   Identity Platform, alertas.
-- Mapa de substituição dos workflows antigos (removidos do repo; horários em UTC, como eram):
+- Agendas (UTC; os workflows antigos saíram do repo). Os jobs de geração (`post`, `resolve`,
+  `reflect`, `funnel`, `engage`, `repurpose`, `reel`) saíram com o
+  [ADR 0010](../adr/0010-plataforma-generica-sem-pilar-no-codigo.md) e **não têm job nem agenda**:
+  voltam com a fase 2 do produto, e então entram em `locals.jobs` do módulo.
 
-  | Workflow | Job (`node src/jobs.js <job>`) | Cron |
+  | Job (`node src/jobs.js <job>`) | Cron | Observação |
   | --- | --- | --- |
-  | `post.yml` | `post` | `0 20 * * 2,4` |
-  | `resolve.yml` | `resolve` | `*/10 20-23,0-2 * * *` |
-  | `reflect.yml` | `reflect` | `0 22 * * 0` |
-  | `refresh-tokens.yml` | `refresh-tokens` | `0 3 1 * *` |
-  | `token-health-check.yml` | `token-health` | `0 6 * * *` |
-  | `weekly-report.yml` | `weekly-report` | `0 23 * * 0` |
-  | `funnel.yml` | `funnel` | `30 9 * * *` |
-  | `publish-due.yml` | (não é job) `POST /api/cron/publish-due` na plataforma | `*/10 * * * *` |
+  | `refresh-tokens` | `0 3 1 * *` | exige `TENANT_ID` |
+  | `token-health` | `0 6 * * *` | exige `TENANT_ID` |
+  | `weekly-report` | `0 23 * * 0` | exige `TENANT_ID` |
+  | `migrate` | sem agenda | roda pelo deploy, antes da troca de código |
+  | `tenant-create`, `access-grant` | sem agenda | operação de sistema: `gcloud run jobs execute ekoai-tenant-create --args=tenant-create,--id,acme,--name,Acme` |
+  | `POST /api/cron/publish-due` (plataforma) | `*/10 * * * *` | token OIDC do Scheduler, conferido pelo app |
 
-  O `publish-due` passa a usar o token OIDC do Scheduler no lugar de `CRON_SECRET`. Os workflows
-  `post` e `resolve` serializavam por `concurrency` por causa do push em `content/`; no banco isso
-  não existe, mas os dois jobs rodam com `parallelism = 1` e `max_retries = 0` (publicar não é
-  idempotente).
+  Todos com `parallelism = 1` e `max_retries = 0` (publicar não é idempotente). A plataforma em modo
+  de senha única também exige `TENANT_ID` (ADR 0010).
 - **Verificação:** migrations aplicadas no Cloud SQL; `rls_test.sql` rodado contra ele; login real
   (Identity Platform) e um post `DRY_RUN` de ponta a ponta; restore de backup **executado**, não
   só configurado.
@@ -256,3 +255,40 @@ README, SETUP, runbook e o cofre. Apagar o `My First Project`.
   - O projeto da Vercel e o Supabase da Trinity.
   - Renomear `supabase/` para `db/` (migrations, `ci/`): depende de a pipeline da fase 4 já apontar
     para o caminho novo, então muda junto com ela.
+
+### Fases 0, 3 e 4 (2026-10-19)
+
+- **Fase 0:** pasta `ekoai`, projetos `ekoai-staging` e `ekoai-prod` com o faturamento ligado e o
+  bucket de estado do Terraform. Para criar a pasta foi preciso dar `folderAdmin` à conta
+  administradora no nível da organização (`organizationAdmin` não cria pasta). Os comandos estão em
+  `infra/terraform/README.md`. A política de organização de compartilhamento restrito a domínio já
+  vinha ativa e barra `allUsers`; as demais políticas propostas (sem chave de service account, sem
+  IP público no Cloud SQL) não foram aplicadas ainda e ficam como endurecimento da fase 5.
+- **Fase 3 (Terraform, `infra/terraform`):** módulo `ekoai` aplicado no staging e a base aplicada
+  em produção. Rede privada, Cloud SQL Postgres 17 (backup e recuperação a qualquer ponto),
+  Cloud Run (plataforma e jobs), Scheduler (agendas **pausadas**), Secret Manager, bucket privado,
+  Artifact Registry, Identity Platform com TOTP, alertas e Workload Identity Federation.
+- **Fase 4:** `deploy.yml` e `deploy-env.yml` (staging sozinho, produção com aprovação, health
+  check no fim), job `Terraform` no CI, environments `staging` e `prod` no GitHub.
+
+Desvios: D1 (um registry por projeto), D3 (usuário de banco com senha) e D8 (staging ligado); ver a
+tabela de decisões.
+
+### Verificado no staging (Google Cloud real)
+
+- `/api/health` 200 com o banco no IP privado; login e as páginas da plataforma respondem; sem
+  sessão, redireciona.
+- Job `migrate` aplicou as 16 migrations num Cloud SQL vazio: o bootstrap rodou e o app, dono das
+  tabelas, lê e grava sem `bypassrls`. Job `reflect` rodou de ponta a ponta com os segredos
+  montados.
+- `/api/media`: um PNG no bucket privado voltou idêntico (200) e com `Range` (206).
+- Cron: o token OIDC da conta do Scheduler foi aceito (200); público errado e ausência de token
+  deram 401.
+
+### Ainda não verificado
+
+- O merge desta PR dispara o primeiro `deploy.yml` de verdade (Workload Identity Federation e
+  `gcloud run` no runner).
+- `refresh-tokens` gravando versão nova no Secret Manager: coberto por teste unitário e pela
+  permissão `secretVersionAdder`, sem execução real (precisa de token de rede de verdade).
+- Primeira publicação real e o Identity Platform com login de pessoa (depende da tela).

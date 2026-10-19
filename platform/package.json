@@ -14,6 +14,7 @@
     "@ekoai/db": "file:../packages/db",
     "@google-cloud/storage": "^8.4.0",
     "firebase-admin": "^14.5.0",
+    "google-auth-library": "^10.9.1",
     "next": "^15.1.6",
     "pg": "^8.23.1",
     "react": "^19.0.0",

@@ -1,11 +1,11 @@
 // refresh-tokens.js — renova tokens IG + LinkedIn antes do vencimento.
-// Chamado por: .github/workflows/refresh-tokens.yml (mensal) e token-health-check.yml (diário, alerta).
+// Chamado pelos jobs `refresh-tokens` (mensal) e `token-health` (diário, alerta); src/jobs.js.
 
 import 'dotenv/config';
 import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 import { notify } from './utils/notifications.js';
-import { updateSecret, canUpdateSecrets } from './utils/github-secrets.js';
+import { updateSecret, canUpdateSecrets } from './utils/secret-store.js';
 import { assertStateBackend } from './utils/db.js';
 
 const MODE = process.argv[2] || 'refresh'; // refresh | check
@@ -24,7 +24,7 @@ async function main() {
     return linkedin.refreshToken();
   });
 
-  // Fecha o loop: grava os tokens novos de volta nos secrets do repo.
+  // Fecha o loop: grava os tokens novos como versão nova no Secret Manager.
   let persistNote = '';
   if (MODE === 'refresh') {
     persistNote = await persistTokens(results);
@@ -50,8 +50,8 @@ async function main() {
   if (failed) process.exit(1);
 }
 
-// Atualiza os secrets com os tokens renovados. Sem GH_ADMIN_TOKEN, degrada com
-// aviso (você atualiza manual) em vez de quebrar.
+// Atualiza os segredos com os tokens renovados. Fora do Cloud Run (sem GOOGLE_CLOUD_PROJECT),
+// degrada com aviso (você atualiza à mão) em vez de quebrar.
 async function persistTokens(results) {
   const updates = [];
   const ig = results.instagram;
@@ -62,7 +62,7 @@ async function persistTokens(results) {
 
   if (updates.length === 0) return '';
   if (!canUpdateSecrets()) {
-    return `${updates.length} token(s) renovado(s), mas falta o GH_ADMIN_TOKEN: atualize os secrets à mão (${updates.map(u => u[0]).join(', ')}).`;
+    return `${updates.length} token(s) renovado(s), mas o Secret Manager não está configurado (GOOGLE_CLOUD_PROJECT): atualize os segredos à mão (${updates.map(u => u[0]).join(', ')}).`;
   }
 
   const done = [];
@@ -72,10 +72,10 @@ async function persistTokens(results) {
       done.push(name);
     } catch (e) {
       console.error(`[refresh-tokens] falha ao atualizar ${name}: ${e.message}`);
-      return `Secrets atualizados: ${done.join(', ') || 'nenhum'}. Falhou ${name}: ${e.message}`;
+      return `Segredos atualizados: ${done.join(', ') || 'nenhum'}. Falhou ${name}: ${e.message}`;
     }
   }
-  return `Secrets atualizados automaticamente: ${done.join(', ')}.`;
+  return `Segredos atualizados automaticamente: ${done.join(', ')}.`;
 }
 
 function tokenTitle({ failed, needsAlert }) {

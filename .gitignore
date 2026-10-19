@@ -18,3 +18,10 @@ supabase/.temp/
 
 # emulador do Firebase (npm run emulator:test)
 firebase-debug*.log
+
+# Terraform (infra/terraform): estado fica no bucket do GCS; aqui só o que é local
+**/.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+*.auto.tfvars

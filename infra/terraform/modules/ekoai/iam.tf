@@ -1,0 +1,86 @@
+# Uma conta de serviço por função, cada uma com o mínimo.
+
+resource "google_service_account" "app" {
+  project      = var.project_id
+  account_id   = "${local.name}-app"
+  display_name = "Plataforma e jobs"
+  depends_on   = [google_project_service.api]
+}
+
+resource "google_service_account" "scheduler" {
+  project      = var.project_id
+  account_id   = "${local.name}-scheduler"
+  display_name = "Cloud Scheduler"
+  depends_on   = [google_project_service.api]
+}
+
+resource "google_service_account" "deploy" {
+  project      = var.project_id
+  account_id   = "${local.name}-deploy"
+  display_name = "Deploy pelo GitHub Actions"
+  depends_on   = [google_project_service.api]
+}
+
+resource "google_project_iam_member" "app_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
+resource "google_project_iam_member" "app_metrics" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
+# Deploy: troca revisão do serviço e dos jobs, empurra imagem e roda o job de migration.
+resource "google_project_iam_member" "deploy_run" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_project_iam_member" "deploy_registry" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_service_account_iam_member" "deploy_acts_as_app" {
+  service_account_id = google_service_account.app.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# Workload Identity Federation: o GitHub Actions entra sem chave JSON, só pelo repositório e a
+# branch main (SPEC 010, D5).
+resource "google_iam_workload_identity_pool" "github" {
+  project                   = var.project_id
+  workload_identity_pool_id = "github"
+  display_name              = "GitHub Actions"
+  depends_on                = [google_project_service.api]
+}
+
+resource "google_iam_workload_identity_pool_provider" "github" {
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github"
+  display_name                       = "GitHub"
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
+  }
+  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref == 'refs/heads/main'"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account_iam_member" "deploy_from_github" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
+}

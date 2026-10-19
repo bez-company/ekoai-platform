@@ -1,25 +1,17 @@
-// Endpoint do scheduler, disparado pelo workflow publish-due (a cada 10min).
-// Exige `Authorization: Bearer <CRON_SECRET>`. Sem CRON_SECRET configurado, recusa tudo:
-// checagem de segredo falha fechada. Segredo na query string não é aceito (vaza em log).
+// Endpoint do scheduler, disparado pelo Cloud Scheduler a cada 10 minutos com token OIDC (ou
+// por `Authorization: Bearer <CRON_SECRET>` à mão). Sem credencial válida, recusa: ver
+// lib/cron-auth.ts.
 
 import { NextResponse } from 'next/server';
-import { safeEqual } from '@/lib/auth';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { runPublishDue } from '@/lib/publish';
 import { logError } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-function authorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get('authorization');
-  if (!auth?.startsWith('Bearer ')) return false;
-  return safeEqual(auth.slice(7), secret);
-}
-
 async function handle(req: Request) {
-  if (!authorized(req)) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  if (!(await isCronAuthorized(req))) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   try {
     const summary = await runPublishDue();
     return NextResponse.json({ ok: true, ...summary });

@@ -1,0 +1,49 @@
+name: Deploy
+
+# Depois que o CI passa na main: staging sozinho, produção só com aprovação no environment
+# `prod` (Required reviewers). Entra no Google Cloud por Workload Identity Federation, sem chave
+# JSON. As imagens são construídas aqui (amd64) e empurradas para o Artifact Registry do projeto.
+#
+# Ordem em cada ambiente: imagens -> migrations (job `ekoai-migrate`, espera terminar) ->
+# jobs -> plataforma -> health check. Migration é ADITIVA: deploy e migration não são atômicos.
+#
+# Rollback da plataforma: `gcloud run services update-traffic ekoai-platform
+# --to-revisions=<revisão anterior>=100 --region southamerica-east1`.
+#
+# Variáveis por environment (Settings > Environments): GCP_PROJECT, WIF_PROVIDER, DEPLOY_SA.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGION: southamerica-east1
+
+jobs:
+  staging:
+    name: Staging
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: staging
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    name: Produção
+    needs: [staging]
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: prod
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    permissions:
+      contents: read
+      id-token: write
