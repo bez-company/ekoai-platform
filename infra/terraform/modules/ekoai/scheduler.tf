@@ -12,9 +12,6 @@ resource "google_cloud_scheduler_job" "job" {
   paused           = var.schedules_paused
   attempt_deadline = "60s"
 
-  retry_config {
-    retry_count = 0
-  }
 
   http_target {
     http_method = "POST"
@@ -41,9 +38,6 @@ resource "google_cloud_scheduler_job" "publish_due" {
   paused           = var.schedules_paused
   attempt_deadline = "120s"
 
-  retry_config {
-    retry_count = 0
-  }
 
   http_target {
     http_method = "POST"
