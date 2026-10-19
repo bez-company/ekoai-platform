@@ -1,0 +1,3 @@
+# Falso positivo: PLATFORM_PASSWORD = "platform-password" mapeia a variável ao NOME do segredo.
+# O commit é o que introduziu a linha, antes do comentário gitleaks:allow.
+cda168a54cfef89fbf9fa89b7c4ae97e19aa3176:infra/terraform/modules/ekoai/locals.tf:hashicorp-tf-password:77
