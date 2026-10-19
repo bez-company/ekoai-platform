@@ -81,7 +81,7 @@ export async function commentOnPost(
 // Título que aparece em cima do documento no feed: o gancho do post, curto.
 export function documentTitle(hook?: string | null): string {
   const clean = String(hook || '').replace(/\s+/g, ' ').trim();
-  if (!clean) return 'Pilar';
+  if (!clean) return 'Documento';
   return clean.length > 80 ? `${clean.slice(0, 79).trimEnd()}…` : clean;
 }
 

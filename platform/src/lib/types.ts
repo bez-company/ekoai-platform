@@ -116,7 +116,7 @@ export type PublishedPost = {
   format?: string | null;
   channels: Record<string, unknown>;
   engagement_score?: number | null;
-  // funil da Pilar ligado pelo utm_content (SPEC 004)
+  // funil de conversão da conta, ligado pelo utm_content (SPEC 004)
   funnel?: { cadastros: number; ativados: number; pagantes: number; atualizado_em?: string } | null;
   published_at?: string | null;
 };

@@ -52,7 +52,11 @@ export default async function SettingsPage() {
             ? `Campanha ativa: ${campaign.name}. Troque o link da bio quando a campanha mudar.`
             : 'Nenhuma campanha ativa. O link mede o perfil como um todo.'}
         </p>
-        <code className="card block break-all text-xs">{bio}</code>
+        {bio ? (
+          <code className="card block break-all text-xs">{bio}</code>
+        ) : (
+          <p className="text-sm text-muted">Defina o site da conta (SITE_URL) para gerar o link rastreado.</p>
+        )}
       </div>
 
       <div className="space-y-2">

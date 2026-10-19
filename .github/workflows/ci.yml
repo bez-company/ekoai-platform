@@ -129,24 +129,25 @@ jobs:
       - name: O schema aceita o que o código grava
         run: |
           psql "$PGURL" -v ON_ERROR_STOP=1 <<'SQL'
+          insert into tenants (id, name) values ('exemplo', 'Exemplo') on conflict (id) do nothing;
           insert into briefs (tenant_id, pillar, angle, idea, status)
-            values ('pilar', 'dica', 'precificacao', 'ci', 'producing');
+            values ('exemplo', 'dica', 'precificacao', 'ci', 'producing');
           insert into pending_approvals (tenant_id, pending_id, channel, brief_id, generation, status)
-            select 'pilar', 'ci-linkedin', 'linkedin', id, '{"variations":[]}', 'rework_requested' from briefs limit 1;
+            select 'exemplo', 'ci-linkedin', 'linkedin', id, '{"variations":[]}', 'rework_requested' from briefs limit 1;
           insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for, brief_id, media_kind, utm)
-            select 'pilar', 'twitter', '{"id":1}', 'ci', now(), id, 'thread', '{"content":"d00000000"}' from briefs limit 1;
+            select 'exemplo', 'twitter', '{"id":1}', 'ci', now(), id, 'thread', '{"content":"d00000000"}' from briefs limit 1;
           insert into feedback (tenant_id, channel, aspect, sentiment, note)
-            values ('pilar', null, 'visual', 'negativo', 'fundo escuro');
-          insert into style_rules (tenant_id, rule, aspect, source) values ('pilar', 'sem emoji', 'tom', 'manual');
-          insert into publishing_controls (tenant_id, paused) values ('pilar', false)
+            values ('exemplo', null, 'visual', 'negativo', 'fundo escuro');
+          insert into style_rules (tenant_id, rule, aspect, source) values ('exemplo', 'sem emoji', 'tom', 'manual');
+          insert into publishing_controls (tenant_id, paused) values ('exemplo', false)
             on conflict (tenant_id) do update set paused = excluded.paused;
-          insert into post_events (tenant_id, post_id, type, payload) values ('pilar', null, 'idea_decision', '{}');
+          insert into post_events (tenant_id, post_id, type, payload) values ('exemplo', null, 'idea_decision', '{}');
           insert into engagements (tenant_id, kind, target_url, target_urn, parent_comment_urn, target_text, options, status)
-            values ('pilar', 'resposta', 'https://www.linkedin.com/feed/update/urn:li:activity:1/', 'urn:li:activity:1',
+            values ('exemplo', 'resposta', 'https://www.linkedin.com/feed/update/urn:li:activity:1/', 'urn:li:activity:1',
                     'urn:li:comment:(urn:li:activity:1,2)', 'texto', '["a"]', 'publicado');
-          insert into engage_targets (tenant_id, name, profile_url) values ('pilar', 'Ana', 'https://www.linkedin.com/in/ana/');
+          insert into engage_targets (tenant_id, name, profile_url) values ('exemplo', 'Ana', 'https://www.linkedin.com/in/ana/');
           insert into notifications (tenant_id, kind, level, title, body, link)
-            values ('pilar', 'publish.ok', 'info', 'Publicado no LinkedIn', null, '/history');
+            values ('exemplo', 'publish.ok', 'info', 'Publicado no LinkedIn', null, '/history');
           SQL
 
       # Isolamento por tenant provado como o app acessa (authenticated com JWT), não como

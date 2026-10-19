@@ -1,4 +1,4 @@
-# SETUP — do zero ao primeiro post
+# SETUP: conectar as redes e rodar local
 
 Tempo estimado: 1h30 a 2h. Pode fazer em paralelo durante o dia.
 
@@ -107,17 +107,7 @@ relatório semanal) ficam na tabela `notifications` do tenant e aparecem na plat
 
 ---
 
-## 5. Anthropic API Key
-
-**Tempo:** 5min
-
-1. [console.anthropic.com](https://console.anthropic.com) → API Keys → Create
-2. Adicione billing (crédito mínimo $5 — dura meses pro volume desse projeto)
-3. Copie a key → `ANTHROPIC_API_KEY`
-
----
-
-## 6. Segredos
+## 5. Segredos
 
 **Tempo:** 10min
 
@@ -128,34 +118,30 @@ mais usados: o repositório só roda o CI.
 
 Variáveis que os jobs leem:
 
-- `GEMINI_API_KEY`
+- `TENANT_ID` (a conta do job; sem ele o job não sobe)
 - `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`, `META_APP_ID`, `META_APP_SECRET`
 - `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_AUTHOR_URN`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`
 - `DATABASE_URL`, `STATE_BACKEND=postgres`, `STORAGE_BUCKET`, `MEDIA_BASE_URL`
 
 ---
 
-## 7. Teste local (sem APIs)
+## 6. Teste local (sem APIs)
 
 ```bash
 npm install
+(cd platform && npm install)
 npm test
-npm run dry-run
 ```
 
-Esperado: testes passam, dry-run gera 3 variações mock + 2 imagens (uma IG, uma LinkedIn) na pasta `tmp/`.
+Esperado: testes passam. A criação de posts com IA volta na fase 2
+([SPEC 011](docs/specs/011-plataforma-generica-fase-1.md)).
 
 ---
 
-## 8. Primeiro post de verdade
+## 7. Conectar o Instagram por conta
 
-1. `.env` preenchido, com `DATABASE_URL` de um Postgres com as migrations (`npm run migrate`)
-2. Enfileire 1 ideia em `queue_items` (`node src/atomize.js <arquivo> 1 --queue`, ou um `insert`):
-   `pillar = 'dor'`, `angle = 'tempo'`, `context = 'Primeiro post de validação'`
-3. Rode o job `post` com `SKIP_APPROVAL=true` (primeiro teste sem esperar aprovação): localmente
-   `npm start`; no Google Cloud, `gcloud run jobs execute post` depois da fase 3
-4. Veja a publicação em IG + LinkedIn
-5. Próximo post: deixar o fluxo normal, com aprovação na plataforma
+Hoje os tokens vêm do `.env` (uma conta por instalação). O fluxo "Conectar Instagram" por conta,
+com token cifrado no banco, é o R5 da [SPEC 011](docs/specs/011-plataforma-generica-fase-1.md).
 
 ---
 

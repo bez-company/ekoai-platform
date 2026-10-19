@@ -1,5 +1,5 @@
 // instagram.js — publica post (single image ou carousel) via Instagram Business Login API.
-// Chamado por: src/index.js. Docs: developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
+// Chamado por: src/metrics.js e src/refresh-tokens.js (a publicação mora na plataforma). Docs: developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
 //
 // Fluxo:
 //   1. POST /{ig-user-id}/media → cria container (image_url ou children pra carousel)

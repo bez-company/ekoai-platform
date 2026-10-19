@@ -1,35 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { chooseNextFormat } from '../src/utils/ranking.js';
-import { resolveTenant } from '../src/tenant.js';
 import { uploadVideoFromUrl } from '../platform/src/lib/channels/linkedin.ts';
 import { parseApproveIdea } from '../platform/src/lib/ideas-model.ts';
-import { canAutoPublish } from '../src/channels/capabilities.js';
-
-const tenant = resolveTenant('pilar');
-const li = (format, extra = {}) => ({ channel: 'linkedin', format, ...extra });
-
-describe('rodízio de formato no LinkedIn', () => {
-  const opts = { channel: 'linkedin', rotate: true, windowSize: 8 };
-
-  it('sem histórico começa pelo primeiro formato do canal', () => {
-    expect(chooseNextFormat([], opts, tenant.taxonomy)).toBe('text');
-  });
-
-  it('escolhe o menos usado; no empate, o que saiu há mais tempo', () => {
-    expect(chooseNextFormat([li('text')], opts, tenant.taxonomy)).toBe('single');
-    expect(chooseNextFormat([li('text'), li('single')], opts, tenant.taxonomy)).toBe('carousel');
-    expect(chooseNextFormat([li('carousel'), li('text'), li('single')], opts, tenant.taxonomy)).toBe('carousel');
-  });
-
-  it('ignora o histórico de outras redes', () => {
-    const hist = [li('text'), { channel: 'instagram', format: 'single' }, { channels: { instagram: {} }, format: 'carousel' }];
-    expect(chooseNextFormat(hist, opts, tenant.taxonomy)).toBe('single');
-  });
-
-  it('Instagram continua como antes (sem rodízio)', () => {
-    expect(chooseNextFormat([], {}, tenant.taxonomy)).toBeNull();
-  });
-});
+import { canAutoPublish } from '../platform/src/lib/capabilities.ts';
 
 describe('aprovar sem imagem', () => {
   it('a tela da ideia manda noImage por rede', () => {

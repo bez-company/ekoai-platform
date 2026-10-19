@@ -1,15 +1,11 @@
 // queue.js — fila de ideias, posts publicados, rejeitados e pendências de aprovação, todos no
 // Postgres (SPEC 010: o estado em YAML saiu; container não tem disco que sobreviva ao job).
-// Chamado por: src/index.js, src/resolve.js, src/utils/ranking.js, tests.
+// Chamado por: src/metrics.js e tests. A geração (fase 2, SPEC 011) volta a usar a fila e as pendências.
 
 import { usingDb, getDb } from './db.js';
-import { resolveTenant } from '../tenant.js';
+import { currentTenantId } from '../tenant.js';
 
-// Tenant atual do processo/job (env TENANT_ID; default 'pilar'). O backend roda
-// um tenant por execução, então o escopo do estado é por job.
-function currentTenantId() {
-  return resolveTenant().id;
-}
+// O backend roda uma conta por execução (TENANT_ID), então o escopo do estado é por job.
 
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -58,7 +54,7 @@ export function dbRowToPublished(row) {
     chosen_variation: row.chosen_variation ?? undefined,
     channels: row.channels ?? {},
     engagement_score: row.engagement_score != null ? Number(row.engagement_score) : undefined,
-    funnel: row.funnel ?? undefined, // cadastros/ativados/pagantes da Pilar (SPEC 004)
+    funnel: row.funnel ?? undefined, // cadastros/ativados/pagantes do site da conta (SPEC 004)
     generated_at: row.generated_at ?? undefined,
     published_at: row.published_at ?? undefined,
   };

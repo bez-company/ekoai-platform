@@ -86,7 +86,7 @@ end $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Cenário: dois tenants, cinco pessoas (SPEC 008).
---   A: admin da pilar      B: creator da pilar      V: viewer da pilar
+--   A: admin da exemplo    B: creator da exemplo    V: viewer da exemplo
 --   D: viewer da acme (entra pelo JWT, como no Supabase)      E: logado sem tenant
 -- A, B, V e E entram por app.user_id, como o nosso servidor faz.
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ insert into users (id, email) values
   ('00000000-0000-0000-0000-00000000000d', 'd@test'),
   ('00000000-0000-0000-0000-00000000000e', 'e@test'),
   ('00000000-0000-0000-0000-000000000099', 'acme-admin@test');
-insert into tenants (id, name) values ('acme', 'Acme') on conflict (id) do nothing;
+insert into tenants (id, name) values ('exemplo', 'Exemplo'), ('acme', 'Acme') on conflict (id) do nothing;
 -- tenant novo nasce pausado (trigger da 0013)
 do $$
 begin
@@ -106,16 +106,16 @@ begin
   end if;
 end $$;
 insert into tenant_members (tenant_id, user_id, role) values
-  ('pilar', '00000000-0000-0000-0000-00000000000a', 'admin'),
-  ('pilar', '00000000-0000-0000-0000-00000000000b', 'creator'),
-  ('pilar', '00000000-0000-0000-0000-00000000000f', 'viewer'),
+  ('exemplo', '00000000-0000-0000-0000-00000000000a', 'admin'),
+  ('exemplo', '00000000-0000-0000-0000-00000000000b', 'creator'),
+  ('exemplo', '00000000-0000-0000-0000-00000000000f', 'viewer'),
   ('acme',  '00000000-0000-0000-0000-000000000099', 'admin'),
   ('acme',  '00000000-0000-0000-0000-00000000000d', 'viewer');
-insert into feedback (tenant_id, aspect, note) values ('pilar', 'tom', 'rls-pilar'), ('acme', 'tom', 'rls-acme');
-insert into posts (tenant_id, pillar, channel) values ('pilar', 'dica', 'instagram'), ('acme', 'dica', 'instagram');
-insert into notifications (tenant_id, kind, title) values ('pilar', 'rls', 'rls-pilar'), ('acme', 'rls', 'rls-acme');
+insert into feedback (tenant_id, aspect, note) values ('exemplo', 'tom', 'rls-exemplo'), ('acme', 'tom', 'rls-acme');
+insert into posts (tenant_id, pillar, channel) values ('exemplo', 'dica', 'instagram'), ('acme', 'dica', 'instagram');
+insert into notifications (tenant_id, kind, title) values ('exemplo', 'rls', 'rls-exemplo'), ('acme', 'rls', 'rls-acme');
 
--- ── A: admin da pilar ────────────────────────────────────────────────────────
+-- ── A: admin da exemplo ────────────────────────────────────────────────────────
 set role authenticated;
 select set_config('app.user_id', '00000000-0000-0000-0000-00000000000a', false);
 do $$
@@ -123,18 +123,18 @@ declare n int;
 begin
   select count(*) into n from feedback where note like 'rls-%';
   if n <> 1 then raise exception 'A deveria ver 1 feedback, viu %', n; end if;
-  if exists (select 1 from feedback where tenant_id <> 'pilar') then raise exception 'A viu feedback de outro tenant'; end if;
-  if exists (select 1 from posts where tenant_id <> 'pilar') then raise exception 'A viu post de outro tenant'; end if;
+  if exists (select 1 from feedback where tenant_id <> 'exemplo') then raise exception 'A viu feedback de outro tenant'; end if;
+  if exists (select 1 from posts where tenant_id <> 'exemplo') then raise exception 'A viu post de outro tenant'; end if;
   select count(*) into n from tenants;
   if n <> 1 then raise exception 'A deveria ver só o próprio tenant, viu %', n; end if;
   select count(*) into n from users;
   if n <> 3 then raise exception 'A deveria ver a si e 2 colegas, viu % pessoas', n; end if;
 
-  insert into feedback (tenant_id, aspect, note) values ('pilar', 'tom', 'rls-a-ok');
-  insert into style_rules (tenant_id, rule, aspect, source) values ('pilar', 'rls-a-regra', 'tom', 'manual');
-  update publishing_controls set paused = false where tenant_id = 'pilar';
+  insert into feedback (tenant_id, aspect, note) values ('exemplo', 'tom', 'rls-a-ok');
+  insert into style_rules (tenant_id, rule, aspect, source) values ('exemplo', 'rls-a-regra', 'tom', 'manual');
+  update publishing_controls set paused = false where tenant_id = 'exemplo';
   insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for)
-    values ('pilar', 'linkedin', '{"id":1}', 'rls-a-agenda', now());
+    values ('exemplo', 'linkedin', '{"id":1}', 'rls-a-agenda', now());
 
   begin
     insert into feedback (tenant_id, aspect, note) values ('acme', 'tom', 'rls-a-invade');
@@ -147,7 +147,7 @@ begin
   if n <> 0 then raise exception 'A alterou % linha(s) da acme', n; end if;
 
   begin
-    insert into posts (tenant_id, pillar, channel) values ('pilar', 'dica', 'instagram');
+    insert into posts (tenant_id, pillar, channel) values ('exemplo', 'dica', 'instagram');
     raise exception 'A gravou em posts (só jobs gravam)';
   exception when insufficient_privilege then null;
   end;
@@ -155,7 +155,7 @@ begin
   select count(*) into n from notifications where kind = 'rls';
   if n <> 1 then raise exception 'A deveria ver 1 aviso, viu %', n; end if;
   begin
-    insert into notifications (tenant_id, kind, title) values ('pilar', 'rls', 'rls-a-forja');
+    insert into notifications (tenant_id, kind, title) values ('exemplo', 'rls', 'rls-a-forja');
     raise exception 'A gravou aviso (só jobs gravam)';
   exception when insufficient_privilege then null;
   end;
@@ -166,65 +166,65 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  if app.can('pilar', 'permissao.que.nao.existe') then raise exception 'permissão desconhecida passou'; end if;
+  if app.can('exemplo', 'permissao.que.nao.existe') then raise exception 'permissão desconhecida passou'; end if;
 end $$;
 
--- ── B: creator da pilar ──────────────────────────────────────────────────────
+-- ── B: creator da exemplo ──────────────────────────────────────────────────────
 select set_config('app.user_id', '00000000-0000-0000-0000-00000000000b', false);
 do $$
 begin
-  insert into feedback (tenant_id, aspect, note) values ('pilar', 'tom', 'rls-b-ok');
-  insert into briefs (tenant_id, pillar, angle, idea, status) values ('pilar', 'dica', 'rls', 'rls-b-brief', 'producing');
+  insert into feedback (tenant_id, aspect, note) values ('exemplo', 'tom', 'rls-b-ok');
+  insert into briefs (tenant_id, pillar, angle, idea, status) values ('exemplo', 'dica', 'rls', 'rls-b-brief', 'producing');
 
   begin
-    insert into style_rules (tenant_id, rule, aspect, source) values ('pilar', 'rls-b-regra', 'tom', 'manual');
+    insert into style_rules (tenant_id, rule, aspect, source) values ('exemplo', 'rls-b-regra', 'tom', 'manual');
     raise exception 'creator B mexeu na marca';
   exception when insufficient_privilege then null;
   end;
 
   begin
     insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for)
-      values ('pilar', 'linkedin', '{"id":1}', 'rls-b-agenda', now());
+      values ('exemplo', 'linkedin', '{"id":1}', 'rls-b-agenda', now());
     raise exception 'creator B agendou sem a conta liberar';
   exception when insufficient_privilege then null;
   end;
 
   begin
-    update publishing_controls set paused = true where tenant_id = 'pilar';
+    update publishing_controls set paused = true where tenant_id = 'exemplo';
     if found then raise exception 'creator B pausou a publicação'; end if;
   end;
 end $$;
 
 -- a conta libera a aprovação do criador
 reset role;
-update tenants set creator_can_approve = true where id = 'pilar';
+update tenants set creator_can_approve = true where id = 'exemplo';
 set role authenticated;
 do $$
 begin
   insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for)
-    values ('pilar', 'linkedin', '{"id":1}', 'rls-b-agenda-liberado', now());
+    values ('exemplo', 'linkedin', '{"id":1}', 'rls-b-agenda-liberado', now());
 end $$;
 
--- ── V: viewer da pilar (revisor: dá parecer e feedback) ──────────────────────
+-- ── V: viewer da exemplo (revisor: dá parecer e feedback) ──────────────────────
 select set_config('app.user_id', '00000000-0000-0000-0000-00000000000f', false);
 do $$
 declare n int;
 begin
-  insert into feedback (tenant_id, aspect, note) values ('pilar', 'tom', 'rls-v-parecer');
+  insert into feedback (tenant_id, aspect, note) values ('exemplo', 'tom', 'rls-v-parecer');
 
-  update feedback set note = 'rls-v-alterou' where tenant_id = 'pilar';
+  update feedback set note = 'rls-v-alterou' where tenant_id = 'exemplo';
   get diagnostics n = row_count;
   if n <> 0 then raise exception 'viewer V alterou % feedback(s)', n; end if;
 
   begin
-    insert into briefs (tenant_id, pillar, angle, idea, status) values ('pilar', 'dica', 'rls', 'rls-v-brief', 'producing');
+    insert into briefs (tenant_id, pillar, angle, idea, status) values ('exemplo', 'dica', 'rls', 'rls-v-brief', 'producing');
     raise exception 'viewer V criou brief';
   exception when insufficient_privilege then null;
   end;
 
   begin
     insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for)
-      values ('pilar', 'linkedin', '{"id":1}', 'rls-v-agenda', now());
+      values ('exemplo', 'linkedin', '{"id":1}', 'rls-v-agenda', now());
     raise exception 'viewer V agendou';
   exception when insufficient_privilege then null;
   end;
@@ -262,19 +262,19 @@ select set_config('app.user_id', '', false);
 do $$
 begin
   begin
-    delete from tenant_members where tenant_id = 'pilar' and user_id = '00000000-0000-0000-0000-00000000000a';
-    raise exception 'o último admin da pilar saiu';
+    delete from tenant_members where tenant_id = 'exemplo' and user_id = '00000000-0000-0000-0000-00000000000a';
+    raise exception 'o último admin da exemplo saiu';
   exception when check_violation then null;
   end;
   begin
-    update tenant_members set role = 'creator' where tenant_id = 'pilar' and user_id = '00000000-0000-0000-0000-00000000000a';
-    raise exception 'o último admin da pilar foi rebaixado';
+    update tenant_members set role = 'creator' where tenant_id = 'exemplo' and user_id = '00000000-0000-0000-0000-00000000000a';
+    raise exception 'o último admin da exemplo foi rebaixado';
   exception when check_violation then null;
   end;
 
   -- com um segundo admin, o primeiro pode ser rebaixado
-  update tenant_members set role = 'admin' where tenant_id = 'pilar' and user_id = '00000000-0000-0000-0000-00000000000b';
-  update tenant_members set role = 'creator' where tenant_id = 'pilar' and user_id = '00000000-0000-0000-0000-00000000000a';
+  update tenant_members set role = 'admin' where tenant_id = 'exemplo' and user_id = '00000000-0000-0000-0000-00000000000b';
+  update tenant_members set role = 'creator' where tenant_id = 'exemplo' and user_id = '00000000-0000-0000-0000-00000000000a';
 
   -- apagar a conta inteira leva os membros junto, inclusive o último admin
   insert into tenants (id, name) values ('beta', 'Beta');

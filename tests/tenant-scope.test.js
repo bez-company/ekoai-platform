@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { tenantDb } from '../platform/src/lib/tenant-db.ts';
 import { isTenantId } from '../platform/src/lib/tenant.ts';
-import { createSessionToken, verifySessionToken } from '../platform/src/lib/auth.ts';
+import { createSessionToken, verifySessionToken, installTenantId } from '../platform/src/lib/auth.ts';
 
 const SRC = join(import.meta.dirname, '../platform/src');
 
@@ -66,7 +66,7 @@ describe('tenantDb', () => {
   it('insert e upsert carimbam o tenant, por cima do que vier', () => {
     const { calls, client } = fakeClient();
     const t = tenantDb('acme', client);
-    t.insert('feedback', { note: 'x', tenant_id: 'pilar' });
+    t.insert('feedback', { note: 'x', tenant_id: 'beta' });
     t.insert('feedback', [{ note: 'a' }, { note: 'b' }]);
     t.upsert('publishing_controls', { paused: true }, { onConflict: 'tenant_id' });
     expect(calls.find(([m]) => m === 'insert')[1]).toEqual({ note: 'x', tenant_id: 'acme' });
@@ -79,13 +79,13 @@ describe('tenantDb', () => {
 
   it('update não troca o dono da linha', () => {
     const { calls, client } = fakeClient();
-    tenantDb('acme', client).update('feedback', { note: 'x', tenant_id: 'pilar' });
+    tenantDb('acme', client).update('feedback', { note: 'x', tenant_id: 'beta' });
     expect(calls.find(([m]) => m === 'update')[1]).toEqual({ note: 'x' });
   });
 
   it('recusa tenant fora do formato', () => {
     expect(() => tenantDb('Acme; drop', fakeClient().client)).toThrow(/tenant inválido/);
-    expect(isTenantId('pilar')).toBe(true);
+    expect(isTenantId('beta')).toBe(true);
     expect(isTenantId('')).toBe(false);
   });
 });
@@ -100,9 +100,24 @@ describe('sessão carrega o tenant', () => {
     expect(await verifySessionToken(token)).toEqual({ tenantId: 'acme', userId: null, sessionVersion: null });
   });
 
+  it('senha única sem TENANT_ID válido não emite sessão (ADR 0010, sem queda padrão)', () => {
+    const before = process.env.TENANT_ID;
+    try {
+      delete process.env.TENANT_ID;
+      expect(() => installTenantId()).toThrow(/TENANT_ID/);
+      process.env.TENANT_ID = 'Conta Ruim';
+      expect(() => installTenantId()).toThrow(/TENANT_ID/);
+      process.env.TENANT_ID = 'acme';
+      expect(installTenantId()).toBe('acme');
+    } finally {
+      if (before === undefined) delete process.env.TENANT_ID;
+      else process.env.TENANT_ID = before;
+    }
+  });
+
   it('trocar o tenant no cookie invalida a sessão', async () => {
     const [, exp, sig] = (await createSessionToken('acme')).split('.');
-    expect(await verifySessionToken(`pilar.${exp}.${sig}`)).toBeNull();
+    expect(await verifySessionToken(`beta.${exp}.${sig}`)).toBeNull();
   });
 
   it('token antigo (sem tenant), vencido ou lixo não valida', async () => {

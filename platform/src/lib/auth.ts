@@ -52,9 +52,12 @@ async function hmac(payload: string): Promise<string> {
   return b64url(new Uint8Array(sig));
 }
 
-// Tenant da instalação de senha única. Com o login por usuário, vem da membership.
+// Tenant da instalação de senha única. Com o login por usuário, vem da membership. Sem queda
+// padrão (ADR 0010): instalação sem TENANT_ID válido não emite sessão.
 export function installTenantId(): string {
-  return process.env.TENANT_ID || 'pilar';
+  const id = process.env.TENANT_ID;
+  if (!isTenantId(id)) throw new Error('TENANT_ID ausente ou inválido na instalação de senha única');
+  return id;
 }
 
 export type Session = { tenantId: string; userId: string | null; sessionVersion: number | null };

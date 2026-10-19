@@ -9,22 +9,24 @@ describe('jobs (Cloud Run Jobs)', () => {
     }
   });
 
-  it('post monta o índice antes de gerar, menos em DRY_RUN', () => {
-    expect(stepsFor('post', {})).toEqual([['src/build-index.js'], ['src/index.js']]);
-    expect(stepsFor('post', { DRY_RUN: 'true' })).toEqual([['src/index.js']]);
+  it('token-health é o refresh-tokens em modo check', () => {
+    expect(stepsFor('token-health', { TENANT_ID: 'acme' })).toEqual([['src/refresh-tokens.js', 'check']]);
   });
 
-  it('token-health é o refresh-tokens em modo check', () => {
-    expect(stepsFor('token-health')).toEqual([['src/refresh-tokens.js', 'check']]);
+  it('job de conta sem TENANT_ID não começa; migrate não precisa de conta', () => {
+    for (const name of ['refresh-tokens', 'token-health', 'weekly-report']) {
+      expect(() => stepsFor(name, {}), name).toThrow(/TENANT_ID não definido/);
+    }
+    expect(stepsFor('migrate', {})).toEqual([['scripts/migrate.js']]);
   });
 
   it('nome desconhecido lista os disponíveis', () => {
-    expect(() => stepsFor('nada')).toThrow(/Disponíveis: post, resolve/);
+    expect(() => stepsFor('nada')).toThrow(/Disponíveis: refresh-tokens, token-health/);
   });
 
-  it('cobre os workflows que o GitHub Actions rodava', () => {
-    for (const name of ['post', 'resolve', 'reflect', 'refresh-tokens', 'token-health', 'weekly-report', 'funnel']) {
-      expect(JOBS[name]).toBeDefined();
+  it('os jobs de geração saíram até a fase 2 (ADR 0010)', () => {
+    for (const name of ['post', 'resolve', 'reflect', 'funnel', 'engage', 'repurpose', 'reel']) {
+      expect(JOBS[name]).toBeUndefined();
     }
   });
 });

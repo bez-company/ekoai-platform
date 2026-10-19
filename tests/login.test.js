@@ -47,7 +47,7 @@ describe('sessão por pessoa assinada', () => {
 
   it('trocar a conta, a versão ou a assinatura invalida', async () => {
     const token = await auth.createUserSessionToken({ userId: USER, tenantId: 'acme', sessionVersion: 3 });
-    expect(await auth.verifySessionToken(token.replace('.acme.', '.pilar.'))).toBeNull();
+    expect(await auth.verifySessionToken(token.replace('.acme.', '.beta.'))).toBeNull();
     expect(await auth.verifySessionToken(token.replace('.3.', '.4.'))).toBeNull();
     expect(await auth.verifySessionToken(`${token.slice(0, -2)}xx`)).toBeNull();
   });
@@ -65,8 +65,8 @@ describe('sessão por pessoa assinada', () => {
   });
 
   it('a sessão de senha única segue valendo', async () => {
-    const token = await auth.createSessionToken('pilar');
-    expect(await auth.verifySessionToken(token)).toEqual({ tenantId: 'pilar', userId: null, sessionVersion: null });
+    const token = await auth.createSessionToken('beta');
+    expect(await auth.verifySessionToken(token)).toEqual({ tenantId: 'beta', userId: null, sessionVersion: null });
   });
 });
 
@@ -146,7 +146,7 @@ describe('sessão conferida no servidor', () => {
   });
 
   it('um modo não aceita a sessão do outro', async () => {
-    jar.value = await auth.createSessionToken('pilar');
+    jar.value = await auth.createSessionToken('beta');
     await expect(session.requireSession()).rejects.toBeInstanceOf(session.UnauthorizedError);
     process.env.AUTH_PROVIDER = 'password';
     expect((await session.requireSession()).role).toBe('admin');

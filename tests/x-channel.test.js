@@ -139,7 +139,7 @@ describe('uploadVideoFromUrl', () => {
 describe('link no X', () => {
   it('política é resposta e utm_source é x', () => {
     expect(LINK_POLICY.twitter).toBe('reply');
-    const utm = distributionUtm({ channel: 'twitter', distributionId: '3f2a9c1e-7b4d-4e2a-9c11-aa00bb11cc22' });
+    const utm = distributionUtm({ channel: 'twitter', distributionId: '3f2a9c1e-7b4d-4e2a-9c11-aa00bb11cc22', baseUrl: 'https://exemplo.com.br' });
     expect(utm.source).toBe('x');
     expect(utm.url).toContain('utm_source=x');
   });

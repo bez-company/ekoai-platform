@@ -7,16 +7,20 @@ const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('TEST_DATABASE_URL ausente');
 process.env.DATABASE_URL = url;
 process.env.STATE_BACKEND = 'postgres';
-process.env.TENANT_ID = 'pilar';
+const TENANT = 'it-queue';
+process.env.TENANT_ID = TENANT;
 
 const admin = new pg.Pool({ connectionString: url, max: 1 });
 const { getQueue, getPublished, getRejected, popNext, pushToQueue, markPublished, markRejected } = await import('../../src/utils/queue.js');
 const { closeDb } = await import('../../src/utils/db.js');
 
-beforeAll(() => resetTenantData(admin));
+beforeAll(async () => {
+  await resetTenantData(admin, [TENANT]);
+  await admin.query('insert into tenants (id, name) values ($1, $1)', [TENANT]);
+});
 beforeEach(() => resetTenantData(admin));
 afterAll(async () => {
-  await resetTenantData(admin);
+  await resetTenantData(admin, [TENANT]);
   await admin.end();
   await closeDb();
 });

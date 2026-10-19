@@ -42,8 +42,8 @@ describe('migrate num banco vazio', () => {
     const pool = new pg.Pool({ connectionString: urlFor(dbName), max: 1 });
     const { rows } = await pool.query('select count(*)::int n from public.schema_migrations');
     expect(rows[0].n).toBe(first.applied.length);
-    const { rows: tenants } = await pool.query("select id from tenants where id = 'pilar'");
-    expect(tenants).toHaveLength(1);
+    const { rows: tables } = await pool.query("select count(*)::int n from information_schema.tables where table_schema = 'public' and table_name = 'tenants'");
+    expect(tables[0].n).toBe(1);
     await pool.end();
   });
 

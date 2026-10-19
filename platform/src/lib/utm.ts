@@ -1,6 +1,7 @@
 // utm.ts: UTM de cada distribuição (SPEC 001 R1). O utm_content é o id curto da
-// distribuição (scheduled_posts.id); é a chave que o Pilar devolve no ops-export-funil
-// com cadastros, ativados e pagantes. Puro, sem I/O (testado em tests/utm.test.js).
+// distribuição (scheduled_posts.id); é a chave que liga cadastro e venda do site da conta ao
+// post. Puro, sem I/O (testado em tests/utm.test.js). Sem site da conta não há link rastreado:
+// nenhuma URL padrão (ADR 0010).
 
 import type { Channel } from './types';
 
@@ -13,8 +14,6 @@ export type Utm = {
 };
 
 export type LinkPolicy = 'first_comment' | 'reply' | 'bio';
-
-export const DEFAULT_SITE_URL = 'https://pilarsoft.com.br';
 
 // Campanha padrão quando nenhuma está ativa (rotação de pilares).
 export const ALWAYS_ON_CAMPAIGN = 'sempre-on';
@@ -53,20 +52,22 @@ export function distributionUtm(input: {
   distributionId: string;
   campaignSlug?: string | null;
   medium?: string;
-  baseUrl?: string;
-}): Utm {
+  baseUrl?: string | null;
+}): Utm | null {
+  if (!input.baseUrl) return null;
   const params = {
     source: SOURCE_BY_CHANNEL[input.channel],
     medium: input.medium || 'organico',
     campaign: input.campaignSlug || ALWAYS_ON_CAMPAIGN,
     content: shortId(input.distributionId),
   };
-  return { ...params, url: withUtm(input.baseUrl || DEFAULT_SITE_URL, params) };
+  return { ...params, url: withUtm(input.baseUrl, params) };
 }
 
 // Link da bio do Instagram: atribuição por campanha (o feed não tem link por post).
-export function bioLink(input: { campaignSlug?: string | null; baseUrl?: string } = {}): string {
-  return withUtm(input.baseUrl || DEFAULT_SITE_URL, {
+export function bioLink(input: { campaignSlug?: string | null; baseUrl?: string | null } = {}): string | null {
+  if (!input.baseUrl) return null;
+  return withUtm(input.baseUrl, {
     source: 'instagram',
     medium: 'bio',
     campaign: input.campaignSlug || 'perfil',
@@ -75,5 +76,5 @@ export function bioLink(input: { campaignSlug?: string | null; baseUrl?: string 
 }
 
 export function linkCommentText(utm: Utm): string {
-  return `Teste a Pilar grátis por 3 dias: ${utm.url}`;
+  return `Saiba mais: ${utm.url}`;
 }
