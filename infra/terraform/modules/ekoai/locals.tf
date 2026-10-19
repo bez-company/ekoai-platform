@@ -74,7 +74,7 @@ locals {
     DATABASE_URL      = "database-url"
     AUTH_SECRET       = "auth-secret"
     CRON_SECRET       = "cron-secret"
-    PLATFORM_PASSWORD = "platform-password"
+    PLATFORM_PASSWORD = "platform-password" # gitleaks:allow (nome do segredo, não o valor)
   })
 
   # Só entra o que tem valor: variável vazia faria o app falhar com uma mensagem pior que a ausência.
