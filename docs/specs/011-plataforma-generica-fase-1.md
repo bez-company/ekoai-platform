@@ -1,6 +1,7 @@
 # SPEC 011: plataforma genérica, fase 1 (contas, empresa, equipe e Instagram)
 
-- **Status:** aprovada em 2026-10-19. Item R1 implementado (ver o registro no fim)
+- **Status:** aprovada em 2026-10-19. R1 implementado; protótipo aprovado (design system 06)
+- **Protótipo:** https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz (artifact HTML navegável, no lugar do handoff do Claude Design)
 - **Decisões:** [ADR 0010](../adr/0010-plataforma-generica-sem-pilar-no-codigo.md) (Pilar fora do
   código, geração até a fase 2, cadastro atrás de flag) e
   [ADR 0011](../adr/0011-design-system-neutro-ate-a-marca.md) (design system neutro)
@@ -169,7 +170,7 @@ decorativo.
 | --- | --- | --- | --- |
 | 1 | R1: código sem a Pilar | não | testes e typecheck; teste de CI contra referência à Pilar |
 | 2 | Banco de R2 a R9 (tabelas, RLS, permissões novas) | não | `rls_test.sql` cobre cada tabela; convite expirado, reusado e de outra conta |
-| 3 | Protótipo aprovado no Claude Design | | handoff no repo, link aqui e na PR |
+| 3 | Protótipo aprovado (feito em 19/10/2026, link no topo) e design system 06 na plataforma | | `tests/design-tokens.test.js` |
 | 4 | R2 e R4: entrada, cadastro, conta, equipe, convite | sim | emulador do Identity Platform no CI |
 | 5 | R3: perfil da empresa | sim | validação na entrada testada; SVG malicioso recusado |
 | 6 | R5: Instagram | sim | fluxo com conta tester; token nunca aparece na resposta da API |

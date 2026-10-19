@@ -38,12 +38,12 @@ export default function FeedbackList({ items }: { items: Feedback[] }) {
 
   return (
     <div className="grid gap-1">
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       {items.map((f) => (
-        <div key={f.id} className="flex items-start gap-3 rounded-md border border-edge px-3 py-2 text-sm">
+        <div key={f.id} className="flex items-start gap-3 rounded-md border border-line px-3 py-2 text-sm">
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
-              <span className={f.sentiment === 'positivo' ? 'text-emerald-300' : 'text-red-300'}>
+              <span className={f.sentiment === 'positivo' ? 'text-success' : 'text-danger'}>
                 {f.sentiment === 'positivo' ? 'Gostei' : 'Não gostei'}
               </span>
               <span className="chip">{ASPECT_LABEL[f.aspect]}</span>
@@ -57,7 +57,7 @@ export default function FeedbackList({ items }: { items: Feedback[] }) {
           <button
             onClick={() => remove(f.id)}
             disabled={busy === f.id}
-            className="shrink-0 text-xs text-red-400 hover:underline"
+            className="shrink-0 text-xs text-danger hover:underline"
           >
             Apagar
           </button>

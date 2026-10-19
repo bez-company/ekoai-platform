@@ -45,7 +45,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
           <select
             value={channel}
             onChange={(e) => setChannel(e.target.value as Channel)}
-            className="rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+            className="rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           >
             {CHANNELS.map((c) => (
               <option key={c} value={c}>
@@ -56,7 +56,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
           <select
             value={weekday}
             onChange={(e) => setWeekday(Number(e.target.value))}
-            className="rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+            className="rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           >
             {WEEKDAYS.map((d) => (
               <option key={d} value={d}>
@@ -70,7 +70,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
             max={23}
             value={hour}
             onChange={(e) => setHour(Number(e.target.value))}
-            className="w-16 rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+            className="w-16 rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           />
           <span className="self-center text-muted">:</span>
           <input
@@ -79,7 +79,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
             max={59}
             value={minute}
             onChange={(e) => setMinute(Number(e.target.value))}
-            className="w-16 rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+            className="w-16 rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           />
           <button onClick={add} disabled={busy} className="btn-primary">
             Adicionar
@@ -93,13 +93,13 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
           {byChannel(c).length === 0 && <p className="text-sm text-muted">Sem slots.</p>}
           <div className="grid gap-1">
             {byChannel(c).map((s) => (
-              <div key={s.id} className="flex items-center gap-3 rounded-md border border-edge px-3 py-1.5 text-sm">
+              <div key={s.id} className="flex items-center gap-3 rounded-md border border-line px-3 py-1.5 text-sm">
                 <span className="w-24">{weekdayName(s.weekday)}</span>
                 <span className="font-mono">
                   {String(s.hour).padStart(2, '0')}:{String(s.minute).padStart(2, '0')}
                 </span>
                 {!s.active && <span className="chip">inativo</span>}
-                <button onClick={() => remove(s.id)} disabled={busy} className="ml-auto text-xs text-red-400 hover:underline">
+                <button onClick={() => remove(s.id)} disabled={busy} className="ml-auto text-xs text-danger hover:underline">
                   remover
                 </button>
               </div>

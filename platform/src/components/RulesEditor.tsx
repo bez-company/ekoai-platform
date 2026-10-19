@@ -59,13 +59,13 @@ function RuleFields({
         value={rule}
         onChange={(e) => setRule(e.target.value)}
         placeholder="Ex.: nunca use emoji no gancho"
-        className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
       />
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={aspect}
           onChange={(e) => setAspect(e.target.value as Aspect)}
-          className="rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+          className="rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           aria-label="Aspecto"
         >
           {ASPECTS.map((a) => (
@@ -77,7 +77,7 @@ function RuleFields({
         <select
           value={channel}
           onChange={(e) => setChannel(e.target.value)}
-          className="rounded-md border border-edge bg-ink px-2 py-1.5 text-sm"
+          className="rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
           aria-label="Rede"
         >
           <option value="todas">todas as redes</option>
@@ -96,7 +96,7 @@ function RuleFields({
           </button>
         )}
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
@@ -138,7 +138,7 @@ export default function RulesEditor({ rules }: { rules: StyleRule[] }) {
       );
     }
     return (
-      <div key={r.id} className="flex items-start gap-3 rounded-md border border-edge px-3 py-2 text-sm">
+      <div key={r.id} className="flex items-start gap-3 rounded-md border border-line px-3 py-2 text-sm">
         <div className="min-w-0 flex-1">
           <p className={r.active ? '' : 'text-muted line-through'}>{r.rule}</p>
           <p className="mt-1 flex flex-wrap gap-1.5 text-xs text-muted">
@@ -147,11 +147,11 @@ export default function RulesEditor({ rules }: { rules: StyleRule[] }) {
           </p>
         </div>
         {r.active && (
-          <button onClick={() => setEditing(r.id)} className="shrink-0 text-xs text-muted hover:text-white hover:underline">
+          <button onClick={() => setEditing(r.id)} className="shrink-0 text-xs text-muted hover:text-fg hover:underline">
             Editar
           </button>
         )}
-        <button onClick={() => toggle(r)} className="shrink-0 text-xs text-muted hover:text-white hover:underline">
+        <button onClick={() => toggle(r)} className="shrink-0 text-xs text-muted hover:text-fg hover:underline">
           {r.active ? 'Desligar' : 'Religar'}
         </button>
       </div>
@@ -165,7 +165,7 @@ export default function RulesEditor({ rules }: { rules: StyleRule[] }) {
         <RuleFields submitLabel="Adicionar regra" onSubmit={(v) => save('POST', v)} />
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {active.length === 0 && (
         <div className="card text-sm text-muted">
@@ -189,7 +189,7 @@ export default function RulesEditor({ rules }: { rules: StyleRule[] }) {
 
       {inactive.length > 0 && (
         <details className="space-y-2">
-          <summary className="cursor-pointer text-xs text-muted hover:text-white">Desligadas ({inactive.length})</summary>
+          <summary className="cursor-pointer text-xs text-muted hover:text-fg">Desligadas ({inactive.length})</summary>
           <div className="grid gap-1 pt-2">{inactive.map(row)}</div>
         </details>
       )}

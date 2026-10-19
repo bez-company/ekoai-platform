@@ -28,7 +28,7 @@ export default async function IdeaPage({ params }: { params: Promise<{ briefId: 
 
   return (
     <div className="space-y-4">
-      <Link href="/inbox" className="text-sm text-muted hover:text-white">
+      <Link href="/inbox" className="text-sm text-muted hover:text-fg">
         ← voltar
       </Link>
       <IdeaForm idea={idea} suggested={suggested} nextSlots={nextSlots} />

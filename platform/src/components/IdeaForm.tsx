@@ -134,7 +134,7 @@ export default function IdeaForm({
       </div>
 
       {motherChanged && reuseSiblings.length > 0 && (
-        <div className="card flex flex-wrap items-center gap-3 border-amber-900/50 bg-amber-950/20 text-sm text-amber-200">
+        <div className="card flex flex-wrap items-center gap-3 border-warning/30 bg-warning/10 text-sm text-warning">
           <span className="flex-1">
             Você trocou a variação do conteúdo-mãe. As redes reaproveitadas ainda vêm da variação #{mother?.top_id}.
           </span>
@@ -169,18 +169,18 @@ export default function IdeaForm({
         </div>
       )}
 
-      {notice && <p className="text-sm text-emerald-300">{notice}</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {notice && <p className="text-sm text-success">{notice}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {rejecting && (
-        <section className="card space-y-2 border-red-900/60">
+        <section className="card space-y-2 border-danger/30">
           <h2 className="label">Por que rejeitar a ideia?</h2>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Ex.: tema repetido da semana passada"
-            className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+            className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
           <div className="flex gap-2">
             <button onClick={reject} disabled={busy} className="btn-danger">
@@ -193,7 +193,7 @@ export default function IdeaForm({
         </section>
       )}
 
-      <div className="flex gap-2 border-t border-edge pt-4">
+      <div className="flex gap-2 border-t border-line pt-4">
         <button onClick={approve} disabled={busy || enabledCount === 0} className="btn-primary">
           {busy ? 'Salvando…' : `Aprovar e agendar ${enabledCount} ${enabledCount === 1 ? 'rede' : 'redes'}`}
         </button>
@@ -238,7 +238,7 @@ function NetworkCard({
       <div className="flex flex-wrap items-center gap-2">
         <span className="chip uppercase">{p.channel}</span>
         <span className="text-sm">{roleLabel}</span>
-        {p.status === 'rework_requested' && <span className="chip text-amber-300">nova versão pedida</span>}
+        {p.status === 'rework_requested' && <span className="chip text-warning">nova versão pedida</span>}
         <label className="ml-auto flex items-center gap-2 text-sm">
           <input type="checkbox" checked={s.enabled} onChange={(e) => onChange({ enabled: e.target.checked })} />
           Publicar nesta rede
@@ -260,7 +260,7 @@ function NetworkCard({
                     })
                   }
                   className={`rounded-lg border p-3 text-left text-sm transition ${
-                    s.captionId === v.id ? 'border-accent ring-1 ring-accent' : 'border-edge hover:border-muted'
+                    s.captionId === v.id ? 'border-accent ring-1 ring-accent' : 'border-line hover:border-line-strong'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -277,7 +277,7 @@ function NetworkCard({
             value={s.captionText}
             onChange={(e) => onChange({ captionText: e.target.value, edited: true })}
             rows={p.channel === 'linkedin' ? 10 : 6}
-            className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+            className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
           <p className="text-xs text-muted">
             {s.captionText.length} caracteres{s.edited ? ' · editado' : ''}
@@ -287,7 +287,7 @@ function NetworkCard({
           {tweets.length > 0 && (
             <ol className="space-y-1">
               {tweets.map((t, i) => (
-                <li key={i} className="rounded-md border border-edge px-3 py-2 text-sm">
+                <li key={i} className="rounded-md border border-line px-3 py-2 text-sm">
                   <p className="whitespace-pre-line">{t}</p>
                   <p className="mt-1 text-right text-xs text-muted">{t.length}/280</p>
                 </li>
@@ -301,7 +301,7 @@ function NetworkCard({
                 <button
                   onClick={() => onChange({ noImage: true })}
                   className={`flex h-24 w-24 items-center justify-center rounded-lg border text-xs ${
-                    s.noImage ? 'border-accent ring-1 ring-accent' : 'border-edge text-muted'
+                    s.noImage ? 'border-accent ring-1 ring-accent' : 'border-line text-muted'
                   }`}
                 >
                   Sem imagem
@@ -311,7 +311,7 @@ function NetworkCard({
                 <button
                   key={im.id}
                   onClick={() => onChange({ artId: im.id, noImage: false })}
-                  className={`overflow-hidden rounded-lg border ${!s.noImage && s.artId === im.id ? 'border-accent ring-1 ring-accent' : 'border-edge'}`}
+                  className={`overflow-hidden rounded-lg border ${!s.noImage && s.artId === im.id ? 'border-accent ring-1 ring-accent' : 'border-line'}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={im.url!} alt={`arte ${im.id}`} className="h-24 w-24 object-cover" />
@@ -332,19 +332,19 @@ function NetworkCard({
                 type="datetime-local"
                 value={s.manual}
                 onChange={(e) => onChange({ manual: e.target.value })}
-                className="rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+                className="rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               />
             )}
           </div>
 
           {(role === 'reuse' || (role === 'own' && motherChannel)) && (
-            <div className="border-t border-edge pt-2">
+            <div className="border-t border-line pt-2">
               {role === 'reuse' ? (
-                <button onClick={() => onRework('own')} disabled={busy} className="text-xs text-muted hover:text-white hover:underline">
+                <button onClick={() => onRework('own')} disabled={busy} className="text-xs text-muted hover:text-fg hover:underline">
                   Não serve? Gerar um post próprio para {p.channel}
                 </button>
               ) : (
-                <button onClick={() => onRework('reuse')} disabled={busy} className="text-xs text-muted hover:text-white hover:underline">
+                <button onClick={() => onRework('reuse')} disabled={busy} className="text-xs text-muted hover:text-fg hover:underline">
                   Reaproveitar o conteúdo do {motherChannel} em vez deste
                 </button>
               )}

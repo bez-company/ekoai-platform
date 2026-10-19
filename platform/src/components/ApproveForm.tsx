@@ -83,7 +83,7 @@ export default function ApproveForm({
       </div>
 
       {pending.generation?.judge_reason && (
-        <p className="text-xs text-muted">🧠 judge: {pending.generation.judge_reason}</p>
+        <p className="text-xs text-muted">Avaliação: {pending.generation.judge_reason}</p>
       )}
 
       {/* 1. Legenda */}
@@ -95,7 +95,7 @@ export default function ApproveForm({
               key={v.id}
               onClick={() => selectCaption(v.id)}
               className={`card text-left text-sm transition ${
-                captionId === v.id ? 'border-accent ring-1 ring-accent' : 'hover:border-muted'
+                captionId === v.id ? 'border-accent ring-1 ring-accent' : 'hover:border-line-strong'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -113,13 +113,13 @@ export default function ApproveForm({
             setEdited(true);
           }}
           rows={10}
-          className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <p className="text-xs text-muted">
           {captionText.length} caracteres {edited && '· editado'} ·{' '}
           <button
             type="button"
-            className="underline hover:text-white"
+            className="underline hover:text-fg"
             onClick={() => {
               setCaptionText(suggested[captionId] ?? '');
               setEdited(false);
@@ -136,7 +136,7 @@ export default function ApproveForm({
             </p>
             <ol className="space-y-1">
               {tweets.map((t, i) => (
-                <li key={i} className="rounded-md border border-edge px-3 py-2 text-sm">
+                <li key={i} className="rounded-md border border-line px-3 py-2 text-sm">
                   <p className="whitespace-pre-line">{t}</p>
                   <p className="mt-1 text-right text-xs text-muted">{t.length}/280</p>
                 </li>
@@ -155,7 +155,7 @@ export default function ApproveForm({
             <button
               onClick={() => setNoImage(true)}
               className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border text-sm transition ${
-                noImage ? 'border-accent ring-1 ring-accent' : 'border-edge text-muted hover:border-muted'
+                noImage ? 'border-accent ring-1 ring-accent' : 'border-line text-muted hover:border-line-strong'
               }`}
             >
               Sem imagem
@@ -170,7 +170,7 @@ export default function ApproveForm({
                 setNoImage(false);
               }}
               className={`overflow-hidden rounded-lg border transition ${
-                !noImage && artId === im.id ? 'border-accent ring-1 ring-accent' : 'border-edge hover:border-muted'
+                !noImage && artId === im.id ? 'border-accent ring-1 ring-accent' : 'border-line hover:border-line-strong'
               }`}
             >
               {im.url ? (
@@ -206,11 +206,11 @@ export default function ApproveForm({
             type="datetime-local"
             value={manual}
             onChange={(e) => setManual(e.target.value)}
-            className="rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
         )}
         {mode === 'slot' && !nextSlot && (
-          <p className="text-xs text-amber-300">Grade vazia/saturada — use horário manual ou adicione slots em /settings.</p>
+          <p className="text-xs text-warning">Grade vazia/saturada — use horário manual ou adicione slots em /settings.</p>
         )}
       </section>
 
@@ -225,10 +225,10 @@ export default function ApproveForm({
         </div>
       </details>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {rejecting && (
-        <section className="card space-y-2 border-red-900/60">
+        <section className="card space-y-2 border-danger/30">
           <h2 className="label">Por que rejeitar?</h2>
           <p className="text-xs text-muted">O motivo vira anti-exemplo e entra no prompt das próximas gerações.</p>
           <FeedbackForm
@@ -241,7 +241,7 @@ export default function ApproveForm({
         </section>
       )}
 
-      <div className="flex gap-2 border-t border-edge pt-4">
+      <div className="flex gap-2 border-t border-line pt-4">
         <button onClick={approve} disabled={busy || (mode === 'slot' && !nextSlot)} className="btn-primary">
           {busy ? 'Agendando…' : 'Aprovar e agendar'}
         </button>

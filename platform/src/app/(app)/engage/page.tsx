@@ -39,7 +39,7 @@ export default async function EngagePage() {
         </div>
         <div className="text-right text-sm">
           <p>
-            <span className="text-lg font-semibold text-white">{summary.postedThisWeek}</span>
+            <span className="text-lg font-semibold text-fg">{summary.postedThisWeek}</span>
             <span className="text-muted"> de {ENGAGE_LIMITS.weeklyGoal} nesta semana</span>
           </p>
           <p className="text-xs text-muted">
@@ -47,7 +47,7 @@ export default async function EngagePage() {
           </p>
         </div>
       </div>
-      {err && <div className="card border-amber-900/50 bg-amber-950/20 text-sm text-amber-200">{err}</div>}
+      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
 
       <EngageForm />
 
@@ -63,18 +63,18 @@ export default async function EngagePage() {
           {items
             .filter((i) => i.status !== 'rascunho')
             .map((i) => (
-              <div key={i.id} className="rounded-md border border-edge px-3 py-2 text-sm">
+              <div key={i.id} className="rounded-md border border-line px-3 py-2 text-sm">
                 <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
-                  <span className={`chip ${i.status === 'falhou' ? 'text-red-300' : ''}`}>{STATUS_LABEL[i.status]}</span>
+                  <span className={`chip ${i.status === 'falhou' ? 'text-danger' : ''}`}>{STATUS_LABEL[i.status]}</span>
                   <span className="chip">{i.kind}</span>
                   {i.target_author && <span>{i.target_author}</span>}
                   <span>{fmtDateTime(i.posted_at || i.created_at)}</span>
-                  <a href={i.target_url} target="_blank" rel="noopener" className="ml-auto text-accent hover:underline">
+                  <a href={i.target_url} target="_blank" rel="noopener" className="ml-auto text-accent-text hover:underline">
                     abrir post
                   </a>
                 </p>
                 <p className="mt-1">{i.comment_text}</p>
-                {i.status === 'falhou' && i.error && <p className="mt-1 line-clamp-2 text-xs text-red-300">{i.error}</p>}
+                {i.status === 'falhou' && i.error && <p className="mt-1 line-clamp-2 text-xs text-danger">{i.error}</p>}
               </div>
             ))}
         </div>

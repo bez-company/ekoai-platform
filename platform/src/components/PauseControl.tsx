@@ -31,18 +31,18 @@ export default function PauseControl({ state, overdue }: { state: PauseState; ov
 
   if (state.paused) {
     return (
-      <div className="card space-y-3 border-amber-900/60 bg-amber-950/20">
-        <p className="text-sm text-amber-100">
+      <div className="card space-y-3 border-warning/30 bg-warning/10">
+        <p className="text-sm text-warning">
           Pausada{state.pausedAt ? ` desde ${fmtDateTime(state.pausedAt)}` : ''}. Nada sai até você retomar.
           {state.reason ? ` Motivo: ${state.reason}` : ''}
         </p>
         {overdue > 0 && (
-          <p className="text-sm text-amber-200">
+          <p className="text-sm text-warning">
             {overdue === 1 ? '1 post passou' : `${overdue} posts passaram`} do horário. Ao retomar, saem juntos no
             próximo ciclo (até 10 min). Reagende no calendário o que não deve sair agora.
           </p>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <button onClick={() => toggle(false)} disabled={busy} className="btn-primary">
           {busy ? 'Retomando…' : 'Retomar publicação'}
         </button>
@@ -60,9 +60,9 @@ export default function PauseControl({ state, overdue }: { state: PauseState; ov
         onChange={(e) => setReason(e.target.value)}
         placeholder="Motivo (opcional), ex.: revisar a campanha"
         maxLength={140}
-        className="w-full rounded-md border border-edge bg-ink px-3 py-2 text-sm"
+        className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm"
       />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button onClick={() => toggle(true)} disabled={busy} className="btn-danger">
         {busy ? 'Pausando…' : 'Pausar publicação'}
       </button>

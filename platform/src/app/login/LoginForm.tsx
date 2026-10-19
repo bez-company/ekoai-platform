@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import AuthLayout from '@/components/AuthLayout';
 
 export default function LoginForm() {
   const [password, setPassword] = useState('');
@@ -25,32 +26,41 @@ export default function LoginForm() {
       router.refresh();
     } else {
       const j = await res.json().catch(() => ({}));
-      setError(j.error || 'Falha no login');
+      setError(j.error || 'Não deu para entrar agora. Tente de novo em instantes.');
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
+    <AuthLayout>
+      <form onSubmit={submit} className="card w-full max-w-md space-y-5 p-8">
         <div>
-          <h1 className="text-lg font-semibold">📋 Cockpit</h1>
-          <p className="text-sm text-muted">Acesso à plataforma de publicação.</p>
+          <h1 className="text-2xl font-semibold">Entrar</h1>
+          <p className="mt-1 text-sm text-muted">Acesse a conta da sua empresa.</p>
         </div>
-        <div className="space-y-1">
-          <label className="label">Senha</label>
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-sm font-semibold">
+            Senha
+          </label>
           <input
+            id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
-            className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent"
+            autoComplete="current-password"
+            aria-invalid={error ? true : undefined}
+            className="w-full rounded-lg border border-line-strong bg-raised px-3 py-2.5 text-sm outline-none focus:border-accent-text focus:ring-2 focus:ring-accent/30"
           />
         </div>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
         <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? 'Entrando…' : 'Entrar'}
+          {loading ? 'Entrando' : 'Entrar'}
         </button>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

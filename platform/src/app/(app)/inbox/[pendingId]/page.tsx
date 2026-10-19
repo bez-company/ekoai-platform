@@ -23,7 +23,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
 
   return (
     <div className="space-y-4">
-      <Link href="/inbox" className="text-sm text-muted hover:text-white">
+      <Link href="/inbox" className="text-sm text-muted hover:text-fg">
         ← voltar
       </Link>
       <ApproveForm pending={p} suggested={suggested} nextSlot={nextSlot} />
