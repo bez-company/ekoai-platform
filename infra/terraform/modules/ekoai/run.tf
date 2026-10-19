@@ -85,6 +85,16 @@ resource "google_cloud_run_v2_service" "platform" {
         name  = "IDENTITY_PROJECT_ID"
         value = var.project_id
       }
+      # Config web do Firebase, lida em runtime pelo servidor e entregue ao cliente (variável
+      # NEXT_PUBLIC_ seria fixada no build da imagem).
+      env {
+        name  = "FIREBASE_WEB_API_KEY"
+        value = google_apikeys_key.web.key_string
+      }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = local.firebase_auth_domain
+      }
       env {
         name  = "PUBLISH_TZ_OFFSET"
         value = "-3"
