@@ -247,7 +247,10 @@ jobs:
       - name: Dispatcher dos jobs
         run: |
           set -euo pipefail
-          if docker run --rm ekoai-jobs:ci nada 2>&1 | grep -q "Job desconhecido"; then echo ok; else exit 1; fi
+          # `|| true`: o container sai com erro de propósito; o que vale é a mensagem.
+          saida=$(docker run --rm ekoai-jobs:ci nada 2>&1 || true)
+          echo "$saida"
+          echo "$saida" | grep -q "Job desconhecido"
 
   # Único check obrigatório na proteção da main: agrega os outros, então job novo entra
   # aqui sem mexer na configuração do GitHub.
