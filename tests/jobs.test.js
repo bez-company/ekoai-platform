@@ -20,6 +20,13 @@ describe('jobs (Cloud Run Jobs)', () => {
     expect(stepsFor('migrate', {})).toEqual([['scripts/migrate.js']]);
   });
 
+  it('tenant-create e access-grant repassam os argumentos e não pedem conta', () => {
+    expect(stepsFor('tenant-create', {}, ['--id', 'acme', '--name', 'Acme'])).toEqual([['scripts/create-tenant.js', '--id', 'acme', '--name', 'Acme']]);
+    expect(stepsFor('access-grant', {}, ['--email', 'a@b.co'])).toEqual([['scripts/grant-access.js', '--email', 'a@b.co']]);
+    // os jobs comuns ignoram argumento extra
+    expect(stepsFor('migrate', {}, ['--x'])).toEqual([['scripts/migrate.js']]);
+  });
+
   it('nome desconhecido lista os disponíveis', () => {
     expect(() => stepsFor('nada')).toThrow(/Disponíveis: refresh-tokens, token-health/);
   });

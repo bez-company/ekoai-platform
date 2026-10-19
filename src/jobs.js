@@ -14,16 +14,23 @@ export const JOBS = {
   'token-health': [{ step: ['src/refresh-tokens.js', 'check'] }],
   'weekly-report': [{ step: ['src/metrics.js'] }],
   migrate: [{ step: ['scripts/migrate.js'] }],
+  // Operação de sistema, sem agenda: recebem os argumentos do `gcloud run jobs execute --args`
+  // (ex.: tenant-create,--id,acme,--name,Acme). O banco é privado, então é por aqui que se
+  // cria a conta e se dá o primeiro acesso.
+  'tenant-create': [{ step: ['scripts/create-tenant.js'], passArgs: true }],
+  'access-grant': [{ step: ['scripts/grant-access.js'], passArgs: true }],
 };
 
 // Jobs que leem ou gravam dado de uma conta. Sem TENANT_ID válido não começam (ADR 0010).
 const TENANT_JOBS = new Set(['refresh-tokens', 'token-health', 'weekly-report']);
 
-export function stepsFor(name, env = process.env) {
+export function stepsFor(name, env = process.env, extraArgs = []) {
   const job = JOBS[name];
   if (!job) throw new Error(`Job desconhecido: "${name}". Disponíveis: ${Object.keys(JOBS).join(', ')}`);
   if (TENANT_JOBS.has(name)) currentTenantId(env);
-  return job.filter(({ when }) => !when || when(env)).map(({ step }) => step);
+  return job
+    .filter(({ when }) => !when || when(env))
+    .map(({ step, passArgs }) => (passArgs ? [...step, ...extraArgs] : step));
 }
 
 function run(step) {
@@ -37,7 +44,7 @@ function run(step) {
 async function main() {
   const name = process.argv[2];
   try {
-    for (const step of stepsFor(name)) await run(step);
+    for (const step of stepsFor(name, process.env, process.argv.slice(3))) await run(step);
   } catch (err) {
     console.error(`[jobs] ${name}: ${err.message}`);
     process.exit(err.code ?? 1);

@@ -4,11 +4,10 @@ name: CI
 #   - toda PR: testes, typecheck da plataforma, as migrations aplicadas (duas vezes)
 #     num Postgres limpo sem comando destrutivo escondido, o isolamento por tenant (RLS)
 #     testado e a varredura de segredo e de dependência; o job `CI ok` agrega tudo;
-#   - as imagens da plataforma e dos jobs constroem (Cloud Run, SPEC 010).
+#   - as imagens da plataforma e dos jobs constroem e o Terraform valida (SPEC 010).
 #
-# Deploy e migrations em produção entram na fase 4 da SPEC 010 (job `migrate` do Cloud Run,
-# Workload Identity Federation). Até lá a main não publica nada sozinha. Quando entrarem,
-# migration continua ADITIVA (coluna nova, tabela nova): deploy e migration não são atômicos.
+# O deploy fica em deploy.yml (depois deste CI na main): staging sozinho, produção com aprovação.
+# Migration é ADITIVA (coluna nova, tabela nova): deploy e migration não são atômicos.
 
 on:
   pull_request:
@@ -234,6 +233,26 @@ jobs:
       - name: Consultas, módulos e executor de migrations contra o Postgres
         run: npm run test:db
 
+  infra:
+    name: Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.15.8"
+      - name: Formatação
+        run: terraform fmt -check -recursive infra/terraform
+      # Sem backend: valida a sintaxe e as referências sem tocar no estado nem na nuvem.
+      - name: Validação dos ambientes
+        run: |
+          set -euo pipefail
+          for env in staging prod; do
+            terraform -chdir=infra/terraform/envs/$env init -backend=false -input=false
+            terraform -chdir=infra/terraform/envs/$env validate
+          done
+
   containers:
     name: Imagens do Cloud Run
     runs-on: ubuntu-latest
@@ -258,7 +277,7 @@ jobs:
   ci-ok:
     name: CI ok
     if: always()
-    needs: [test, identity-emulator, migrations-check, data-layer, containers, security]
+    needs: [test, identity-emulator, migrations-check, data-layer, containers, infra, security]
     runs-on: ubuntu-latest
     steps:
       - run: |

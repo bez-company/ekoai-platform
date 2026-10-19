@@ -1,6 +1,6 @@
 // Gate global: toda rota exige sessão válida (assinatura e validade; a membership é conferida
 // no servidor, em session.ts), exceto login, o endpoint do cron
-// (protegido por CRON_SECRET), o health check, a mídia (chave com UUID; as redes a buscam ao
+// (token OIDC do Scheduler ou CRON_SECRET), o health check, a mídia (chave com UUID; as redes a buscam ao
 // publicar) e assets estáticos.
 
 import { NextResponse, type NextRequest } from 'next/server';

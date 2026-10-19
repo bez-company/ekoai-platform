@@ -1,0 +1,101 @@
+name: Deploy de um ambiente
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      sha:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  REGION: southamerica-east1
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    # Um deploy por ambiente por vez; um em andamento termina antes do próximo.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT }}
+      SHA: ${{ inputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Variáveis do environment configuradas
+        run: |
+          for v in GCP_PROJECT WIF_PROVIDER DEPLOY_SA; do
+            eval "val=\${$v:-}"
+            if [ -z "$val" ]; then echo "::error::Configure a variável $v no environment ${{ inputs.environment }}"; exit 1; fi
+          done
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+          WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
+          DEPLOY_SA: ${{ vars.DEPLOY_SA }}
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Registry e imagens
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          REGISTRY="$REGION-docker.pkg.dev/$PROJECT/ekoai"
+          echo "REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
+          docker build -f docker/platform.Dockerfile -t "$REGISTRY/platform:$SHA" .
+          docker build -f docker/jobs.Dockerfile -t "$REGISTRY/jobs:$SHA" .
+          docker push "$REGISTRY/platform:$SHA"
+          docker push "$REGISTRY/jobs:$SHA"
+
+      # Migrations antes de trocar o código, e o deploy para se elas falharem.
+      - name: Migrations
+        run: |
+          set -euo pipefail
+          gcloud run jobs update ekoai-migrate --region "$REGION" --image "$REGISTRY/jobs:$SHA" --quiet
+          gcloud run jobs execute ekoai-migrate --region "$REGION" --wait
+
+      - name: Jobs
+        run: |
+          set -euo pipefail
+          for job in refresh-tokens token-health weekly-report tenant-create access-grant; do
+            gcloud run jobs update "ekoai-$job" --region "$REGION" --image "$REGISTRY/jobs:$SHA" --quiet
+          done
+
+      - name: Plataforma
+        run: |
+          set -euo pipefail
+          gcloud run services update ekoai-platform --region "$REGION" --image "$REGISTRY/platform:$SHA" \
+            --update-env-vars "APP_VERSION=$SHA" --quiet
+          URL=$(gcloud run services describe ekoai-platform --region "$REGION" --format 'value(status.url)')
+          echo "URL=$URL" >> "$GITHUB_ENV"
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/health" || true)
+            echo "tentativa $i: $code"
+            if [ "$code" = "200" ]; then cat /tmp/health.json; exit 0; fi
+            sleep 10
+          done
+          echo "::error::health check falhou em $URL"
+          exit 1
