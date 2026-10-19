@@ -40,7 +40,7 @@ export default async function HistoryPage() {
                   <p className="mt-1 text-xs text-emerald-300">
                     {p.funnel.cadastros} {p.funnel.cadastros === 1 ? 'cadastro' : 'cadastros'} · {p.funnel.ativados}{' '}
                     {p.funnel.ativados === 1 ? 'ativado' : 'ativados'} · {p.funnel.pagantes}{' '}
-                    {p.funnel.pagantes === 1 ? 'pagante' : 'pagantes'} na Pilar
+                    {p.funnel.pagantes === 1 ? 'pagante' : 'pagantes'}
                   </p>
                 )}
               </div>

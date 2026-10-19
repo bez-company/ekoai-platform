@@ -32,25 +32,4 @@ export function engagementScore(metrics) {
   return weighted; // sem alcance: soma ponderada bruta (melhor que nada)
 }
 
-// Pontos do funil da Pilar, na mesma escala do engajamento por mil de alcance (SPEC 004).
-// Um ativado vale 50: o objetivo do lançamento é cadastro ativado, não curtida.
-const FUNNEL_POINTS = { cadastros: 10, ativados: 50, pagantes: 200 };
-
-export function funnelPoints(funnel) {
-  if (!funnel || typeof funnel !== 'object') return 0;
-  return num(funnel.cadastros) * FUNNEL_POINTS.cadastros
-    + num(funnel.ativados) * FUNNEL_POINTS.ativados
-    + num(funnel.pagantes) * FUNNEL_POINTS.pagantes;
-}
-
-// Recompensa usada pelo bandit: engajamento + funil. null quando o post não tem nenhum sinal.
-export function rewardScore(post) {
-  const engagement = typeof post?.engagement_score === 'number' && Number.isFinite(post.engagement_score)
-    ? post.engagement_score
-    : null;
-  const points = funnelPoints(post?.funnel);
-  if (engagement == null && points === 0) return null;
-  return (engagement ?? 0) + points;
-}
-
-export const _internal = { WEIGHTS, FUNNEL_POINTS, num };
+export const _internal = { WEIGHTS, num };

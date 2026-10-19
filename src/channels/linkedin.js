@@ -1,5 +1,5 @@
 // linkedin.js — publica post (texto + imagem ou PDF carrossel) via LinkedIn API v2.
-// Chamado por: src/index.js. Docs: learn.microsoft.com/linkedin/marketing/integrations/community-management/shares/posts-api
+// Chamado por: src/metrics.js e src/refresh-tokens.js (a publicação mora na plataforma). Docs: learn.microsoft.com/linkedin/marketing/integrations/community-management/shares/posts-api
 //
 // Fluxo /rest/posts (versionado, header LinkedIn-Version):
 //   1. POST /rest/images?action=initializeUpload (registra slot)
@@ -110,7 +110,7 @@ export async function publishText({ text, imagePath, dryRun = false }) {
 // Título que aparece em cima do documento no feed: o gancho do post, curto.
 export function documentTitle(hook) {
   const clean = String(hook || '').replace(/\s+/g, ' ').trim();
-  if (!clean) return 'Pilar';
+  if (!clean) return 'Documento';
   return clean.length > 80 ? `${clean.slice(0, 79).trimEnd()}…` : clean;
 }
 

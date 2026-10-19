@@ -1,33 +1,28 @@
 // jobs.js — ponto de entrada dos Cloud Run Jobs (SPEC 010). Uma imagem só; cada job do Cloud Run
-// passa o nome no argumento (`node src/jobs.js post`). Os passos rodam em sequência, cada um em
+// passa o nome no argumento (`node src/jobs.js weekly-report`). Os passos rodam em sequência, cada um em
 // seu processo, e o primeiro que falhar derruba o job com o mesmo código de saída.
 //
-// Os horários moram no Cloud Scheduler (infra/terraform), um por job, os mesmos dos workflows
-// do GitHub Actions que este arquivo substitui.
+// Os horários moram no Cloud Scheduler (infra/terraform), um por job. Os jobs de geração (post,
+// resolve, reflect, funnel, engage, repurpose, reel) saíram com o ADR 0010 e voltam na fase 2.
 
 import { spawn } from 'node:child_process';
+import { currentTenantId } from './tenant.js';
 
 // [script, ...argumentos]. `when` filtra o passo pelo ambiente.
 export const JOBS = {
-  post: [
-    { step: ['src/build-index.js'], when: env => env.DRY_RUN !== 'true' },
-    { step: ['src/index.js'] },
-  ],
-  resolve: [{ step: ['src/resolve.js'] }],
-  reflect: [{ step: ['src/reflect.js'] }],
   'refresh-tokens': [{ step: ['src/refresh-tokens.js'] }],
   'token-health': [{ step: ['src/refresh-tokens.js', 'check'] }],
   'weekly-report': [{ step: ['src/metrics.js'] }],
-  funnel: [{ step: ['src/funnel.js'] }],
-  engage: [{ step: ['src/engage.js'] }],
-  repurpose: [{ step: ['src/repurpose.js'] }],
-  reel: [{ step: ['src/reel.js'] }],
   migrate: [{ step: ['scripts/migrate.js'] }],
 };
+
+// Jobs que leem ou gravam dado de uma conta. Sem TENANT_ID válido não começam (ADR 0010).
+const TENANT_JOBS = new Set(['refresh-tokens', 'token-health', 'weekly-report']);
 
 export function stepsFor(name, env = process.env) {
   const job = JOBS[name];
   if (!job) throw new Error(`Job desconhecido: "${name}". Disponíveis: ${Object.keys(JOBS).join(', ')}`);
+  if (TENANT_JOBS.has(name)) currentTenantId(env);
   return job.filter(({ when }) => !when || when(env)).map(({ step }) => step);
 }
 

@@ -55,9 +55,8 @@ export function parseLinkedinTarget(input: string): Parsed<LinkedinTarget> {
   return { ok: false, error: 'Não achei o post nesse link. Use "Copiar link do post" no menu "..." do LinkedIn.' };
 }
 
-export const PERSONA =
-  'founder de um SaaS B2B pra escritórios de projeto de engenharia e arquitetura (não construtora), ' +
-  'que escreve seco, concreto e sem buzzword';
+// Genérica até o perfil da empresa existir (SPEC 011 R3); aí a persona sai do perfil da conta.
+export const PERSONA = 'responsável pela marca, que escreve seco, concreto e sem buzzword';
 
 export function buildEngagePrompt(input: {
   kind: EngageKind;
@@ -78,7 +77,7 @@ export function buildEngagePrompt(input: {
       : [
           `Você vai comentar no post${who} abaixo. Escreva ${n} opções de comentário de VALOR.`,
           'Cada opção acrescenta uma experiência ou uma ideia concreta, 1 a 3 frases. Nada de elogio vazio, nada promocional.',
-          'Nunca cite a Pilar nem o seu produto. Valor primeiro.',
+          'Nunca cite a sua marca nem o seu produto. Valor primeiro.',
         ];
   return [
     `Você é ${PERSONA}. Português do Brasil.`,

@@ -50,13 +50,13 @@ describe('parseLinkedinTarget', () => {
 describe('prompt e opções', () => {
   it('comentário proíbe citar o produto; resposta fala com a pessoa', () => {
     const c = buildEngagePrompt({ kind: 'comentario', targetText: 'post', author: 'Ana', rules: ['sem emoji'], avoid: ['soou vendedor'] });
-    expect(c).toContain('Nunca cite a Pilar');
+    expect(c).toContain('Nunca cite a sua marca');
     expect(c).toContain('- sem emoji');
     expect(c).toContain('- soou vendedor');
     expect(c).toContain('post de Ana');
     const r = buildEngagePrompt({ kind: 'resposta', targetText: 'comentário' });
     expect(r).toContain('opções de resposta');
-    expect(r).not.toContain('Nunca cite a Pilar');
+    expect(r).not.toContain('Nunca cite a sua marca');
   });
 
   it('normaliza a saída do modelo', () => {

@@ -28,8 +28,10 @@ describe('avisos dos jobs (src/utils/notifications.js)', () => {
   });
 
   it('sem o tenant explícito usa o tenant do job', async () => {
+    vi.stubEnv('TENANT_ID', 'acme');
     await notify({ kind: 'report.weekly', title: 'Relatório semanal' });
-    expect(insert.mock.calls[0][1].tenant_id).toBe('pilar');
+    expect(insert.mock.calls[0][1].tenant_id).toBe('acme');
+    vi.unstubAllEnvs();
   });
 
   it('dry-run e backend YAML não tocam no banco', async () => {

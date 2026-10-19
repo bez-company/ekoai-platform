@@ -21,13 +21,13 @@ ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 ## Criar um tenant (piloto ou cliente)
 
 ```bash
-npm run tenant:create -- --id acme --name "Acme Engenharia"
+npm run tenant:create -- --id acme --name "Acme"
+npm run access:grant -- --email pessoa@acme.com.br --tenant acme --role admin
 ```
 
-Cria a linha em `tenants` e deixa a publicação pausada. Depois: perfil do tenant em
-`src/tenant.js`, um deploy da plataforma com `TENANT_ID=acme`, slots em `/settings`, retomar, e
-um job do Actions com o mesmo `TENANT_ID`. **Pendente:** perfil no banco e login por usuário
-(F2 e F3), que tiram a necessidade de um deploy por tenant.
+Cria a linha em `tenants` (publicação pausada) e dá acesso ao primeiro administrador. Depois:
+slots em `/settings` e retomar. Os jobs rodam com `TENANT_ID=acme`; sem ele, recusam subir
+(ADR 0010). **Pendente:** cadastro, perfil da empresa e convites pela tela (SPEC 011).
 
 ## Exportar os dados de um tenant (LGPD)
 
@@ -49,7 +49,7 @@ Nunca aplicar à mão em produção.
 | `AUTH_SECRET`, `PLATFORM_PASSWORD` | Secret Manager (Cloud Run) | trocar o valor e redeploy; as sessões caem |
 | `CRON_SECRET` | Secret Manager e Cloud Scheduler | trocar nos dois; sem ele o endpoint do cron recusa tudo |
 | `DATABASE_URL` (senha do banco) | Secret Manager | trocar a senha do usuário no Cloud SQL e a versão do segredo |
-| tokens do Instagram e do LinkedIn | secrets do repo | `refresh-tokens.yml` renova sozinho; vence em ~60 dias |
+| tokens do Instagram e do LinkedIn | Secret Manager (até o R5 da SPEC 011 levar para o banco, cifrados) | o job `refresh-tokens` renova; vence em ~60 dias |
 
 Segredo colado em chat ou log: girar sempre. **Pendente:** inventário com data da última rotação.
 

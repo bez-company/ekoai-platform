@@ -8,12 +8,7 @@ coverage/
 .vitest/
 tmp/
 *.png
-!templates/**/*.png
 !docs/**/*.png
-!content/images/**/*.png
-
-# RAG: índice de embeddings gerado por src/build-index.js (regenerar localmente/CI)
-content/kb-index.json
 
 # previews locais de imagem (testes)
 previews/

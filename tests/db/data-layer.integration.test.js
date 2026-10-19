@@ -8,18 +8,14 @@ const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('TEST_DATABASE_URL ausente');
 process.env.DATABASE_URL = url;
 process.env.STATE_BACKEND = 'postgres';
-process.env.TENANT_ID = 'pilar';
+process.env.TENANT_ID = 'it-job';
 
 const admin = new pg.Pool({ connectionString: url, max: 2 });
-const TENANTS = ['it-a', 'it-b'];
-const JOB_TENANT = 'pilar'; // o único perfil de tenant que os jobs conhecem (src/tenant.js)
+const JOB_TENANT = 'it-job'; // a conta do job (TENANT_ID), como no Cloud Run
+const TENANTS = ['it-a', 'it-b', JOB_TENANT];
 
 const queue = await import('../../src/utils/queue.js');
 const { notify } = await import('../../src/utils/notifications.js');
-const { createBrief, markBrief } = await import('../../src/utils/brief.js');
-const { syncCampaigns } = await import('../../src/utils/campaign-sync.js');
-const { getRecentFeedback } = await import('../../src/utils/feedback.js');
-const { getActiveStyleRules } = await import('../../src/utils/reflections.js');
 const { closeDb } = await import('../../src/utils/db.js');
 
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
@@ -66,7 +62,7 @@ describe('jobs da raiz', () => {
     expect(await queue.loadPending('instagram')).toBeNull();
 
     await queue.savePending(base);
-    await admin.query("update pending_approvals set saved_at = now() - interval '8 days' where tenant_id = 'pilar'");
+    await admin.query("update pending_approvals set saved_at = now() - interval '8 days' where tenant_id = $1", [JOB_TENANT]);
     const expired = await queue.expirePending();
     expect(expired.map((e) => e.channel)).toEqual(['instagram']);
     expect(await queue.getPending()).toEqual([]);
@@ -86,28 +82,16 @@ describe('jobs da raiz', () => {
     expect(published).toHaveLength(1);
     expect(published[0]).toMatchObject({ pillar: 'dor', post: { hook: 'gancho' }, chosen_variation: 1, channels: { instagram: { id: '123' } } });
     expect(typeof published[0].published_at).toBe('string');
-    const { rows: variants } = await admin.query("select count(*)::int n from post_variants where tenant_id = 'pilar'");
+    const { rows: variants } = await admin.query("select count(*)::int n from post_variants where tenant_id = $1", [JOB_TENANT]);
     expect(variants[0].n).toBe(2);
-    const { rows: events } = await admin.query("select type from post_events where tenant_id = 'pilar' order by type");
+    const { rows: events } = await admin.query("select type from post_events where tenant_id = $1 order by type", [JOB_TENANT]);
     expect(events.map((e) => e.type)).toEqual(['judge_decision', 'published']);
   });
 
-  it('aviso, brief, campanhas, feedback e regras de estilo', async () => {
-    expect(await notify({ kind: 'publish.ok', title: 'ok', link: '/history' }, { tenantId: JOB_TENANT })).toEqual({ stored: true });
-    const briefId = await createBrief({ tenantId: JOB_TENANT, pillar: 'dor', angle: 'a', idea: 'ideia' });
-    expect(briefId).toMatch(/^[0-9a-f-]{36}$/);
-    await markBrief(briefId, 'done');
-    const { rows } = await admin.query('select status from briefs where id = $1', [briefId]);
-    expect(rows[0].status).toBe('done');
-
-    const n = await syncCampaigns({ tenantId: JOB_TENANT, campaigns: [{ name: 'Lançamento', start: '2026-10-01', end: '2026-10-31', pillar: 'dor' }] });
-    expect(n).toBe(1);
-    await syncCampaigns({ tenantId: JOB_TENANT, campaigns: [{ name: 'Lançamento', start: '2026-10-02', end: '2026-10-31', pillar: 'dor' }] });
-    const { rows: camps } = await admin.query("select start_date::text d from campaigns where tenant_id = 'pilar'");
-    expect(camps).toEqual([{ d: '2026-10-02' }]);
-
-    expect(await getRecentFeedback(JOB_TENANT, { channel: 'instagram' })).toEqual([]);
-    expect(await getActiveStyleRules(JOB_TENANT, { channel: 'instagram' })).toEqual([]);
+  it('aviso do job grava na conta do TENANT_ID', async () => {
+    expect(await notify({ kind: 'publish.ok', title: 'ok', link: '/history' })).toEqual({ stored: true });
+    const { rows } = await admin.query('select count(*)::int n from notifications where tenant_id = $1', [JOB_TENANT]);
+    expect(rows[0].n).toBe(1);
   });
 });
 
@@ -145,9 +129,9 @@ describe('plataforma', () => {
   });
 
   it('aviso da plataforma e export de todas as tabelas do tenant', async () => {
-    const pilar = tenantDb(JOB_TENANT);
-    await platformNotifications.notify(pilar, { kind: 'publish.ok', level: 'info', title: 'Publicado', link: '/history' });
-    const dump = await exportTenant(pilar);
+    const job = tenantDb(JOB_TENANT);
+    await platformNotifications.notify(job, { kind: 'publish.ok', level: 'info', title: 'Publicado', link: '/history' });
+    const dump = await exportTenant(job);
     expect(dump.tenant).toBe(JOB_TENANT);
     expect(dump.tables.notifications.length).toBeGreaterThan(0);
     expect(dump.tables.posts.length).toBe(1);

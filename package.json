@@ -3,23 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Automação de postagens Instagram + LinkedIn via GitHub Actions, geração com Gemini API, aprovação na plataforma.",
-  "main": "src/index.js",
+  "description": "Ekoai: plataforma para empresas cuidarem do Instagram. Jobs de apoio (métricas, tokens, migrations) para o Cloud Run.",
+  "main": "src/jobs.js",
   "scripts": {
-    "start": "node src/index.js",
-    "resolve": "node src/resolve.js",
-    "dry-run": "DRY_RUN=true node src/index.js",
-    "publish:test": "PUBLISH_TEST=true node src/index.js",
     "refresh-tokens": "node src/refresh-tokens.js",
     "metrics": "node src/metrics.js",
-    "repurpose": "node src/repurpose.js",
-    "reel": "node src/reel.js",
-    "engage": "node src/engage.js",
-    "reflect": "node src/reflect.js",
-    "backfill": "node scripts/backfill-db.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "funnel": "node src/funnel.js",
     "tenant:create": "node scripts/create-tenant.js",
     "access:grant": "node scripts/grant-access.js",
     "migrate": "node scripts/migrate.js",
@@ -33,12 +23,9 @@
   "dependencies": {
     "@ekoai/db": "file:packages/db",
     "@google-cloud/storage": "^8.4.0",
-    "@google/genai": "^1.52.0",
     "dotenv": "^16.4.5",
-    "js-yaml": "^4.1.0",
     "libsodium-wrappers": "^0.7.15",
-    "pg": "^8.23.1",
-    "puppeteer": "^25.14.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "vitest": "^2.1.0"

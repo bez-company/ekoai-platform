@@ -1,67 +1,50 @@
-# post-automation
+# Ekoai
 
-Automação de postagens Instagram + LinkedIn pra SaaS B2B. Geração via Gemini, aprovação na plataforma web (`platform/`), publicação no horário agendado.
+Plataforma onde empresas cuidam do Instagram: criam a conta, contam sobre a empresa, chamam a
+equipe, conectam a rede, aprovam e agendam posts. Plataforma web em `platform/` (Next.js),
+jobs de apoio em `src/` (Cloud Run Jobs), Postgres com RLS por conta.
 
-## O que faz
+O produto é genérico: nenhuma marca de cliente mora no código
+([ADR 0010](docs/adr/0010-plataforma-generica-sem-pilar-no-codigo.md)). A fase atual estrutura a
+plataforma ([SPEC 011](docs/specs/011-plataforma-generica-fase-1.md)); a criação de posts com IA
+volta na fase 2, como agentes de imagem para o Instagram. O pipeline antigo, feito para um cliente
+só, está na tag `pilar-v1`.
 
-- Roda 3x/semana (seg/qua/sex 9h BRT)
-- Lê próximo post da fila (`content/queue.yaml`) ou gera ideia automática baseada em pilar
-- Pede 3 variações ao Claude (few-shot com seus high-performers)
-- Renderiza um preview de imagem por variação via Puppeteer
-- **Fase gerar** (`post.yml`): salva a pendência de cada rede e avisa na plataforma que há
-  post para aprovar
-- **Inbox da plataforma**: você aprova, rejeita ou pede nova versão; aprovar agenda o post
-- **Fase resolver** (`resolve.yml`, cron a cada 10min na janela útil): gera as novas versões
-  pedidas na plataforma
-- Avisos (pronto para aprovar, agendado, publicado, falhou, relatório) ficam em
-  `notifications` (SPEC 007)
-- Publica em IG e LinkedIn e atualiza histórico (`content/published.yaml`)
+## O que existe hoje
+
+- Login por pessoa (Identity Platform) e três papéis por conta: administrador, criador e leitor
+- Inbox de aprovação, agenda por horários fixos e publicação no horário (`/api/cron/publish-due`)
+- Histórico com métricas coletadas da rede e relatório semanal como aviso no app
+- Pausa por conta, exportação dos dados da conta
+- Publicação no Instagram (o código de LinkedIn e X existe, fora do menu até a vez deles)
 
 ## Setup rápido
 
-1. `npm install`
-2. Copiar `.env.example` → `.env` e preencher
-3. `npm run dry-run` (testa pipeline sem APIs externas)
-4. Detalhes completos em [SETUP.md](./SETUP.md)
+1. `npm install` na raiz e em `platform/`
+2. Copiar `.env.example` para `.env` e preencher
+3. `npm test`
+4. Detalhes em [SETUP.md](./SETUP.md) e operação em [docs/runbook.md](docs/runbook.md)
 
 ## Scripts
 
 | Comando | O que faz |
 |---|---|
-| `npm test` | Roda testes Vitest |
-| `npm run dry-run` | Pipeline completo mockando APIs externas |
-| `npm run publish:test` | Posta 1 item hardcoded em sandbox (precisa credencial) |
-| `npm start` | Fase gerar: gera, salva a pendência e avisa (job `post`) |
-| `npm run resolve` | Fase resolver: gera as novas versões pedidas na plataforma (job `resolve`) |
-| `npm run metrics` | Coleta insights da semana (TODO) |
-| `npm run refresh-tokens` | Renova tokens IG + LinkedIn |
+| `npm test` | Testes (Vitest) |
+| `npm run test:db` | Testes contra um Postgres com as migrations (`TEST_DATABASE_URL`) |
+| `npm run migrate` | Aplica as migrations pendentes |
+| `npm run metrics` | Coleta métricas e grava o relatório semanal (job `weekly-report`) |
+| `npm run refresh-tokens` | Renova os tokens das redes (job `refresh-tokens`) |
+| `npm run tenant:create` | Cria uma conta (nasce pausada) |
+| `npm run access:grant` | Dá acesso a uma pessoa numa conta, sem tela |
 
 ## Estrutura
 
 ```
-docs/        estratégia (ICP, dores, voice) — lida pelos prompts
-content/     campanhas e exemplos curados (a fila e o histórico moram no Postgres)
-prompts/     system + canais + pilares
-templates/   HTML/CSS pra render via Puppeteer
-src/         lógica
+platform/    plataforma web (Next.js)
+src/         jobs: métricas, renovação de token, migrations (src/jobs.js)
 packages/db/ acesso ao Postgres (@ekoai/db)
 docker/      imagens da plataforma e dos jobs (Cloud Run)
 supabase/    migrations e testes de RLS (a pasta vira db/ no fim da SPEC 010)
-.github/     CI (testes, migrations, imagens)
+docs/        specs, ADRs, arquitetura e análises
+.github/     CI (testes, migrations, RLS, imagens)
 ```
-
-## Estado atual
-
-- [x] Estrutura base + geração + aprovação na plataforma
-- [x] Publicação Instagram + LinkedIn (single image + carrossel)
-- [ ] Reels (fase 2)
-- [ ] Métricas e ajuste automático do mix de pilares
-- [x] Plataforma web (inbox, agenda, histórico)
-
-## Custo mensal estimado
-
-| Item | Custo |
-|---|---|
-| Claude API | R$ 5–15 |
-| Google Cloud (Cloud Run, Cloud SQL, Scheduler) | a medir na fase 3 da SPEC 010 |
-| **Total** | **< R$ 20** |

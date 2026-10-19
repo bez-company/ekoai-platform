@@ -7,7 +7,6 @@ const LINKS = [
   { href: '/inbox', label: 'Inbox' },
   { href: '/calendar', label: 'Agenda' },
   { href: '/history', label: 'Histórico' },
-  { href: '/engage', label: 'Engajamento' },
   { href: '/learning', label: 'Aprendizado' },
   { href: '/settings', label: 'Slots' },
 ];

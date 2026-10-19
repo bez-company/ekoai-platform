@@ -1,5 +1,4 @@
-// metrics.js — coleta engajamento dos posts publicados (snapshots em metrics_snapshots), conta
-// os exemplos de few-shot que a geração vai usar (top/bottom viram referência/anti-exemplo) e
+// metrics.js: coleta engajamento dos posts publicados (snapshots em metrics_snapshots) e
 // grava o relatório semanal como aviso na plataforma (SPEC 007).
 // Chamado pelo job `weekly-report` (src/jobs.js).
 
@@ -7,10 +6,8 @@ import 'dotenv/config';
 import { notify } from './utils/notifications.js';
 import { getPublished, isRealPost } from './utils/queue.js';
 import { usingDb, getDb, assertStateBackend } from './utils/db.js';
-import { resolveTenant } from './tenant.js';
+import { currentTenantId } from './tenant.js';
 import { engagementScore } from './utils/score.js';
-import { pickAutoExamples } from './utils/examples.js';
-import { buildFunnelReport, funnelWindow } from './utils/funnel.js';
 import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 
@@ -44,7 +41,7 @@ async function collectFor(item) {
 async function persistSnapshots(item, metrics) {
   if (!item.id) return;
   const db = getDb();
-  const tenantId = resolveTenant().id;
+  const tenantId = currentTenantId();
   const at = new Date().toISOString();
   for (const [ch, m] of Object.entries(metrics)) {
     if (!m || typeof m !== 'object') continue;
@@ -70,64 +67,6 @@ async function persistSnapshots(item, metrics) {
     type: 'metrics_snapshot',
     payload: { engagement_score: item.engagement_score },
   });
-}
-
-// Correlação de Pearson — calibração do judge (expected_engagement × real).
-function pearson(x, y) {
-  const n = x.length;
-  if (n === 0) return 0;
-  const mx = x.reduce((a, b) => a + b, 0) / n;
-  const my = y.reduce((a, b) => a + b, 0) / n;
-  let nu = 0;
-  let dx = 0;
-  let dy = 0;
-  for (let i = 0; i < n; i++) {
-    const a = x[i] - mx;
-    const b = y[i] - my;
-    nu += a * b;
-    dx += a * a;
-    dy += b * b;
-  }
-  return dx && dy ? nu / Math.sqrt(dx * dy) : 0;
-}
-
-// O judge previu bem? Cruza expected_engagement (evento judge_decision) com o
-// engagement_score real. r alto = judge calibrado; r ~0 = judge é teatro.
-async function judgeCalibration() {
-  if (!usingDb()) return '';
-  try {
-    const db = getDb();
-    const { data: events } = await db.from('post_events').select('post_id,payload').eq('tenant_id', resolveTenant().id).eq('type', 'judge_decision');
-    if (!events?.length) return '';
-    const ids = events.map(e => e.post_id);
-    const { data: posts } = await db.from('posts').select('id,engagement_score').in('id', ids);
-    const scoreById = new Map((posts || []).map(p => [p.id, p.engagement_score != null ? Number(p.engagement_score) : null]));
-    const pairs = events
-      .map(e => [e.payload?.expected_engagement, scoreById.get(e.post_id)])
-      .filter(([ex, ac]) => typeof ex === 'number' && typeof ac === 'number');
-    if (pairs.length < 5) return `\n_Calibração do judge: ${pairs.length} amostras (mín. 5 pra calcular)._`;
-    const r = pearson(pairs.map(p => p[0]), pairs.map(p => p[1]));
-    return `\n_Calibração do judge (previsto×real): r=${r.toFixed(2)} em ${pairs.length} posts._`;
-  } catch (e) {
-    return '';
-  }
-}
-
-// Funil da Pilar (SPEC 004): cadastros da semana por canal e campanha + posts que mais ativaram.
-// Best-effort: sem a 0010 ou sem coleta ainda, o bloco não aparece.
-async function funnelReport() {
-  if (!usingDb()) return '';
-  try {
-    const db = getDb();
-    const tenantId = resolveTenant().id;
-    const { desde, ate } = funnelWindow(new Date(), REPORT_WINDOW_DAYS);
-    const { data: rows } = await db.from('funnel_daily').select('*').eq('tenant_id', tenantId).gte('day', desde).lte('day', ate);
-    const { data: top } = await db.from('posts').select('channel,hook,funnel').eq('tenant_id', tenantId)
-      .not('funnel', 'is', null).order('funnel->ativados', { ascending: false }).limit(3);
-    return buildFunnelReport({ rows: rows || [], topPosts: (top || []).filter(p => p.funnel?.ativados > 0) });
-  } catch (e) {
-    return '';
-  }
 }
 
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -217,18 +156,12 @@ async function main() {
     .filter(s => daysAgo(s.item.published_at) <= COLLECT_WINDOW_DAYS)
     .sort((a, b) => b.score - a.score);
 
-  // Few-shot: a geração escolhe os exemplos dos posts no banco (utils/examples.js); aqui só conta.
-  const picked = pickAutoExamples(scored.map(s => s.item), { windowDays: COLLECT_WINDOW_DAYS });
-  const synced = { high: picked.high.length, low: picked.low.length };
-
   const report = buildReport(scored)
-    + `\n\n_${collected} posts coletados · few-shot: ${synced.high}↑ / ${synced.low}↓ atualizados._`
-    + bestSlots(scored)
-    + await judgeCalibration()
-    + await funnelReport();
+    + `\n\n_${collected} posts coletados._`
+    + bestSlots(scored);
 
   await notify({ kind: 'report.weekly', title: 'Relatório semanal', body: report, link: '/learning' }, { dryRun: DRY_RUN });
-  console.log('[metrics] Relatório gravado.', { collected, synced });
+  console.log('[metrics] Relatório gravado.', { collected });
 }
 
 main().catch(err => {

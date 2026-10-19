@@ -3,7 +3,7 @@
 // o job. Sem banco (STATE_BACKEND=yaml) ou em DRY_RUN, o aviso só sai no log.
 
 import { usingDb, getDb } from './db.js';
-import { resolveTenant } from '../tenant.js';
+import { currentTenantId } from '../tenant.js';
 
 const LEVELS = new Set(['info', 'warning', 'error']);
 const TITLE_MAX = 200;
@@ -21,14 +21,16 @@ export function buildNotice({ kind, level = 'info', title, body = null, link = n
   return { kind, level, title: String(title).slice(0, TITLE_MAX), body: body ?? null, link };
 }
 
-export async function notify(notice, { dryRun = false, tenantId = resolveTenant().id } = {}) {
+export async function notify(notice, { dryRun = false, tenantId } = {}) {
   const row = buildNotice(notice);
   if (dryRun || !usingDb()) {
     console.log(`[aviso] ${row.level} ${row.kind}: ${row.title}`);
     return { stored: false };
   }
+  // Fora do try: conta não definida é erro de configuração, não falha de gravação a engolir.
+  const tenant = tenantId ?? currentTenantId();
   try {
-    const { error } = await getDb().from('notifications').insert({ ...row, tenant_id: tenantId });
+    const { error } = await getDb().from('notifications').insert({ ...row, tenant_id: tenant });
     if (error) throw new Error(error.message);
     return { stored: true };
   } catch (e) {
