@@ -7,7 +7,6 @@ locals {
 
   apis = [
     "artifactregistry.googleapis.com",
-    "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
     "iamcredentials.googleapis.com",
