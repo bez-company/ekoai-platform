@@ -1,12 +1,9 @@
-// metrics.js — coleta engajamento dos posts publicados (snapshots no banco; published.yaml só no
-// modo YAML legado), conta os exemplos de few-shot que a geração vai usar (top/bottom viram
-// referência/anti-exemplo) e grava o relatório semanal como aviso na plataforma (SPEC 007).
+// metrics.js — coleta engajamento dos posts publicados (snapshots em metrics_snapshots), conta
+// os exemplos de few-shot que a geração vai usar (top/bottom viram referência/anti-exemplo) e
+// grava o relatório semanal como aviso na plataforma (SPEC 007).
 // Chamado pelo job `weekly-report` (src/jobs.js).
 
 import 'dotenv/config';
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import yaml from 'js-yaml';
 import { notify } from './utils/notifications.js';
 import { getPublished, isRealPost } from './utils/queue.js';
 import { usingDb, getDb, assertStateBackend } from './utils/db.js';
@@ -17,8 +14,6 @@ import { buildFunnelReport, funnelWindow } from './utils/funnel.js';
 import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 
-const ROOT = process.cwd();
-const PUBLISHED_FILE = path.join(ROOT, 'content/published.yaml');
 
 const COLLECT_WINDOW_DAYS = Number(process.env.METRICS_WINDOW_DAYS || 30);
 const REPORT_WINDOW_DAYS = 7;
@@ -214,12 +209,6 @@ async function main() {
     } catch (e) {
       console.error(`[metrics] falha ao coletar post ${item.published_at}: ${e.message}`);
     }
-  }
-
-  // No banco, a persistência de métricas vai pra metrics_snapshots (fase de
-  // escrita) — não reescreve o YAML a partir de dados do banco.
-  if (!DRY_RUN && !usingDb() && collected > 0) {
-    await writeFile(PUBLISHED_FILE, yaml.dump(published, { lineWidth: 120, noRefs: true }), 'utf8');
   }
 
   const scored = published

@@ -1,64 +1,51 @@
-// queue.js — lê/escreve YAMLs de fila, publicados e rejeitados.
-// Chamado por: src/index.js, src/utils/ranking.js, tests.
+// queue.js — fila de ideias, posts publicados, rejeitados e pendências de aprovação, todos no
+// Postgres (SPEC 010: o estado em YAML saiu; container não tem disco que sobreviva ao job).
+// Chamado por: src/index.js, src/resolve.js, src/utils/ranking.js, tests.
 
-import { readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import yaml from 'js-yaml';
 import { usingDb, getDb } from './db.js';
 import { resolveTenant } from '../tenant.js';
 
 // Tenant atual do processo/job (env TENANT_ID; default 'pilar'). O backend roda
-// um tenant por execução, então o escopo do estado é por job. Só o caminho
-// Postgres filtra/grava por tenant; o YAML é legado single-tenant (Pilar).
+// um tenant por execução, então o escopo do estado é por job.
 function currentTenantId() {
   return resolveTenant().id;
 }
 
-function paths() {
-  const contentDir = path.resolve(process.cwd(), 'content');
+const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Sem STATE_BACKEND=postgres (teste e dry-run local) as LEITURAS devolvem vazio; as escritas
+// exigem o banco e falham alto. No Cloud Run o job nem sobe sem o banco (assertStateBackend).
+
+// Item da fila no formato que o pipeline consome.
+function queueRowToItem(row) {
   return {
-    QUEUE_FILE: path.join(contentDir, 'queue.yaml'),
-    PUBLISHED_FILE: path.join(contentDir, 'published.yaml'),
-    REJECTED_FILE: path.join(contentDir, 'rejected.yaml'),
-    PENDING_FILE: path.join(contentDir, 'pending-approval.yaml'),
+    pillar: row.pillar ?? undefined,
+    angle: row.angle ?? undefined,
+    context: row.context ?? undefined,
+    channels: row.channels ?? undefined,
+    scheduled_for: row.scheduled_for ?? undefined,
   };
 }
 
-const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-async function ensureDir(file) {
-  const dir = path.dirname(file);
-  if (!existsSync(dir)) {
-    const fs = await import('node:fs/promises');
-    await fs.mkdir(dir, { recursive: true });
-  }
-}
-
-async function readYaml(file) {
-  if (!existsSync(file)) return [];
-  const raw = await readFile(file, 'utf8');
-  const parsed = yaml.load(raw);
-  return Array.isArray(parsed) ? parsed : [];
-}
-
-async function writeYaml(file, data) {
-  await ensureDir(file);
-  const out = yaml.dump(data, { lineWidth: 120, noRefs: true });
-  await writeFile(file, out, 'utf8');
-}
-
 export async function getQueue() {
-  return readYaml(paths().QUEUE_FILE);
+  if (!usingDb()) return [];
+  const { data, error } = await getDb()
+    .from('queue_items')
+    .select('pillar,angle,context,channels,scheduled_for')
+    .eq('tenant_id', currentTenantId())
+    .is('consumed_at', null)
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(`Falha ao ler queue do banco: ${error.message}`);
+  return (data || []).map(queueRowToItem);
 }
 
 export async function getPublished() {
-  if (usingDb()) return getPublishedFromDb();
-  return readYaml(paths().PUBLISHED_FILE);
+  if (!usingDb()) return [];
+  return getPublishedFromDb();
 }
 
-// Mapeia uma linha da tabela posts pro formato dos itens YAML — assim os
-// consumidores (bandit, extractRecentHooks, métricas) não precisam mudar.
+// Mapeia uma linha da tabela posts pro formato interno dos itens publicados — assim os
+// consumidores (bandit, extractRecentHooks, métricas) não dependem do schema.
 // engagement_score: numeric do Postgres volta como string do driver;
 // converte pra number senão o bandit (typeof === 'number') ignora o sinal.
 export function dbRowToPublished(row) {
@@ -77,7 +64,7 @@ export function dbRowToPublished(row) {
   };
 }
 
-// Ordem cronológica (published_at asc) pra casar com a ordem de append do YAML —
+// Ordem cronológica (published_at asc) pra que o fim da lista seja sempre o mais recente —
 // extractRecentHooks e a janela do bandit dependem disso (slice(-N) = mais recentes).
 const PUBLISHED_COLUMNS = 'id,pillar,angle,context,hook,body,format,chosen_variation,channels,engagement_score,generated_at,published_at';
 
@@ -107,32 +94,21 @@ export function isRealPost(item) {
 }
 
 export async function getRejected() {
-  return readYaml(paths().REJECTED_FILE);
-}
-
-// Item é elegível se não tem agendamento ou se a data já chegou.
-function isDue(item, now) {
-  if (!item || !item.scheduled_for) return true;
-  const when = new Date(item.scheduled_for);
-  if (Number.isNaN(when.getTime())) return true; // data inválida → não bloqueia
-  return when.getTime() <= now;
-}
-
-export async function popNext(now = Date.now()) {
-  if (usingDb()) return popNextFromDb(now);
-  const queue = await getQueue();
-  if (queue.length === 0) return null;
-  const idx = queue.findIndex(item => isDue(item, now));
-  if (idx === -1) return null; // só restam itens agendados pro futuro
-  const [next] = queue.splice(idx, 1);
-  await writeYaml(paths().QUEUE_FILE, queue);
-  return next;
+  if (!usingDb()) return [];
+  const { data, error } = await getDb()
+    .from('rejected_posts')
+    .select('pillar,angle,channel,hook,body,format,reason,rejected_at')
+    .eq('tenant_id', currentTenantId())
+    .order('rejected_at', { ascending: true });
+  if (error) throw new Error(`Falha ao ler rejeitados do banco: ${error.message}`);
+  return data || [];
 }
 
 // Consome o primeiro item elegível (não consumido, agendamento já vencido).
 // consumed_at em vez de delete → fila auditável. O update condicional
 // (.is consumed_at null) evita corrida: dois processos não consomem o mesmo item.
-async function popNextFromDb(now) {
+export async function popNext(now = Date.now()) {
+  if (!usingDb()) return null;
   const db = getDb();
   const nowIso = new Date(now).toISOString();
   const { data, error } = await db.from('queue_items')
@@ -155,31 +131,13 @@ async function popNextFromDb(now) {
   if (ue) throw new Error(`Falha ao consumir queue item: ${ue.message}`);
   if (!claimed?.length) return null; // outro processo já consumiu
 
-  return {
-    pillar: row.pillar ?? undefined,
-    angle: row.angle ?? undefined,
-    context: row.context ?? undefined,
-    channels: row.channels ?? undefined,
-    scheduled_for: row.scheduled_for ?? undefined,
-  };
-}
-
-export async function markPublished(item, result) {
-  if (usingDb()) return markPublishedToDb(item, result);
-  const published = await readYaml(paths().PUBLISHED_FILE);
-  published.push({
-    ...item,
-    published_at: new Date().toISOString(),
-    chosen_variation: result.chosenVariationId,
-    channels: result.channels,
-  });
-  await writeYaml(paths().PUBLISHED_FILE, published);
+  return queueRowToItem(row);
 }
 
 // Grava o post durável + TODAS as variações geradas + evento de publicação.
 // result.generation (opcional) carrega as variações e a observabilidade
 // (prompt_hash, model, judge_reason, guardrail_flags, heuristic_scores).
-async function markPublishedToDb(item, result) {
+export async function markPublished(item, result) {
   const db = getDb();
   const gen = result.generation || {};
   const channel = Object.keys(result.channels || {})[0] || item.channel || 'instagram';
@@ -248,52 +206,29 @@ async function markPublishedToDb(item, result) {
 }
 
 export async function markRejected(item, reason) {
-  if (usingDb()) {
-    const { error } = await getDb().from('rejected_posts').insert({
-      tenant_id: currentTenantId(),
-      pillar: item.pillar ?? null,
-      angle: item.angle ?? null,
-      channel: item.channel ?? null,
-      hook: item.post?.hook ?? null,
-      body: item.post?.body ?? null,
-      format: item.post?.format ?? null,
-      reason: reason || 'sem motivo informado',
-    });
-    if (error) throw new Error(`Falha ao gravar rejeição no banco: ${error.message}`);
-    return;
-  }
-  const rejected = await getRejected();
-  rejected.push({
-    ...item,
-    rejected_at: new Date().toISOString(),
+  const { error } = await getDb().from('rejected_posts').insert({
+    tenant_id: currentTenantId(),
+    pillar: item.pillar ?? null,
+    angle: item.angle ?? null,
+    channel: item.channel ?? null,
+    hook: item.post?.hook ?? null,
+    body: item.post?.body ?? null,
+    format: item.post?.format ?? null,
     reason: reason || 'sem motivo informado',
   });
-  await writeYaml(paths().REJECTED_FILE, rejected);
+  if (error) throw new Error(`Falha ao gravar rejeição no banco: ${error.message}`);
 }
 
 export async function pushToQueue(item) {
-  if (usingDb()) {
-    const { error } = await getDb().from('queue_items').insert({
-      tenant_id: currentTenantId(),
-      pillar: item.pillar ?? null,
-      angle: item.angle ?? null,
-      context: item.context ?? null,
-      channels: item.channels ?? ['instagram'],
-      scheduled_for: item.scheduled_for ?? null,
-    });
-    if (error) throw new Error(`Falha ao enfileirar no banco: ${error.message}`);
-    return;
-  }
-  const queue = await getQueue();
-  queue.push(item);
-  await writeYaml(paths().QUEUE_FILE, queue);
-}
-
-// Regrava a lista inteira de publicados (legado YAML do coletor de métricas).
-// No banco é no-op: a coleta grava em metrics_snapshots, sem reescrita em massa.
-export async function writePublished(list) {
-  if (usingDb()) return;
-  await writeYaml(paths().PUBLISHED_FILE, list);
+  const { error } = await getDb().from('queue_items').insert({
+    tenant_id: currentTenantId(),
+    pillar: item.pillar ?? null,
+    angle: item.angle ?? null,
+    context: item.context ?? null,
+    channels: item.channels ?? ['instagram'],
+    scheduled_for: item.scheduled_for ?? null,
+  });
+  if (error) throw new Error(`Falha ao enfileirar no banco: ${error.message}`);
 }
 
 // Mapeia uma linha de pending_approvals pro formato usado por index.js/resolve.js.
@@ -313,103 +248,60 @@ function pendingRowToItem(row) {
 }
 
 export async function getPending() {
-  if (usingDb()) {
-    const { data, error } = await getDb().from('pending_approvals').select('*').eq('tenant_id', currentTenantId());
-    if (error) throw new Error(`Falha ao ler pending do banco: ${error.message}`);
-    return (data || []).map(pendingRowToItem);
-  }
-  return readYaml(paths().PENDING_FILE);
+  if (!usingDb()) return [];
+  const { data, error } = await getDb().from('pending_approvals').select('*').eq('tenant_id', currentTenantId());
+  if (error) throw new Error(`Falha ao ler pending do banco: ${error.message}`);
+  return (data || []).map(pendingRowToItem);
 }
 
 // Retorna o pending do canal (ou null). Por padrão CONSOME (remove); com
 // { peek: true } só lê — usado pra checar se já há post aguardando decisão.
 // Itens expirados (>TTL) são sempre limpos.
 export async function loadPending(channel, { peek = false } = {}) {
-  if (usingDb()) {
-    const db = getDb();
-    const { data, error } = await db.from('pending_approvals').select('*').eq('tenant_id', currentTenantId()).eq('channel', channel).limit(1);
-    if (error) throw new Error(`Falha ao carregar pending do banco: ${error.message}`);
-    const row = data?.[0];
-    if (!row) return null;
-    if (Date.now() - new Date(row.saved_at).getTime() > PENDING_TTL_MS) {
-      await db.from('pending_approvals').delete().eq('tenant_id', currentTenantId()).eq('channel', channel);
-      return null;
-    }
-    if (!peek) await db.from('pending_approvals').delete().eq('id', row.id);
-    return pendingRowToItem(row);
+  if (!usingDb()) return null;
+  const db = getDb();
+  const { data, error } = await db.from('pending_approvals').select('*').eq('tenant_id', currentTenantId()).eq('channel', channel).limit(1);
+  if (error) throw new Error(`Falha ao carregar pending do banco: ${error.message}`);
+  const row = data?.[0];
+  if (!row) return null;
+  if (Date.now() - new Date(row.saved_at).getTime() > PENDING_TTL_MS) {
+    await db.from('pending_approvals').delete().eq('tenant_id', currentTenantId()).eq('channel', channel);
+    return null;
   }
-  const items = await getPending();
-  const now = Date.now();
-  const fresh = items.filter(i => now - new Date(i.saved_at).getTime() <= PENDING_TTL_MS);
-  const found = fresh.find(i => i.channel === channel) || null;
-  const next = !peek && found ? fresh.filter(i => i !== found) : fresh;
-  if (next.length !== items.length) {
-    await writeYaml(paths().PENDING_FILE, next);
-  }
-  return found;
+  if (!peek) await db.from('pending_approvals').delete().eq('id', row.id);
+  return pendingRowToItem(row);
 }
 
 export async function savePending(item) {
-  if (usingDb()) {
-    const row = {
-      tenant_id: currentTenantId(),
-      pending_id: item.pending_id,
-      channel: item.channel,
-      brief_id: item.brief_id ?? null,
-      generation: item.generation ?? null,
-      top_id: item.top_id ?? null,
-      images: item.images ?? null,
-      seed: item.seed ?? null,
-      regen_count: item.regen_count ?? 0,
-      status: item.status ?? 'awaiting_decision',
-      saved_at: new Date().toISOString(),
-    };
-    // upsert por canal (espelha o YAML, que sobrescreve o pending do canal)
-    let { error } = await getDb().from('pending_approvals').upsert(row, { onConflict: 'tenant_id,channel' });
-    // Banco sem a 0009 ainda: salva sem o vínculo com a ideia em vez de perder a geração.
-    if (error && /brief_id/.test(error.message)) {
-      console.error(`[queue] pending sem brief_id (aplique a migration 0009): ${error.message}`);
-      const { brief_id: _omit, ...legacy } = row;
-      ({ error } = await getDb().from('pending_approvals').upsert(legacy, { onConflict: 'tenant_id,channel' }));
-    }
-    if (error) throw new Error(`Falha ao salvar pending no banco: ${error.message}`);
-    return;
-  }
-  const items = await getPending();
-  const filtered = items.filter(i => i.channel !== item.channel);
-  filtered.push({ ...item, saved_at: new Date().toISOString() });
-  await writeYaml(paths().PENDING_FILE, filtered);
+  const row = {
+    tenant_id: currentTenantId(),
+    pending_id: item.pending_id,
+    channel: item.channel,
+    brief_id: item.brief_id ?? null,
+    generation: item.generation ?? null,
+    top_id: item.top_id ?? null,
+    images: item.images ?? null,
+    seed: item.seed ?? null,
+    regen_count: item.regen_count ?? 0,
+    status: item.status ?? 'awaiting_decision',
+    saved_at: new Date().toISOString(),
+  };
+  // upsert por canal: o pending novo substitui o anterior da mesma rede
+  const { error } = await getDb().from('pending_approvals').upsert(row, { onConflict: 'tenant_id,channel' });
+  if (error) throw new Error(`Falha ao salvar pending no banco: ${error.message}`);
 }
 
 export async function clearPending(channel) {
-  if (usingDb()) {
-    const { error } = await getDb().from('pending_approvals').delete().eq('tenant_id', currentTenantId()).eq('channel', channel);
-    if (error) throw new Error(`Falha ao limpar pending no banco: ${error.message}`);
-    return;
-  }
-  const items = await getPending();
-  const filtered = items.filter(i => i.channel !== channel);
-  if (filtered.length !== items.length) {
-    await writeYaml(paths().PENDING_FILE, filtered);
-  }
+  const { error } = await getDb().from('pending_approvals').delete().eq('tenant_id', currentTenantId()).eq('channel', channel);
+  if (error) throw new Error(`Falha ao limpar pending no banco: ${error.message}`);
 }
 
 export async function expirePending() {
-  if (usingDb()) {
-    const cutoff = new Date(Date.now() - PENDING_TTL_MS).toISOString();
-    const { data, error } = await getDb().from('pending_approvals').delete().eq('tenant_id', currentTenantId()).lt('saved_at', cutoff).select('*');
-    if (error) throw new Error(`Falha ao expirar pending no banco: ${error.message}`);
-    return (data || []).map(pendingRowToItem);
-  }
-  const items = await getPending();
-  const now = Date.now();
-  const valid = items.filter(i => now - new Date(i.saved_at).getTime() <= PENDING_TTL_MS);
-  const expired = items.filter(i => now - new Date(i.saved_at).getTime() > PENDING_TTL_MS);
-  if (expired.length > 0) {
-    await writeYaml(paths().PENDING_FILE, valid);
-  }
-  return expired;
+  if (!usingDb()) return [];
+  const cutoff = new Date(Date.now() - PENDING_TTL_MS).toISOString();
+  const { data, error } = await getDb().from('pending_approvals').delete().eq('tenant_id', currentTenantId()).lt('saved_at', cutoff).select('*');
+  if (error) throw new Error(`Falha ao expirar pending no banco: ${error.message}`);
+  return (data || []).map(pendingRowToItem);
 }
 
-export const _paths = paths;
 export const _PENDING_TTL_MS = PENDING_TTL_MS;

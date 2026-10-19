@@ -31,8 +31,8 @@ Automação de postagens Instagram + LinkedIn pra SaaS B2B. Geração via Gemini
 | `npm test` | Roda testes Vitest |
 | `npm run dry-run` | Pipeline completo mockando APIs externas |
 | `npm run publish:test` | Posta 1 item hardcoded em sandbox (precisa credencial) |
-| `npm start` | Fase gerar: gera, salva a pendência e avisa (workflow `post.yml`) |
-| `npm run resolve` | Fase resolver: gera as novas versões pedidas na plataforma (workflow `resolve.yml`) |
+| `npm start` | Fase gerar: gera, salva a pendência e avisa (job `post`) |
+| `npm run resolve` | Fase resolver: gera as novas versões pedidas na plataforma (job `resolve`) |
 | `npm run metrics` | Coleta insights da semana (TODO) |
 | `npm run refresh-tokens` | Renova tokens IG + LinkedIn |
 
@@ -40,11 +40,14 @@ Automação de postagens Instagram + LinkedIn pra SaaS B2B. Geração via Gemini
 
 ```
 docs/        estratégia (ICP, dores, voice) — lida pelos prompts
-content/     fila + histórico em YAML versionado
+content/     campanhas e exemplos curados (a fila e o histórico moram no Postgres)
 prompts/     system + canais + pilares
 templates/   HTML/CSS pra render via Puppeteer
 src/         lógica
-.github/     workflows GitHub Actions
+packages/db/ acesso ao Postgres (@ekoai/db)
+docker/      imagens da plataforma e dos jobs (Cloud Run)
+supabase/    migrations e testes de RLS (a pasta vira db/ no fim da SPEC 010)
+.github/     CI (testes, migrations, imagens)
 ```
 
 ## Estado atual
@@ -60,5 +63,5 @@ src/         lógica
 | Item | Custo |
 |---|---|
 | Claude API | R$ 5–15 |
-| GitHub Actions | R$ 0 (free tier) |
+| Google Cloud (Cloud Run, Cloud SQL, Scheduler) | a medir na fase 3 da SPEC 010 |
 | **Total** | **< R$ 20** |

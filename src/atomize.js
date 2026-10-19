@@ -4,7 +4,7 @@
 //
 // Uso:
 //   node src/atomize.js <arquivo> [n=8]        # imprime as ideias (JSON + resumo)
-//   node src/atomize.js <arquivo> [n] --queue  # também adiciona em content/queue.yaml
+//   node src/atomize.js <arquivo> [n] --queue  # também adiciona na fila (banco)
 //   echo "texto..." | node src/atomize.js - 6  # lê de stdin
 //
 // Requer GEMINI_API_KEY (ou DRY_RUN=true pra ver o prompt sem chamar a API).

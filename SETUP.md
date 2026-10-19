@@ -117,27 +117,21 @@ relatório semanal) ficam na tabela `notifications` do tenant e aparecem na plat
 
 ---
 
-## 6. Configurar repo + secrets
+## 6. Segredos
 
 **Tempo:** 10min
 
-1. Crie repo privado no GitHub: `post-automation`
-2. `git remote add origin git@github.com:USERNAME/post-automation.git`
-3. `git push -u origin main`
-4. No GitHub → Settings → Secrets and variables → Actions → New repository secret
+Localmente, preencha o `.env` a partir do `.env.example`. Em produção os segredos ficam no
+Secret Manager do Google Cloud e entram nos Cloud Run Jobs e na plataforma pelo Terraform
+([SPEC 010](docs/specs/010-migracao-google-cloud.md), fase 3). Os GitHub Actions secrets não são
+mais usados: o repositório só roda o CI.
 
-   Adicione as vars do `.env.example`:
+Variáveis que os jobs leem:
 
-   - `ANTHROPIC_API_KEY`
-   - `IG_ACCESS_TOKEN`
-   - `IG_BUSINESS_ACCOUNT_ID`
-   - `META_APP_ID`
-   - `META_APP_SECRET`
-   - `LINKEDIN_ACCESS_TOKEN`
-   - `LINKEDIN_REFRESH_TOKEN`
-   - `LINKEDIN_AUTHOR_URN`
-   - `LINKEDIN_CLIENT_ID`
-   - `LINKEDIN_CLIENT_SECRET`
+- `GEMINI_API_KEY`
+- `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`, `META_APP_ID`, `META_APP_SECRET`
+- `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_AUTHOR_URN`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`
+- `DATABASE_URL`, `STATE_BACKEND=postgres`, `STORAGE_BUCKET`, `MEDIA_BASE_URL`
 
 ---
 
@@ -155,14 +149,11 @@ Esperado: testes passam, dry-run gera 3 variações mock + 2 imagens (uma IG, um
 
 ## 8. Primeiro post de verdade
 
-1. `.env` localmente preenchido OU rodar via GitHub Actions
-2. Adicione 1 item em `content/queue.yaml`:
-   ```yaml
-   - pillar: dor
-     angle: tempo
-     context: "Primeiro post de validação"
-   ```
-3. Acione manualmente: Actions tab → Post → Run workflow → `skip_approval=true` (pra primeiro teste sem ficar esperando)
+1. `.env` preenchido, com `DATABASE_URL` de um Postgres com as migrations (`npm run migrate`)
+2. Enfileire 1 ideia em `queue_items` (`node src/atomize.js <arquivo> 1 --queue`, ou um `insert`):
+   `pillar = 'dor'`, `angle = 'tempo'`, `context = 'Primeiro post de validação'`
+3. Rode o job `post` com `SKIP_APPROVAL=true` (primeiro teste sem esperar aprovação): localmente
+   `npm start`; no Google Cloud, `gcloud run jobs execute post` depois da fase 3
 4. Veja a publicação em IG + LinkedIn
 5. Próximo post: deixar o fluxo normal, com aprovação na plataforma
 

@@ -94,9 +94,23 @@ então podem andar em paralelo com a 0.
   Cloud SQL Postgres 17 (backup diário, PITR, proteção contra exclusão), Cloud Run service e
   jobs, Cloud Scheduler (8 agendas, mesmos horários dos workflows), GCS, Secret Manager,
   Identity Platform, alertas.
-- Mapa de substituição: `post` → job + Scheduler `0 20 * * 2,4`; `publish-due` → Scheduler `*/10`
-  chamando `/api/cron/publish-due` com OIDC no lugar de `CRON_SECRET`; `resolve`, `reflect`,
-  `refresh-tokens`, `token-health-check`, `weekly-report`, `funnel` → job + Scheduler.
+- Mapa de substituição dos workflows antigos (removidos do repo; horários em UTC, como eram):
+
+  | Workflow | Job (`node src/jobs.js <job>`) | Cron |
+  | --- | --- | --- |
+  | `post.yml` | `post` | `0 20 * * 2,4` |
+  | `resolve.yml` | `resolve` | `*/10 20-23,0-2 * * *` |
+  | `reflect.yml` | `reflect` | `0 22 * * 0` |
+  | `refresh-tokens.yml` | `refresh-tokens` | `0 3 1 * *` |
+  | `token-health-check.yml` | `token-health` | `0 6 * * *` |
+  | `weekly-report.yml` | `weekly-report` | `0 23 * * 0` |
+  | `funnel.yml` | `funnel` | `30 9 * * *` |
+  | `publish-due.yml` | (não é job) `POST /api/cron/publish-due` na plataforma | `*/10 * * * *` |
+
+  O `publish-due` passa a usar o token OIDC do Scheduler no lugar de `CRON_SECRET`. Os workflows
+  `post` e `resolve` serializavam por `concurrency` por causa do push em `content/`; no banco isso
+  não existe, mas os dois jobs rodam com `parallelism = 1` e `max_retries = 0` (publicar não é
+  idempotente).
 - **Verificação:** migrations aplicadas no Cloud SQL; `rls_test.sql` rodado contra ele; login real
   (Identity Platform) e um post `DRY_RUN` de ponta a ponta; restore de backup **executado**, não
   só configurado.
@@ -227,3 +241,18 @@ README, SETUP, runbook e o cofre. Apagar o `My First Project`.
 - `refresh-tokens` ainda grava o token novo no GitHub Secrets (`utils/github-secrets.js`); vira
   Secret Manager (D6) na fase 3.
 - O cron `publish-due` segue com `CRON_SECRET`; a troca por token OIDC do Scheduler é da fase 3.
+
+### Fase 7 (parcial, 2026-10-19)
+
+- Feito: o caminho YAML saiu do `queue.js` e do `metrics.js`; a fila, os publicados, os rejeitados e
+  as pendências vivem só no Postgres. Sem `STATE_BACKEND=postgres` as leituras voltam vazias (teste e
+  dry-run local) e as escritas falham. Os 8 workflows antigos foram removidos (só o `ci.yml`
+  fica); as agendas estão na tabela da fase 3 acima.
+- Fica para o cutover (fase 6), porque dependem de a infra existir:
+  - `content/published.yaml`, `queue.yaml`, `rejected.yaml` e `pending-approval.yaml` seguem no
+    repo só para `npm run backfill` importar o histórico no banco novo; depois do import, apagar
+    os arquivos e o script.
+  - `src/utils/github-secrets.js` (usado pelo `refresh-tokens`) sai quando o Secret Manager entrar.
+  - O projeto da Vercel e o Supabase da Trinity.
+  - Renomear `supabase/` para `db/` (migrations, `ci/`): depende de a pipeline da fase 4 já apontar
+    para o caminho novo, então muda junto com ela.
