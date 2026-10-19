@@ -17,7 +17,7 @@ function files(dir) {
 // Únicos lugares com acesso cru ao banco: a definição, o escopo por tenant e os usos de
 // sistema que atravessam tenants de propósito (com quantas ocorrências cada um tem).
 const RAW_DB_ALLOWED = {
-  'lib/supabase.ts': Infinity,
+  'lib/db.ts': Infinity,
   'lib/tenant-db.ts': Infinity,
   'lib/publish.ts': 1, // varredura dos vencidos de todos os tenants
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)

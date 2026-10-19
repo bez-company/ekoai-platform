@@ -1,10 +1,10 @@
 // campaign-sync.js: espelha content/campaigns.yaml na tabela `campaigns` (upsert por
 // tenant + slug). O YAML continua sendo onde se escreve campanha nesta fase; a tabela
 // dá o campaign_id e o slug que a plataforma grava na distribuição e no UTM.
-// Chamado por: src/index.js (só sob STATE_BACKEND=supabase). ADR 0001, SPEC 001 R2.
+// Chamado por: src/index.js (só sob STATE_BACKEND=postgres). ADR 0001, SPEC 001 R2.
 
 import { getCampaigns } from './calendar.js';
-import { supabase } from './db.js';
+import { getDb } from './db.js';
 
 // "Quanto custa um projeto" → "quanto-custa-um-projeto". Vira utm_campaign.
 export function slugify(text) {
@@ -53,7 +53,7 @@ export async function syncCampaigns({ tenantId, campaigns } = {}) {
   const list = campaigns ?? (await getCampaigns());
   const rows = list.map(c => campaignToRow(c, tenantId)).filter(Boolean);
   if (!rows.length) return 0;
-  const { error } = await supabase().from('campaigns').upsert(rows, { onConflict: 'tenant_id,slug' });
+  const { error } = await getDb().from('campaigns').upsert(rows, { onConflict: 'tenant_id,slug' });
   if (error) throw new Error(`Falha ao sincronizar campanhas: ${error.message}`);
   return rows.length;
 }

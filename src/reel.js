@@ -11,6 +11,7 @@ import { chooseNextPillar, chooseNextAngle } from './utils/ranking.js';
 import { getPublished, isRealPost } from './utils/queue.js';
 import { pickRepurposeCandidate } from './repurpose.js';
 import { notify } from './utils/notifications.js';
+import { assertStateBackend } from './utils/db.js';
 
 const MODEL = 'gemini-2.5-flash';
 const DRY_RUN = process.env.DRY_RUN === 'true';
@@ -86,6 +87,7 @@ export function formatScript(script) {
 }
 
 async function main() {
+  assertStateBackend();
   const published = (await getPublished()).filter(isRealPost);
 
   let pillar;

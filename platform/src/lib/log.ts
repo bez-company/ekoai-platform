@@ -1,7 +1,10 @@
-// log.ts: log estruturado (uma linha JSON por evento), lido pelos logs da Vercel. Campos que
-// podem carregar dado pessoal ou segredo saem mascarados antes de serem gravados.
+// log.ts: log estruturado (uma linha JSON por evento), lido pelo Cloud Logging, que usa `severity`
+// e `message` para classificar e mostrar a linha. Campos que podem carregar dado pessoal ou
+// segredo saem mascarados antes de serem gravados.
 
 type Level = 'info' | 'warn' | 'error';
+
+const SEVERITY: Record<Level, string> = { info: 'INFO', warn: 'WARNING', error: 'ERROR' };
 
 const SENSITIVE = /(token|secret|password|senha|authorization|cookie|key|email)/i;
 
@@ -17,7 +20,7 @@ export function scrub(value: unknown, depth = 0): unknown {
 }
 
 export function log(level: Level, scope: string, message: string, fields: Record<string, unknown> = {}): void {
-  const line = JSON.stringify({ level, scope, message, ...(scrub(fields) as object), at: new Date().toISOString() });
+  const line = JSON.stringify({ severity: SEVERITY[level], level, scope, message, ...(scrub(fields) as object), at: new Date().toISOString() });
   if (level === 'error') console.error(line);
   else if (level === 'warn') console.warn(line);
   else console.info(line);

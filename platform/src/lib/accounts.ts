@@ -3,7 +3,7 @@
 // isso usa db() direto em vez do tenantDb. Nada aqui recebe tenant do corpo da requisição sem
 // conferir a membership.
 
-import { db } from './supabase';
+import { db } from './db';
 import type { Identity } from './identity';
 import type { Membership } from './login-policy';
 import { isRole, type Permission, type Role, allows } from './permissions';

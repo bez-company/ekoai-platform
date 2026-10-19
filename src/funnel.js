@@ -3,7 +3,7 @@
 // recompensa do bandit. Rodar: npm run funnel (workflow funnel.yml).
 
 import 'dotenv/config';
-import { usingSupabase, supabase } from './utils/db.js';
+import { usingDb, getDb } from './utils/db.js';
 import { resolveTenant } from './tenant.js';
 import { parseFunnelResponse, funnelWindow, totalsByContent } from './utils/funnel.js';
 
@@ -23,7 +23,7 @@ export async function fetchFunnel({ desde, ate, endpoint = process.env.PILAR_FUN
 
 // Upsert da janela + remoção do que não veio nesta rodada (combinação que zerou ou sumiu).
 async function replaceWindow({ tenantId, desde, ate, rows, runAt }) {
-  const db = supabase();
+  const db = getDb();
   if (rows.length) {
     const payload = rows.map(r => ({ ...r, tenant_id: tenantId, fetched_at: runAt }));
     const { error } = await db.from('funnel_daily').upsert(payload, {
@@ -43,7 +43,7 @@ async function replaceWindow({ tenantId, desde, ate, rows, runAt }) {
 // utm_content -> scheduled_posts (utm->>content) -> posts.funnel.
 async function updatePostTotals({ tenantId, totals, runAt }) {
   if (!totals.size) return 0;
-  const db = supabase();
+  const db = getDb();
   const contents = [...totals.keys()];
   const { data, error } = await db.from('scheduled_posts')
     .select('post_id,utm')
@@ -69,8 +69,8 @@ export async function runFunnel({ now = new Date() } = {}) {
     log('PILAR_FUNNEL_URL ou OPS_EXPORT_TOKEN ausente: coleta do funil pulada.');
     return { skipped: true };
   }
-  if (!usingSupabase()) {
-    log('STATE_BACKEND diferente de supabase: o funil só é gravado no banco. Coleta pulada.');
+  if (!usingDb()) {
+    log('STATE_BACKEND diferente de postgres: o funil só é gravado no banco. Coleta pulada.');
     return { skipped: true };
   }
   const tenantId = resolveTenant().id;

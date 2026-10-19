@@ -2,7 +2,7 @@
 // hasMeaningfulEdit / buildReflectionBlock são puros (testáveis).
 // getActiveStyleRules lê as regras ativas do tenant (best-effort: sem DB → []).
 
-import { usingSupabase, supabase } from './db.js';
+import { usingDb, getDb } from './db.js';
 
 // Normaliza pra comparar CONTEÚDO, não formatação: minúsculas, espaços colapsados.
 function normalize(text) {
@@ -48,9 +48,9 @@ export function buildReflectionBlock(rules) {
 // canal (regra sem canal vale pra todos) e por aspecto: o padrão traz as de texto
 // (regra sem aspecto conta como texto); `aspects: ['visual']` traz as do prompt de imagem.
 export async function getActiveStyleRules(tenantId, { channel, aspects, limit = 12 } = {}) {
-  if (!usingSupabase()) return [];
+  if (!usingDb()) return [];
   try {
-    const { data, error } = await supabase()
+    const { data, error } = await getDb()
       .from('style_rules')
       .select('rule,channel,aspect')
       .eq('tenant_id', tenantId)

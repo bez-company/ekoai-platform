@@ -1,0 +1,15 @@
+{
+  "name": "@ekoai/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Acesso ao Postgres no formato do supabase-js (from/select/eq/...), sobre um executor injetado. Sem dependência de runtime.",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
+}

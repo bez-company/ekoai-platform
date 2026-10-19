@@ -6,7 +6,9 @@ import { join, relative } from 'node:path';
 // uma permissão diferente da tabela da spec, reprova aqui.
 const API = join(import.meta.dirname, '../platform/src/app/api');
 
-const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session']);
+// `media/[...key]` é pública de propósito: as redes buscam a arte por ela ao publicar; a chave
+// leva UUID e só o formato de lib/media.ts passa (tests/media.test.js).
+const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]']);
 
 const EXPECTED = {
   approve: ['content.approve'],

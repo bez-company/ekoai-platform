@@ -8,6 +8,7 @@
 import 'dotenv/config';
 import { getPublished, isRealPost, pushToQueue } from './utils/queue.js';
 import { notify, channelName } from './utils/notifications.js';
+import { assertStateBackend } from './utils/db.js';
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
@@ -43,6 +44,7 @@ export function repurposeBrief(candidate) {
 }
 
 async function main() {
+  assertStateBackend();
   const published = (await getPublished()).filter(isRealPost);
   const candidate = pickRepurposeCandidate(published);
   if (!candidate) {

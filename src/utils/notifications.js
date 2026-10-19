@@ -2,7 +2,7 @@
 // plataforma. Substitui o Telegram. Best-effort: falha ao gravar vai para o log e nunca derruba
 // o job. Sem banco (STATE_BACKEND=yaml) ou em DRY_RUN, o aviso só sai no log.
 
-import { usingSupabase, supabase } from './db.js';
+import { usingDb, getDb } from './db.js';
 import { resolveTenant } from '../tenant.js';
 
 const LEVELS = new Set(['info', 'warning', 'error']);
@@ -23,12 +23,12 @@ export function buildNotice({ kind, level = 'info', title, body = null, link = n
 
 export async function notify(notice, { dryRun = false, tenantId = resolveTenant().id } = {}) {
   const row = buildNotice(notice);
-  if (dryRun || !usingSupabase()) {
+  if (dryRun || !usingDb()) {
     console.log(`[aviso] ${row.level} ${row.kind}: ${row.title}`);
     return { stored: false };
   }
   try {
-    const { error } = await supabase().from('notifications').insert({ ...row, tenant_id: tenantId });
+    const { error } = await getDb().from('notifications').insert({ ...row, tenant_id: tenantId });
     if (error) throw new Error(error.message);
     return { stored: true };
   } catch (e) {

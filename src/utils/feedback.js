@@ -3,7 +3,7 @@
 // Visual vai pro prompt de imagem, o resto pro de texto. Builders são puros (testáveis);
 // leituras são best-effort (sem DB → []).
 
-import { usingSupabase, supabase } from './db.js';
+import { usingDb, getDb } from './db.js';
 import { getActiveStyleRules } from './reflections.js';
 
 export const ASPECTS = ['texto', 'visual', 'tom', 'tema', 'formato', 'cta'];
@@ -15,10 +15,10 @@ const MAX_PER_SENTIMENT = 8;
 // Feedback do tenant nos últimos `days` dias. Com `channel`, traz o daquele canal e o
 // que vale pra todas as redes (channel null).
 export async function getRecentFeedback(tenantId, { channel, days = RECENT_DAYS, limit = 40, now = new Date() } = {}) {
-  if (!usingSupabase()) return [];
+  if (!usingDb()) return [];
   try {
     const since = new Date(now.getTime() - days * 86400 * 1000).toISOString();
-    const { data, error } = await supabase()
+    const { data, error } = await getDb()
       .from('feedback')
       .select('channel,aspect,sentiment,note,excerpt,created_at')
       .eq('tenant_id', tenantId)

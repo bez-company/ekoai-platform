@@ -6,10 +6,12 @@ import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 import { notify } from './utils/notifications.js';
 import { updateSecret, canUpdateSecrets } from './utils/github-secrets.js';
+import { assertStateBackend } from './utils/db.js';
 
 const MODE = process.argv[2] || 'refresh'; // refresh | check
 
 async function main() {
+  assertStateBackend();
   const results = {};
 
   results.instagram = await runStep('Instagram', async () => {

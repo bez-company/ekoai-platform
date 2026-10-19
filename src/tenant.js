@@ -4,7 +4,7 @@
 //
 // F0-lite (passo 1): a config vive aqui, em código. Passos seguintes:
 //   - generate.js/pipeline.js passam a LER daqui em vez de hardcode (passos 2-3)
-//   - a config migra pra tabela `tenants`/`niche_profile` no Supabase (passo 5)
+//   - a config migra pra tabela `tenants`/`niche_profile` no banco (passo 5)
 //
 // Reusa os defaults de taxonomia de ranking.js como fonte única (sem duplicar).
 // ranking.js NÃO importa este módulo → sem dependência circular.

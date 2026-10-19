@@ -8,7 +8,7 @@
 
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
-import { usingSupabase, supabase } from './utils/db.js';
+import { usingDb, getDb, assertStateBackend } from './utils/db.js';
 import { composeCaption } from './generate.js';
 import { hasMeaningfulEdit, buildReflectPrompt, normalizeDerivedRules } from './utils/reflections.js';
 import { resolveTenant } from './tenant.js';
@@ -22,7 +22,7 @@ function log(...args) {
 // Coleta pares (sugerido, editado) de scheduled_posts do tenant onde houve
 // edição significativa. A legenda sugerida é reconstruída da variação gerada.
 async function collectEdits(tenantId, { limit = 40 } = {}) {
-  const { data, error } = await supabase()
+  const { data, error } = await getDb()
     .from('scheduled_posts')
     .select('variation,caption_final,channel,created_at')
     .eq('tenant_id', tenantId)
@@ -44,7 +44,7 @@ async function collectEdits(tenantId, { limit = 40 } = {}) {
 // Feedback do editor dos últimos `days` dias (positivo e negativo, todos os aspectos).
 async function collectFeedback(tenantId, { days = 90, limit = 60 } = {}) {
   const since = new Date(Date.now() - days * 86400 * 1000).toISOString();
-  const { data, error } = await supabase()
+  const { data, error } = await getDb()
     .from('feedback')
     .select('channel,aspect,sentiment,note,excerpt,created_at')
     .eq('tenant_id', tenantId)
@@ -80,21 +80,22 @@ async function deriveStyleRules({ pairs, feedback }, tenant) {
 // as novas. Manual fica como está. Mantém histórico (active=false) em vez de apagar.
 async function persistRules(tenantId, rules, evidence) {
   if (!rules.length) return;
-  await supabase()
+  await getDb()
     .from('style_rules')
     .update({ active: false })
     .eq('tenant_id', tenantId)
     .eq('active', true)
     .in('source', ['edicao', 'feedback']);
   const rows = rules.map(r => ({ tenant_id: tenantId, ...r, evidence }));
-  const { error } = await supabase().from('style_rules').insert(rows);
+  const { error } = await getDb().from('style_rules').insert(rows);
   if (error) throw new Error(`Falha ao gravar style_rules: ${error.message}`);
 }
 
 async function main() {
+  assertStateBackend();
   const tenant = resolveTenant();
-  if (!usingSupabase()) {
-    log('STATE_BACKEND≠supabase — reflection precisa do banco (lê scheduled_posts). Saindo.');
+  if (!usingDb()) {
+    log('STATE_BACKEND≠postgres — reflection precisa do banco (lê scheduled_posts). Saindo.');
     return;
   }
   log(`reflection | tenant=${tenant.id}`);

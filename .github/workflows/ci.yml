@@ -4,12 +4,11 @@ name: CI
 #   - toda PR: testes, typecheck da plataforma, as migrations aplicadas (duas vezes)
 #     num Postgres limpo sem comando destrutivo escondido, o isolamento por tenant (RLS)
 #     testado e a varredura de segredo e de dependência; o job `CI ok` agrega tudo;
-#   - merge na main: as migrations pendentes são aplicadas no banco de produção.
+#   - as imagens da plataforma e dos jobs constroem (Cloud Run, SPEC 010).
 #
-# A Vercel publica a plataforma por conta própria quando o merge chega na main, e os
-# dois disparam ao mesmo tempo. Por isso migration tem que ser ADITIVA (coluna nova,
-# tabela nova) e o código tolerar a coluna ainda não existir, como o fallback do
-# brief_id em src/utils/queue.js.
+# Deploy e migrations em produção entram na fase 4 da SPEC 010 (job `migrate` do Cloud Run,
+# Workload Identity Federation). Até lá a main não publica nada sozinha. Quando entrarem,
+# migration continua ADITIVA (coluna nova, tabela nova): deploy e migration não são atômicos.
 
 on:
   pull_request:
@@ -20,9 +19,6 @@ on:
 # Mínimo possível. Nenhum job precisa de mais que ler o repositório.
 permissions:
   contents: read
-
-env:
-  SUPABASE_CLI_VERSION: "2.109.1"
 
 jobs:
   test:
@@ -199,12 +195,66 @@ jobs:
         working-directory: platform
         run: npm audit --omit=dev --audit-level=critical
 
+  data-layer:
+    name: Camada de dados no Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ekoai_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+      DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_test
+      TEST_DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            platform/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: platform
+      # O mesmo executor que o job `migrate` do Cloud Run usa em produção.
+      - name: Migrations pelo executor
+        run: npm run migrate
+      - name: Consultas, módulos e executor de migrations contra o Postgres
+        run: npm run test:db
+
+  containers:
+    name: Imagens do Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Plataforma
+        run: docker build -f docker/platform.Dockerfile -t ekoai-platform:ci .
+      - name: Jobs
+        run: docker build -f docker/jobs.Dockerfile -t ekoai-jobs:ci .
+      # O container sobe e o dispatcher recusa job que não existe.
+      - name: Dispatcher dos jobs
+        run: |
+          set -euo pipefail
+          if docker run --rm ekoai-jobs:ci nada 2>&1 | grep -q "Job desconhecido"; then echo ok; else exit 1; fi
+
   # Único check obrigatório na proteção da main: agrega os outros, então job novo entra
   # aqui sem mexer na configuração do GitHub.
   ci-ok:
     name: CI ok
     if: always()
-    needs: [test, identity-emulator, migrations-check, security]
+    needs: [test, identity-emulator, migrations-check, data-layer, containers, security]
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -212,46 +262,3 @@ jobs:
             echo "::error::algum job do CI não passou"
             exit 1
           fi
-
-  migrate:
-    name: Migrations em produção
-    needs: [ci-ok]
-    # Só no push para a main: PR nunca enxerga o segredo do banco.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # O segredo SUPABASE_DB_URL vive neste environment. Para exigir um clique de
-    # aprovação antes de aplicar, adicione "Required reviewers" nele no GitHub.
-    environment: Production
-    # Duas execuções nunca aplicam migration ao mesmo tempo, e cancelar um `db push`
-    # no meio é pior que esperar o anterior.
-    concurrency:
-      group: migrate-production
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
-
-      # Sem o segredo, falha dizendo o que configurar (em vez de um erro de conexão).
-      - name: Segredo do banco configurado
-        run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::Configure o segredo SUPABASE_DB_URL (Session Pooler, IPv4) no environment Production"
-            exit 1
-          fi
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      # SUPABASE_DB_URL deve ser o Session Pooler (IPv4): a conexão direta do Supabase
-      # é IPv6 e o runner do GitHub não alcança.
-      - name: Migrations pendentes (dry-run)
-        run: supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Aplicar migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
