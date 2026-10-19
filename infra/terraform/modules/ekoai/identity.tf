@@ -10,6 +10,10 @@ resource "google_identity_platform_config" "auth" {
       enabled           = true
       password_required = true
     }
+
+    phone_number {
+      enabled = false
+    }
   }
 
   mfa {
