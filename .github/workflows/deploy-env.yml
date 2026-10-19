@@ -83,8 +83,10 @@ jobs:
       - name: Plataforma
         run: |
           set -euo pipefail
+          # O SHA vai no nome da revisão (K_REVISION, mostrado em /api/health). Variável de ambiente
+          # não serve: o Terraform a desfaria no próximo apply.
           gcloud run services update ekoai-platform --region "$REGION" --image "$REGISTRY/platform:$SHA" \
-            --update-env-vars "APP_VERSION=$SHA" --quiet
+            --revision-suffix "sha-${SHA:0:7}" --quiet
           URL=$(gcloud run services describe ekoai-platform --region "$REGION" --format 'value(status.url)')
           echo "URL=$URL" >> "$GITHUB_ENV"
 
