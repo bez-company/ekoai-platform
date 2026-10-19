@@ -11,14 +11,17 @@
     "check:db": "node scripts/check-db.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
+    "@ekoai/db": "file:../packages/db",
+    "@google-cloud/storage": "^8.4.0",
     "firebase-admin": "^14.5.0",
     "next": "^15.1.6",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",

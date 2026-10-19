@@ -3,10 +3,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const insert = vi.fn();
-const state = { supabase: true };
+const state = { db: true };
 vi.mock('../src/utils/db.js', () => ({
-  usingSupabase: () => state.supabase,
-  supabase: () => ({ from: (table) => ({ insert: (row) => insert(table, row) }) }),
+  usingDb: () => state.db,
+  getDb: () => ({ from: (table) => ({ insert: (row) => insert(table, row) }) }),
 }));
 
 const { notify, buildNotice, channelName } = await import('../src/utils/notifications.js');
@@ -15,7 +15,7 @@ const platform = await import('../platform/src/lib/notifications.ts');
 beforeEach(() => {
   insert.mockReset();
   insert.mockResolvedValue({ error: null });
-  state.supabase = true;
+  state.db = true;
 });
 
 describe('avisos dos jobs (src/utils/notifications.js)', () => {
@@ -34,7 +34,7 @@ describe('avisos dos jobs (src/utils/notifications.js)', () => {
 
   it('dry-run e backend YAML não tocam no banco', async () => {
     await notify({ kind: 'publish.ok', title: 'x' }, { dryRun: true });
-    state.supabase = false;
+    state.db = false;
     await notify({ kind: 'publish.ok', title: 'x' });
     expect(insert).not.toHaveBeenCalled();
   });

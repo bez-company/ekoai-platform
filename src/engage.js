@@ -13,6 +13,7 @@
 
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
+import { assertStateBackend } from './utils/db.js';
 
 const MODEL = 'gemini-2.5-flash-lite';
 const DRY_RUN = process.env.DRY_RUN === 'true';
@@ -66,6 +67,7 @@ export async function draftComments({ targetText, n = 3 }) {
 }
 
 async function main() {
+  assertStateBackend();
   const targetText = process.env.ENGAGE_TARGET || process.argv.slice(2).join(' ');
   if (!targetText) {
     console.error('[engage] passe o texto do post-alvo: ENGAGE_TARGET="..." npm run engage');

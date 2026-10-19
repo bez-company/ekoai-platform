@@ -4,11 +4,11 @@
 //
 //   npm run access:grant -- --email ana@empresa.com --tenant acme --role admin
 //
-// Precisa de SUPABASE_URL e SUPABASE_SERVICE_KEY. Mudar o papel de quem já é membro também
+// Precisa de DATABASE_URL. Mudar o papel de quem já é membro também
 // passa por aqui; a trava do último administrador (0015) vale do mesmo jeito.
 
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '../src/utils/db.js';
 import { parseArgs } from './create-tenant.js';
 
 const TENANT_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
@@ -29,12 +29,11 @@ async function main() {
     console.error(problem);
     process.exit(1);
   }
-  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('Defina SUPABASE_URL e SUPABASE_SERVICE_KEY (no .env ou no ambiente).');
+  if (!process.env.DATABASE_URL) {
+    console.error('Defina DATABASE_URL (no .env ou no ambiente).');
     process.exit(1);
   }
-  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+  const db = getDb();
   const email = args.email.trim().toLowerCase();
 
   const user = await db.from('users').upsert({ email }, { onConflict: 'email' }).select('id').single();

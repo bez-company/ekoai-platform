@@ -10,6 +10,7 @@ import { prepareGeneration, prepareReuse } from './pipeline.js';
 import { motherFormat } from './utils/brief.js';
 import { notify, channelName } from './utils/notifications.js';
 import { resolveTenant } from './tenant.js';
+import { assertStateBackend } from './utils/db.js';
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
@@ -65,6 +66,7 @@ async function handleRework(p, pendings, tenant) {
 }
 
 async function main() {
+  assertStateBackend();
   const tenant = resolveTenant();
   log(`Iniciando RESOLVE | tenant=${tenant.id} | DRY_RUN=${DRY_RUN}`);
   const pendings = await getPending();

@@ -1,8 +1,8 @@
-// backfill-supabase.js — importa o estado YAML existente pro Supabase.
-// Rodar UMA vez, após aplicar a migration 0001 e setar SUPABASE_URL/SERVICE_KEY.
+// backfill-db.js — importa o estado YAML existente pro banco.
+// Rodar UMA vez, após aplicar a migration 0001 e setar DATABASE_URL.
 //
-//   node scripts/backfill-supabase.js          # aborta se já houver posts
-//   node scripts/backfill-supabase.js --force   # insere mesmo assim
+//   node scripts/backfill-db.js          # aborta se já houver posts
+//   node scripts/backfill-db.js --force   # insere mesmo assim
 //
 // Importa: published.yaml → posts (+ metrics_snapshots), queue.yaml → queue_items,
 // rejected.yaml → rejected_posts. Dry-runs são marcados is_dry_run (não somem).
@@ -12,7 +12,7 @@ import yaml from 'js-yaml';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { supabase } from '../src/utils/db.js';
+import { getDb } from '../src/utils/db.js';
 import { isRealPost } from '../src/utils/queue.js';
 import { engagementScore } from '../src/utils/score.js';
 
@@ -32,7 +32,7 @@ function primaryChannel(item) {
 }
 
 async function main() {
-  const db = supabase();
+  const db = getDb();
 
   const { count, error: countErr } = await db.from('posts').select('*', { count: 'exact', head: true });
   if (countErr) throw new Error(`Falha ao checar posts: ${countErr.message}`);

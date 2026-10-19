@@ -30,12 +30,13 @@ const nextConfig = {
   // a plataforma vive numa subpasta do repo; fixa a raiz pro tracing não pegar o lockfile de cima
   outputFileTracingRoot: import.meta.dirname,
   poweredByHeader: false,
-  // As artes vêm do Supabase Storage (bucket público post-images) e do raw.githubusercontent.
+  // Imagem para o Cloud Run: servidor autocontido na imagem do container (SPEC 010).
+  output: 'standalone',
+  // Drivers com código nativo ou carregamento dinâmico ficam fora do bundle.
+  serverExternalPackages: ['pg', '@google-cloud/storage', 'firebase-admin'],
+  // As artes vêm da rota /api/media (bucket privado); as antigas, do raw.githubusercontent.
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '*.supabase.co' },
-      { protocol: 'https', hostname: 'raw.githubusercontent.com' },
-    ],
+    remotePatterns: [{ protocol: 'https', hostname: 'raw.githubusercontent.com' }],
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

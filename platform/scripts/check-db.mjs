@@ -1,11 +1,11 @@
-// check-db.mjs — valida a conexão com o Supabase e a presença das tabelas que a
-// plataforma usa. Lê credenciais de process.env; se faltarem, tenta o ../.env do
-// backend (mesmo projeto). Uso: node scripts/check-db.mjs
+// check-db.mjs — valida a conexão com o Postgres e a presença das tabelas que a plataforma usa.
+// Lê DATABASE_URL de process.env; se faltar, tenta o .env.local ou o ../.env do backend.
+// Uso: node scripts/check-db.mjs
 import { readFileSync, existsSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
+import pg from 'pg';
 
 function loadEnvFallback() {
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) return;
+  if (process.env.DATABASE_URL) return;
   for (const f of ['.env.local', '../.env']) {
     if (!existsSync(f)) continue;
     for (const line of readFileSync(f, 'utf8').split('\n')) {
@@ -17,32 +17,30 @@ function loadEnvFallback() {
 
 loadEnvFallback();
 
-const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_KEY;
-if (!url || !key) {
-  console.error('❌ SUPABASE_URL / SUPABASE_SERVICE_KEY ausentes.');
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL ausente.');
   process.exit(1);
 }
 
-const db = createClient(url, key, { auth: { persistSession: false } });
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 const tables = ['pending_approvals', 'scheduled_posts', 'publish_slots', 'posts'];
 
-console.log(`🔌 ${url}`);
+const { host, port, pathname } = new URL(process.env.DATABASE_URL);
+console.log(`Banco: ${host || 'socket'}${port ? `:${port}` : ''}${pathname}`);
 let allOk = true;
 for (const t of tables) {
-  // count exact dá o total real; limit(1) evita puxar tudo; o select sem head
-  // ainda expõe "table not found" no campo error.
-  const { count, error } = await db.from(t).select('*', { count: 'exact' }).limit(1);
-  if (error) {
+  try {
+    const { rows } = await pool.query(`select count(*)::int as n from public."${t}"`);
+    console.log(`  ok   ${t.padEnd(20)} ${rows[0].n} linha(s)`);
+  } catch (err) {
     allOk = false;
-    console.log(`  ❌ ${t.padEnd(20)} ${error.message}`);
-  } else {
-    console.log(`  ✅ ${t.padEnd(20)} ${count ?? 0} linha(s)`);
+    console.log(`  erro ${t.padEnd(20)} ${err.message}`);
   }
 }
+await pool.end();
 
 if (!allOk) {
-  console.log('\n⚠️  Tabela faltando? Aplique supabase/migrations/0002_platform_scheduling.sql no SQL Editor.');
+  console.log('\nTabela faltando? Aplique as migrations de supabase/migrations em ordem (o CI faz isso).');
   process.exit(2);
 }
-console.log('\n✅ Banco acessível e schema pronto.');
+console.log('\nBanco acessível e schema pronto.');

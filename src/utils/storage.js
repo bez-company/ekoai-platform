@@ -1,13 +1,15 @@
-// storage.js — upload de mídia (PNG dos posts, PDF do carrossel do LinkedIn) pra storage público.
-// Sob STATE_BACKEND=supabase → Supabase Storage (bucket público, repo não incha).
-// Senão → repo do GitHub via REST API (raw.githubusercontent). Retorna URL pública.
+// storage.js — upload de mídia (PNG dos posts, PDF do carrossel do LinkedIn, vídeo) para o
+// Cloud Storage. O bucket é PRIVADO: a URL devolvida aponta para a rota /api/media da plataforma,
+// que lê do bucket. É essa URL que o Instagram, o LinkedIn e o X buscam na hora de publicar.
+// O nome do objeto leva um UUID, então a URL não se adivinha (ADR 0006, SPEC 010).
+//
+// Env: STORAGE_BUCKET (nome do bucket) e MEDIA_BASE_URL (ex.: https://app.exemplo/api/media).
+// Credencial: a service account do job (ADC); localmente, `gcloud auth application-default login`.
 
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { usingSupabase, supabase } from './db.js';
-
-const API = 'https://api.github.com';
-const BUCKET = process.env.SUPABASE_BUCKET || 'post-images';
+import { Storage } from '@google-cloud/storage';
 
 const CONTENT_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.mp4': 'video/mp4' };
 
@@ -15,62 +17,29 @@ export function contentTypeFor(file) {
   return CONTENT_TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
 }
 
-async function uploadToSupabase(localPath) {
-  const buf = await readFile(localPath);
-  const folder = contentTypeFor(localPath) === 'application/pdf' ? 'documents' : 'images';
-  const key = `${folder}/${Date.now()}-${path.basename(localPath)}`;
-  const db = supabase();
-  const { error } = await db.storage.from(BUCKET).upload(key, buf, { contentType: contentTypeFor(localPath), upsert: false });
-  if (error) throw new Error(`Supabase Storage upload ${BUCKET}: ${error.message}`);
-  const { data } = db.storage.from(BUCKET).getPublicUrl(key);
-  return { url: data.publicUrl, path: key };
+export function mediaKeyFor(file) {
+  const folder = contentTypeFor(file) === 'application/pdf' ? 'documents' : 'images';
+  return `${folder}/${randomUUID()}${path.extname(file).toLowerCase()}`;
 }
 
-function getRepo() {
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('GITHUB_REPOSITORY ausente (formato: owner/repo)');
-  return repo;
+export function mediaUrlFor(key) {
+  const base = process.env.MEDIA_BASE_URL;
+  if (!base) throw new Error('MEDIA_BASE_URL é obrigatória (URL da rota /api/media da plataforma). Veja .env.example.');
+  return `${base.replace(/\/+$/, '')}/${key}`;
 }
 
-function getToken() {
-  const t = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  if (!t) throw new Error('GITHUB_TOKEN ausente (PAT local ou token do Actions)');
-  return t;
+function bucket() {
+  const name = process.env.STORAGE_BUCKET;
+  if (!name) throw new Error('STORAGE_BUCKET é obrigatória para enviar mídia. Veja .env.example.');
+  return new Storage().bucket(name);
 }
 
-function getBranch() {
-  return process.env.STORAGE_BRANCH || 'main';
-}
-
-export async function uploadImage(localPath, { dir = 'content/images' } = {}) {
-  if (usingSupabase()) return uploadToSupabase(localPath);
-
-  const buf = await readFile(localPath);
-  const filename = `${Date.now()}-${path.basename(localPath)}`;
-  const repoPath = `${dir}/${filename}`;
-  const repo = getRepo();
-  const branch = getBranch();
-
-  const res = await fetch(`${API}/repos/${repo}/contents/${repoPath}`, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-    body: JSON.stringify({
-      message: `chore: upload ${filename}`,
-      content: buf.toString('base64'),
-      branch,
-    }),
+export async function uploadImage(localPath) {
+  const key = mediaKeyFor(localPath);
+  const url = mediaUrlFor(key);
+  await bucket().file(key).save(await readFile(localPath), {
+    contentType: contentTypeFor(localPath),
+    resumable: false,
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub upload ${res.status}: ${text}`);
-  }
-
-  const json = await res.json();
-  const url = `https://raw.githubusercontent.com/${repo}/${branch}/${repoPath}`;
-  return { url, sha: json.content?.sha, path: repoPath };
+  return { url, path: key };
 }

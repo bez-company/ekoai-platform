@@ -2,7 +2,7 @@
 // conteúdo-mãe e monta o plano de cada rede (mother | reuse | own | skip | locked).
 // Puras (testáveis), exceto createBrief/markBrief, que são best-effort no banco.
 
-import { usingSupabase, supabase } from './db.js';
+import { usingDb, getDb } from './db.js';
 
 export const MODES = ['mother', 'reuse', 'own', 'skip', 'locked'];
 
@@ -60,14 +60,14 @@ export function buildReusePlan({ channels, mother, kind, tenant, isPublishable =
 
 // Grava o brief da rodada. Best-effort: sem banco ou com erro → null (a rodada segue).
 export async function createBrief({ tenantId, campaignSlug, pillar, angle, idea }) {
-  if (!usingSupabase()) return null;
+  if (!usingDb()) return null;
   try {
     let campaignId = null;
     if (campaignSlug) {
-      const { data } = await supabase().from('campaigns').select('id').eq('tenant_id', tenantId).eq('slug', campaignSlug).limit(1);
+      const { data } = await getDb().from('campaigns').select('id').eq('tenant_id', tenantId).eq('slug', campaignSlug).limit(1);
       campaignId = data?.[0]?.id ?? null;
     }
-    const { data, error } = await supabase()
+    const { data, error } = await getDb()
       .from('briefs')
       .insert({ tenant_id: tenantId, campaign_id: campaignId, week_of: mondayOf(new Date()), pillar, angle, idea, status: 'producing' })
       .select('id')
@@ -80,9 +80,9 @@ export async function createBrief({ tenantId, campaignSlug, pillar, angle, idea 
 }
 
 export async function markBrief(briefId, status) {
-  if (!briefId || !usingSupabase()) return;
+  if (!briefId || !usingDb()) return;
   try {
-    await supabase().from('briefs').update({ status }).eq('id', briefId);
+    await getDb().from('briefs').update({ status }).eq('id', briefId);
   } catch (e) {
     // best-effort
   }

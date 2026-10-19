@@ -41,7 +41,7 @@ export async function getPublishedHistory(t: TenantDb, limit = 50): Promise<Publ
   // Sem a 0010, posts.funnel não existe (42703): mostra o histórico sem o funil.
   if (error?.code === '42703') ({ data, error } = await query(HISTORY_COLUMNS));
   if (error) throw new Error(`Falha ao ler histórico: ${error.message}`);
-  return (data || []) as unknown as PublishedPost[]; // select dinâmico: o supabase-js não infere o shape
+  return (data || []) as unknown as PublishedPost[]; // select dinâmico: o shape da linha não é inferido
 }
 
 export async function getRecentlyPublishedScheduled(t: TenantDb, limit = 30): Promise<ScheduledPost[]> {

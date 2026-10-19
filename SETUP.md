@@ -103,7 +103,7 @@ Sugestão pra MVP: criar bucket gratuito Cloudflare R2 ou subir pra GitHub Pages
 
 Não há bot para configurar. Os avisos (post pronto para aprovar, agendado, publicado, falhou,
 relatório semanal) ficam na tabela `notifications` do tenant e aparecem na plataforma
-(SPEC 007). Sem `STATE_BACKEND=supabase`, saem só no log do job.
+(SPEC 007). Sem `STATE_BACKEND=postgres`, saem só no log do job.
 
 ---
 
@@ -174,4 +174,4 @@ Esperado: testes passam, dry-run gera 3 variações mock + 2 imagens (uma IG, um
 |---|---|---|
 | `IG API 400: image_url must be public` | URL não acessível externamente | Subir imagem pra S3/R2 |
 | `LinkedIn API 401` | Token expirado | `npm run refresh-tokens` |
-| Job rodou mas nenhum aviso apareceu | `STATE_BACKEND` não é `supabase` no workflow | Confere a variável do repo e o `SUPABASE_URL` |
+| Job rodou mas nenhum aviso apareceu | `STATE_BACKEND` não é `postgres` no job | Confere a variável do job e o `DATABASE_URL` |

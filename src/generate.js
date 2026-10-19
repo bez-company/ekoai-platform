@@ -8,7 +8,8 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { chooseNextPillar, chooseNextAngle, chooseNextFormat, pillarPosteriors } from './utils/ranking.js';
 import { getPublished, isRealPost } from './utils/queue.js';
-import { usingSupabase, supabase } from './utils/db.js';
+import { pickAutoExamples } from './utils/examples.js';
+import { usingDb, getDb } from './utils/db.js';
 import { retrieve } from './utils/rag.js';
 import { withRetry } from './utils/retry.js';
 import { resolveTenant } from './tenant.js';
@@ -106,10 +107,15 @@ async function loadExamplesFrom(rel) {
 }
 
 async function loadExamples(tenant) {
-  const [high, low] = await Promise.all([
+  const [high, low, published] = await Promise.all([
     loadExamplesFrom(tenant.examplesDir.high),
     loadExamplesFrom(tenant.examplesDir.low),
+    getPublished(),
   ]);
+  // Os que a coleta de métricas escolhe vêm dos posts no banco, não de arquivo (utils/examples.js).
+  const auto = pickAutoExamples(published.filter(isRealPost), { windowDays: Number(process.env.METRICS_WINDOW_DAYS || 30) });
+  high.push(...auto.high);
+  low.push(...auto.low);
   // Maior engajamento primeiro; seeds (score 0) ficam no fim.
   high.sort((a, b) => b.score - a.score);
   return { high, low };
@@ -248,9 +254,9 @@ export async function generatePost({ channel, pillar, angle, context, dryRun = f
   // (qual prompt/modelo gerou o post que performou).
   const promptHash = createHash('sha256').update(system).digest('hex').slice(0, 16);
   // Persiste o template completo do prompt (atribuição: qual versão gerou o quê).
-  if (usingSupabase()) {
+  if (usingDb()) {
     try {
-      await supabase().from('prompt_versions').upsert({ hash: promptHash, tenant_id: tenant.id, role: 'system', template: system }, { onConflict: 'hash' });
+      await getDb().from('prompt_versions').upsert({ hash: promptHash, tenant_id: tenant.id, role: 'system', template: system }, { onConflict: 'hash' });
     } catch (e) {
       console.error(`[generate] falha ao gravar prompt_version: ${e.message}`);
     }
@@ -270,13 +276,13 @@ export async function chooseTopic(tenant = resolveTenant(), published = null) {
 
 // Snapshot dos posteriores Beta por pilar → bandit_snapshots (best-effort, só sob flag).
 async function snapshotBandit(published, tenant) {
-  if (!usingSupabase()) return;
+  if (!usingDb()) return;
   try {
     const post = pillarPosteriors(published, tenant.taxonomy);
     const rows = Object.entries(post).map(([arm, p]) => ({
       tenant_id: tenant.id, dimension: 'pillar', arm, alpha: p.alpha, beta: p.beta, n: p.n,
     }));
-    if (rows.length) await supabase().from('bandit_snapshots').insert(rows);
+    if (rows.length) await getDb().from('bandit_snapshots').insert(rows);
   } catch (e) {
     console.error(`[generate] falha ao snapshot bandit: ${e.message}`);
   }

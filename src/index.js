@@ -18,7 +18,7 @@ import { notify, channelName } from './utils/notifications.js';
 import { getUpcomingHoliday, holidayContext } from './utils/holidays.js';
 import { getActiveCampaign, campaignContext } from './utils/calendar.js';
 import { resolveTenant } from './tenant.js';
-import { usingSupabase } from './utils/db.js';
+import { usingDb, assertStateBackend } from './utils/db.js';
 import { syncCampaigns, campaignSlug } from './utils/campaign-sync.js';
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
@@ -35,6 +35,7 @@ function newPendingId(channel) {
 }
 
 async function main() {
+  assertStateBackend();
   const tenant = resolveTenant();
   log(`Iniciando GERAÇÃO | tenant=${tenant.id} | DRY_RUN=${DRY_RUN} | PUBLISH_TEST=${PUBLISH_TEST} | SKIP_APPROVAL=${SKIP_APPROVAL}`);
 
@@ -55,7 +56,7 @@ async function main() {
 
   // Espelha campaigns.yaml na tabela: a plataforma usa o slug no UTM da distribuição.
   // Best-effort: falha no sync não impede a geração.
-  if (usingSupabase() && !DRY_RUN) {
+  if (usingDb() && !DRY_RUN) {
     try {
       const n = await syncCampaigns({ tenantId: tenant.id });
       log(`Campanhas sincronizadas: ${n}`);

@@ -3,7 +3,7 @@
 // mesma observabilidade que o backend Node gravava). Idempotente via lock de
 // status (scheduled → publishing) com update condicional anti-corrida.
 
-import { db } from './supabase';
+import { db } from './db';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { notify, channelName } from './notifications';
 import * as instagram from './channels/instagram';

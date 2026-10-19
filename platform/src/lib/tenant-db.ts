@@ -2,12 +2,12 @@
 // remoção sai com `tenant_id = <tenant>`, e toda escrita nova sai carimbada com ele. O tenant
 // vem da sessão (session.ts), nunca do corpo da requisição.
 //
-// O cliente por baixo ainda é a service role (ignora RLS), então é ESTE módulo que isola até o
-// login por usuário entrar. Um teste (tests/tenant-scope.test.js) proíbe `db()` cru fora de
+// O usuário do banco ainda ignora RLS (papel de serviço), então é ESTE módulo que isola até o
+// acesso por usuário (`withUser`, ADR 0007) entrar. Um teste (tests/tenant-scope.test.js) proíbe `db()` cru fora de
 // uma lista curta de usos de sistema.
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { db } from './supabase';
+import type { DbClient } from '@ekoai/db';
+import { db } from './db';
 import { isTenantId } from './tenant';
 
 type Row = Record<string, unknown>;
@@ -23,15 +23,14 @@ function withoutTenant(values: Row): Row {
   return rest;
 }
 
-export function tenantDb(tenantId: string, client?: SupabaseClient) {
+export function tenantDb(tenantId: string, client?: DbClient) {
   if (!isTenantId(tenantId)) throw new Error(`tenant inválido: ${String(tenantId)}`);
   const from = (table: string) => (client ?? db()).from(table);
   return {
     tenantId,
-    // `columns` literal (genérico) pra o supabase-js continuar inferindo o formato da linha
-    select: <C extends string = '*'>(
+    select: (
       table: string,
-      columns: C = '*' as C,
+      columns = '*',
       options?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean },
     ) => from(table).select(columns, options).eq('tenant_id', tenantId),
     insert: (table: string, rows: Row | Row[]) => from(table).insert(stamp(rows, tenantId)),

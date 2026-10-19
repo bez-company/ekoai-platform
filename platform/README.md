@@ -8,7 +8,7 @@ no horário marcado (não na hora da aprovação). Os avisos vão para `notifica
 
 ```
 Inbox (pending_approvals)  →  aprovar + agendar  →  scheduled_posts (status=scheduled)
-                                                          │ Vercel Cron */10min
+                                                          │ Cloud Scheduler */10min
                                                           ▼
                                               /api/cron/publish-due
                                                   publica IG/LinkedIn
@@ -18,7 +18,7 @@ Inbox (pending_approvals)  →  aprovar + agendar  →  scheduled_posts (status=
 ```
 
 - **Acesso ao DB**: service_role só no server (Server Components / Route Handlers / cron).
-  O browser nunca toca o Supabase. RLS continua fechado — sem policy nova.
+  O browser nunca toca o banco. RLS continua fechado, sem policy nova.
 - **Auth**: gate single-user por senha (`PLATFORM_PASSWORD`) + cookie assinado (HMAC).
 - **Agendamento**: slots editoriais fixos (`publish_slots`). Aprovar cai no próximo slot
   livre do canal; dá pra sobrescrever com horário manual e remarcar na Agenda.
@@ -28,53 +28,58 @@ Inbox (pending_approvals)  →  aprovar + agendar  →  scheduled_posts (status=
 
 ## Setup
 
-### 1. Migrations (automáticas)
+### 1. Migrations
 
-As migrations ficam em `../supabase/migrations/` e são aplicadas pelo CI
-(`.github/workflows/ci.yml`, ADR 0003): toda PR testa todas num Postgres limpo e o merge
-na `main` roda `supabase db push` no banco de produção. Ninguém aplica migration à mão.
+As migrations ficam em `../supabase/migrations/` (o nome da pasta é herança; ela vira `db/` no
+fim da [SPEC 010](../docs/specs/010-migracao-google-cloud.md)). Toda PR testa todas num Postgres
+limpo (`.github/workflows/ci.yml`, ADR 0003). Quem aplica é o executor `scripts/migrate.js`, que
+guarda o que já rodou em `schema_migrations`:
 
-Migration nova: próximo número da sequência (`0010_...sql`), aditiva e idempotente
-(`if not exists`, `drop ... if exists` antes de `create trigger`). Comando que apaga dado
-exige `-- allow-destructive` no arquivo.
+```bash
+DATABASE_URL=postgres://... npm run migrate -- --dry-run   # na raiz: lista o que falta
+DATABASE_URL=postgres://... npm run migrate                # aplica
+```
 
-Pré-requisito único: o segredo `SUPABASE_DB_URL` (Session Pooler, IPv4) no environment
-`Production` do GitHub.
+Em produção o executor roda como o job `migrate` do Cloud Run, antes de cada deploy (fases 3 e 4
+da SPEC 010). Migration nova: próximo número da sequência, aditiva e idempotente
+(`if not exists`, `drop ... if exists` antes de `create trigger`). Comando que apaga dado exige
+`-- allow-destructive` no arquivo. Migration já aplicada não se edita: o executor recusa.
 
-Confira: `npm run check:db` → deve listar `publish_slots` e `scheduled_posts` ✅.
+Confira: `npm run check:db` deve listar as tabelas com a contagem de linhas.
 
 ### 2. Variáveis
 
-Copie `.env.local.example` → `.env.local` (dev) ou configure no Vercel (prod).
-As credenciais de Supabase/IG/LinkedIn são as mesmas do backend.
+Copie `.env.local.example` para `.env.local`. O essencial é `DATABASE_URL` (Postgres com as
+migrations aplicadas) e, para mídia, `STORAGE_BUCKET` (bucket privado do Cloud Storage; a rota
+`/api/media` lê dele). Em produção as variáveis vêm do Cloud Run.
 
 ### 3. Rodar
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000 (login: PLATFORM_PASSWORD)
-npm run build      # build de produção
+npm run build      # build de produção (saída standalone)
 npm run check:db   # valida conexão + presença das tabelas
 ```
 
-## Deploy (Vercel)
+Imagem de produção (contexto: a raiz do repo, porque a plataforma usa `../packages/db`):
 
-- Root directory: `platform/`
-- Variáveis de ambiente: as do `.env.local.example` (use valores reais).
+```bash
+docker build -f docker/platform.Dockerfile -t ekoai-platform .
+docker run --rm -p 8080:8080 -e DATABASE_URL=... ekoai-platform   # /api/health
+```
+
+## Deploy (Cloud Run)
+
+A plataforma roda no Cloud Run em São Paulo ([ADR 0006](../docs/adr/0006-google-cloud-como-plataforma.md)).
+A infra (Terraform) e o deploy por CI entram nas fases 3 e 4 da SPEC 010; até lá não há ambiente
+publicado.
 
 ### Scheduler (cron)
 
-O plano **Hobby** do Vercel só roda cron 1×/dia, então o `*/10` não cabe lá. O
-disparo do scheduler vive num **GitHub Action** (`.github/workflows/publish-due.yml`,
-a cada 10min) que faz `POST /api/cron/publish-due` com `Authorization: Bearer
-$CRON_SECRET`. Configure no repositório os secrets:
-
-- `PLATFORM_URL` — a URL do app no Vercel (ex: `https://post-automation.vercel.app`)
-- `CRON_SECRET` — o mesmo valor das env vars do Vercel
-
-Se migrar pra **Vercel Pro**, basta recriar `platform/vercel.json` com
-`{ "crons": [{ "path": "/api/cron/publish-due", "schedule": "*/10 * * * *" }] }`
-e desativar o Action.
+O Cloud Scheduler chama `POST /api/cron/publish-due` a cada 10 minutos com
+`Authorization: Bearer $CRON_SECRET` (a verificação por token OIDC do Scheduler entra na fase 3).
+O workflow `publish-due.yml` do GitHub Actions é o desenho antigo e sai no cutover (fase 6).
 
 ## Telas
 

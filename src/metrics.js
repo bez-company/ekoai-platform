@@ -1,29 +1,27 @@
-// metrics.js — coleta engajamento dos posts publicados, grava no published.yaml,
-// sincroniza os exemplos de few-shot (top/bottom viram referência/anti-exemplo)
-// e grava o relatório semanal como aviso na plataforma (SPEC 007). Chamado por: .github/workflows/weekly-report.yml.
+// metrics.js — coleta engajamento dos posts publicados (snapshots no banco; published.yaml só no
+// modo YAML legado), conta os exemplos de few-shot que a geração vai usar (top/bottom viram
+// referência/anti-exemplo) e grava o relatório semanal como aviso na plataforma (SPEC 007).
+// Chamado pelo job `weekly-report` (src/jobs.js).
 
 import 'dotenv/config';
-import { readdir, writeFile, unlink } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { notify } from './utils/notifications.js';
 import { getPublished, isRealPost } from './utils/queue.js';
-import { usingSupabase, supabase } from './utils/db.js';
+import { usingDb, getDb, assertStateBackend } from './utils/db.js';
 import { resolveTenant } from './tenant.js';
 import { engagementScore } from './utils/score.js';
+import { pickAutoExamples } from './utils/examples.js';
 import { buildFunnelReport, funnelWindow } from './utils/funnel.js';
 import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 
 const ROOT = process.cwd();
 const PUBLISHED_FILE = path.join(ROOT, 'content/published.yaml');
-const HIGH_DIR = path.join(ROOT, 'content/examples/high-performers');
-const LOW_DIR = path.join(ROOT, 'content/examples/low-performers');
 
 const COLLECT_WINDOW_DAYS = Number(process.env.METRICS_WINDOW_DAYS || 30);
 const REPORT_WINDOW_DAYS = 7;
-const AUTO_PREFIX = 'auto-'; // exemplos gerados pela coleta (vs. curados à mão)
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
@@ -46,11 +44,11 @@ async function collectFor(item) {
   return metrics;
 }
 
-// Sob Supabase: grava um snapshot por canal (série temporal), atualiza o
+// No banco: grava um snapshot por canal (série temporal), atualiza o
 // engagement_score do post e registra o evento. Precisa do post_id (item.id).
 async function persistSnapshots(item, metrics) {
   if (!item.id) return;
-  const db = supabase();
+  const db = getDb();
   const tenantId = resolveTenant().id;
   const at = new Date().toISOString();
   for (const [ch, m] of Object.entries(metrics)) {
@@ -79,50 +77,6 @@ async function persistSnapshots(item, metrics) {
   });
 }
 
-// Reescreve os exemplos auto-gerados: top vira referência, bottom vira anti-exemplo.
-// Só usa posts que têm o texto salvo (item.post.body). Limpa os autos anteriores.
-async function syncExamples(scored) {
-  const withText = scored.filter(s => s.item.post?.body);
-  if (withText.length < 4) return { high: 0, low: 0 }; // pouco dado, não mexe
-
-  await clearAuto(HIGH_DIR);
-  await clearAuto(LOW_DIR);
-
-  const top = withText.slice(0, 3);
-  const bottom = withText.slice(-3).filter(s => !top.includes(s));
-
-  for (const s of top) await writeExample(HIGH_DIR, s);
-  for (const s of bottom) await writeExample(LOW_DIR, s);
-  return { high: top.length, low: bottom.length };
-}
-
-async function clearAuto(dir) {
-  if (!existsSync(dir)) return;
-  const files = await readdir(dir);
-  for (const f of files) {
-    if (f.startsWith(AUTO_PREFIX)) await unlink(path.join(dir, f));
-  }
-}
-
-async function writeExample(dir, { item, score }) {
-  const date = (item.published_at || '').slice(0, 10) || 'sem-data';
-  const channel = item.channels?.instagram ? 'instagram' : 'linkedin';
-  const slug = `${AUTO_PREFIX}${date}-${channel}-${item.pillar || 'post'}-${item.chosen_variation || 1}.md`;
-  const content = [
-    `Canal: ${channel}`,
-    `Pilar: ${item.pillar || ''}`,
-    `Ângulo: ${item.angle || ''}`,
-    `Engajamento: ${score} (coletado automaticamente)`,
-    `Origem: AUTO (gerado pela coleta de métricas — não editar à mão)`,
-    '',
-    '---',
-    '',
-    item.post.body,
-    '',
-  ].join('\n');
-  await writeFile(path.join(dir, slug), content, 'utf8');
-}
-
 // Correlação de Pearson — calibração do judge (expected_engagement × real).
 function pearson(x, y) {
   const n = x.length;
@@ -145,9 +99,9 @@ function pearson(x, y) {
 // O judge previu bem? Cruza expected_engagement (evento judge_decision) com o
 // engagement_score real. r alto = judge calibrado; r ~0 = judge é teatro.
 async function judgeCalibration() {
-  if (!usingSupabase()) return '';
+  if (!usingDb()) return '';
   try {
-    const db = supabase();
+    const db = getDb();
     const { data: events } = await db.from('post_events').select('post_id,payload').eq('tenant_id', resolveTenant().id).eq('type', 'judge_decision');
     if (!events?.length) return '';
     const ids = events.map(e => e.post_id);
@@ -167,9 +121,9 @@ async function judgeCalibration() {
 // Funil da Pilar (SPEC 004): cadastros da semana por canal e campanha + posts que mais ativaram.
 // Best-effort: sem a 0010 ou sem coleta ainda, o bloco não aparece.
 async function funnelReport() {
-  if (!usingSupabase()) return '';
+  if (!usingDb()) return '';
   try {
-    const db = supabase();
+    const db = getDb();
     const tenantId = resolveTenant().id;
     const { desde, ate } = funnelWindow(new Date(), REPORT_WINDOW_DAYS);
     const { data: rows } = await db.from('funnel_daily').select('*').eq('tenant_id', tenantId).gte('day', desde).lte('day', ate);
@@ -236,6 +190,7 @@ function buildReport(scored) {
 }
 
 async function main() {
+  assertStateBackend();
   const published = await getPublished();
   if (published.length === 0) {
     await notify({ kind: 'report.weekly', title: 'Relatório semanal: nenhum post publicado ainda', link: '/history' }, { dryRun: DRY_RUN });
@@ -253,7 +208,7 @@ async function main() {
       if (Object.keys(metrics).length > 0) {
         item.metrics = { ...metrics, collected_at: new Date().toISOString() };
         item.engagement_score = engagementScore(metrics);
-        if (usingSupabase()) await persistSnapshots(item, metrics);
+        if (usingDb()) await persistSnapshots(item, metrics);
         collected += 1;
       }
     } catch (e) {
@@ -261,9 +216,9 @@ async function main() {
     }
   }
 
-  // Sob Supabase, a persistência de métricas vai pra metrics_snapshots (fase de
+  // No banco, a persistência de métricas vai pra metrics_snapshots (fase de
   // escrita) — não reescreve o YAML a partir de dados do banco.
-  if (!DRY_RUN && !usingSupabase() && collected > 0) {
+  if (!DRY_RUN && !usingDb() && collected > 0) {
     await writeFile(PUBLISHED_FILE, yaml.dump(published, { lineWidth: 120, noRefs: true }), 'utf8');
   }
 
@@ -273,10 +228,9 @@ async function main() {
     .filter(s => daysAgo(s.item.published_at) <= COLLECT_WINDOW_DAYS)
     .sort((a, b) => b.score - a.score);
 
-  let synced = { high: 0, low: 0 };
-  if (!DRY_RUN) {
-    synced = await syncExamples(scored);
-  }
+  // Few-shot: a geração escolhe os exemplos dos posts no banco (utils/examples.js); aqui só conta.
+  const picked = pickAutoExamples(scored.map(s => s.item), { windowDays: COLLECT_WINDOW_DAYS });
+  const synced = { high: picked.high.length, low: picked.low.length };
 
   const report = buildReport(scored)
     + `\n\n_${collected} posts coletados · few-shot: ${synced.high}↑ / ${synced.low}↓ atualizados._`

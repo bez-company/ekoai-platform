@@ -1,0 +1,25 @@
+# O contexto de build é a raiz do repo; só entra o que as imagens usam.
+**/node_modules
+**/.next
+.git
+.github
+.context
+docs/adr
+docs/analises
+docs/arquitetura
+docs/specs
+docs/video
+docs/gcp
+tests
+content/images
+content/kb-index.json
+previews
+tmp
+*.png
+!templates/**/*.png
+!assets/**/*.png
+.env
+.env.*
+**/.env.local
+firebase.json
+supabase/.temp
