@@ -327,3 +327,23 @@ decorativo.
   etapas, estados fechados, e-mail trocado). A parte de app autenticador segue sem teste no Identity
   Platform real.
 
+
+### Item 4, parte 5: telas de equipe (2026-10-20)
+
+- Configurações ganhou abas: **Publicação** (o que já existia) e **Equipe** (`/settings/team`). A aba só
+  aparece, e a página só abre, para quem tem `team.manage` e entra por pessoa; para os outros a rota
+  responde 404. Conta de senha única não tem equipe.
+- A tela mostra quem está na conta, os convites pendentes e "N de M pessoas no plano X" (membros mais
+  convites pendentes e não vencidos, a mesma conta do gatilho do banco). Convidar, reenviar,
+  cancelar convite, mudar papel e remover passam pelas rotas `/api/team/*` da parte 2; a tela repete a
+  mensagem do servidor quando ele recusa (convite repetido, último administrador, limite do plano).
+- Sem provedor de e-mail, "Criar convite" e "Reenviar" mostram o link para copiar; o texto diz que
+  ainda não há envio por e-mail. Com `MAIL_PROVIDER` configurado, a tela só avisa que enviou.
+- Vagas cheias desabilitam "Convidar pessoa" e explicam o motivo. Conta pessoal vê o texto de que tem
+  uma vaga e não vê o botão. A própria pessoa não tem ação sobre si (evita rebaixar ou remover o
+  próprio acesso sem querer).
+- Verificado num navegador real contra o emulador: convite, link único, convite repetido, plano
+  cheio, reenviar (link antigo para de valer), cancelar, lista desatualizada, mudar papel, remover,
+  Esc fecha o modal, celular sem rolagem horizontal. Cada ação conferida no banco e na auditoria.
+- **Falta:** a checagem de navegador do papel sem permissão (a API já tem teste de rota) e o aviso
+  por e-mail, que depende do provedor.
