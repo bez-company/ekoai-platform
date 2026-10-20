@@ -86,4 +86,13 @@ h3 {
   .label {
     @apply text-xs font-semibold text-muted;
   }
+  .input {
+    @apply w-full rounded-lg border border-line-strong bg-raised px-3 py-2.5 text-sm outline-none transition focus:border-accent-text focus:ring-2 focus:ring-accent/30 disabled:opacity-60;
+  }
+  .input[aria-invalid='true'] {
+    @apply border-danger ring-2 ring-danger/20;
+  }
+  .link {
+    @apply font-semibold text-accent-text underline-offset-2 hover:underline;
+  }
 }

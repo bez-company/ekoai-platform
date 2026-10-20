@@ -281,3 +281,28 @@ decorativo.
   vencimento, papel, último administrador, vagas e nome no login).
 - Falta no item 4: as telas (entrada, cadastro, equipe, aceitar convite) e o provedor de e-mail.
 
+### Item 4, parte 3: telas de entrada (2026-10-20)
+
+- `/login` com `AUTH_PROVIDER=identity` mostra o fluxo por pessoa; com `password`, o login de senha
+  única de antes. Telas: entrar, criar acesso (com as regras da senha à vista), confirmar e-mail
+  (reenvio com contagem de 60 s), esqueci a senha, ativar as duas etapas (QR code e chave),
+  código do app e criar a conta (empresa ou só eu). Convite e escolher conta ficam para a
+  próxima PR. Os links de Termos de uso e Privacidade do protótipo não entraram: as páginas ainda
+  não existem (dependem da advogada).
+- O Firebase roda só no navegador, com a sessão do Firebase só na aba (`sessionStorage`); depois do
+  login vale a nossa sessão em cookie. A configuração web vem do servidor por props, lida em runtime.
+  A política de conteúdo liberou `identitytoolkit.googleapis.com` e `securetoken.googleapis.com`.
+- O que cada resposta do servidor faz na tela está em `lib/auth-flow.ts` (testado): sem segundo
+  fator vai ativar; sem conta e cadastro aberto vai criar a conta; login velho recomeça. Depois de
+  ativar as duas etapas a pessoa entra de novo com o segundo fator, porque só assim o ID token
+  carrega a prova que o servidor exige.
+- `safeNext` fecha um redirecionamento aberto que já existia no login de senha única (`?next=`
+  aceitava qualquer endereço).
+- **Verificado** num navegador real contra o emulador do Firebase: criar acesso, senha fraca barrada,
+  confirmar e-mail, ativar duas etapas, entrar com o código, criar a conta e cair na plataforma com
+  cookie `httpOnly`; quem volta entra com senha e código; código errado, senha errada (mesma
+  mensagem para e-mail inexistente), esqueci a senha e e-mail não confirmado. O emulador não faz
+  segundo fator por app autenticador (só SMS): esse trecho foi exercitado contra um dublê
+  descartável dos endpoints de TOTP, no formato que o SDK espera. **Falta confirmar no Identity
+  Platform real, no staging**, com um app autenticador de verdade.
+

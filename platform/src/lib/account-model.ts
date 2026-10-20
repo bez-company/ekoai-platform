@@ -4,6 +4,7 @@
 
 import type { Identity } from './identity';
 import { identityRefusal, type LoginRefusal } from './login-policy';
+import { isIdTokenShape } from './route-input';
 
 export type AccountKind = 'empresa' | 'pessoa';
 
@@ -57,13 +58,11 @@ function randomSuffix(): string {
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
-const JWT = /^[\w-]+\.[\w-]+\.[\w-]+$/;
-
 export type CreateAccountBody = { idToken: string; kind: AccountKind; name: string };
 
 export function parseCreateAccount(body: unknown): Parsed<CreateAccountBody> {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
-  if (typeof b.idToken !== 'string' || b.idToken.length > 8192 || !JWT.test(b.idToken)) {
+  if (!isIdTokenShape(b.idToken)) {
     return { ok: false, error: 'Login inválido. Entre de novo.' };
   }
   if (!isAccountKind(b.kind)) return { ok: false, error: 'Escolha se a conta é de uma empresa ou só sua.' };

@@ -92,6 +92,9 @@ describe('corpo da criação de conta', () => {
     expect(model.parseCreateAccount({ ...ok, kind: 'agencia' })).toMatchObject({ ok: false, error: expect.stringMatching(/empresa ou só sua/) });
     expect(model.parseCreateAccount({ ...ok, name: '   ' })).toMatchObject({ ok: false, error: expect.stringMatching(/nome/) });
     expect(model.parseCreateAccount({ ...ok, name: 'a'.repeat(81) })).toMatchObject({ ok: false, error: expect.stringMatching(/80/) });
+    expect(model.parseCreateAccount({ ...ok, idToken: 'aaa.bbb.' }).ok).toBe(true); // emulador: sem assinatura
+    expect(model.parseCreateAccount({ ...ok, idToken: 'aaa.bbb' }).ok).toBe(false);
+    expect(model.parseCreateAccount({ ...ok, idToken: `a.b.${'c'.repeat(9000)}` }).ok).toBe(false);
     expect(model.parseCreateAccount(null).ok).toBe(false);
     expect(model.parseCreateAccount([]).ok).toBe(false);
   });
