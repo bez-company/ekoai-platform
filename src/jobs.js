@@ -20,6 +20,7 @@ export const JOBS = {
   // cria a conta e se dá o primeiro acesso.
   'tenant-create': [{ step: ['scripts/create-tenant.js'], passArgs: true }],
   'access-grant': [{ step: ['scripts/grant-access.js'], passArgs: true }],
+  'platform-admin': [{ step: ['scripts/platform-admin.js'], passArgs: true }],
 };
 
 // Jobs que leem ou gravam dado de uma conta. Sem TENANT_ID válido não começam (ADR 0010).
