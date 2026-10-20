@@ -24,7 +24,10 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 4. **Produção só com aprovação.** O push na `main` roda o CI e o deploy de `prod`, que fica parado no
    environment `prod` (Required reviewers) até a aprovação no GitHub Actions.
 5. **Cada environment só aceita a própria branch** (deployment branch policy): `staging` só publica
-   a partir da `staging`, `prod` só a partir da `main`. A PR de release não publica nada (o deploy
+   a partir da `staging`, `prod` só a partir da `main`. Para a policy valer, o deploy roda no mesmo
+   run do `push` (o CI entra como workflow reutilizável, `workflow_call`), e não em `workflow_run`:
+   em `workflow_run` o ref é sempre o da branch padrão, e o environment `staging` recusaria tudo
+   ("Branch main is not allowed to deploy to staging"). A PR de release não publica nada (o deploy
    só reage a `push`).
 6. **Correção urgente segue o mesmo fluxo**, só que sem esperar: branch de feature, PR na `staging`,
    release logo em seguida. Não há atalho para a `main`.
@@ -40,4 +43,4 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 - Migrations rodam primeiro no staging, contra um banco com a forma de produção, antes de chegarem à
   produção. Como são aditivas, a ordem entre migration e código continua segura.
 - A `main` ganha um commit de merge por release. É o registro de cada liberação.
-- O CI passa a rodar também no push da `staging`.
+- O CI roda também no push da `staging`, dentro do run de Deploy; o `ci.yml` só dispara sozinho em PR.

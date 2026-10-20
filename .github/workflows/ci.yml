@@ -7,13 +7,15 @@ name: CI
 #   - as imagens da plataforma e dos jobs constroem e o Terraform valida (SPEC 010).
 #
 # O deploy fica em deploy.yml, um ambiente por branch (ADR 0013): `staging` publica no staging
-# sozinho; `main` publica em produção depois da aprovação no environment `prod`.
+# sozinho; `main` publica em produção depois da aprovação no environment `prod`. O CI de cada push
+# nessas branches roda dentro do deploy.yml (workflow_call).
 # Migration é ADITIVA (coluna nova, tabela nova): deploy e migration não são atômicos.
 
+# No push de `staging` e `main` o CI roda como parte do deploy.yml (workflow_call), no mesmo run do
+# deploy: assim o environment enxerga a branch certa. Aqui ficam a PR e o disparo manual.
 on:
   pull_request:
-  push:
-    branches: [main, staging]
+  workflow_call:
   workflow_dispatch:
 
 # Mínimo possível. Nenhum job precisa de mais que ler o repositório.
