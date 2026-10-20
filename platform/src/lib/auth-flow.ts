@@ -3,6 +3,8 @@
 // que este módulo decide.
 
 export type View =
+  | 'invite'
+  | 'wrong-account'
   | 'login'
   | 'signup'
   | 'verify'
@@ -44,6 +46,9 @@ export function errorCode(e: unknown): string {
 
 export type SessionOutcome =
   | { kind: 'done' }
+  | { kind: 'continue-login' }
+  | { kind: 'wrong-account'; message: string }
+  | { kind: 'invite-closed'; message: string }
   | { kind: 'mfa-setup' }
   | { kind: 'create-account' }
   | { kind: 'verify' }
@@ -79,6 +84,44 @@ export function accountOutcome(status: number, body: SessionBody): SessionOutcom
   if (body.code === 'email_not_verified') return { kind: 'verify' };
   if (body.code === 'login_stale' || body.code === 'invalid_token') return { kind: 'restart', message };
   return { kind: 'fail', message };
+}
+
+// O que a tela faz com a resposta de POST /api/invitations/accept. 202 é "aceitou, mas falta o
+// segundo fator": quem chama marca o convite como aceito e leva a pessoa a ativar as duas etapas.
+export function acceptOutcome(status: number, body: SessionBody): SessionOutcome {
+  if (status === 200) return { kind: 'done' };
+  if (status === 202) return { kind: 'mfa-setup' };
+  const message = body.error || GENERIC_AUTH_ERROR;
+  switch (body.code) {
+    case 'already_member':
+      return { kind: 'continue-login' };
+    case 'invite_email_mismatch':
+      return { kind: 'wrong-account', message };
+    case 'invite_not_found':
+    case 'invite_cancelled':
+    case 'invite_used':
+    case 'invite_expired':
+      return { kind: 'invite-closed', message };
+    case 'email_not_verified':
+      return { kind: 'verify' };
+    case 'login_stale':
+    case 'invalid_token':
+      return { kind: 'restart', message };
+    default:
+      return { kind: 'fail', message };
+  }
+}
+
+// O que o papel do convite permite, em uma frase (a tela do convite e a da equipe usam o mesmo texto).
+export const ROLE_COPY: Record<'admin' | 'creator' | 'viewer', { label: string; what: string }> = {
+  admin: { label: 'Administrador', what: 'cuida de tudo da conta: equipe, redes, publicação e dados.' },
+  creator: { label: 'Criador', what: 'cria e edita posts e pede revisão.' },
+  viewer: { label: 'Leitor', what: 'acompanha os posts e dá parecer.' },
+};
+
+// Dias inteiros até o convite vencer, para "vence em 5 dias". Nunca negativo.
+export function daysLeft(expiresAtIso: string, nowMs = Date.now()): number {
+  return Math.max(0, Math.ceil((new Date(expiresAtIso).getTime() - nowMs) / 86_400_000));
 }
 
 export const PASSWORD_MIN = 10;

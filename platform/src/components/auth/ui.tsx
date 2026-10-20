@@ -29,10 +29,11 @@ type FieldProps = {
   help?: ReactNode;
   error?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   below?: ReactNode;
 };
 
-export function Field({ label, value, onChange, type = 'text', autoComplete, autoFocus, placeholder, help, error, disabled, below }: FieldProps) {
+export function Field({ label, value, onChange, type = 'text', autoComplete, autoFocus, placeholder, help, error, disabled, readOnly, below }: FieldProps) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -50,6 +51,7 @@ export function Field({ label, value, onChange, type = 'text', autoComplete, aut
         autoFocus={autoFocus}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={readOnly}
         aria-invalid={error ? true : undefined}
         aria-describedby={[help ? helpId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined}
         className="input"
@@ -121,7 +123,7 @@ export function ViewShell({ title, lead, children, foot }: { title: string; lead
     <div className="w-full max-w-md">
       <div className="card space-y-5 p-8">
         <div>
-          <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none">
+          <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none focus-visible:outline-none">
             {title}
           </h1>
           {lead && <div className="mt-1 text-sm leading-relaxed text-muted">{lead}</div>}

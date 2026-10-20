@@ -22,19 +22,24 @@ import {
   type User,
 } from 'firebase/auth';
 import { firebaseAuth, type FirebaseWebConfig } from '@/lib/firebase-client';
-import { accountOutcome, errorCode, firebaseMessage, safeNext, sessionOutcome, type SessionOutcome, type View } from '@/lib/auth-flow';
-import { ChallengeView, CreateAccountView, ForgotSentView, ForgotView, LoginView, SetupView, SignupView, VerifyView } from './views';
+import { acceptOutcome, accountOutcome, errorCode, firebaseMessage, safeNext, sessionOutcome, type SessionOutcome, type View } from '@/lib/auth-flow';
+import type { Role } from '@/lib/permissions';
+import { ChallengeView, CreateAccountView, ForgotSentView, ForgotView, InviteView, LoginView, SetupView, SignupView, VerifyView, WrongAccountView } from './views';
 
 type Go = { error?: string; notice?: string };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-export default function IdentityEntry({ config, signupOpen }: { config: FirebaseWebConfig; signupOpen: boolean }) {
+// Convite aberto pela página /convite/<token>: o token só segue para a rota de aceite; o e-mail é o
+// do convite e fica travado no cadastro.
+export type InviteProps = { token: string; email: string; accountName: string; inviterName: string | null; role: Role; expiresAt: string };
+
+export default function IdentityEntry({ config, signupOpen, invite }: { config: FirebaseWebConfig; signupOpen: boolean; invite?: InviteProps }) {
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
 
-  const [view, setView] = useState<View>('login');
+  const [view, setView] = useState<View>(invite ? 'invite' : 'login');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -46,7 +51,10 @@ export default function IdentityEntry({ config, signupOpen }: { config: Firebase
 
   // A senha fica só na memória desta aba e só até o fim do fluxo: depois de ativar as duas etapas
   // é preciso entrar de novo com o segundo fator, para o ID token carregar a prova.
-  const credentials = useRef({ email: '', password: '' });
+  const credentials = useRef({ email: invite?.email ?? '', password: '' });
+  // O convite só se aceita uma vez; depois de aceito (mesmo sem sessão, por falta do segundo fator)
+  // os logins seguintes usam a rota de sessão.
+  const accepted = useRef(false);
   const resolver = useRef<MultiFactorResolver | null>(null);
   const secret = useRef<TotpSecret | null>(null);
 
@@ -125,8 +133,16 @@ export default function IdentityEntry({ config, signupOpen }: { config: Firebase
         if (multiFactor(user).enrolledFactors.length === 0) await startEnroll(user, true);
         else go('create-account');
         return;
+      case 'continue-login':
+        accepted.current = true;
+        await finish(user);
+        return;
+      case 'wrong-account':
+        go('wrong-account', { error: outcome.message });
+        return;
       case 'restart':
       case 'fail':
+      case 'invite-closed':
         await backToLogin({ error: outcome.message });
         return;
     }
@@ -141,6 +157,13 @@ export default function IdentityEntry({ config, signupOpen }: { config: Firebase
       return;
     }
     const idToken = await user.getIdToken(true);
+    if (invite && !accepted.current) {
+      const res = await fetch('/api/invitations/accept', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ idToken, token: invite.token }) });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 200 || res.status === 202) accepted.current = true;
+      await apply(acceptOutcome(res.status, body), user);
+      return;
+    }
     const res = await fetch('/api/auth/session', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ idToken }) });
     const body = await res.json().catch(() => ({}));
     await apply(sessionOutcome(res.status, body, signupOpen), user);
@@ -272,8 +295,14 @@ export default function IdentityEntry({ config, signupOpen }: { config: Firebase
     });
 
   switch (view) {
+    case 'invite':
+      return invite ? (
+        <InviteView accountName={invite.accountName} inviterName={invite.inviterName} role={invite.role} expiresAt={invite.expiresAt} onAccept={() => go('signup')} onLogin={() => go('login')} />
+      ) : null;
+    case 'wrong-account':
+      return <WrongAccountView message={error} currentEmail={email} inviteEmail={invite?.email ?? ''} onSwitch={() => backToLogin()} />;
     case 'signup':
-      return <SignupView busy={busy} error={error} onSubmit={onSignup} onLogin={() => go('login')} />;
+      return <SignupView busy={busy} error={error} lockedEmail={invite?.email} onSubmit={onSignup} onLogin={() => go('login')} />;
     case 'verify':
       return (
         <VerifyView

@@ -306,3 +306,24 @@ decorativo.
   descartável dos endpoints de TOTP, no formato que o SDK espera. **Falta confirmar no Identity
   Platform real, no staging**, com um app autenticador de verdade.
 
+### Item 4, parte 4: página do convite (2026-10-20)
+
+- `/convite/<token>` (pública pelo prefixo `/convite`, sem indexação): mostra quem convidou, a
+  conta, o papel (com uma frase do que ele pode) e quando vence. Cinco estados: pendente, vencido,
+  já usado, cancelado e não encontrado (token torto ou inexistente). Os fechados dizem o que houve e
+  o próximo passo.
+- "Aceitar convite" leva ao cadastro com o e-mail do convite travado; "Entrar" leva ao login com o
+  e-mail preenchido. Depois de confirmar o e-mail, a tela chama `POST /api/invitations/accept` no
+  lugar da rota de sessão, uma vez só. Quem entra com outro e-mail vê os dois e-mails e "Sair e
+  trocar de acesso", sem que nada mude. Administrador convidado aceita, é levado a ativar as duas
+  etapas e entra pelo login normal.
+- **Fora desta PR:** escolher conta no login. O servidor abre a última conta usada; o seletor de
+  conta entra com o menu da plataforma (R6).
+- Corrigido junto: quando o ID token é recusado, o motivo técnico vai para o log nas três rotas de
+  entrada. Rotina (vencido, revogado, malformado) é aviso; permissão, rede ou projeto errado é erro
+  (e Sentry). Antes o 401 escondia tudo: a conta de serviço sem leitura do Firebase Auth derrubou
+  todo login no staging sem deixar rastro.
+- Verificado num navegador real contra o emulador (convite de criador, de administrador com as duas
+  etapas, estados fechados, e-mail trocado). A parte de app autenticador segue sem teste no Identity
+  Platform real.
+

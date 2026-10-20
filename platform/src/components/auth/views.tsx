@@ -4,7 +4,8 @@
 // que o IdentityEntry mandar; quem fala com o Firebase e com o servidor é o IdentityEntry.
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { PASSWORD_MIN, countdown, groupSecret, isEmail, passwordOk, passwordRules } from '@/lib/auth-flow';
+import { PASSWORD_MIN, ROLE_COPY, countdown, daysLeft, groupSecret, isEmail, passwordOk, passwordRules } from '@/lib/auth-flow';
+import type { Role } from '@/lib/permissions';
 import { ErrorLine, Field, OtpInput, Spinner, ViewShell } from './ui';
 
 type Common = { busy: boolean; error: string };
@@ -80,9 +81,9 @@ export function LoginView({ busy, error, signupOpen, initialEmail, notice, onSub
   );
 }
 
-export function SignupView({ busy, error, onSubmit, onLogin }: Common & { onSubmit: (name: string, email: string, password: string) => void; onLogin: () => void }) {
+export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Common & { lockedEmail?: string; onSubmit: (name: string, email: string, password: string) => void; onLogin: () => void }) {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(lockedEmail ?? '');
   const [password, setPassword] = useState('');
   const [tried, setTried] = useState(false);
   const rules = passwordRules(password, email);
@@ -100,7 +101,7 @@ export function SignupView({ busy, error, onSubmit, onLogin }: Common & { onSubm
   return (
     <ViewShell
       title="Criar acesso"
-      lead="Depois você cria a conta da empresa e convida a equipe."
+      lead={lockedEmail ? 'Crie a senha para entrar na conta do convite.' : 'Depois você cria a conta da empresa e convida a equipe.'}
       foot={
         <>
           Já tem acesso? <LinkButton onClick={onLogin}>Entrar</LinkButton>
@@ -110,7 +111,18 @@ export function SignupView({ busy, error, onSubmit, onLogin }: Common & { onSubm
       <form onSubmit={submit} className="space-y-4" noValidate>
         {error && <ErrorLine>{error}</ErrorLine>}
         <Field label="Nome" value={name} onChange={setName} autoComplete="name" autoFocus placeholder="Seu nome" disabled={busy} error={tried ? problems.name : ''} />
-        <Field label="E-mail" type="email" value={email} onChange={setEmail} autoComplete="username" placeholder="voce@empresa.com.br" disabled={busy} error={tried ? problems.email : ''} />
+        <Field
+          label="E-mail"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="username"
+          placeholder="voce@empresa.com.br"
+          disabled={busy}
+          readOnly={!!lockedEmail}
+          help={lockedEmail ? 'O convite é para este e-mail.' : undefined}
+          error={tried ? problems.email : ''}
+        />
         <Field
           label="Senha"
           type="password"
@@ -348,3 +360,56 @@ export function CreateAccountView({ busy, error, onSubmit, onCancel }: Common & 
     </ViewShell>
   );
 }
+
+export function InviteView({ accountName, inviterName, role, expiresAt, onAccept, onLogin }: {
+  accountName: string;
+  inviterName: string | null;
+  role: Role;
+  expiresAt: string;
+  onAccept: () => void;
+  onLogin: () => void;
+}) {
+  const copy = ROLE_COPY[role];
+  const days = daysLeft(expiresAt);
+  return (
+    <ViewShell
+      title={inviterName ? `${inviterName} convidou você para a ${accountName}` : `Você foi convidado para a ${accountName}`}
+      lead={
+        <>
+          Você vai entrar como <strong className="text-fg">{copy.label}</strong>: {copy.what}
+        </>
+      }
+      foot={days > 0 ? `O convite vence em ${days} ${days === 1 ? 'dia' : 'dias'}.` : 'O convite vence hoje.'}
+    >
+      <button type="button" onClick={onAccept} className="btn-primary w-full">
+        Aceitar convite
+      </button>
+      <p className="text-center text-sm text-muted">
+        Ainda não tem acesso? Você cria a senha no próximo passo.
+        <br />
+        Já tem acesso? <LinkButton onClick={onLogin}>Entrar</LinkButton>
+      </p>
+    </ViewShell>
+  );
+}
+
+export function WrongAccountView({ message, currentEmail, inviteEmail, onSwitch }: { message: string; currentEmail: string; inviteEmail: string; onSwitch: () => void }) {
+  return (
+    <ViewShell
+      title="Este convite é para outro e-mail"
+      lead={
+        <>
+          O convite foi enviado para <strong className="text-fg">{inviteEmail}</strong>, mas você entrou como <strong className="text-fg">{currentEmail}</strong>. Saia e entre com o e-mail que recebeu o convite.
+        </>
+      }
+    >
+      <p className="sr-only" role="alert">
+        {message}
+      </p>
+      <button type="button" onClick={onSwitch} className="btn-primary w-full">
+        Sair e trocar de acesso
+      </button>
+    </ViewShell>
+  );
+}
+

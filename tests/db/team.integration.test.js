@@ -63,7 +63,8 @@ describe('convite', () => {
 
   it('a página do convite mostra conta, papel, e-mail e quem convidou, sem o e-mail de quem convidou', async () => {
     const preview = await accounts.previewInvitation(await model.hashInviteToken(invite.token));
-    expect(preview).toEqual({ status: 'pending', accountName: 'It Team', role: 'creator', email: EMAIL(2), inviterName: 'Ana Ribeiro' });
+    expect(preview).toEqual({ status: 'pending', accountName: 'It Team', role: 'creator', email: EMAIL(2), inviterName: 'Ana Ribeiro', expiresAt: expect.any(String) });
+    expect(new Date(preview.expiresAt).getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
     expect(await accounts.previewInvitation(await model.hashInviteToken(model.newInviteToken()))).toBeNull();
   });
 
