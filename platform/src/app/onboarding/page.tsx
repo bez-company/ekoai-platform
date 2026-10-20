@@ -11,6 +11,6 @@ export const dynamic = 'force-dynamic';
 export default async function OnboardingPage() {
   const { t } = await pageContext('brand.manage');
   const profile = await getProfile(t);
-  if (profile) redirect('/inbox');
+  if (profile) redirect('/');
   return <ProfileWizard initial={{ about: aboutFromProfile(null), voice: voiceFromProfile(null), visual: visualFromProfile(null) }} />;
 }

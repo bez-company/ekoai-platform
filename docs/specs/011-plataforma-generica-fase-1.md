@@ -383,3 +383,21 @@ decorativo.
   servidor (administrador, criador e leitor). O fluxo "criar conta e cair em /onboarding" (uma linha
   em `IdentityEntry`) não foi exercitado de ponta a ponta nesta rodada: o emulador de login não estava
   de pé.
+
+### Item 7, parte 1: Início com checklist e menu por permissão (2026-10-20)
+
+- **Início** (`/`, a primeira tela do menu e o destino padrão depois do login e do cadastro): saudação,
+  o checklist "Deixe a conta pronta" e o card "Criação de posts com IA chega na próxima fase".
+- **Checklist derivado do dado** (`onboarding.ts`, puro): perfil completo (nicho, o que vende e para
+  quem), Instagram conectado (conta de rede ativa) e, só na conta de empresa, equipe começada (outra
+  pessoa na conta ou convite pendente). Só o passo da equipe dá para pular, e dá para voltar atrás
+  ("Mostrar de novo"); a escolha mora em `tenants.onboarding_skipped` (migration 0021, aditiva).
+  Enquanto a conexão do Instagram não existe (R5), o passo diz "A conexão chega em breve", sem botão.
+- **Por papel:** administrador age; criador vê o checklist sem ação e com o aviso de que só
+  administradores configuram; leitor não tem checklist e vê "Nenhum parecer pedido". Conta pessoa não
+  tem o passo da equipe. `POST /api/onboarding` exige `team.manage`.
+- **Menu de uma lista única** (`screens.ts`): cada tela com a permissão que a abre. O leitor não vê
+  Configurações e as rotas `/settings/*` respondem 404 para ele. O banner de pausa só leva a
+  Configurações para quem pode abrir.
+- **Fora desta PR:** avisos por papel (R6.3), Configurações › Redes e Dados e privacidade (dependem de
+  R5 e R8), estado vazio de Aprovar e Aprendizado.

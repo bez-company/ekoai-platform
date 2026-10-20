@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
+import { isActive, type Screen } from '@/lib/screens';
 
 // Barra lateral em ameixa (data-theme="dark") mesmo no tema claro, como no protótipo da fase 1.
 // No celular vira barra superior com o logo e barra inferior com os itens.
 const ICONS: Record<string, string> = {
+  home: 'M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10',
   inbox: 'M4 4h16v10h-5l-1.5 3h-3L9 14H4zM4 14v6h16v-6',
   calendar: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
@@ -14,13 +16,6 @@ const ICONS: Record<string, string> = {
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z',
 };
 
-const LINKS = [
-  { href: '/inbox', label: 'Aprovar', icon: 'inbox' },
-  { href: '/calendar', label: 'Agenda', icon: 'calendar' },
-  { href: '/history', label: 'Publicados', icon: 'chart' },
-  { href: '/learning', label: 'Aprendizado', icon: 'spark' },
-  { href: '/settings', label: 'Configurações', icon: 'settings' },
-];
 
 function Icon({ name }: { name: string }) {
   return (
@@ -30,7 +25,7 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-export default function Nav({ badges }: { badges?: { pendings?: number; failed?: number } }) {
+export default function Nav({ links, badges }: { links: Screen[]; badges?: { pendings?: number; failed?: number } }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -49,12 +44,12 @@ export default function Nav({ badges }: { badges?: { pendings?: number; failed?:
         aria-label="Menu"
         className="sticky top-0 hidden h-screen flex-col gap-1 bg-surface px-3 py-5 text-fg md:flex"
       >
-        <Link href="/inbox" className="mb-5 px-2.5 text-xl">
+        <Link href="/" className="mb-5 px-2.5 text-xl">
           <Logo />
         </Link>
         <nav className="flex flex-col gap-1">
-          {LINKS.map((l) => {
-            const active = pathname?.startsWith(l.href);
+          {links.map((l) => {
+            const active = isActive(pathname, l.href);
             const badge = badgeFor(l.href);
             return (
               <Link
@@ -87,8 +82,8 @@ export default function Nav({ badges }: { badges?: { pendings?: number; failed?:
       </header>
 
       <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface px-1 pb-2 pt-1.5 md:hidden">
-        {LINKS.map((l) => {
-          const active = pathname?.startsWith(l.href);
+        {links.map((l) => {
+          const active = isActive(pathname, l.href);
           const badge = badgeFor(l.href);
           return (
             <Link

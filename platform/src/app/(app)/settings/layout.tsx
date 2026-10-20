@@ -1,9 +1,11 @@
 import SettingsTabs, { type SettingsTab } from '@/components/SettingsTabs';
-import { canAccess } from '@/lib/session';
+import { notFound } from 'next/navigation';
+import { can, canAccess } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  if (!(await can('profile.view'))) notFound();
   const tabs: SettingsTab[] = [{ href: '/settings', label: 'Publicação' }];
   if (await canAccess('profile.view')) tabs.push({ href: '/settings/company', label: 'Empresa' });
   if (await canAccess('team.manage')) tabs.push({ href: '/settings/team', label: 'Equipe' });

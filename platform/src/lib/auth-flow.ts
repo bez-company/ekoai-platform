@@ -157,7 +157,7 @@ export function groupSecret(secret: string): string {
 
 // Para onde ir depois do login: só caminho da própria plataforma. `//x.com` e `/\x.com` o
 // navegador trata como outro site, então caem no padrão.
-export function safeNext(next: string | null | undefined, fallback = '/inbox'): string {
+export function safeNext(next: string | null | undefined, fallback = '/'): string {
   if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return fallback;
   return next;
 }
