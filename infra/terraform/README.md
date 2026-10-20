@@ -35,6 +35,16 @@ gcloud storage buckets update gs://ekoai-prod-tfstate --versioning
 Criar a pasta pede o papel `roles/resourcemanager.folderAdmin` no nível da organização
 (`organizationAdmin` sozinho não basta).
 
+## Políticas de organização (`foundation/`)
+
+Políticas da pasta `ekoai`, valem para os dois projetos e para os futuros: sem chave de conta de
+serviço (criar e subir), Cloud SQL sem IP público, bucket sem acesso público e sem a rede `default`.
+Aplica-se uma vez, com a conta administradora, e só ela precisa de
+`roles/orgpolicy.policyAdmin`, que o Google só deixa conceder no nível da organização: dê o papel,
+aplique e revogue (`export TF_VAR_folder_id=<id da pasta>`, depois `terraform apply` em
+`infra/terraform/foundation`). `run.requireInvokerIam` fica de fora de propósito: a plataforma é
+pública pela opção `invoker_iam_disabled`.
+
 ## Aplicar
 
 ```bash

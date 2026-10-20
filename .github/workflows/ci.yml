@@ -245,12 +245,12 @@ jobs:
       - name: Formatação
         run: terraform fmt -check -recursive infra/terraform
       # Sem backend: valida a sintaxe e as referências sem tocar no estado nem na nuvem.
-      - name: Validação dos ambientes
+      - name: Validação dos ambientes e da fundação
         run: |
           set -euo pipefail
-          for env in staging prod; do
-            terraform -chdir=infra/terraform/envs/$env init -backend=false -input=false
-            terraform -chdir=infra/terraform/envs/$env validate
+          for dir in envs/staging envs/prod foundation; do
+            terraform -chdir=infra/terraform/$dir init -backend=false -input=false
+            terraform -chdir=infra/terraform/$dir validate
           done
 
   containers:
