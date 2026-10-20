@@ -15,32 +15,41 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 
 1. **Duas branches de longa vida.** `staging` é o ambiente de integração; `main` é o que está em
    produção.
-2. **Feature entra em `staging`.** Toda mudança nasce numa branch de feature e entra por PR na
-   `staging` (squash). O CI roda na PR e de novo no push; passando, o deploy do ambiente `staging`
-   roda sozinho.
-3. **Release é uma PR `staging` → `main`**, aberta com `scripts/release.sh` e mergeada com **merge
-   commit** (nunca squash: o squash gera um commit novo na `main` e a `staging` passa a divergir
-   dela). Nada entra na `main` por outro caminho.
-4. **Produção só com aprovação.** O push na `main` roda o CI e o deploy de `prod`, que fica parado no
-   environment `prod` (Required reviewers) até a aprovação no GitHub Actions.
+2. **Feature entra em `staging` por PR, sempre com merge por rebase** (o único método permitido no
+   repositório, e o único aceito pela regra da `staging`). O CI roda na PR e de novo no push;
+   passando, o deploy do ambiente `staging` roda sozinho. A `staging` só recebe PR com `CI ok`.
+3. **Release é o fast-forward da `main` até o commit atual da `staging`** (`scripts/release.sh`), sem
+   PR e sem commit novo: a `main` fica no mesmo SHA da `staging`. Uma PR `staging` → `main` com
+   rebase não serve: o rebase reescreve os SHAs, a `main` passa a divergir da `staging` e a próxima
+   release volta com conflito (testado: a segunda PR ficou `CONFLICTING`). Fast-forward não reescreve
+   nada. O script exige que o staging tenha publicado esse commit com sucesso.
+4. **Produção só com aprovação.** O push na `main` roda o CI, confere que o commit está na história
+   da `staging` (job `Veio da staging`) e então o deploy de `prod`, que fica parado no environment
+   `prod` (Required reviewers) até a aprovação no GitHub Actions. Escrita direta na `main` que não
+   venha da `staging` é barrada nesse job.
 5. **Cada environment só aceita a própria branch** (deployment branch policy): `staging` só publica
    a partir da `staging`, `prod` só a partir da `main`. Para a policy valer, o deploy roda no mesmo
    run do `push` (o CI entra como workflow reutilizável, `workflow_call`), e não em `workflow_run`:
    em `workflow_run` o ref é sempre o da branch padrão, e o environment `staging` recusaria tudo
-   ("Branch main is not allowed to deploy to staging"). A PR de release não publica nada (o deploy
-   só reage a `push`).
-6. **Correção urgente segue o mesmo fluxo**, só que sem esperar: branch de feature, PR na `staging`,
-   release logo em seguida. Não há atalho para a `main`.
+   ("Branch main is not allowed to deploy to staging"). O provedor de Workload Identity de cada
+   projeto do Google Cloud também aceita só a branch do ambiente (`deploy_branch` no Terraform).
+6. **Branches protegidas por rulesets do GitHub.** `staging` e `main` não podem ser apagadas nem
+   receber force push. "Apagar a branch ao mergear" fica ligado para as branches de feature; a
+   regra de não apagar protege `staging` e `main` (verificado com uma branch de teste: a branch
+   protegida sobreviveu ao merge da PR que partiu dela).
+7. **Correção urgente segue o mesmo fluxo**, só que sem esperar: branch de feature, PR na `staging`,
+   release logo em seguida. Não há atalho para a `main`, e a `main` não recebe PR (o CI reprova).
 
 ## Consequências
 
 - O staging pode ficar à frente da produção por dias. Quem faz a release leva tudo o que está na
   `staging`: não dá para liberar uma feature sozinha sem tirar as outras antes (reverter na
   `staging` ou esperar).
-- A produção reconstrói a imagem a partir do commit de merge da release. O código é o mesmo da
-  `staging` (árvore idêntica), mas não é o mesmo artefato: promover o digest da imagem entre os dois
+- A produção reconstrói a imagem a partir do mesmo commit da `staging`. O código é idêntico, mas
+  não é o mesmo artefato: promover o digest da imagem entre os dois
   projetos do Google Cloud fica como melhoria.
 - Migrations rodam primeiro no staging, contra um banco com a forma de produção, antes de chegarem à
   produção. Como são aditivas, a ordem entre migration e código continua segura.
-- A `main` ganha um commit de merge por release. É o registro de cada liberação.
+- A história é linear: a `main` é sempre um prefixo da `staging`, sem commit de merge. O registro de
+  cada liberação são os runs de Deploy aprovados.
 - O CI roda também no push da `staging`, dentro do run de Deploy; o `ci.yml` só dispara sozinho em PR.

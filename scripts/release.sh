@@ -1,42 +1,37 @@
 #!/usr/bin/env bash
-# Abre a PR de release (staging -> main) com a lista do que vai para produção. A PR NÃO é mergeada
-# aqui: quem decide é você, no GitHub, com "Create a merge commit" (nunca squash: o squash faria a
-# staging divergir da main). Depois do merge, o deploy de produção espera a aprovação no
-# environment `prod` (GitHub Actions).
+# Release: leva a main até o commit atual da staging por fast-forward (mesmo SHA, sem commit novo e
+# sem PR). Daí o push na main roda o CI e o deploy de produção, que espera a aprovação no
+# environment `prod` (GitHub Actions). Não há outro caminho para a main (ADR 0013).
 #
-#   scripts/release.sh            # abre a PR
-#   RELEASE_CARD=BEZ-50 scripts/release.sh   # outro card no título
+# Por que não uma PR staging -> main: com merge por rebase cada release reescreve os SHAs e a PR
+# seguinte volta com conflito; o fast-forward não reescreve nada.
+#
+#   scripts/release.sh          # mostra o que sai e pede confirmação
+#   scripts/release.sh --yes    # sem perguntar
 set -euo pipefail
 
-card="${RELEASE_CARD:-BEZ-50}"
+repo=$(git remote get-url origin | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')
 git fetch -q origin main staging
-ahead=$(git rev-list --count origin/main..origin/staging)
-[ "$ahead" -gt 0 ] || { echo "a staging não tem nada novo sobre a main" >&2; exit 1; }
-if gh pr list --base main --head staging --state open --json number --jq '.[0].number' | grep -q .; then
-  echo "já existe uma PR de release aberta: $(gh pr list --base main --head staging --state open --json url --jq '.[0].url')" >&2
+main=$(git rev-parse origin/main)
+staging=$(git rev-parse origin/staging)
+
+[ "$main" != "$staging" ] || { echo "a staging não tem nada novo sobre a main" >&2; exit 1; }
+git merge-base --is-ancestor "$main" "$staging" || {
+  echo "a main tem commit que a staging não tem; fast-forward impossível. Investigue antes de seguir (ninguém deveria escrever na main)." >&2
   exit 1
+}
+
+# O staging precisa ter publicado exatamente este commit com sucesso.
+ok=$(gh run list --repo "$repo" --workflow Deploy --branch staging --json headSha,conclusion --limit 30 \
+  --jq "[.[] | select(.headSha == \"$staging\" and .conclusion == \"success\")] | length")
+[ "$ok" -gt 0 ] || { echo "o deploy de staging do commit ${staging:0:7} não terminou com sucesso. Espere ou refaça (Actions > Deploy > Run workflow, branch staging)." >&2; exit 1; }
+
+echo "Vai para produção (${main:0:7}..${staging:0:7}):"
+git log --no-merges --format='  %h %s' "$main..$staging"
+if [ "${1:-}" != "--yes" ]; then
+  read -r -p "Digite 'release' para confirmar: " answer
+  [ "$answer" = "release" ] || { echo "cancelado" >&2; exit 1; }
 fi
 
-sha=$(git rev-parse --short origin/staging)
-changes=$(git log --no-merges --format='- %s' origin/main..origin/staging)
-body=$(cat <<BODY
-## Why
-
-Release de produção: leva o que já está no staging (\`$sha\`) para a main.
-
-## What changes
-
-$changes
-
-## Verification
-
-O staging já publicou este mesmo commit. Confira o ambiente antes de aprovar o deploy: \`/api/health\` e o fluxo que mudou.
-
-## Risk and rollback
-
-O deploy de produção espera a aprovação no environment \`prod\`. Merge com **Create a merge commit**. Rollback da plataforma: \`gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100\`; migrations são aditivas.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-BODY
-)
-gh pr create --base main --head staging --assignee @me --title "[$card] release: $(date +%F)" --body "$body"
+git push origin "$staging:refs/heads/main"
+echo "main agora em ${staging:0:7}. Aprove o deploy de produção em: https://github.com/$repo/actions/workflows/deploy.yml"

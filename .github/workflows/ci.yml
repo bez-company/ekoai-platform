@@ -275,9 +275,9 @@ jobs:
           echo "$saida"
           echo "$saida" | grep -q "Job desconhecido"
 
-  # A esteira é feature -> staging -> main (ADR 0013): PR para a staging vem de uma branch de
-  # feature; PR para a main só vem da staging (a release). Qualquer outra base é recusada. Fora de
-  # PR (push, dispatch) o job passa, para o `CI ok` não contar um job pulado como falha.
+  # A esteira é feature -> staging -> main (ADR 0013): PR só para a staging, vinda de uma branch de
+  # feature. A main não recebe PR: ela só avança por fast-forward da release (scripts/release.sh).
+  # Fora de PR (push, dispatch) o job passa, para o `CI ok` não contar um job pulado como falha.
   flow:
     name: Fluxo de branches
     runs-on: ubuntu-latest
@@ -290,16 +290,14 @@ jobs:
         run: |
           if [ "$EVENT" != "pull_request" ]; then echo "não é PR: nada a conferir"; exit 0; fi
           case "$BASE" in
-            main)
-              if [ "$HEAD" != "staging" ]; then
-                echo "::error::PR para a main só vem da staging (a release: scripts/release.sh). Abra esta PR com base staging."
-                exit 1
-              fi ;;
             staging)
               if [ "$HEAD" = "main" ] || [ "$HEAD" = "staging" ]; then
                 echo "::error::PR para a staging vem de uma branch de feature, não de $HEAD."
                 exit 1
               fi ;;
+            main)
+              echo "::error::A main não recebe PR. Abra esta PR com base staging; a release é o fast-forward de scripts/release.sh."
+              exit 1 ;;
             *)
               echo "::error::PR com base $BASE: o fluxo é feature -> staging -> main (docs/adr/0013)."
               exit 1 ;;

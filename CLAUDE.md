@@ -9,12 +9,13 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
 `staging` (ambiente de integração) e `main` (produção). Não há outro caminho.
 
 1. Branch de feature a partir da `staging`; PR com **base `staging`** (`gh pr create --base staging`).
-   Squash merge. O CI roda e o deploy do ambiente `staging` é automático depois do merge.
-2. Release: `scripts/release.sh` abre a PR `staging` → `main`. Merge com **Create a merge commit**
-   (nunca squash). O push na `main` roda o CI e o deploy de `prod` espera a aprovação no environment
-   `prod` (GitHub Actions).
+   Merge **sempre por rebase** (é o único método habilitado). O CI roda e o deploy do ambiente
+   `staging` é automático depois do merge. A branch de feature é apagada no merge.
+2. Release: `scripts/release.sh` leva a `main` até o commit da `staging` por **fast-forward** (sem PR
+   e sem commit novo). O push na `main` roda o CI e o deploy de `prod`, que espera a aprovação no
+   environment `prod` (GitHub Actions).
 3. Correção urgente é uma feature como as outras e vai à produção por uma release logo em seguida.
-   Nunca abra PR de feature para a `main`.
+   A `main` não recebe PR (o CI reprova) e `staging` e `main` nunca se apagam.
 
 ## Pull request
 
