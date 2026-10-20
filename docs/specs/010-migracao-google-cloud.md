@@ -304,3 +304,14 @@ dados (`db-f1-micro`); a primeira conexão logo ao ficar `RUNNABLE` foi recusada
 Postgres terminava a recuperação, e a segunda passou. Esse tempo cresce com o tamanho do banco e
 é o número a considerar em um incidente. Também há um backup sob demanda e os automáticos
 diários (14 mantidos) com recuperação a qualquer ponto de 7 dias.
+
+### Endurecimento da organização e limpeza (2026-10-19)
+
+- Políticas da pasta `ekoai` aplicadas por `infra/terraform/foundation`: sem criar nem subir chave de
+  conta de serviço, Cloud SQL sem IP público, bucket sem acesso público e sem rede `default`. Teste:
+  criar uma chave de conta de serviço agora falha com `CUSTOM_ORG_POLICY_VIOLATION`. O papel
+  `orgpolicy.policyAdmin` (só concedível na organização) foi dado à conta administradora, usado e
+  revogado.
+- Antes de apagar, os 14 segredos, a variável `STATE_BACKEND` e os environments `Preview` e
+  `Production` do desenho antigo foram removidos do GitHub; ficam só `staging` e `prod`, com as três
+  variáveis do deploy.
