@@ -41,7 +41,15 @@ const nextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: 'raw.githubusercontent.com' }],
   },
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // O logo é um arquivo enviado por usuário (SVG reescrito, mas ainda assim): quem abrir o endereço
+      // direto não executa nada. A regra vem depois da geral para valer no lugar dela.
+      {
+        source: '/api/brand/logo',
+        headers: [{ key: 'Content-Security-Policy', value: "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox" }],
+      },
+    ];
   },
 };
 

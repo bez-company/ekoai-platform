@@ -20,6 +20,7 @@ import {
   type VoiceForm,
 } from '@/lib/company-profile-form';
 import type { CompanyProfile, FieldErrors, Section } from '@/lib/company-profile-model';
+import LogoField from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
 const NONE = <span className="text-muted">Não informado</span>;
@@ -183,7 +184,17 @@ export default function CompanyEditor({ initial, canEdit }: { initial: CompanyPr
         )}
       </Card>
 
-      <Card title="Visual" sub={profile && progress.missing.includes('visual') ? 'Sem cores e fontes ainda.' : 'Usado nas artes da fase 2.'} action={editButton('visual')}>
+      <Card title="Visual" sub={profile && progress.missing.includes('visual') ? 'Sem logo, cores e fontes ainda.' : 'Usado nas artes da fase 2.'} action={editButton('visual')}>
+        {profile && (
+          <LogoField
+            assetId={profile.logoAssetId}
+            canEdit={canEdit}
+            onChange={(logoAssetId) => {
+              setProfile({ ...profile, logoAssetId });
+              router.refresh();
+            }}
+          />
+        )}
         {editing === 'visual' ? (
           <>
             <VisualSection value={visual} onChange={setVisual} errors={errors} onClearError={clearError} disabled={busy} />

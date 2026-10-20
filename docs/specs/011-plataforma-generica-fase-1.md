@@ -401,3 +401,18 @@ decorativo.
   Configurações para quem pode abrir.
 - **Fora desta PR:** avisos por papel (R6.3), Configurações › Redes e Dados e privacidade (dependem de
   R5 e R8), estado vazio de Aprovar e Aprendizado.
+
+### Item 5, parte 3: logo da empresa (2026-10-20)
+
+- Envio, troca e remoção do logo (PNG ou SVG, até 2 MB) no passo Visual do cadastro e no cartão Visual
+  de Configurações › Empresa. O envio é imediato, sem esperar o "Salvar" da seção; a prévia mostra o
+  logo em fundo claro e escuro.
+- Decisão registrada no [ADR 0014](../adr/0014-logo-da-empresa-por-rota-autenticada.md): o arquivo
+  mora no bucket privado em `tenants/<conta>/logo/` e só sai por `GET /api/brand/logo`, com sessão
+  (administrador e criador); `POST` e `DELETE` exigem `brand.manage`.
+- **SVG sanitizado por reescrita** (`svg-sanitize.ts`): só elementos e atributos da lista permitida
+  sobrevivem; script, objeto externo, manipulador de evento, DOCTYPE, entidade própria e `url()` para
+  fora recusam o arquivo, com a mensagem do que trocar. PNG conferido chunk a chunk e cortado no IEND.
+- O logo conta como "visual" no progresso do perfil.
+- **Falta:** o arquivo ainda não entra na exportação dos dados e a exclusão da conta (R8) precisa
+  apagar o prefixo da conta no bucket.
