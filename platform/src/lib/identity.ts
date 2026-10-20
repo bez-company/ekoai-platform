@@ -11,6 +11,7 @@ export type Identity = {
   emailVerified: boolean;
   authTime: number;
   secondFactor: string | null;
+  name: string | null;
 };
 
 const APP_NAME = 'identity';
@@ -23,6 +24,13 @@ function identityApp(): App {
 
 export class InvalidIdentityError extends Error {}
 
+// Nome que a pessoa digitou no cadastro (claim `name` do ID token). Só texto curto e limpo.
+function cleanName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value.replace(/\s+/g, ' ').trim().slice(0, 80);
+  return name || null;
+}
+
 // Assinatura, validade e revogação. Qualquer falha vira InvalidIdentityError (a rota responde
 // 401 sem detalhe); o motivo técnico fica na mensagem para o log.
 export async function verifyIdToken(idToken: string): Promise<Identity> {
@@ -34,6 +42,7 @@ export async function verifyIdToken(idToken: string): Promise<Identity> {
       emailVerified: t.email_verified === true,
       authTime: t.auth_time,
       secondFactor: t.firebase?.sign_in_second_factor ?? null,
+      name: cleanName(t.name),
     };
   } catch (e) {
     throw new InvalidIdentityError(e instanceof Error ? e.message : String(e));

@@ -8,9 +8,9 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 
 // `media/[...key]` é pública de propósito: as redes buscam a arte por ela ao publicar; a chave
 // leva UUID e só o formato de lib/media.ts passa (tests/media.test.js).
-// `account` (criar conta) também: quem chama ainda não tem sessão; a prova é o ID token, a rota
+// `invitations/accept` e `account` (criar conta) também: quem chama ainda não tem sessão; a prova é o ID token, a rota
 // responde 404 fora de SIGNUP_MODE=open e o middleware a libera só pelo caminho exato.
-const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]', 'account']);
+const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
 const EXPECTED = {
   approve: ['content.approve'],
@@ -32,6 +32,10 @@ const EXPECTED = {
   'auth/me': ['content.view'],
   'auth/tenant': ['content.view'],
   'auth/logout-all': ['content.view'],
+  'team/invitations': ['team.manage'],
+  'team/invitations/[id]': ['team.manage'],
+  'team/invitations/[id]/resend': ['team.manage'],
+  'team/members/[userId]': ['team.manage', 'team.manage'],
 };
 
 function routes(dir) {
@@ -47,7 +51,7 @@ describe('permissão por rota', () => {
     routes(API).map((f) => {
       const src = readFileSync(f, 'utf8');
       const key = relative(API, f).replace(/\/route\.ts$/, '');
-      return [key, { src, perms: [...src.matchAll(/requirePermission\('([a-z._]+)'\)/g)].map((m) => m[1]) }];
+      return [key, { src, perms: [...src.matchAll(/require(?:User)?Permission\('([a-z._]+)'\)/g)].map((m) => m[1]) }];
     }),
   );
 

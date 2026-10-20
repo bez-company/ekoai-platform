@@ -9,7 +9,7 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
 const PUBLIC_PREFIXES = ['/login', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media'];
 // Caminhos públicos exatos: quem chama ainda não tem sessão (a prova é o ID token). Prefixo não,
 // para uma rota futura debaixo deles continuar exigindo sessão.
-const PUBLIC_EXACT = ['/api/account'];
+const PUBLIC_EXACT = ['/api/account', '/api/invitations/accept'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
