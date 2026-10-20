@@ -291,6 +291,12 @@ export default function IdentityEntry({ config, signupOpen, invite }: { config: 
         setError(outcome.message);
         return;
       }
+      // conta nova: o perfil da empresa é o próximo passo
+      if (outcome.kind === 'done') {
+        router.push('/onboarding');
+        router.refresh();
+        return;
+      }
       await apply(outcome, user);
     });
 
