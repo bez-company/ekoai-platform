@@ -32,7 +32,7 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <h1 className="text-xl font-semibold">Publicação</h1>
+        <h2 className="text-lg font-semibold">Publicação</h2>
         <PauseControl state={pause} overdue={overdue} />
       </div>
 

@@ -3,7 +3,7 @@
 // pessoa, em que cada requisição confere no banco a versão da sessão e a membership.
 
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { SESSION_COOKIE, authProvider, verifySessionToken } from './auth';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { hasPermission, roleIn, sessionUser, type SessionUser } from './accounts';
@@ -73,6 +73,29 @@ export async function pageTenant(): Promise<TenantDb> {
     return await requireTenant();
   } catch (e) {
     if (e instanceof UnauthorizedError) redirect('/login');
+    throw e;
+  }
+}
+
+// Página que só uma permissão abre (equipe): sessão vencida leva ao login; sem permissão ou sem
+// pessoa (login de senha única) a rota simplesmente não existe para quem pede.
+export async function pageContext(permission: Permission): Promise<{ t: TenantDb; user: SessionUser }> {
+  try {
+    return await requireUserPermission(permission);
+  } catch (e) {
+    if (e instanceof UnauthorizedError) redirect('/login');
+    if (e instanceof ForbiddenError || e instanceof UserError) notFound();
+    throw e;
+  }
+}
+
+// Para esconder um item de menu: mesma checagem, devolvendo sim ou não.
+export async function canAccess(permission: Permission): Promise<boolean> {
+  try {
+    await requireUserPermission(permission);
+    return true;
+  } catch (e) {
+    if (e instanceof UnauthorizedError || e instanceof ForbiddenError || e instanceof UserError) return false;
     throw e;
   }
 }
