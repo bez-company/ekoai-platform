@@ -416,3 +416,32 @@ decorativo.
 - O logo conta como "visual" no progresso do perfil.
 - **Falta:** o arquivo ainda não entra na exportação dos dados e a exclusão da conta (R8) precisa
   apagar o prefixo da conta no bucket.
+
+### Item 7, parte 2: dados e privacidade (2026-10-20)
+
+- **Configurações › Dados e privacidade** (`/settings/data`, só administrador, `account.export`): baixar
+  os dados e excluir a conta. A exportação passa a levar também o arquivo do logo (em base64 dentro do
+  JSON, em `files.logo`); os tokens das redes continuam fora.
+- **Excluir a conta** (`POST /api/account/delete`, `account.delete`) pede duas provas além da sessão:
+  o **nome da conta** digitado (igualdade exata) e um **ID token de uma reautenticação** com segundo
+  fator recente (até 5 minutos, da mesma pessoa da sessão, e-mail confirmado). Como o Identity
+  Platform só entrega esse token depois de senha e código do app, a janela pede também a **senha** (o
+  protótipo só mostrava o código). O token do login de ontem, mesmo com segundo fator, não serve.
+- **O que a exclusão faz**, numa transação: grava `account.deleted` na auditoria; apaga todas as
+  tabelas da conta (`TENANT_TABLES`, menos `audit_events`) na ordem das chaves estrangeiras que
+  impedem apagar o pai (lidas do catálogo do Postgres; cascade e set null não impõem ordem); limpa
+  `users.last_tenant_id`; apaga a conta, e as membresias e os tokens cifrados das redes saem em
+  cascata. Depois do commit, apaga o prefixo `tenants/<conta>/` do bucket (se falhar, o objeto órfão
+  vai para o log como erro). A sessão é encerrada.
+- **O que fica:** a **auditoria** da conta (só ids e papéis, sem nome da conta nem e-mail; o evento de
+  exclusão guarda quem excluiu e o tipo) e as **pessoas**: o login delas pode valer em outra conta.
+- **Avisar os outros administradores** é melhor esforço e depende do provedor de e-mail (BEZ-28):
+  `Mailer.sendAccountDeleted` existe, sem provedor nada é enviado. A tela diz que os administradores
+  recebem aviso por e-mail; enquanto não há provedor, isso não acontece.
+- **Fora desta PR:** revogar o token na Meta (entra com R5, hoje não há conexão) e o prazo de retenção
+  da auditoria.
+- Verificado no banco real (cascata percorrendo todas as tabelas, outra conta intacta, rollback quando
+  uma tabela falha no meio) e num navegador real (tela, modal, exportação com o logo, erro quando o
+  login não responde, criador e leitor barrados). **Não exercitado:** a reautenticação com senha e
+  código do app contra um Identity Platform de verdade (o emulador não faz TOTP): fica para o teste
+  no staging.

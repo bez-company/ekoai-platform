@@ -14,7 +14,7 @@ import { UserError } from './errors';
 import { auditTenant } from './audit';
 import { log } from './log';
 import { logoKey, type InspectedLogo } from './logo-model';
-import { mediaFile } from './media';
+import { mediaBucket, mediaFile } from './media';
 
 // O que o armazenamento precisa saber fazer. O de verdade é o Cloud Storage; os testes passam um
 // de memória.
@@ -22,6 +22,8 @@ export type BlobStore = {
   put(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
   get(key: string): Promise<Uint8Array>;
   remove(key: string): Promise<void>;
+  // Apaga tudo debaixo de um prefixo (a exclusão da conta apaga `tenants/<conta>/`).
+  removePrefix(prefix: string): Promise<void>;
 };
 
 export const gcsStore: BlobStore = {
@@ -34,6 +36,9 @@ export const gcsStore: BlobStore = {
   },
   async remove(key) {
     await mediaFile(key).delete({ ignoreNotFound: true });
+  },
+  async removePrefix(prefix) {
+    await mediaBucket().deleteFiles({ prefix, force: true });
   },
 };
 
@@ -55,6 +60,9 @@ export function localStore(dir: string): BlobStore {
     },
     async remove(key) {
       await rm(path(key), { force: true });
+    },
+    async removePrefix(prefix) {
+      await rm(path(prefix), { recursive: true, force: true });
     },
   };
 }

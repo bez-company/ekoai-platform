@@ -7,8 +7,12 @@ import type { Role } from './permissions';
 
 export type InviteMail = { to: string; accountName: string; inviterName: string | null; role: Role; link: string };
 
+export type AccountDeletedMail = { to: string; accountName: string; deletedByName: string | null };
+
 export interface Mailer {
   sendInvitation(mail: InviteMail): Promise<void>;
+  // Aviso aos outros administradores de que a conta foi excluída.
+  sendAccountDeleted(mail: AccountDeletedMail): Promise<void>;
 }
 
 export function getMailer(env: Record<string, string | undefined> = process.env): Mailer | null {

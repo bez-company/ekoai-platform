@@ -9,6 +9,8 @@ const REDACTED: Record<string, readonly string[]> = {
 
 import type { TenantDb } from './tenant-db';
 import { TENANT_TABLES } from './tenant-tables';
+import { defaultStore, readLogo, type BlobStore } from './brand-logo';
+import { log } from './log';
 
 const PAGE = 1000;
 const MAX_ROWS_PER_TABLE = 50_000;
@@ -30,12 +32,30 @@ async function readAll(t: TenantDb, table: string): Promise<unknown[]> {
   return rows;
 }
 
-export async function exportTenant(t: TenantDb): Promise<{
+export type ExportedFile = { path: string; content_type: string; encoding: 'base64'; data: string };
+
+// O arquivo do logo vai dentro do JSON, em base64 (até 2 MB), para o pacote ser tudo que a conta
+// guarda. Os tokens das redes nunca entram.
+async function logoFile(t: TenantDb, store: BlobStore): Promise<ExportedFile | null> {
+  const logo = await readLogo(t, store);
+  if (!logo) return null;
+  const asset = await t.select('brand_assets', 'storage_path').eq('id', logo.assetId).maybeSingle();
+  if (asset.error) throw new Error(`Falha ao exportar o logo: ${asset.error.message}`);
+  return { path: String(asset.data?.storage_path ?? ''), content_type: logo.contentType, encoding: 'base64', data: Buffer.from(logo.bytes).toString('base64') };
+}
+
+export async function exportTenant(t: TenantDb, store: BlobStore = defaultStore()): Promise<{
   tenant: string;
   exported_at: string;
   tables: Record<string, unknown[]>;
+  files: { logo: ExportedFile | null };
 }> {
   const tables: Record<string, unknown[]> = {};
   for (const name of TENANT_TABLES) tables[name] = await readAll(t, name);
-  return { tenant: t.tenantId, exported_at: new Date().toISOString(), tables };
+  const logo = await logoFile(t, store).catch((e) => {
+    // Um arquivo que sumiu do bucket não pode impedir o titular de levar o resto dos dados.
+    log('error', 'export', 'não leu o logo para a exportação', { error: e instanceof Error ? e.message : String(e) });
+    return null;
+  });
+  return { tenant: t.tenantId, exported_at: new Date().toISOString(), tables, files: { logo } };
 }
