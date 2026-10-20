@@ -36,6 +36,7 @@ const EXPECTED = {
   'team/invitations/[id]': ['team.manage'],
   'team/invitations/[id]/resend': ['team.manage'],
   'team/members/[userId]': ['team.manage', 'team.manage'],
+  profile: ['profile.view', 'brand.manage'],
 };
 
 function routes(dir) {
