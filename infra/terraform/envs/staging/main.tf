@@ -45,8 +45,9 @@ variable "alert_email" {
 module "ekoai" {
   source = "../../modules/ekoai"
 
-  project_id = "ekoai-staging"
-  env        = "staging"
+  project_id    = "ekoai-staging"
+  env           = "staging"
+  deploy_branch = "staging"
 
   deploy_workloads = var.deploy_workloads
   platform_image   = var.platform_image

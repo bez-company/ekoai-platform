@@ -19,6 +19,12 @@ variable "github_repo" {
   default     = "bez-company/ekoai-platform"
 }
 
+variable "deploy_branch" {
+  description = "Branch do GitHub cujo deploy pode assumir a conta de deploy deste ambiente (staging: staging; prod: main). ADR 0013."
+  type        = string
+  default     = "main"
+}
+
 variable "deploy_workloads" {
   description = "Falso na primeira aplicação: cria a base (rede, banco, segredos, registry) antes de existirem imagens. Verdadeiro cria o serviço, os jobs e as agendas."
   type        = bool

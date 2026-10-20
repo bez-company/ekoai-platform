@@ -61,8 +61,8 @@ resource "google_service_account_iam_member" "deploy_acts_as_app" {
   member             = "serviceAccount:${google_service_account.deploy.email}"
 }
 
-# Workload Identity Federation: o GitHub Actions entra sem chave JSON, só pelo repositório e a
-# branch main (SPEC 010, D5).
+# Workload Identity Federation: o GitHub Actions entra sem chave JSON, só pelo repositório e pela
+# branch do ambiente (SPEC 010, D5; ADR 0013): staging aceita a branch staging, prod a main.
 resource "google_iam_workload_identity_pool" "github" {
   project                   = var.project_id
   workload_identity_pool_id = "github"
@@ -81,7 +81,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
   }
-  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref == 'refs/heads/main'"
+  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref == 'refs/heads/${var.deploy_branch}'"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
