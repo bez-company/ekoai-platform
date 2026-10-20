@@ -1,6 +1,6 @@
 # SPEC 012: fase 2, post de Instagram (imagem e legenda) feito por agentes
 
-- **Status:** proposta (aguarda a prova de conceito de design e as decisões em aberto)
+- **Status:** proposta (decisões do Matheus registradas em 20/10/2026; aguarda a prova de conceito de design)
 - **Data:** 2026-10-20
 - **Depende de:** [SPEC 011](011-plataforma-generica-fase-1.md) (perfil da empresa, logo, equipe),
   [SPEC 003](003-ideia-reaproveitamento-e-feedback.md) (ideia, feedback que vira regra),
@@ -162,15 +162,28 @@ descrição das telas. Cada tela em desktop e mobile, com vazio, carregando, err
 6. Excluir a conta apaga também as tabelas novas e os PNGs do bucket.
 7. Leitor não cria nem aprova (404 e 403 como nas outras telas).
 
-## Decisões em aberto (do Matheus)
+## Decisões do Matheus (20/10/2026)
 
-1. **Critério da prova de conceito:** os números do briefing (aprovação de primeira acima de 50%,
-   nota até 0,5 ponto do controle de templates, custo por post aprovado abaixo de R$ 2) são chute
-   inicial. Quais valem?
-2. **Piloto de perfil diferente:** a prova pede uma terceira marca de perfil oposto à Pilar e ao
-   Ekoai (pequeno comércio ou influenciador). Quem é?
-3. **Quem avalia às cegas:** três pessoas, ao menos uma de fora da empresa.
-4. **Limite de posts por mês no plano inicial** (só como dado agora; preço fica para depois).
-5. **Rótulo de conteúdo gerado por IA** na legenda: padrão ligado, desligado ou escolha da conta?
-6. **Prazo da revisão do app na Meta** decide o cronograma da publicação (R5 da SPEC 011): começar o
-   pedido de revisão já?
+Cartão: BEZ-75.
+
+1. **Critérios da prova de conceito:** os do briefing. Aprovação de primeira acima de 50% e acima da
+   imagem inteira por IA; nota até 0,5 ponto do controle de templates; custo por post aprovado
+   abaixo de R$ 2; zero erro de acento no texto renderizado por código.
+2. **Marcas da prova:** quatro, com 5 briefs por marca (20 no total). Pilar (empresa técnica),
+   Ekoai (software), BEZ Company (holding: posicionamento de marca, não venda de software) e
+   Projeto Fé (ONG com crianças e esporte, perfil oposto aos outros três).
+3. **Quem avalia às cegas:** o Matheus e mais duas pessoas, ao menos uma de fora da BEZ.
+4. **Limite do plano inicial:** 20 posts por mês (só dado, sem preço).
+5. **Rótulo de conteúdo gerado por IA na legenda:** desligado por padrão, a conta liga se quiser.
+   Confirmar com a advogada antes do lançamento (BEZ-32).
+6. **Revisão do app na Meta:** começar a preparar agora ([meta-app-review](../arquitetura/meta-app-review.md), BEZ-78).
+
+### Cuidados com o Projeto Fé
+
+- O perfil e o logo entram pela própria plataforma no staging e saem pela exportação de dados da
+  conta. É a entrada da prova e também um teste real da fase 1.
+- Criança: nada de rosto de criança gerado por IA com aparência de foto, e foto real só com
+  autorização de quem responde pela criança. A prova usa ilustração, bola, quadra, mãos e cenas
+  sem rosto reconhecível.
+- Ficha de marca, posts e notas da prova ficam fora deste repositório (público). No repositório
+  entra só a conclusão, sem dado de marca.

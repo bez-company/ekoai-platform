@@ -1,6 +1,6 @@
 # Prova de conceito de design: briefing (19/10/2026)
 
-> Proposta, ainda sem aprovação. Responde o risco central da conversa de 19/10: dá para gerar post
+> Aprovada em 20/10/2026 com as decisões abaixo (BEZ-75). Responde o risco central da conversa de 19/10: dá para gerar post
 > com qualidade de designer a um custo que fecha a conta? Contexto em
 > [ideias da conversa](2026-10-19-ideias-conversa-chatgpt.md). Roda antes da fase 2 da
 > [SPEC 011](../specs/011-plataforma-generica-fase-1.md) e fora da plataforma: script isolado, sem
@@ -24,10 +24,10 @@ A é a linha de base barata. B é a hipótese. Se A empatar em qualidade, o moto
 
 ## Entradas
 
-- **3 marcas** com perfis diferentes: um escritório de engenharia (B2B técnico), um SaaS B2B e
-  uma marca de tom leve (influenciador ou pequeno comércio). A Pilar e o Ekoai podem ser duas
-  delas, mas a terceira precisa ser de perfil oposto.
-- **20 briefs** distribuídos entre as marcas, misturando formato e objetivo: educar, vender,
+- **4 marcas** com perfis diferentes: Pilar (empresa de engenharia, B2B técnico), Ekoai (SaaS),
+  BEZ Company (holding, foco em posicionamento de marca) e Projeto Fé (ONG, tom humano e social).
+  A ficha de cada uma vem da exportação de dados da conta no staging.
+- **20 briefs**, 5 por marca, misturando formato e objetivo: educar, vender,
   apresentar novidade, provocar a dor. Cada brief diz tema, objetivo e a ficha da marca (paleta,
   fontes, tom, fatos permitidos).
 - **Referências:** 3 prints por marca, para testar a ficha de estilo (extrair layout, paleta,
@@ -36,7 +36,7 @@ A é a linha de base barata. B é a hipótese. Se A empatar em qualidade, o moto
 
 ## Avaliação
 
-Cega: 3 pessoas veem os posts das duas variantes embaralhados, sem saber qual é qual.
+Cega: 3 pessoas (o Matheus e mais duas, ao menos uma de fora da BEZ) veem os posts das duas variantes embaralhados, sem saber qual é qual.
 
 - Nota de 1 a 5: hierarquia, legibilidade, aderência à marca, originalidade.
 - Pergunta binária: "postaria sem editar?" (sim ou não).
@@ -58,8 +58,8 @@ Cega: 3 pessoas veem os posts das duas variantes embaralhados, sem saber qual é
 
 ## Critério de passar
 
-Definido antes de rodar, para não ajustar a régua ao resultado. Os números abaixo são chute inicial
-para o Matheus corrigir:
+Definido antes de rodar, para não ajustar a régua ao resultado. Números confirmados pelo Matheus
+em 20/10/2026:
 
 - B com taxa de aprovação de primeira acima de 50% e acima de A.
 - Nota média de B próxima da do controle de templates (diferença de até 0,5 ponto).
