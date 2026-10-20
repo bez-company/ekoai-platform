@@ -76,7 +76,7 @@ jobs:
       - name: Jobs
         run: |
           set -euo pipefail
-          for job in refresh-tokens token-health weekly-report tenant-create access-grant; do
+          for job in refresh-tokens token-health weekly-report tenant-create access-grant platform-admin; do
             gcloud run jobs update "ekoai-$job" --region "$REGION" --image "$REGISTRY/jobs:$SHA" --quiet
           done
 

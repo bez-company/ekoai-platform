@@ -23,6 +23,7 @@ describe('jobs (Cloud Run Jobs)', () => {
   it('tenant-create e access-grant repassam os argumentos e não pedem conta', () => {
     expect(stepsFor('tenant-create', {}, ['--id', 'acme', '--name', 'Acme'])).toEqual([['scripts/create-tenant.js', '--id', 'acme', '--name', 'Acme']]);
     expect(stepsFor('access-grant', {}, ['--email', 'a@b.co'])).toEqual([['scripts/grant-access.js', '--email', 'a@b.co']]);
+    expect(stepsFor('platform-admin', {}, ['--email', 'a@b.co', '--grant'])).toEqual([['scripts/platform-admin.js', '--email', 'a@b.co', '--grant']]);
     // os jobs comuns ignoram argumento extra
     expect(stepsFor('migrate', {}, ['--x'])).toEqual([['scripts/migrate.js']]);
   });
