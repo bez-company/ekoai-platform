@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Sessão (cookie) e contas (banco) controladas pelo teste.
@@ -102,9 +102,16 @@ describe('regras do login', () => {
 });
 
 describe('permissões', () => {
-  it('a matriz do TypeScript é a mesma da migration 0015', () => {
-    const sql = readFileSync(join(import.meta.dirname, '../supabase/migrations/0015_portable_identity_and_roles.sql'), 'utf8');
-    const seeded = [...sql.matchAll(/\('([a-z]+\.[a-z_]+)',\s+array\[/g)].map((m) => m[1]);
+  it('a matriz do TypeScript é a mesma das migrations (0015 semeia, as seguintes acrescentam)', () => {
+    const dir = join(import.meta.dirname, '../supabase/migrations');
+    const seeded = new Set();
+    for (const f of readdirSync(dir).filter((name) => name >= '0015')) {
+      const sql = readFileSync(join(dir, f), 'utf8');
+      for (const m of sql.matchAll(/\('([a-z]+\.[a-z_]+)',\s+array\[/g)) seeded.add(m[1]);
+      for (const block of sql.matchAll(/insert into role_permissions \(role, permission\) values([\s\S]*?)on conflict/g)) {
+        for (const m of block[1].matchAll(/'(?:admin|creator|viewer)',\s*'([a-z]+\.[a-z_]+)'/g)) seeded.add(m[1]);
+      }
+    }
     expect([...seeded].sort()).toEqual([...PERMISSIONS].sort());
   });
 

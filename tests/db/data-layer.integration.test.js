@@ -138,6 +138,29 @@ describe('plataforma', () => {
     expect(Object.keys(dump.tables).length).toBeGreaterThan(10);
   });
 
+  it('exportação leva perfil, convites e redes, e nunca o token nem o hash do convite', async () => {
+    await admin.query(
+      "insert into company_profiles (tenant_id, niche, offering, audience) values ($1, 'Alimentação', 'Bolos', 'Famílias')", [JOB_TENANT]);
+    await admin.query(
+      "insert into invitations (tenant_id, email, role, token_hash) values ($1, 'novo@example.test', 'viewer', repeat('a', 64))", [JOB_TENANT]);
+    const { rows: [acct] } = await admin.query(
+      "insert into social_accounts (tenant_id, channel, external_id, handle) values ($1, 'instagram', 'ig-it', '@it') returning id", [JOB_TENANT]);
+    await admin.query(
+      "insert into social_account_secrets (social_account_id, access_token_ciphertext, key_version) values ($1, 'SEGREDO-CIFRADO', 'v1')", [acct.id]);
+    await admin.query("insert into audit_events (tenant_id, action) values ($1, 'team.member_added')", [JOB_TENANT]);
+
+    const dump = await exportTenant(tenantDb(JOB_TENANT));
+    expect(dump.tables.company_profiles).toHaveLength(1);
+    expect(dump.tables.social_accounts).toHaveLength(1);
+    expect(dump.tables.audit_events).toHaveLength(1);
+    expect(dump.tables.invitations).toHaveLength(1);
+    expect(dump.tables.invitations[0]).not.toHaveProperty('token_hash');
+    expect(dump.tables).not.toHaveProperty('social_account_secrets');
+    const text = JSON.stringify(dump);
+    expect(text).not.toContain('SEGREDO-CIFRADO');
+    expect(text).not.toContain('a'.repeat(64));
+  });
+
   it('pessoa: cria por login, liga por e-mail de convite e acha por id do provedor', async () => {
     await admin.query("insert into users (email) values ('it-convite@example.test')");
     const linked = await accounts.findOrLinkUser({ uid: 'idp-1', email: 'it-convite@example.test', emailVerified: true, signInAt: Date.now(), mfa: false });

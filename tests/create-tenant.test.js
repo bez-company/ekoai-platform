@@ -16,6 +16,13 @@ describe('create-tenant', () => {
     }
   });
 
+  it('o tipo da conta é empresa ou pessoa', () => {
+    expect(validate({ id: 'acme', name: 'Acme', kind: 'pessoa' })).toBeNull();
+    expect(validate({ id: 'acme', name: 'Acme', kind: 'empresa' })).toBeNull();
+    expect(validate({ id: 'acme', name: 'Acme', kind: 'agencia' })).toMatch(/--kind/);
+    expect(validate({ id: 'acme', name: 'Acme', kind: true })).toMatch(/--kind/);
+  });
+
   it('recusa nome vazio', () => {
     expect(validate({ id: 'acme', name: '  ' })).toMatch(/--name/);
     expect(validate({ id: 'acme' })).toMatch(/--name/);

@@ -118,17 +118,22 @@ administrador (o caminho enquanto `SIGNUP_MODE=invite`). Regras em
 
 ## Dados novos (R2 a R9)
 
+Migrations 0017 a 0019 (decisões em [ADR 0012](../adr/0012-limites-e-segredos-no-banco.md)).
+
 | Tabela ou coluna | Para quê |
 | --- | --- |
-| `tenants.kind`, `tenants.plan_id` | pessoa ou empresa; plano |
-| `company_profiles` | R3, uma linha por conta |
-| `brand_assets` | logo no bucket privado (ADR 0009) |
-| `invitations` | R4, token com hash |
-| `social_accounts` | R5, token cifrado, status, vencimento |
-| `plans` | R7 |
-| `platform_admins`, `audit_log` | R9 e R4 (audit só de inserção) |
+| `plans` | R7: limites por plano (`pessoa`: 1 pessoa e 1 Instagram; `inicial`: 5 pessoas e 1 Instagram) |
+| `tenants.kind`, `tenants.plan_id` | R2: pessoa ou empresa e o plano; um gatilho exige plano do mesmo tipo |
+| `company_profiles` | R3: uma linha por conta; admin edita (`brand.manage`), admin e criador veem (`profile.view`) |
+| `brand_assets` | R3: o logo (binário no bucket privado, ADR 0009); o perfil só aponta para logo da própria conta |
+| `invitations` | R4: só o hash do token, 7 dias, uso único; `app.accept_invitation()` aceita de forma atômica |
+| `social_accounts` | R5: metadados da conta de rede (status, vencimento); admin e criador veem (`channels.view`) |
+| `social_account_secrets` | R5: token cifrado, sem `tenant_id`, sem acesso da API, fora da exportação |
+| `audit_events` | R4 e R8: só inserção (nem o dono altera), sem FK para a conta |
+| `platform_admins` | R9: uma linha, sem policy; o e-mail não entra no repositório |
 
-Toda tabela com `tenant_id` e RLS por `app.can`, coberta no `rls_test.sql`. Migrations aditivas.
+Toda tabela com `tenant_id` tem RLS por `app.can` e está em `TENANT_TABLES` (exportação). Limites
+do plano são gatilhos no banco. Migrations aditivas.
 
 ## Telas (protótipo no Claude Design antes do código)
 
@@ -215,3 +220,21 @@ decorativo.
 - Para a SPEC 010: os jobs `post`, `resolve`, `reflect`, `funnel`, `engage`, `repurpose` e `reel`
   não existem mais; o Terraform só agenda `refresh-tokens`, `token-health`, `weekly-report` e
   `migrate`, todos com `TENANT_ID` (menos `migrate`).
+
+### Item 2: banco (2026-10-19)
+
+- Migrations 0017 (planos, perfil da empresa, logo), 0018 (convites, contas de rede, tokens
+  cifrados, limites do plano) e 0019 (auditoria, administrador da plataforma). `tenant:create`
+  ganhou `--kind empresa|pessoa`.
+- `supabase/ci/rls_test.sql` cobre, por papel: perfil (admin edita, criador só vê, leitor não vê),
+  convites e auditoria (só o admin lê), redes (admin e criador veem, ninguém lê token), logo de
+  outra conta recusado por FK, limites de pessoas e de Instagram, convite aceito, reusado, vencido,
+  cancelado, de outro e-mail e já membro, token apagado ao revogar, auditoria imutável e um
+  administrador da plataforma só. Guardas de catálogo: tabela `*_secrets` e `platform_admins`
+  fora do alcance da API.
+- Verificado por mutação: abrir o token à API, tirar cada gatilho de limite, tornar a auditoria
+  reescrevível, deixar o leitor ler o perfil e o criador editar o perfil reprovam o teste.
+- A exportação inclui as tabelas novas, corta o hash do convite e nunca o token (teste de
+  integração em `tests/db/data-layer.integration.test.js`).
+- Falta para R2 a R9: parsers e rotas (cadastro, convite, perfil, conexão do Instagram com KMS),
+  telas e o console.
