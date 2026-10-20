@@ -33,7 +33,7 @@ const nextConfig = {
   // Imagem para o Cloud Run: servidor autocontido na imagem do container (SPEC 010).
   output: 'standalone',
   // Drivers com código nativo ou carregamento dinâmico ficam fora do bundle.
-  serverExternalPackages: ['pg', '@google-cloud/storage', 'firebase-admin'],
+  serverExternalPackages: ['pg', '@google-cloud/storage', 'firebase-admin', '@sentry/node'],
   // As artes vêm da rota /api/media (bucket privado); as antigas, do raw.githubusercontent.
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'raw.githubusercontent.com' }],

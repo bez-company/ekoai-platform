@@ -7,6 +7,7 @@
 
 import { spawn } from 'node:child_process';
 import { currentTenantId } from './tenant.js';
+import { initSentry, captureJobFailure, flushSentry } from './utils/sentry.js';
 
 // [script, ...argumentos]. `when` filtra o passo pelo ambiente.
 export const JOBS = {
@@ -43,10 +44,14 @@ function run(step) {
 
 async function main() {
   const name = process.argv[2];
+  initSentry();
   try {
     for (const step of stepsFor(name, process.env, process.argv.slice(3))) await run(step);
   } catch (err) {
     console.error(`[jobs] ${name}: ${err.message}`);
+    // Nome desconhecido é erro de quem chamou, não do job: não vira issue.
+    if (!/^Job desconhecido/.test(err.message)) captureJobFailure(name, err, { exitCode: err.code ?? 1 });
+    await flushSentry();
     process.exit(err.code ?? 1);
   }
 }

@@ -57,6 +57,7 @@ locals {
     "x-api-secret",
     "x-access-token",
     "x-access-token-secret",
+    "sentry-dsn",
   ]
 
   # Variável de ambiente => segredo. Plataforma e jobs leem os mesmos.
@@ -73,6 +74,7 @@ locals {
     X_API_SECRET           = "x-api-secret"
     X_ACCESS_TOKEN         = "x-access-token"
     X_ACCESS_TOKEN_SECRET  = "x-access-token-secret"
+    SENTRY_DSN             = "sentry-dsn"
   }
 
   platform_secret_env = merge(local.integration_env, {
@@ -86,7 +88,7 @@ locals {
   kms_key_name = google_kms_crypto_key.social_tokens.id
 
   # Só entra o que tem valor: variável vazia faria o app falhar com uma mensagem pior que a ausência.
-  account_env = { for k, v in { TENANT_ID = var.tenant_id, SITE_URL = var.site_url } : k => v if v != "" }
+  account_env = { for k, v in { TENANT_ID = var.tenant_id, SITE_URL = var.site_url, SENTRY_ENVIRONMENT = var.env == "prod" ? "production" : var.env } : k => v if v != "" }
 
   jobs_secret_env = merge(local.integration_env, {
     DATABASE_URL = "database-url"
