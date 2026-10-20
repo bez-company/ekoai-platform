@@ -54,7 +54,10 @@ module "ekoai" {
   alert_email      = var.alert_email
   tenant_id        = var.tenant_id
 
-  sql_tier         = "db-g1-small"
+  # f1-micro até haver cliente pagante (US$ 11,53 por mês em São Paulo, contra US$ 38,33 do g1-small):
+  # sem SLA, CPU compartilhada e 0,6 GB de RAM. Subir para db-g1-small ou uma instância dedicada
+  # reinicia o banco por alguns minutos. Custo medido em docs/analises/2026-10-20-custo-infraestrutura.md.
+  sql_tier         = "db-f1-micro"
   sql_availability = "ZONAL"
   protect_data     = true
   # Zero até o lançamento (19/01/2027): sem cold start só depois de haver tráfego real.
