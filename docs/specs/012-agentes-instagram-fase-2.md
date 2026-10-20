@@ -118,8 +118,17 @@ As tabelas antigas (`briefs`, `assets`, `post_variants`, `pending_approvals`, `f
 
 ## Telas (protótipo no Claude Design antes do código)
 
-Briefing em [012-briefing-claude-design.md](012-briefing-claude-design.md). Cada tela em desktop e
-mobile, com vazio, carregando, erro e cheio:
+**Protótipo (v4, as telas da fase 2 já estão nele, junto das da fase 1):**
+https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz . Troque a tela no seletor do alto: Criar post,
+Gerando o post, Aprovar (13 estados), Agenda, Aprendizado, Fatos da empresa (em Configurações) e o
+Início com a criação de posts. Cada uma tem os estados vazio, carregando, erro e cheio quando se
+aplicam, desktop e celular, e os quatro papéis. O post de exemplo mostra o motor híbrido: o visual
+é só um fundo ilustrado de apoio e o texto, o selo e o logo são desenhados por código (aqui em SVG)
+com as cores e a fonte do perfil da empresa. As telas ainda esperam a aprovação do Matheus; sem ela
+não há código de tela.
+
+O briefing em [012-briefing-claude-design.md](012-briefing-claude-design.md) segue valendo como
+descrição das telas. Cada tela em desktop e mobile, com vazio, carregando, erro e cheio:
 
 1. Criar post (pedido) e o andamento da geração.
 2. Aprovar: lista de posts e o detalhe com moldura de feed, atalhos e recusa por aspecto.
