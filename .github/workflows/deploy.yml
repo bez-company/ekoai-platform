@@ -1,8 +1,15 @@
 name: Deploy
 
-# Depois que o CI passa na main: staging sozinho, produção só com aprovação no environment
-# `prod` (Required reviewers). Entra no Google Cloud por Workload Identity Federation, sem chave
-# JSON. As imagens são construídas aqui (amd64) e empurradas para o Artifact Registry do projeto.
+# Um ambiente por branch (docs/adr/0013-esteira-feature-staging-producao.md):
+#
+#   staging -> ambiente staging, sozinho, depois que o CI passa na branch staging;
+#   main    -> produção, depois que o CI passa na main, e SÓ depois da aprovação no environment
+#              `prod` (Settings > Environments > prod > Required reviewers). A main só recebe a PR
+#              de release (staging -> main).
+#
+# Cada environment só aceita a própria branch (deployment branch policy). Entra no Google Cloud por
+# Workload Identity Federation, sem chave JSON. As imagens são construídas aqui (amd64) e empurradas
+# para o Artifact Registry do projeto do ambiente.
 #
 # Ordem em cada ambiente: imagens -> migrations (job `ekoai-migrate`, espera terminar) ->
 # jobs -> plataforma -> health check. Migration é ADITIVA: deploy e migration não são atômicos.
@@ -16,8 +23,15 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main]
+    branches: [main, staging]
+  # Refazer o deploy do ambiente a partir da branch dele (a policy do environment recusa outra).
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente (rode a partir da branch dele, staging ou main)
+        type: choice
+        options: [staging, prod]
+        required: true
 
 permissions:
   contents: read
@@ -28,7 +42,12 @@ env:
 jobs:
   staging:
     name: Staging
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # `event == push` descarta o CI de uma PR: a PR de release sai de uma branch chamada staging,
+    # e não deve publicar nada.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'staging')
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: staging
@@ -39,7 +58,10 @@ jobs:
 
   prod:
     name: Produção
-    needs: [staging]
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: prod

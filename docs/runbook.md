@@ -74,3 +74,22 @@ do projeto). Antes do primeiro cliente de fora: plano com backup diário e um re
 Dois projetos do Google Cloud, `ekoai-staging` e `ekoai-prod`, com o mesmo Terraform
 ([SPEC 010](specs/010-migracao-google-cloud.md), D1). **Pendente:** os projetos ainda não foram
 criados (fase 0); não há ambiente publicado.
+
+## Release para produção
+
+Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao.md). Resumo:
+
+1. **Staging** recebe tudo por PR de feature (base `staging`). Depois do merge, o deploy de staging é
+   automático. Teste lá o que vai sair.
+2. **Abrir a release:** `scripts/release.sh` (PR `staging` → `main`, com a lista do que sai).
+3. **Mergear com "Create a merge commit"**, nunca squash.
+4. **Aprovar o deploy:** o push na `main` roda o CI e o deploy de `prod` espera no GitHub
+   (Actions > o run de Deploy > Review deployments > `prod`). Sem aprovação, nada muda em produção.
+5. **Conferir:** `/api/health` de produção mostra a revisão (`sha-<7 primeiros>`).
+
+**Desfazer:** `gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100
+--region southamerica-east1` (migrations são aditivas, então o código antigo continua funcionando).
+Para tirar a mudança de vez, reverta o commit na `staging` e faça uma nova release.
+
+**Refazer o deploy de um ambiente:** Actions > Deploy > Run workflow, escolhendo a branch do ambiente
+(`staging` ou `main`); o environment recusa outra branch.

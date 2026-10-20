@@ -1,6 +1,6 @@
 <!--
 Delete the sections that do not apply. Title and body in English, Conventional Commits in the title.
-Visual change = screenshots below, always. Behavior, data or flow change = skeleton + diagram when it clarifies.
+Base branch is `staging` (release PRs are the only ones that target `main`). Visual change = screenshots below, always. Behavior, data or flow change = skeleton + diagram when it clarifies.
 -->
 
 ## Why
