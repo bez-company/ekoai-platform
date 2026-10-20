@@ -54,6 +54,11 @@ module "ekoai" {
   alert_email      = var.alert_email
   tenant_id        = var.tenant_id
 
+  # Staging: login por pessoa e cadastro aberto, para testar a entrada de verdade com dado de teste.
+  # Produção segue com senha única e cadastro por convite até haver limite de taxa no cadastro.
+  auth_provider = "identity"
+  signup_mode   = "open"
+
   sql_tier               = "db-f1-micro"
   sql_availability       = "ZONAL"
   protect_data           = false

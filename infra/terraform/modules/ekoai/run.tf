@@ -79,7 +79,11 @@ resource "google_cloud_run_v2_service" "platform" {
       }
       env {
         name  = "AUTH_PROVIDER"
-        value = "password"
+        value = var.auth_provider
+      }
+      env {
+        name  = "SIGNUP_MODE"
+        value = var.signup_mode
       }
       env {
         name  = "IDENTITY_PROJECT_ID"
