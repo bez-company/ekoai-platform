@@ -1,0 +1,33 @@
+import { describe, it, expect } from 'vitest';
+import * as s from '../platform/src/lib/screens.ts';
+
+const grant = (...p) => (permission) => p.includes(permission);
+
+describe('menu por permissão', () => {
+  it('administrador e criador veem tudo; o leitor não vê Configurações', () => {
+    const admin = s.screensFor(grant('content.view', 'profile.view', 'team.manage')).map((x) => x.label);
+    expect(admin).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Aprendizado', 'Configurações']);
+    expect(s.screensFor(grant('content.view', 'profile.view')).map((x) => x.label)).toEqual(admin);
+    expect(s.screensFor(grant('content.view')).map((x) => x.label)).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Aprendizado']);
+  });
+
+  it('sem nenhuma permissão o menu fica vazio', () => {
+    expect(s.screensFor(grant())).toEqual([]);
+  });
+
+  it('toda tela da lista tem caminho único e permissão declarada', () => {
+    expect(new Set(s.SCREENS.map((x) => x.href)).size).toBe(s.SCREENS.length);
+    for (const x of s.SCREENS) expect(x.permission).toMatch(/^[a-z]+\.[a-z]+$/);
+  });
+});
+
+describe('item ativo', () => {
+  it('a raiz só vale para a raiz; os outros valem para as rotas abaixo', () => {
+    expect(s.isActive('/', '/')).toBe(true);
+    expect(s.isActive('/inbox', '/')).toBe(false);
+    expect(s.isActive('/settings/team', '/settings')).toBe(true);
+    expect(s.isActive('/settings', '/settings')).toBe(true);
+    expect(s.isActive('/settingsx', '/settings')).toBe(false);
+    expect(s.isActive(null, '/')).toBe(false);
+  });
+});

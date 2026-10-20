@@ -225,3 +225,18 @@ export async function previewInvitation(tokenHash: string): Promise<InvitePrevie
   };
 }
 
+
+// Passos opcionais do checklist de Início que a conta pulou (migration 0021). Tabela de conta
+// sem coluna tenant_id (a chave é `id`), por isso passa por aqui e não pelo tenantDb.
+export async function onboardingSkipped(tenantId: string): Promise<string[]> {
+  const { data, error } = await db().from('tenants').select('onboarding_skipped').eq('id', tenantId).maybeSingle();
+  if (error) throw new Error(`onboarding: ${error.message}`);
+  return Array.isArray(data?.onboarding_skipped) ? (data.onboarding_skipped as unknown[]).map(String) : [];
+}
+
+export async function setOnboardingSkip(tenantId: string, item: string, skipped: boolean): Promise<void> {
+  const current = await onboardingSkipped(tenantId);
+  const next = skipped ? [...new Set([...current, item])] : current.filter((i) => i !== item);
+  const { error } = await db().from('tenants').update({ onboarding_skipped: next }).eq('id', tenantId);
+  if (error) throw new Error(`onboarding: ${error.message}`);
+}

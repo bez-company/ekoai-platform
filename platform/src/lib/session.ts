@@ -99,3 +99,10 @@ export async function canAccess(permission: Permission): Promise<boolean> {
     throw e;
   }
 }
+
+// Para esconder um item do menu em qualquer modo de login: na senha única a sessão vale como
+// administrador; por pessoa, confere a matriz de papéis.
+export async function can(permission: Permission): Promise<boolean> {
+  const ctx = await requireSession();
+  return ctx.user ? hasPermission(ctx.role, ctx.t.tenantId, permission) : true;
+}

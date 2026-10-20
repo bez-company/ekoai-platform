@@ -37,7 +37,7 @@ export default function ProfileWizard({ initial }: Props) {
   const clearError = (field: string) => setErrors(({ [field]: _gone, ...rest }) => rest);
 
   function finish() {
-    router.push('/inbox');
+    router.push('/');
     router.refresh();
   }
 

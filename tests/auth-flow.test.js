@@ -105,7 +105,7 @@ describe('para onde ir depois do login', () => {
     expect(f.safeNext('/settings')).toBe('/settings');
     expect(f.safeNext('/inbox/abc?x=1')).toBe('/inbox/abc?x=1');
     for (const bad of ['https://evil.com', '//evil.com', '/\\evil.com', 'javascript:alert(1)', 'evil', '', null, undefined]) {
-      expect(f.safeNext(bad)).toBe('/inbox');
+      expect(f.safeNext(bad)).toBe('/');
     }
   });
 });
