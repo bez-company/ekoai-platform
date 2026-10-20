@@ -118,3 +118,49 @@ describe('contagem para reenviar', () => {
     expect(f.countdown(-5)).toBe('0:00');
   });
 });
+
+describe('o que a tela faz depois de aceitar o convite', () => {
+  it('200 conclui e 202 (aceitou, falta o segundo fator) leva a ativar as duas etapas', () => {
+    expect(f.acceptOutcome(200, {})).toEqual({ kind: 'done' });
+    expect(f.acceptOutcome(202, { accepted: true, code: 'mfa_required' })).toEqual({ kind: 'mfa-setup' });
+  });
+
+  it('quem já é da conta segue pelo login normal', () => {
+    expect(f.acceptOutcome(409, { code: 'already_member', error: 'x' })).toEqual({ kind: 'continue-login' });
+  });
+
+  it('e-mail diferente do convite mostra a tela própria, com a mensagem', () => {
+    expect(f.acceptOutcome(403, { code: 'invite_email_mismatch', error: 'Saia e entre com o e-mail do convite.' })).toEqual({ kind: 'wrong-account', message: 'Saia e entre com o e-mail do convite.' });
+  });
+
+  it('convite que fechou no meio do caminho volta ao login com a mensagem', () => {
+    for (const code of ['invite_not_found', 'invite_cancelled', 'invite_used', 'invite_expired']) {
+      expect(f.acceptOutcome(410, { code, error: 'fechado' })).toEqual({ kind: 'invite-closed', message: 'fechado' });
+    }
+  });
+
+  it('e-mail não confirmado e login velho seguem as mesmas regras do login', () => {
+    expect(f.acceptOutcome(403, { code: 'email_not_verified' })).toEqual({ kind: 'verify' });
+    expect(f.acceptOutcome(401, { code: 'login_stale', error: 'x' }).kind).toBe('restart');
+    expect(f.acceptOutcome(500, {})).toEqual({ kind: 'fail', message: f.GENERIC_AUTH_ERROR });
+  });
+});
+
+describe('texto do convite', () => {
+  it('cada papel tem rótulo e uma frase do que pode', () => {
+    expect(Object.keys(f.ROLE_COPY).sort()).toEqual(['admin', 'creator', 'viewer']);
+    for (const r of Object.values(f.ROLE_COPY)) {
+      expect(r.label).toBeTruthy();
+      expect(r.what).toMatch(/\.$/);
+    }
+  });
+
+  it('dias até vencer: inteiros para cima e nunca negativos', () => {
+    const now = Date.UTC(2026, 9, 20, 12);
+    expect(f.daysLeft(new Date(now + 5 * 86_400_000).toISOString(), now)).toBe(5);
+    expect(f.daysLeft(new Date(now + 5 * 86_400_000 - 3_600_000).toISOString(), now)).toBe(5);
+    expect(f.daysLeft(new Date(now + 60_000).toISOString(), now)).toBe(1);
+    expect(f.daysLeft(new Date(now - 1000).toISOString(), now)).toBe(0);
+  });
+});
+

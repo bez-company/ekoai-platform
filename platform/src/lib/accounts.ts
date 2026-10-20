@@ -199,6 +199,7 @@ export type InvitePreview = {
   role: Role;
   email: string;
   inviterName: string | null;
+  expiresAt: string;
 };
 
 // O que a página do convite mostra antes de entrar. Quem tem o link tem o token, então o e-mail
@@ -220,6 +221,7 @@ export async function previewInvitation(tokenHash: string): Promise<InvitePrevie
     role: r.role,
     email: String(r.email),
     inviterName: (r.inviter_name as string | null) ?? null,
+    expiresAt: iso(r.expires_at) as string,
   };
 }
 
