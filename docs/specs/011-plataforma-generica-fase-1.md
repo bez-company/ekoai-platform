@@ -257,3 +257,27 @@ decorativo.
   telas de entrada. O e-mail transacional depende de provedor e domínio (decisão 7 de
   `sem-google.md`); até lá o administrador copia o link do convite.
 
+### Item 4, parte 2: equipe e convites (2026-10-20)
+
+- Migration 0020: `users.name` (nome do cadastro, vem do ID token) e um gatilho que faz reenviar um
+  convite vencido ocupar vaga de novo.
+- Rotas, todas com `team.manage` (`requireUserPermission`, que devolve também a pessoa para a
+  auditoria): `POST /api/team/invitations`, `POST /api/team/invitations/[id]/resend`,
+  `DELETE /api/team/invitations/[id]`, `PATCH` e `DELETE /api/team/members/[userId]`.
+- `POST /api/invitations/accept` é pública pelo caminho exato; a prova é o ID token (e-mail
+  verificado, login recente) e o convite só vale para o e-mail da pessoa. O banco decide de forma
+  atômica (`app.accept_invitation`) e a rota traduz as seis falhas em estados da tela (não
+  encontrado, cancelado, usado, vencido, outro e-mail, já é da equipe). Administrador sem segundo
+  fator aceita, mas não ganha sessão (202): ativa o app autenticador e entra pelo login normal.
+- O token do convite (43 caracteres) só existe na resposta e no link; o banco guarda o hash. Sem
+  provedor de e-mail, a resposta traz o `link` para quem convida copiar (`lib/mailer.ts` é o ponto
+  de encaixe; `MAIL_PROVIDER` definido sem implementação falha antes de criar o convite). O link
+  usa `APP_BASE_URL`.
+- Erros do banco viram mensagem para a tela: último administrador, convite pendente duplicado e
+  limite de vagas do plano. Toda ação grava em `audit_events` (sem e-mail no metadata).
+- Testes: modelo puro (`tests/invitation-model.test.js`, inclusive que as mensagens do banco e as
+  do TypeScript não divergem), ligação das rotas (`tests/team-routes.test.js`) e o banco de verdade
+  (`tests/db/team.integration.test.js`: hash do token, aceite atômico e auditado, reenvio, cancelamento,
+  vencimento, papel, último administrador, vagas e nome no login).
+- Falta no item 4: as telas (entrada, cadastro, equipe, aceitar convite) e o provedor de e-mail.
+

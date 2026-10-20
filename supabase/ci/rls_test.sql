@@ -568,6 +568,21 @@ begin
   select count(*) into n from tenant_members where tenant_id = 'conv2';
   if n <> 1 then raise exception 'convite recusado mexeu na equipe (% membros)', n; end if;
 
+  -- reenviar um convite vencido ocupa vaga de novo
+  insert into tenants (id, name) values ('resend', 'Resend');
+  insert into tenant_members (tenant_id, user_id, role)
+    values ('resend', u1, 'admin'), ('resend', u2, 'creator'), ('resend', u3, 'creator'), ('resend', u4, 'viewer');
+  insert into invitations (tenant_id, email, role, token_hash) values ('resend', 'lim5@exemplo.test', 'viewer', repeat('8', 64));
+  update invitations set expires_at = now() - interval '1 minute' where token_hash = repeat('8', 64);
+  insert into invitations (tenant_id, email, role, token_hash) values ('resend', 'lim6@exemplo.test', 'viewer', repeat('9', 64));
+  begin
+    update invitations set expires_at = now() + interval '7 days' where token_hash = repeat('8', 64);
+    raise exception 'reenviar o convite vencido passou do limite de pessoas';
+  exception when check_violation then null;
+  end;
+  update invitations set cancelled_at = now() where token_hash = repeat('9', 64);
+  update invitations set expires_at = now() + interval '7 days' where token_hash = repeat('8', 64);
+
   -- contas de Instagram: o plano inicial permite 1
   insert into social_accounts (tenant_id, channel, external_id) values ('lim', 'instagram', 'ig-lim-1');
   begin
@@ -606,6 +621,19 @@ begin
   end;
   insert into audit_events (tenant_id, actor_kind, action, target_type, target_id, metadata)
     values ('exemplo', 'system', 'team.invitation_sent', 'invitation', 'x', '{"role":"viewer"}');
+
+  -- nome da pessoa: opcional, mas não vazio nem enorme
+  update users set name = 'Ana Ribeiro' where id = u1;
+  begin
+    update users set name = '   ' where id = u1;
+    raise exception 'nome em branco aceito';
+  exception when check_violation then null;
+  end;
+  begin
+    update users set name = repeat('a', 81) where id = u1;
+    raise exception 'nome com 81 caracteres aceito';
+  exception when check_violation then null;
+  end;
 
   -- administrador da plataforma: uma linha só
   insert into platform_admins (user_id, email) values (u1, 'dono@exemplo.test');

@@ -2,6 +2,7 @@
 // sanitizado aqui: nada de token, senha ou e-mail inteiro; use ids e papéis.
 
 import { scrub } from './log';
+import type { TenantDb } from './tenant-db';
 
 type Query = (text: string, params?: unknown[]) => Promise<unknown>;
 
@@ -22,3 +23,17 @@ export async function recordAudit(query: Query, e: AuditEvent): Promise<void> {
     [e.tenantId, e.actorUserId, e.actorKind ?? 'user', e.action, e.targetType ?? null, e.targetId ?? null, JSON.stringify(scrub(e.metadata ?? {}))],
   );
 }
+
+// Dentro de uma conta (o tenantDb carimba o tenant): usado pelas ações de equipe.
+export async function auditTenant(t: TenantDb, e: Omit<AuditEvent, 'tenantId'>): Promise<void> {
+  const { error } = await t.insert('audit_events', {
+    actor_user_id: e.actorUserId,
+    actor_kind: e.actorKind ?? 'user',
+    action: e.action,
+    target_type: e.targetType ?? null,
+    target_id: e.targetId ?? null,
+    metadata: scrub(e.metadata ?? {}),
+  });
+  if (error) throw new Error(`auditoria: ${error.message}`);
+}
+

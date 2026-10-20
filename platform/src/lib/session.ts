@@ -8,6 +8,7 @@ import { SESSION_COOKIE, authProvider, verifySessionToken } from './auth';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { hasPermission, roleIn, sessionUser, type SessionUser } from './accounts';
 import type { Permission, Role } from './permissions';
+import { UserError } from './errors';
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -47,6 +48,15 @@ export async function requirePermission(permission: Permission): Promise<TenantD
   const ctx = await requireSession();
   if (ctx.user && !(await hasPermission(ctx.role, ctx.t.tenantId, permission))) throw new ForbiddenError();
   return ctx.t;
+}
+
+// Ações que precisam saber QUEM fez (equipe, convites): exige a permissão e devolve a pessoa. No
+// login de senha única não há pessoa, então essas ações não existem lá.
+export async function requireUserPermission(permission: Permission): Promise<{ t: TenantDb; user: SessionUser }> {
+  const ctx = await requireSession();
+  if (!ctx.user) throw new UserError('A equipe só existe no login por pessoa.');
+  if (!(await hasPermission(ctx.role, ctx.t.tenantId, permission))) throw new ForbiddenError();
+  return { t: ctx.t, user: ctx.user };
 }
 
 export async function currentTenantId(): Promise<string> {

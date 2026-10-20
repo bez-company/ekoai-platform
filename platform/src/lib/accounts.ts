@@ -9,18 +9,35 @@ import type { Membership } from './login-policy';
 import { isRole, type Permission, type Role, allows } from './permissions';
 import { PLAN_BY_KIND, candidateIds, type AccountKind } from './account-model';
 import { recordAudit } from './audit';
+import { inviteStatus, type InviteStatus } from './invitation-model';
 
-export type SessionUser = { id: string; sessionVersion: number; lastTenantId: string | null };
+export type SessionUser = { id: string; sessionVersion: number; lastTenantId: string | null; name: string | null };
 
-const USER_COLUMNS = 'id,session_version,last_tenant_id';
+const USER_COLUMNS = 'id,session_version,last_tenant_id,name';
 
 function toUser(row: Record<string, unknown>): SessionUser {
-  return { id: String(row.id), sessionVersion: Number(row.session_version), lastTenantId: (row.last_tenant_id as string | null) ?? null };
+  return {
+    id: String(row.id),
+    sessionVersion: Number(row.session_version),
+    lastTenantId: (row.last_tenant_id as string | null) ?? null,
+    name: (row.name as string | null) ?? null,
+  };
 }
 
 // Acha a pessoa pelo id do provedor; no primeiro login, liga a linha criada por convite (só
 // e-mail) pelo e-mail verificado; senão cria. Só chamar depois de identityRefusal().
 export async function findOrLinkUser(id: Identity): Promise<SessionUser> {
+  const user = await resolveUser(id);
+  // O nome digitado no cadastro entra uma vez; mudar depois é do perfil, não do login.
+  if (id.name && !user.name) {
+    const named = await db().from('users').update({ name: id.name }).eq('id', user.id).is('name', null);
+    if (named.error) throw new Error(`nome em users: ${named.error.message}`);
+    return { ...user, name: id.name };
+  }
+  return user;
+}
+
+async function resolveUser(id: Identity): Promise<SessionUser> {
   if (!id.email) throw new Error('identidade sem e-mail');
   const byUid = await db().from('users').select(USER_COLUMNS).eq('idp_uid', id.uid).maybeSingle();
   if (byUid.error) throw new Error(`users por idp_uid: ${byUid.error.message}`);
@@ -123,3 +140,86 @@ export async function createAccount(input: { userId: string; name: string; kind:
   }
   throw new Error('não achei um identificador livre para a conta');
 }
+
+export type PlanInfo = { id: string; name: string; kind: AccountKind; maxSeats: number; maxInstagramAccounts: number };
+export type AccountInfo = { id: string; name: string; kind: AccountKind; plan: PlanInfo };
+
+// Nome, tipo e limites do plano da conta (a tela de equipe mostra "3 de 5 pessoas").
+export async function accountOf(tenantId: string): Promise<AccountInfo | null> {
+  const t = await db().from('tenants').select('id,name,kind,plan_id').eq('id', tenantId).maybeSingle();
+  if (t.error) throw new Error(`tenants: ${t.error.message}`);
+  if (!t.data) return null;
+  const p = await db().from('plans').select('id,name,kind,max_seats,max_instagram_accounts').eq('id', t.data.plan_id).single();
+  if (p.error) throw new Error(`plans: ${p.error.message}`);
+  const plan: PlanInfo = {
+    id: String(p.data.id),
+    name: String(p.data.name),
+    kind: p.data.kind as AccountKind,
+    maxSeats: Number(p.data.max_seats),
+    maxInstagramAccounts: Number(p.data.max_instagram_accounts),
+  };
+  return { id: String(t.data.id), name: String(t.data.name), kind: t.data.kind as AccountKind, plan };
+}
+
+export type PersonProfile = { email: string; name: string | null };
+
+// E-mail e nome de várias pessoas de uma vez (a tabela users não tem tenant_id: quem chama já
+// filtrou pelos membros da conta da sessão).
+export async function personProfiles(userIds: string[]): Promise<Map<string, PersonProfile>> {
+  const out = new Map<string, PersonProfile>();
+  if (userIds.length === 0) return out;
+  const { data, error } = await db().from('users').select('id,email,name').in('id', userIds);
+  if (error) throw new Error(`users: ${error.message}`);
+  for (const r of data ?? []) out.set(String(r.id), { email: String(r.email), name: (r.name as string | null) ?? null });
+  return out;
+}
+
+export async function userIdByEmail(email: string): Promise<string | null> {
+  const { data, error } = await db().from('users').select('id').eq('email', email).maybeSingle();
+  if (error) throw new Error(`users por e-mail: ${error.message}`);
+  return data ? String(data.id) : null;
+}
+
+// Aceita o convite e registra a entrada na auditoria na mesma transação. Devolve a conta. Os
+// erros de app.accept_invitation() chegam com mensagem fixa (invitation-model.ts os traduz).
+export async function acceptInvitation(userId: string, tokenHash: string): Promise<string> {
+  const client = db();
+  if (!client.transaction) throw new Error('banco sem suporte a transação');
+  return client.transaction(async (tx) => {
+    const res = await tx.query('select app.accept_invitation($1, $2) as tenant_id', [tokenHash, userId]);
+    const tenantId = String(res.rows[0].tenant_id);
+    await recordAudit(tx.query, { tenantId, actorUserId: userId, action: 'team.member_joined', targetType: 'user', targetId: userId });
+    return tenantId;
+  });
+}
+
+export type InvitePreview = {
+  status: InviteStatus;
+  accountName: string;
+  role: Role;
+  email: string;
+  inviterName: string | null;
+};
+
+// O que a página do convite mostra antes de entrar. Quem tem o link tem o token, então o e-mail
+// convidado pode aparecer (ajuda a notar que entrou com o e-mail errado); o e-mail de quem
+// convidou, não.
+export async function previewInvitation(tokenHash: string): Promise<InvitePreview | null> {
+  const res = await db().query(
+    `select i.email, i.role, i.expires_at, i.accepted_at, i.cancelled_at, t.name as account_name, u.name as inviter_name
+     from invitations i join tenants t on t.id = i.tenant_id left join users u on u.id = i.invited_by
+     where i.token_hash = $1`,
+    [tokenHash],
+  );
+  const r = res.rows[0];
+  if (!r || !isRole(r.role)) return null;
+  const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
+  return {
+    status: inviteStatus({ expires_at: iso(r.expires_at) as string, accepted_at: iso(r.accepted_at), cancelled_at: iso(r.cancelled_at) }),
+    accountName: String(r.account_name),
+    role: r.role,
+    email: String(r.email),
+    inviterName: (r.inviter_name as string | null) ?? null,
+  };
+}
+
