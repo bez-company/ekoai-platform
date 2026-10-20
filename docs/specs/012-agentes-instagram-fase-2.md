@@ -85,8 +85,10 @@ slots usado. Mostra o andamento por etapa. Falha numa etapa diz qual e oferece t
 deixa o pedido preso. O limite do plano é checado antes de gastar.
 
 ### R3. Aprovar
-Tela Aprovar com o post em moldura de feed. Ações: aprovar (entra na grade), editar a legenda e o
-texto da imagem (re-renderiza sem chamar o modelo de imagem), atalhos (encurtar, tom, CTA, traduzir),
+Tela Aprovar com o post em moldura de feed. Ações: aprovar (entra na grade), editar a legenda e
+**editar o texto direto na imagem** (botão "Editar texto da imagem": cada texto ganha uma caixa
+tracejada, a pessoa clica no texto dentro da imagem e digita ali; a imagem se redesenha enquanto ela
+digita, sem chamar o modelo de imagem e sem gastar do limite), atalhos (encurtar, tom, CTA, traduzir),
 outra direção (nova geração, conta no custo) e recusar com motivo por aspecto. Aprovar exige
 `content.approve` (administrador; criador se a conta liberar, como hoje). Leitor dá parecer.
 
@@ -110,7 +112,7 @@ ele fica agendado e a tela diz que a publicação espera a conexão.
 | --- | --- |
 | `company_facts` | Fatos da empresa: texto, fonte, "nunca afirmar". Escopo por conta, RLS, entra em `TENANT_TABLES`. |
 | `generation_runs` | Uma linha por chamada de modelo: conta, brief, etapa, modelo e versão, tokens, imagens, custo, tempo, resultado. |
-| `post_designs` | O schema de slots do post (layout, texto de cada slot, referência do visual) para re-renderizar sem IA. |
+| `post_designs` | O schema de slots do post (layout, texto de cada slot, referência do visual) para re-renderizar sem IA. Cada slot de texto é editável na imagem; o motor refaz a quebra de linha e o tamanho da fonte a cada edição e o revisor confere de novo (por exemplo, título acima de 6 palavras). O logo e as cores não se editam aí: vêm do perfil. |
 | `plans.max_posts_per_month` | Limite mensal do plano. |
 
 As tabelas antigas (`briefs`, `assets`, `post_variants`, `pending_approvals`, `feedback`,
@@ -120,7 +122,7 @@ As tabelas antigas (`briefs`, `assets`, `post_variants`, `pending_approvals`, `f
 
 **Protótipo (v4, as telas da fase 2 já estão nele, junto das da fase 1):**
 https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz . Troque a tela no seletor do alto: Criar post,
-Gerando o post, Aprovar (13 estados), Agenda, Aprendizado, Fatos da empresa (em Configurações) e o
+Gerando o post, Aprovar (16 estados, com a edição do texto direto na imagem), Agenda, Aprendizado, Fatos da empresa (em Configurações) e o
 Início com a criação de posts. Cada uma tem os estados vazio, carregando, erro e cheio quando se
 aplicam, desktop e celular, e os quatro papéis. O post de exemplo mostra o motor híbrido: o visual
 é só um fundo ilustrado de apoio e o texto, o selo e o logo são desenhados por código (aqui em SVG)

@@ -48,7 +48,11 @@ Cada uma em desktop e celular, com os estados: vazio, carregando, erro e cheio.
      conta, imagem 1:1 ou 4:5, legenda com "ver mais"). Ao lado, a legenda editável e as hashtags.
    - Atalhos de ajuste, um clique cada: *Encurtar*, *Mais descontraído*, *Mais formal*, *Outro
      CTA*, *Outra direção*. "Outra direção" avisa que conta no limite do mês.
-   - Editar o texto da imagem (título e subtítulo) sem gerar tudo de novo.
+   - **Editar o texto direto na imagem:** botão "Editar texto da imagem" acima do post; no modo
+     edição cada texto da imagem ganha uma caixa tracejada, a pessoa clica no texto dentro da imagem
+     e digita ali, a imagem muda na hora (quebra de linha e tamanho refeitos) e um contador avisa
+     quando o título passa de 6 palavras. Sem formulário de título e selo ao lado. O logo e as cores
+     não se editam (vêm do perfil). Não gasta geração nem limite.
    - **Aprovar** (primário) e **Recusar**. Recusar abre uma janela: o que não gostou, por aspecto
      (texto, visual, tom, tema, formato, CTA), com campo livre opcional.
    - Avisos do revisor automático em linguagem simples ("O texto da imagem está pequeno para o
