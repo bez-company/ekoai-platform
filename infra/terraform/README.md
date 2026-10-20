@@ -8,7 +8,7 @@ modules/ekoai/     rede privada, Cloud SQL (Postgres 17), Cloud Run (plataforma 
                    Scheduler, Secret Manager, bucket de mídia, Artifact Registry, Identity
                    Platform, Workload Identity Federation, alertas
 envs/staging/      projeto ekoai-staging, banco f1-micro, sem proteção contra exclusão
-envs/prod/         projeto ekoai-prod, banco g1-small, proteção contra exclusão e uptime check
+envs/prod/         projeto ekoai-prod, banco f1-micro, proteção contra exclusão e uptime check
 ```
 
 O estado do Terraform fica no bucket `ekoai-prod-tfstate` (versionado), um prefixo por ambiente.
