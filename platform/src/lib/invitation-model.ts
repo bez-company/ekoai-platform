@@ -2,6 +2,7 @@
 // aqui, vai inteiro só no link e o banco guarda apenas o hash (migration 0018).
 
 import { isRole, type Role } from './permissions';
+import { isIdTokenShape } from './route-input';
 
 export const INVITE_TTL_DAYS = 7;
 
@@ -44,7 +45,6 @@ function obj(body: unknown): Record<string, unknown> {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const JWT = /^[\w-]+\.[\w-]+\.[\w-]+$/;
 
 export function parseCreateInvitation(body: unknown): Parsed<{ email: string; role: Role }> {
   const b = obj(body);
@@ -64,7 +64,7 @@ export function parseRoleChange(body: unknown): Parsed<{ role: Role }> {
 
 export function parseAcceptInvitation(body: unknown): Parsed<{ idToken: string; token: string }> {
   const b = obj(body);
-  if (typeof b.idToken !== 'string' || b.idToken.length > 8192 || !JWT.test(b.idToken)) {
+  if (!isIdTokenShape(b.idToken)) {
     return { ok: false, error: 'Login inválido. Entre de novo.' };
   }
   if (!isInviteToken(b.token)) return { ok: false, error: 'O link do convite está incompleto. Abra o link do e-mail de novo.' };

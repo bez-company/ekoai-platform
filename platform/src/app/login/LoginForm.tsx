@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthLayout from '@/components/AuthLayout';
+import { safeNext } from '@/lib/auth-flow';
 
 export default function LoginForm() {
   const [password, setPassword] = useState('');
@@ -22,7 +23,7 @@ export default function LoginForm() {
     });
     setLoading(false);
     if (res.ok) {
-      router.push(params.get('next') || '/inbox');
+      router.push(safeNext(params.get('next')));
       router.refresh();
     } else {
       const j = await res.json().catch(() => ({}));

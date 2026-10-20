@@ -68,6 +68,7 @@ describe('corpos das rotas de equipe', () => {
     const token = m.newInviteToken();
     expect(m.parseAcceptInvitation({ idToken: JWT, token })).toEqual({ ok: true, value: { idToken: JWT, token } });
     expect(m.parseAcceptInvitation({ idToken: 'x', token }).ok).toBe(false);
+    expect(m.parseAcceptInvitation({ idToken: 'aaa.bbb.', token }).ok).toBe(true); // emulador: sem assinatura
     expect(m.parseAcceptInvitation({ idToken: JWT, token: 'curto' })).toMatchObject({ ok: false, error: expect.stringMatching(/link do convite/) });
   });
 });

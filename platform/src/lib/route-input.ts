@@ -116,9 +116,15 @@ export function parseLogin(body: unknown): Parsed<{ password: string }> {
 // firebase-admin; aqui só se barra lixo e tamanho absurdo antes de chamar a rede.
 const JWT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/;
 
+// A assinatura pode vir vazia: o emulador do Firebase emite token sem assinatura. Todo parser de
+// ID token (sessão, criar conta, aceitar convite) usa esta mesma regra.
+export function isIdTokenShape(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 8192 && JWT.test(value);
+}
+
 export function parseSessionBody(body: unknown): Parsed<{ idToken: string; tenantId?: string }> {
   const b = obj(body);
-  if (typeof b.idToken !== 'string' || b.idToken.length > 8192 || !JWT.test(b.idToken)) {
+  if (!isIdTokenShape(b.idToken)) {
     return { ok: false, error: 'Login inválido. Entre de novo.' };
   }
   const tenantId = parseTenantId(b.tenantId);

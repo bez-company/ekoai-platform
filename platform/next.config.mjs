@@ -9,7 +9,9 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  // Login por pessoa: o Firebase Auth fala com estes dois domínios (entrar, segundo fator e renovar
+  // o token). Em desenvolvimento, também com o emulador local.
+  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com${isDev ? ' http://127.0.0.1:* http://localhost:*' : ''}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
