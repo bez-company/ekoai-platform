@@ -105,3 +105,25 @@ variable "uptime_check" {
   type        = bool
   default     = false
 }
+
+variable "auth_provider" {
+  description = "Login da plataforma (env AUTH_PROVIDER): `password` (senha única, exige TENANT_ID) ou `identity` (por pessoa, Identity Platform)."
+  type        = string
+  default     = "password"
+
+  validation {
+    condition     = contains(["password", "identity"], var.auth_provider)
+    error_message = "auth_provider deve ser password ou identity."
+  }
+}
+
+variable "signup_mode" {
+  description = "Cadastro (env SIGNUP_MODE): `invite` (só por convite) ou `open` (qualquer pessoa cria conta). Aberto só onde não há dado real: ainda não há limite de taxa no cadastro."
+  type        = string
+  default     = "invite"
+
+  validation {
+    condition     = contains(["invite", "open"], var.signup_mode)
+    error_message = "signup_mode deve ser invite ou open."
+  }
+}
