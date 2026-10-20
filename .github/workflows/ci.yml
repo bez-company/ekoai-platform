@@ -273,12 +273,43 @@ jobs:
           echo "$saida"
           echo "$saida" | grep -q "Job desconhecido"
 
-  # Único check obrigatório na proteção da main: agrega os outros, então job novo entra
+  # A esteira é feature -> staging -> main (ADR 0013): PR para a staging vem de uma branch de
+  # feature; PR para a main só vem da staging (a release). Qualquer outra base é recusada. Fora de
+  # PR (push, dispatch) o job passa, para o `CI ok` não contar um job pulado como falha.
+  flow:
+    name: Fluxo de branches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Base e origem da PR
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "não é PR: nada a conferir"; exit 0; fi
+          case "$BASE" in
+            main)
+              if [ "$HEAD" != "staging" ]; then
+                echo "::error::PR para a main só vem da staging (a release: scripts/release.sh). Abra esta PR com base staging."
+                exit 1
+              fi ;;
+            staging)
+              if [ "$HEAD" = "main" ] || [ "$HEAD" = "staging" ]; then
+                echo "::error::PR para a staging vem de uma branch de feature, não de $HEAD."
+                exit 1
+              fi ;;
+            *)
+              echo "::error::PR com base $BASE: o fluxo é feature -> staging -> main (docs/adr/0013)."
+              exit 1 ;;
+          esac
+          echo "ok: $HEAD -> $BASE"
+
+  # Único check obrigatório na proteção da main e da staging: agrega os outros, então job novo entra
   # aqui sem mexer na configuração do GitHub.
   ci-ok:
     name: CI ok
     if: always()
-    needs: [test, identity-emulator, migrations-check, data-layer, containers, infra, security]
+    needs: [test, identity-emulator, migrations-check, data-layer, containers, infra, security, flow]
     runs-on: ubuntu-latest
     steps:
       - run: |
