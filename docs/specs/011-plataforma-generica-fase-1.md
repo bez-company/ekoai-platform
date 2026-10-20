@@ -197,7 +197,7 @@ decorativo.
 | Identity Platform real e Cloud SQL | R2 em staging (o desenvolvimento usa o emulador e Postgres local) | SPEC 010, fase 3 |
 | Cloud KMS | R5 em staging | SPEC 010, fase 3 |
 | Provedor de e-mail transacional com domínio | convites e avisos por e-mail | Matheus (decisão 7 de [sem-google.md](../arquitetura/sem-google.md)) |
-| Business Verification (CNPJ da BEZ) e App Review da Meta | Instagram de terceiros sem ser tester | Matheus |
+| Business Verification (CNPJ da BEZ) e App Review da Meta ([lista](../arquitetura/meta-app-review.md)) | Instagram de terceiros sem ser tester | Matheus |
 | Protótipo no Claude Design | itens 4 a 7 | Matheus |
 
 ## Registro de implementação
