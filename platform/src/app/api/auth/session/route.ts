@@ -4,7 +4,7 @@ import { InvalidIdentityError, verifyIdToken } from '@/lib/identity';
 import { identityRefusal, isRefusal, membershipRefusal, pickTenant, type LoginRefusal } from '@/lib/login-policy';
 import { findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { parseSessionBody } from '@/lib/route-input';
-import { apiError, badRequest } from '@/lib/api';
+import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     try {
       identity = await verifyIdToken(parsed.value.idToken);
     } catch (e) {
-      if (e instanceof InvalidIdentityError) return NextResponse.json({ error: 'Não deu para confirmar o login. Entre de novo.', code: 'invalid_token' }, { status: 401 });
+      if (e instanceof InvalidIdentityError) return invalidTokenResponse('api/auth/session', e);
       throw e;
     }
     const early = identityRefusal(identity, Math.floor(Date.now() / 1000));

@@ -4,7 +4,7 @@
 import { NextResponse } from 'next/server';
 import { UserError, GENERIC_ERROR, userMessage } from './errors';
 import { ForbiddenError, UnauthorizedError } from './session';
-import { logError } from './log';
+import { log, logError } from './log';
 
 export function apiError(e: unknown, scope: string): NextResponse {
   if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });
@@ -23,3 +23,13 @@ export function pageError(e: unknown, scope: string): string {
   if (!(e instanceof UserError)) logError(scope, e);
   return userMessage(e);
 }
+
+// Resposta quando o ID token não passa. A pessoa recebe sempre a mesma mensagem; o motivo técnico vai
+// para o log: aviso quando é rotina (vencido, revogado), erro (e Sentry) quando é problema nosso, como
+// a conta de serviço sem leitura do Firebase Auth, que antes derrubava todo login sem deixar rastro.
+export function invalidTokenResponse(scope: string, e: Error & { code?: string; routine?: boolean }): NextResponse {
+  if (e.routine) log('warn', scope, 'ID token recusado', { reason: e.message, code: e.code });
+  else logError(scope, e, { code: e.code });
+  return NextResponse.json({ error: 'Não deu para confirmar o login. Entre de novo.', code: 'invalid_token' }, { status: 401 });
+}
+

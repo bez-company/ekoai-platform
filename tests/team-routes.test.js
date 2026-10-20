@@ -3,17 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Identidade, banco, sessão e equipe simulados: aqui só a ligação das rotas (o que cada uma
 // recusa, em que ordem, o que devolve). As regras de banco têm teste próprio em tests/db.
 const identityMock = { result: null, calls: 0 };
-vi.mock('@/lib/identity', async () => {
-  class InvalidIdentityError extends Error {}
-  return {
-    InvalidIdentityError,
-    verifyIdToken: async () => {
+vi.mock('@/lib/identity', async (orig) => ({
+  // a classe de erro é a de verdade: o que é rotina ou não vem do código, não do dublê
+  ...(await orig()),
+  verifyIdToken: async () => {
       identityMock.calls += 1;
       if (identityMock.result instanceof Error) throw identityMock.result;
       return identityMock.result;
-    },
-  };
-});
+  },
+}));
 const USER = '00000000-0000-4000-8000-00000000000a';
 const accountsMock = { memberships: [], acceptError: null, accepted: [], touched: 0 };
 vi.mock('@/lib/accounts', () => ({
@@ -144,6 +142,55 @@ describe('POST /api/invitations/accept', () => {
     expect(res.status).toBe(202);
     expect(await res.json()).toMatchObject({ accepted: true, tenantId: 'acme', role: 'admin', code: 'mfa_required' });
     expect(res.headers.get('set-cookie')).toBeNull();
+  });
+});
+
+describe('token recusado: o motivo técnico fica no log', () => {
+  const logged = async (route, body, error) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    identityMock.result = error;
+    const res = await post(route, body);
+    const out = { status: res.status, body: await res.json(), warn: warn.mock.calls.flat().join('\n'), error: err.mock.calls.flat().join('\n') };
+    warn.mockRestore();
+    err.mockRestore();
+    return out;
+  };
+
+  it('vencido é rotina: aviso com o motivo, e a pessoa vê só a mensagem de sempre', async () => {
+    const out = await logged(accept, { idToken: JWT, token: TOKEN }, new InvalidIdentityError('Firebase ID token has expired.', 'auth/id-token-expired'));
+    expect(out.status).toBe(401);
+    expect(out.body).toEqual({ error: 'Não deu para confirmar o login. Entre de novo.', code: 'invalid_token' });
+    expect(out.warn).toContain('Firebase ID token has expired.');
+    expect(out.warn).toContain('api/invitations/accept');
+    expect(out.error).toBe('');
+  });
+
+  it('permissão da conta de serviço, rede ou projeto errado: erro (e Sentry), nunca silêncio', async () => {
+    const out = await logged(accept, { idToken: JWT, token: TOKEN }, new InvalidIdentityError('PERMISSION_DENIED: caller does not have permission', 'auth/insufficient-permission'));
+    expect(out.status).toBe(401);
+    expect(out.error).toContain('PERMISSION_DENIED');
+    expect(out.error).toContain('auth/insufficient-permission');
+    expect(out.warn).toBe('');
+    expect(out.body.error).not.toContain('PERMISSION');
+  });
+
+  it('o mesmo vale para criar conta', async () => {
+    const { POST: account } = await import('../platform/src/app/api/account/route.ts');
+    process.env.SIGNUP_MODE = 'open';
+    const out = await logged(account, { idToken: JWT, kind: 'empresa', name: 'Doce Ponto' }, new InvalidIdentityError('rede caiu', 'auth/network-error'));
+    delete process.env.SIGNUP_MODE;
+    expect(out.status).toBe(401);
+    expect(out.error).toContain('rede caiu');
+  });
+
+  it('e para a rota de sessão do login', async () => {
+    const { POST: session } = await import('../platform/src/app/api/auth/session/route.ts');
+    const out = await logged(session, { idToken: JWT }, new InvalidIdentityError('Firebase ID token has been revoked.', 'auth/id-token-revoked'));
+    expect(out.status).toBe(401);
+    expect(out.body.code).toBe('invalid_token');
+    expect(out.warn).toContain('has been revoked');
+    expect(out.warn).toContain('api/auth/session');
   });
 });
 
