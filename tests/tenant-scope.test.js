@@ -21,6 +21,7 @@ const RAW_DB_ALLOWED = {
   'lib/tenant-db.ts': Infinity,
   'lib/publish.ts': 1, // varredura dos vencidos de todos os tenants
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)
+  'lib/account-deletion.ts': 1, // excluir a conta: atravessa as tabelas da conta de propósito (SPEC 011 R8)
   'app/api/health/route.ts': 1, // ping do banco, sem dado de tenant
 };
 

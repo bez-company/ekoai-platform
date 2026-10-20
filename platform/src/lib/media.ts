@@ -48,3 +48,10 @@ export function mediaFile(key: string) {
   storage ??= new Storage();
   return storage.bucket(bucket).file(key);
 }
+
+export function mediaBucket() {
+  const bucket = process.env.STORAGE_BUCKET;
+  if (!bucket) throw new Error('STORAGE_BUCKET é obrigatória.');
+  storage ??= new Storage();
+  return storage.bucket(bucket);
+}

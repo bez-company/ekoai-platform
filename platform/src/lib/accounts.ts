@@ -240,3 +240,10 @@ export async function setOnboardingSkip(tenantId: string, item: string, skipped:
   const { error } = await db().from('tenants').update({ onboarding_skipped: next }).eq('id', tenantId);
   if (error) throw new Error(`onboarding: ${error.message}`);
 }
+
+// O id da pessoa no provedor de login (idp_uid), para conferir que um ID token novo é dela.
+export async function idpUidOf(userId: string): Promise<string | null> {
+  const { data, error } = await db().from('users').select('idp_uid').eq('id', userId).maybeSingle();
+  if (error) throw new Error(`users: ${error.message}`);
+  return typeof data?.idp_uid === 'string' ? data.idp_uid : null;
+}
