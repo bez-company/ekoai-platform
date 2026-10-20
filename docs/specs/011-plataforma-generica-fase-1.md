@@ -364,3 +364,22 @@ decorativo.
 - **Fora desta PR:** as telas (cadastro em 4 passos e Configurações › Empresa) e o logo (upload, SVG
   sanitizado, bucket privado). O logo precisa de uma decisão de armazenamento: o bucket de mídia do
   ADR 0009 é público por chave, e o logo de uma empresa pede a rota autenticada.
+
+### Item 5, parte 2: telas do perfil da empresa (2026-10-20)
+
+- **Cadastro em passos** (`/onboarding`): logo depois de criar a conta, três passos (Negócio, Jeito de
+  falar, Visual) com o passo 1 (Conta) já feito. Só o Negócio é obrigatório; os outros têm "Pular por
+  agora" e, se vierem vazios, avançam sem gravar. Cada passo grava a própria seção. Com o perfil já
+  criado, a rota segue para a plataforma; o resto se completa em Configurações. Só `brand.manage`
+  chega aqui (os outros recebem 404).
+- **Configurações › Empresa** (`/settings/company`): progresso do perfil (60% o obrigatório, 20% o
+  jeito de falar, 20% o visual) e um cartão por seção, que abre para editar e grava sozinho. O
+  administrador edita, o criador lê com um aviso, o leitor recebe 404 (e não vê a aba). Diferença do
+  protótipo: ele mostrava um "Salvar alterações" único; aqui é por seção, porque a API grava por seção.
+- A mensagem de erro de cada campo vem do servidor e some quando a pessoa edita o campo.
+- Abas de Configurações: Publicação, Empresa e Equipe (cada uma só para quem tem a permissão).
+- **Fora desta PR:** o logo (card BEZ-37) e o nome da conta editável.
+- Verificado num navegador real contra o Postgres local, com sessões forjadas com o segredo do
+  servidor (administrador, criador e leitor). O fluxo "criar conta e cair em /onboarding" (uma linha
+  em `IdentityEntry`) não foi exercitado de ponta a ponta nesta rodada: o emulador de login não estava
+  de pé.
