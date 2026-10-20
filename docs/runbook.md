@@ -18,6 +18,14 @@ ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 - Falha de publicação: cada tentativa vira um aviso da conta (`notifications`), e o item vira
   `failed` depois de 3. `/calendar` tem o botão de tentar de novo.
 
+## Login por pessoa falhando
+
+Toda entrada voltando `401` com `invalid_token`: procure no log o escopo `api/auth/session`,
+`api/account` ou `api/invitations/accept`. Aviso `ID token recusado` é rotina (token vencido ou
+revogado). Um **erro** com o motivo é problema nosso: o mais provável é a conta de serviço da
+plataforma sem `roles/firebaseauth.viewer` (o servidor consulta o usuário no Identity Toolkit para
+saber se o token foi revogado), ou o `IDENTITY_PROJECT_ID` errado. Já aconteceu no staging.
+
 ## Criar um tenant (piloto ou cliente)
 
 ```bash

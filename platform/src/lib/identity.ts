@@ -22,7 +22,22 @@ function identityApp(): App {
   return getApps().find((a) => a.name === APP_NAME) ?? initializeApp({ projectId }, APP_NAME);
 }
 
-export class InvalidIdentityError extends Error {}
+// Token vencido, revogado ou malformado é rotina (a pessoa demorou, saiu de todos os dispositivos).
+// Qualquer outro motivo (permissão da conta de serviço, rede, projeto errado) é problema nosso e não
+// pode ficar escondido atrás de um 401 genérico.
+const ROUTINE_CODES = new Set(['auth/id-token-expired', 'auth/id-token-revoked', 'auth/argument-error', 'auth/invalid-id-token', 'auth/user-disabled', 'auth/user-not-found']);
+
+export class InvalidIdentityError extends Error {
+  readonly code: string;
+  constructor(message: string, code = '') {
+    super(message);
+    this.code = code;
+  }
+
+  get routine(): boolean {
+    return ROUTINE_CODES.has(this.code);
+  }
+}
 
 // Nome que a pessoa digitou no cadastro (claim `name` do ID token). Só texto curto e limpo.
 function cleanName(value: unknown): string | null {
@@ -45,6 +60,7 @@ export async function verifyIdToken(idToken: string): Promise<Identity> {
       name: cleanName(t.name),
     };
   } catch (e) {
-    throw new InvalidIdentityError(e instanceof Error ? e.message : String(e));
+    const code = e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string' ? (e as { code: string }).code : '';
+    throw new InvalidIdentityError(e instanceof Error ? e.message : String(e), code);
   }
 }

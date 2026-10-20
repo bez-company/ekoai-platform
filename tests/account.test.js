@@ -2,17 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Identidade e banco controlados pelo teste: a rota roda de verdade, o Firebase e o Postgres não.
 const identityMock = { result: null, calls: 0 };
-vi.mock('@/lib/identity', async () => {
-  class InvalidIdentityError extends Error {}
-  return {
-    InvalidIdentityError,
-    verifyIdToken: async () => {
+vi.mock('@/lib/identity', async (orig) => ({
+  // a classe de erro é a de verdade: o que é rotina ou não vem do código, não do dublê
+  ...(await orig()),
+  verifyIdToken: async () => {
       identityMock.calls += 1;
       if (identityMock.result instanceof Error) throw identityMock.result;
       return identityMock.result;
-    },
-  };
-});
+  },
+}));
 const accountsMock = { memberships: [], created: [], touched: 0 };
 vi.mock('@/lib/accounts', () => ({
   findOrLinkUser: async () => {
