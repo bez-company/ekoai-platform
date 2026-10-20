@@ -239,3 +239,21 @@ decorativo.
   integração em `tests/db/data-layer.integration.test.js`).
 - Falta para R2 a R9: parsers e rotas (cadastro, convite, perfil, conexão do Instagram com KMS),
   telas e o console.
+
+### Item 4, parte 1: criar conta (2026-10-20)
+
+- `POST /api/account` (público pelo caminho exato; a prova é o ID token): cria a conta, o primeiro
+  administrador e o evento de auditoria numa transação só (`createAccount`), abre a sessão na conta
+  nova. Responde 404 fora de `SIGNUP_MODE=open` e sem `AUTH_PROVIDER=identity`.
+- Regras em `platform/src/lib/account-model.ts` (puro): e-mail verificado, login recente e segundo
+  fator (quem cria é administrador), no máximo 5 contas administradas por pessoa (freio contra
+  abuso enquanto não há limite de taxa), identificador gerado do nome (sem acento, com sufixo se
+  repetir), plano do tipo (`inicial` para empresa, `pessoa` para pessoa).
+- Testes: regras e rota com identidade simulada (`tests/account.test.js`) e a criação contra o
+  Postgres, incluindo identificador repetido e transação desfeita (`tests/db/account.integration.test.js`).
+- **Não abrir `SIGNUP_MODE=open` ainda:** falta limite de taxa no cadastro e o fluxo de tela
+  (Firebase no cliente). O padrão segue `invite`.
+- Falta no item 4: convites (criar, reenviar, cancelar, aceitar), equipe (papel e remoção) e as
+  telas de entrada. O e-mail transacional depende de provedor e domínio (decisão 7 de
+  `sem-google.md`); até lá o administrador copia o link do convite.
+
