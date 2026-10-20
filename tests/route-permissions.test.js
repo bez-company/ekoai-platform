@@ -8,7 +8,9 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 
 // `media/[...key]` é pública de propósito: as redes buscam a arte por ela ao publicar; a chave
 // leva UUID e só o formato de lib/media.ts passa (tests/media.test.js).
-const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]']);
+// `account` (criar conta) também: quem chama ainda não tem sessão; a prova é o ID token, a rota
+// responde 404 fora de SIGNUP_MODE=open e o middleware a libera só pelo caminho exato.
+const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]', 'account']);
 
 const EXPECTED = {
   approve: ['content.approve'],

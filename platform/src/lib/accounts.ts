@@ -7,6 +7,8 @@ import { db } from './db';
 import type { Identity } from './identity';
 import type { Membership } from './login-policy';
 import { isRole, type Permission, type Role, allows } from './permissions';
+import { PLAN_BY_KIND, candidateIds, type AccountKind } from './account-model';
+import { recordAudit } from './audit';
 
 export type SessionUser = { id: string; sessionVersion: number; lastTenantId: string | null };
 
@@ -91,4 +93,33 @@ export async function bumpSessionVersion(user: SessionUser): Promise<void> {
     .eq('id', user.id)
     .eq('session_version', user.sessionVersion);
   if (error) throw new Error(`subir versão da sessão: ${error.message}`);
+}
+
+// Cria a conta e o primeiro administrador numa transação só (uma conta sem administrador não tem
+// como ser usada nem corrigida pela tela). O identificador vem do nome; se já existir, tenta com
+// sufixo. A conta nasce pausada (trigger da 0013) e no plano do tipo (0017).
+export async function createAccount(input: { userId: string; name: string; kind: AccountKind }): Promise<string> {
+  const client = db();
+  if (!client.transaction) throw new Error('banco sem suporte a transação');
+  for (const id of candidateIds(input.name)) {
+    try {
+      await client.transaction(async (tx) => {
+        await tx.query('insert into tenants (id, name, kind, plan_id) values ($1, $2, $3, $4)', [id, input.name, input.kind, PLAN_BY_KIND[input.kind]]);
+        await tx.query("insert into tenant_members (tenant_id, user_id, role) values ($1, $2, 'admin')", [id, input.userId]);
+        await recordAudit(tx.query, {
+          tenantId: id,
+          actorUserId: input.userId,
+          action: 'account.created',
+          targetType: 'tenant',
+          targetId: id,
+          metadata: { kind: input.kind },
+        });
+      });
+      return id;
+    } catch (e) {
+      if ((e as { code?: string; constraint?: string }).code === '23505' && (e as { constraint?: string }).constraint === 'tenants_pkey') continue;
+      throw e;
+    }
+  }
+  throw new Error('não achei um identificador livre para a conta');
 }
