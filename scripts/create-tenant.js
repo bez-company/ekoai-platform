@@ -1,14 +1,16 @@
-// create-tenant.js: cria um tenant (cliente ou piloto). O trigger da 0013 já o deixa pausado.
+// create-tenant.js: cria uma conta (tenant). O trigger da 0013 já a deixa pausada.
 //
-//   npm run tenant:create -- --id acme --name "Acme Engenharia"
+//   npm run tenant:create -- --id acme --name "Acme" [--kind empresa|pessoa]
 //
-// Precisa de DATABASE_URL. Não mexe em nada além da linha em `tenants`
-// (e do que o trigger semeia). Perfil de marca e nicho ainda moram em src/tenant.js.
+// Precisa de DATABASE_URL. O tipo define o plano: empresa entra no plano inicial (5 pessoas) e
+// pessoa no plano pessoa (1 pessoa). Só grava a linha em `tenants` (e o que o trigger semeia); o
+// primeiro administrador entra por `npm run access:grant`.
 
 import 'dotenv/config';
 import { getDb } from '../src/utils/db.js';
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
+const PLAN_BY_KIND = { empresa: 'inicial', pessoa: 'pessoa' };
 
 export function parseArgs(argv) {
   const out = {};
@@ -19,11 +21,12 @@ export function parseArgs(argv) {
   return out;
 }
 
-export function validate({ id, name }) {
+export function validate({ id, name, kind = 'empresa' }) {
   if (typeof id !== 'string' || !ID_RE.test(id)) {
     return 'Use --id com 2 a 40 caracteres: letras minúsculas, números e hífen (ex.: acme-eng).';
   }
   if (typeof name !== 'string' || !name.trim()) return 'Informe o nome com --name "Nome do cliente".';
+  if (!Object.hasOwn(PLAN_BY_KIND, kind)) return 'Use --kind empresa ou --kind pessoa.';
   return null;
 }
 
@@ -39,17 +42,17 @@ async function main() {
     process.exit(1);
   }
   const db = getDb();
-  const { error } = await db.from('tenants').insert({ id: args.id, name: args.name.trim() });
+  const kind = args.kind ?? 'empresa';
+  const { error } = await db.from('tenants').insert({ id: args.id, name: args.name.trim(), kind, plan_id: PLAN_BY_KIND[kind] });
   if (error) {
     console.error(error.code === '23505' ? `O tenant "${args.id}" já existe.` : `Falha ao criar o tenant: ${error.message}`);
     process.exit(1);
   }
-  console.info(`Tenant "${args.id}" criado e pausado. Falta:
-  1. perfil do tenant (nicho, voz, marca) em src/tenant.js
-  2. um deploy da plataforma com TENANT_ID=${args.id} (até o login por usuário, SPEC 006 F2,
-     cada deploy atende um tenant)
-  3. slots editoriais e retomar a publicação em /settings, nesse deploy
-  4. um job do GitHub Actions com TENANT_ID=${args.id} para gerar conteúdo`);
+  console.info(`Conta "${args.id}" (${kind}) criada e pausada. Falta:
+  1. dar acesso ao primeiro administrador:
+     npm run access:grant -- --email <e-mail> --tenant ${args.id} --role admin
+  2. horários de publicação e retomar a publicação em Configurações
+`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

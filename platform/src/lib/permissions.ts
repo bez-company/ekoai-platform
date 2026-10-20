@@ -15,6 +15,8 @@ export const PERMISSIONS = [
   'publishing.manage',
   'channels.manage',
   'brand.manage',
+  'profile.view',
+  'channels.view',
   'team.manage',
   'billing.manage',
   'audit.view',

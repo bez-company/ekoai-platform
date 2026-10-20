@@ -2,13 +2,17 @@
 // com as migrations, então tabela nova com tenant_id que não entrar aqui reprova o CI.
 export const TENANT_TABLES = [
   'assets',
+  'audit_events',
   'bandit_snapshots',
+  'brand_assets',
   'briefs',
   'campaigns',
+  'company_profiles',
   'engage_targets',
   'engagements',
   'feedback',
   'funnel_daily',
+  'invitations',
   'metrics_snapshots',
   'notifications',
   'pending_approvals',
@@ -21,5 +25,6 @@ export const TENANT_TABLES = [
   'queue_items',
   'rejected_posts',
   'scheduled_posts',
+  'social_accounts',
   'style_rules',
 ] as const;

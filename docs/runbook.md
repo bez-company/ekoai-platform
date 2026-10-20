@@ -21,7 +21,8 @@ ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 ## Criar um tenant (piloto ou cliente)
 
 ```bash
-npm run tenant:create -- --id acme --name "Acme"
+npm run tenant:create -- --id acme --name "Acme"            # empresa (plano inicial, 5 pessoas)
+npm run tenant:create -- --id marina --name "Marina" --kind pessoa   # pessoa (1 pessoa)
 npm run access:grant -- --email pessoa@acme.com.br --tenant acme --role admin
 ```
 
@@ -32,7 +33,8 @@ slots em `/settings` e retomar. Os jobs rodam com `TENANT_ID=acme`; sem ele, rec
 ## Exportar os dados de um tenant (LGPD)
 
 Logado no tenant, `/settings` > Seus dados > Baixar meus dados. Vem um JSON com todas as
-tabelas do tenant. Credenciais de rede não ficam no banco, então não saem no arquivo.
+tabelas do conteúdo da conta (perfil, equipe convidada, redes conectadas, auditoria). O token das
+redes fica cifrado em tabela à parte e o hash do convite é cortado: nenhum dos dois sai no arquivo.
 **Pendente:** apagar os dados de um tenant (precisa de fluxo com confirmação e prazo).
 
 ## Migrations
