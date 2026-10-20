@@ -6,7 +6,9 @@ sensível ou dado de cliente. Plano e decisões: `docs/specs/` e `docs/adr/`. Op
 ## Pull request
 
 - Título e corpo em inglês; commit em Conventional Commits, em inglês. `gh pr create --assignee @me`.
-  Sem ID de card (contexto BEZ).
+  O título leva o ID do card do Linear como prefixo: `[BEZ-NN] feat(scope): ...`. O card precisa estar
+  no projeto Ekoai Platform (ou Ekoai Website, se for o site); sem card, crie antes. Ao abrir a PR,
+  mova o card para In Review e anexe o link da PR nele.
 - O corpo segue `.github/pull_request_template.md`. Apague a seção que não se aplica; não deixe
   seção vazia nem comentário do modelo.
 - **Mudança visual: prints no corpo da PR, sempre.** Antes e depois quando muda uma tela que já

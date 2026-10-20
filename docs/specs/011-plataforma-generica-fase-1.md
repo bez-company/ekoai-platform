@@ -347,3 +347,20 @@ decorativo.
   Esc fecha o modal, celular sem rolagem horizontal. Cada ação conferida no banco e na auditoria.
 - **Falta:** a checagem de navegador do papel sem permissão (a API já tem teste de rota) e o aviso
   por e-mail, que depende do provedor.
+
+### Item 5, parte 1: perfil da empresa, modelo e API (2026-10-20)
+
+- O perfil é gravado **por seção**, como os passos do cadastro: `about` (sobre o negócio, cria o
+  perfil), `voice` (jeito de falar, diferenciais, dores) e `visual` (cores, fontes, CTA, posts por
+  semana). Cada seção troca os campos dela por inteiro; seção opcional antes da Sobre responde "Preencha
+  primeiro a seção Sobre o negócio".
+- `GET /api/profile` (`profile.view`) e `PUT /api/profile` (`brand.manage`). O erro de validação volta
+  com `fields` (nome do campo para a mensagem), para a tela marcar o lugar certo.
+- Validação na entrada (`company-profile-model.ts`, puro): nicho de lista fechada (com "Outro"), fontes
+  da lista curada (uma para títulos, outra para texto), site com https normalizado, @ do Instagram sem o
+  @, listas sem vazio nem repetido (até 5 itens de 140 caracteres), palavras proibidas em minúsculas
+  (até 30), cor principal com contraste mínimo de 3:1 contra branco. O banco repete os limites (0017).
+- A auditoria grava a seção que mudou (`profile.updated`), nunca o conteúdo.
+- **Fora desta PR:** as telas (cadastro em 4 passos e Configurações › Empresa) e o logo (upload, SVG
+  sanitizado, bucket privado). O logo precisa de uma decisão de armazenamento: o bucket de mídia do
+  ADR 0009 é público por chave, e o logo de uma empresa pede a rota autenticada.

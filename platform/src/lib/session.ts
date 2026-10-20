@@ -50,11 +50,11 @@ export async function requirePermission(permission: Permission): Promise<TenantD
   return ctx.t;
 }
 
-// Ações que precisam saber QUEM fez (equipe, convites): exige a permissão e devolve a pessoa. No
+// Ações que precisam saber QUEM fez (equipe, convites, perfil): exige a permissão e devolve a pessoa. No
 // login de senha única não há pessoa, então essas ações não existem lá.
 export async function requireUserPermission(permission: Permission): Promise<{ t: TenantDb; user: SessionUser }> {
   const ctx = await requireSession();
-  if (!ctx.user) throw new UserError('A equipe só existe no login por pessoa.');
+  if (!ctx.user) throw new UserError('Esta ação precisa do login por pessoa. Entre com o seu e-mail.');
   if (!(await hasPermission(ctx.role, ctx.t.tenantId, permission))) throw new ForbiddenError();
   return { t: ctx.t, user: ctx.user };
 }
