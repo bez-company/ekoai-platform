@@ -1,6 +1,8 @@
 # Briefing para o Claude Design: fase 2 da Ekoai (post de Instagram feito por agentes)
 
-> Cole este texto no Claude Design. Origem: [SPEC 012](012-agentes-instagram-fase-2.md). O
+> As telas descritas aqui já foram montadas no protótipo existente (v4):
+> https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz . Este texto fica como descrição delas e, se for
+> preciso refazer num protótipo novo, dá para colar no Claude Design. Origem: [SPEC 012](012-agentes-instagram-fase-2.md). O
 > protótipo da fase 1 (versão 3, design system 06) é a base visual: as telas novas entram no mesmo
 > app, com a mesma barra lateral, os mesmos cartões e o mesmo logo das gotas.
 
