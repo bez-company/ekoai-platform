@@ -107,6 +107,10 @@ resource "google_cloud_run_v2_service" "platform" {
         }
       }
       env {
+        name  = "KMS_KEY_NAME"
+        value = local.kms_key_name
+      }
+      env {
         name  = "CRON_OIDC_AUDIENCE"
         value = local.platform_url
       }
@@ -200,6 +204,10 @@ resource "google_cloud_run_v2_job" "job" {
         env {
           name  = "GOOGLE_CLOUD_PROJECT"
           value = var.project_id
+        }
+        env {
+          name  = "KMS_KEY_NAME"
+          value = local.kms_key_name
         }
 
         dynamic "env" {

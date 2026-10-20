@@ -53,6 +53,14 @@ Em duas etapas, porque o serviço e os jobs precisam de imagem:
 
 Depois disso o CI troca a imagem a cada merge (`deploy.yml`) e o Terraform ignora a imagem.
 
+## Cloud KMS (tokens das redes)
+
+Um keyring `ekoai` e uma chave simétrica `social-tokens` por projeto, rotação a cada 90 dias. A
+conta de serviço do app (a mesma da plataforma e dos jobs) tem
+`roles/cloudkms.cryptoKeyEncrypterDecrypter` nela. O nome completo vai em `KMS_KEY_NAME` na
+plataforma e nos jobs. O servidor cifra o token da rede e grava só o texto cifrado e a versão da
+chave (SPEC 011 R5). Keyring e chave não se apagam no Cloud KMS, por isso o `prevent_destroy`.
+
 ## Segredos
 
 O Terraform gera e guarda `database-url`, `auth-secret`, `cron-secret` e `platform-password`.

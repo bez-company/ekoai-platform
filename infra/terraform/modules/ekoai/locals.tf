@@ -8,6 +8,7 @@ locals {
   apis = [
     "apikeys.googleapis.com",
     "artifactregistry.googleapis.com",
+    "cloudkms.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
     "iamcredentials.googleapis.com",
@@ -80,6 +81,9 @@ locals {
     CRON_SECRET       = "cron-secret"
     PLATFORM_PASSWORD = "platform-password" # gitleaks:allow (nome do segredo, não o valor)
   })
+
+  # Nome completo da chave de cifra dos tokens das redes (env KMS_KEY_NAME).
+  kms_key_name = google_kms_crypto_key.social_tokens.id
 
   # Só entra o que tem valor: variável vazia faria o app falhar com uma mensagem pior que a ausência.
   account_env = { for k, v in { TENANT_ID = var.tenant_id, SITE_URL = var.site_url } : k => v if v != "" }

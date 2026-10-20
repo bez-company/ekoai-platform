@@ -36,3 +36,8 @@ output "secrets_to_fill" {
   description = "Segredos que o dono preenche com `gcloud secrets versions add`."
   value       = local.integration_secrets
 }
+
+output "kms_key_name" {
+  description = "Nome completo da chave que cifra os tokens das redes (env KMS_KEY_NAME)."
+  value       = local.kms_key_name
+}
