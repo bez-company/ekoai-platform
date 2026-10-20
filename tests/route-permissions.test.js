@@ -40,6 +40,7 @@ const EXPECTED = {
   onboarding: ['team.manage'],
   'brand/logo': ['profile.view', 'brand.manage', 'brand.manage'],
   'account/delete': ['account.delete'],
+  'notifications/read': ['content.view'],
 };
 
 function routes(dir) {

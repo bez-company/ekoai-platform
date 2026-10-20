@@ -5,6 +5,9 @@ import { identityRefusal, membershipRefusal, type LoginRefusal } from '@/lib/log
 import { acceptFailure, hashInviteToken, parseAcceptInvitation } from '@/lib/invitation-model';
 import { acceptInvitation, findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
+import { ROLE_COPY } from '@/lib/auth-flow';
+import { notify } from '@/lib/notifications';
+import { tenantDb } from '@/lib/tenant-db';
 
 export const runtime = 'nodejs';
 
@@ -46,6 +49,13 @@ export async function POST(req: Request) {
     const memberships = await membershipsOf(user.id);
     const late: LoginRefusal | null = membershipRefusal(identity, memberships);
     const role = memberships.find((m) => m.tenantId === tenantId)?.role ?? null;
+    // Aviso para quem administra a conta (melhor esforço, sem o e-mail no texto).
+    await notify(tenantDb(tenantId), {
+      kind: 'team.member_joined',
+      audience: 'admin',
+      link: '/settings/team',
+      title: `${user.name ?? identity.name ?? 'Uma pessoa'} entrou na equipe${role ? ` como ${ROLE_COPY[role].label}` : ''}`,
+    });
     if (late) return NextResponse.json({ ok: true, accepted: true, tenantId, role, code: late.code, error: late.error }, { status: 202 });
 
     const token = await createUserSessionToken({ userId: user.id, tenantId, sessionVersion: user.sessionVersion });

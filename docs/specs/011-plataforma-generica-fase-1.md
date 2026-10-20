@@ -445,3 +445,23 @@ decorativo.
   login não responde, criador e leitor barrados). **Não exercitado:** a reautenticação com senha e
   código do app contra um Identity Platform de verdade (o emulador não faz TOTP): fica para o teste
   no staging.
+
+### Item 7, parte 3: avisos no app (2026-10-20)
+
+- **Barra de cima** (desktop): nome da conta à esquerda e o **sino** à direita; no celular o sino fica
+  no cabeçalho, ao lado de "Sair". O sino mostra o contador de não lidos (de "9+" para cima) e abre um
+  painel com os 5 últimos, "Marcar todos como lidos" e "Ver todos os avisos". Esc e clique fora fecham.
+- **Página Avisos** (`/notifications`): todos os avisos do papel, agrupados em Hoje, Ontem, Esta semana
+  e Antes (virada do dia no fuso de Brasília), cada um com ícone do tom (info, aviso, erro), texto,
+  horário e, quando há `link`, o título leva a onde se resolve. Vazio explica o que aparece ali.
+- **Público por papel** (`notifications.audience`, migration 0022): `admin` (quem administra a conta,
+  padrão do banco), `team` (administrador e criador) ou `all` (todos). O leitor só lê o que é para
+  todos. A regra vale também na policy de leitura, então não depende só do servidor. Aviso de job sem
+  público informado nasce só para administrador.
+- **Não lidos por pessoa** (`tenant_members.notices_seen_at`): uma coluna por pessoa e conta, "visto
+  até quando". O contador é o que veio depois disso e é do público dela; marcar como lido é só da
+  própria pessoa (`POST /api/notifications/read`, `content.view`).
+- **Avisos novos:** "Conta criada" (administrador) e "<nome> entrou na equipe como <papel>"
+  (administrador, sem o e-mail no texto).
+- **Fora desta PR:** e-mail de aviso crítico (BEZ-28), o menu da pessoa (perfil) na barra de cima e o
+  seletor de conta para quem está em várias.

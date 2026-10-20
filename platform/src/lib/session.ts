@@ -106,3 +106,16 @@ export async function can(permission: Permission): Promise<boolean> {
   const ctx = await requireSession();
   return ctx.user ? hasPermission(ctx.role, ctx.t.tenantId, permission) : true;
 }
+
+// Páginas que precisam do contexto inteiro (papel e pessoa), não só do tenant: sessão vencida leva
+// ao login, e quem não tem content.view recebe o mesmo erro de sempre.
+export async function pageSession(): Promise<SessionContext> {
+  try {
+    const ctx = await requireSession();
+    if (ctx.user && !(await hasPermission(ctx.role, ctx.t.tenantId, 'content.view'))) throw new ForbiddenError();
+    return ctx;
+  } catch (e) {
+    if (e instanceof UnauthorizedError) redirect('/login');
+    throw e;
+  }
+}
