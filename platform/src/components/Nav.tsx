@@ -25,7 +25,7 @@ function Icon({ name }: { name: string }) {
   );
 }
 
-export default function Nav({ links, badges }: { links: Screen[]; badges?: { pendings?: number; failed?: number } }) {
+export default function Nav({ links, badges, bell }: { links: Screen[]; badges?: { pendings?: number; failed?: number }; bell?: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -76,9 +76,12 @@ export default function Nav({ links, badges }: { links: Screen[]; badges?: { pen
 
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur md:hidden">
         <Logo className="text-lg" />
-        <button onClick={logout} className="text-sm font-semibold text-muted">
-          Sair
-        </button>
+        <div className="flex items-center gap-1">
+          {bell}
+          <button onClick={logout} className="px-2 text-sm font-semibold text-muted">
+            Sair
+          </button>
+        </div>
       </header>
 
       <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface px-1 pb-2 pt-1.5 md:hidden">

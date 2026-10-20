@@ -54,6 +54,13 @@ describe('avisos dos jobs (src/utils/notifications.js)', () => {
     expect(buildNotice({ kind: 'k', title: 'a'.repeat(300) }).title).toHaveLength(200);
   });
 
+  it('o público do aviso só entra quando informado e só aceita admin, team ou all', async () => {
+    await notify({ kind: 'report.weekly', title: 'Relatório', audience: 'team' }, { tenantId: 'acme' });
+    expect(insert.mock.calls[0][1].audience).toBe('team');
+    expect(buildNotice({ kind: 'k', title: 't' })).not.toHaveProperty('audience');
+    expect(() => buildNotice({ kind: 'k', title: 't', audience: 'viewer' })).toThrow(/público de aviso inválido/);
+  });
+
   it('nome da rede para o texto do aviso', () => {
     expect(channelName('twitter')).toBe('X');
     expect(channelName('linkedin')).toBe('LinkedIn');

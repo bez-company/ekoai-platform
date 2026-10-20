@@ -42,6 +42,8 @@ vi.mock('@/lib/session', () => {
     },
   };
 });
+const noticeMock = { sent: [] };
+vi.mock('@/lib/notifications', () => ({ notify: async (_t, notice) => void noticeMock.sent.push(notice) }));
 const teamMock = { created: [], resent: [], cancelled: [], roles: [], removed: [] };
 vi.mock('@/lib/team', () => ({
   createInvitation: async (_t, _u, input) => (teamMock.created.push(input), { id: 'id-1', token: 'T'.repeat(43) }),
@@ -74,6 +76,7 @@ beforeEach(() => {
   Object.assign(accountsMock, { memberships: [{ tenantId: 'acme', role: 'creator', createdAt: '' }], acceptError: null, accepted: [], touched: 0 });
   Object.assign(sessionMock, { error: null, calls: [] });
   for (const k of Object.keys(teamMock)) teamMock[k] = [];
+  noticeMock.sent = [];
 });
 afterEach(() => {
   delete process.env.AUTH_PROVIDER;
@@ -134,6 +137,12 @@ describe('POST /api/invitations/accept', () => {
     expect(accountsMock.accepted[0].userId).toBe(USER);
     expect(accountsMock.accepted[0].hash).toMatch(/^[0-9a-f]{64}$/);
     expect(accountsMock.accepted[0].hash).not.toContain(TOKEN);
+  });
+
+  it('quem entra gera um aviso só para administrador, com o nome e o papel, sem o e-mail', async () => {
+    await call();
+    expect(noticeMock.sent).toEqual([{ kind: 'team.member_joined', audience: 'admin', link: '/settings/team', title: 'Ana Ribeiro entrou na equipe como Criador' }]);
+    expect(JSON.stringify(noticeMock.sent)).not.toContain('@');
   });
 
   it('administrador sem segundo fator: aceita, mas não abre sessão (202)', async () => {

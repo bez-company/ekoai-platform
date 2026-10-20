@@ -144,6 +144,9 @@ insert into tenant_members (tenant_id, user_id, role) values
 insert into feedback (tenant_id, aspect, note) values ('exemplo', 'tom', 'rls-exemplo'), ('acme', 'tom', 'rls-acme');
 insert into posts (tenant_id, pillar, channel) values ('exemplo', 'dica', 'instagram'), ('acme', 'dica', 'instagram');
 insert into notifications (tenant_id, kind, title) values ('exemplo', 'rls', 'rls-exemplo'), ('acme', 'rls', 'rls-acme');
+insert into notifications (tenant_id, kind, title, audience) values
+  ('exemplo', 'rls-aud', 'aud-admin', 'admin'), ('exemplo', 'rls-aud', 'aud-team', 'team'), ('exemplo', 'rls-aud', 'aud-all', 'all'),
+  ('acme', 'rls-aud', 'aud-acme-all', 'all');
 
 -- ── A: admin da exemplo ────────────────────────────────────────────────────────
 set role authenticated;
@@ -184,6 +187,8 @@ begin
 
   select count(*) into n from notifications where kind = 'rls';
   if n <> 1 then raise exception 'A deveria ver 1 aviso, viu %', n; end if;
+  select count(*) into n from notifications where kind = 'rls-aud';
+  if n <> 3 then raise exception 'A (admin) deveria ver os 3 públicos de aviso, viu %', n; end if;
   begin
     insert into notifications (tenant_id, kind, title) values ('exemplo', 'rls', 'rls-a-forja');
     raise exception 'A gravou aviso (só jobs gravam)';
@@ -223,6 +228,14 @@ begin
     update publishing_controls set paused = true where tenant_id = 'exemplo';
     if found then raise exception 'creator B pausou a publicação'; end if;
   end;
+
+  -- aviso por público: o criador lê o da equipe e o de todos, não o de administrador
+  declare n int;
+  begin
+    select count(*) into n from notifications where kind = 'rls-aud';
+    if n <> 2 then raise exception 'B (creator) deveria ver 2 avisos (equipe e todos), viu %', n; end if;
+    if exists (select 1 from notifications where title = 'aud-admin') then raise exception 'B leu aviso só de administrador'; end if;
+  end;
 end $$;
 
 -- a conta libera a aprovação do criador
@@ -258,6 +271,11 @@ begin
     raise exception 'viewer V agendou';
   exception when insufficient_privilege then null;
   end;
+
+  -- aviso por público: o leitor só lê o que é para todos
+  select count(*) into n from notifications where kind = 'rls-aud';
+  if n <> 1 then raise exception 'V (viewer) deveria ver 1 aviso (todos), viu %', n; end if;
+  if exists (select 1 from notifications where title in ('aud-admin', 'aud-team')) then raise exception 'V leu aviso de equipe ou de administrador'; end if;
 end $$;
 
 -- ── D: viewer da acme, pelo JWT (caminho do Supabase) ────────────────────────
@@ -270,6 +288,8 @@ begin
   if n <> 1 then raise exception 'D deveria ver 1 feedback, viu %', n; end if;
   if exists (select 1 from feedback where tenant_id <> 'acme') then raise exception 'D viu feedback de outro tenant'; end if;
   if exists (select 1 from users where email = 'a@test') then raise exception 'D viu pessoa de outra conta'; end if;
+  select count(*) into n from notifications where kind = 'rls-aud';
+  if n <> 1 or exists (select 1 from notifications where kind = 'rls-aud' and tenant_id <> 'acme') then raise exception 'D deveria ver só o aviso para todos da acme, viu %', n; end if;
 end $$;
 
 -- ── E: logado sem tenant (cadastro aberto não dá acesso a nada) ──────────────

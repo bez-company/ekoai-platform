@@ -6,6 +6,7 @@ import { usingDb, getDb } from './db.js';
 import { currentTenantId } from '../tenant.js';
 
 const LEVELS = new Set(['info', 'warning', 'error']);
+const AUDIENCES = new Set(['admin', 'team', 'all']);
 const TITLE_MAX = 200;
 const CHANNEL_NAMES = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
 
@@ -14,11 +15,13 @@ export function channelName(channel) {
 }
 
 // Aviso malformado é erro de código, não de runtime: falha alto no teste.
-export function buildNotice({ kind, level = 'info', title, body = null, link = null }) {
+export function buildNotice({ kind, level = 'info', title, body = null, link = null, audience }) {
   if (!kind || !title) throw new Error('aviso precisa de kind e title');
   if (!LEVELS.has(level)) throw new Error(`nível de aviso inválido: ${level}`);
   if (link && !link.startsWith('/')) throw new Error(`link de aviso precisa ser um caminho da plataforma: ${link}`);
-  return { kind, level, title: String(title).slice(0, TITLE_MAX), body: body ?? null, link };
+  if (audience !== undefined && !AUDIENCES.has(audience)) throw new Error(`público de aviso inválido: ${audience}`);
+  // `audience` só entra quando informado: sem ele vale o padrão do banco (admin).
+  return { kind, level, title: String(title).slice(0, TITLE_MAX), body: body ?? null, link, ...(audience ? { audience } : {}) };
 }
 
 export async function notify(notice, { dryRun = false, tenantId } = {}) {
