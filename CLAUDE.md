@@ -3,6 +3,19 @@
 Repo público da BEZ (`bez-company/ekoai-platform`): nunca commitar e-mail, token, ID de projeto
 sensível ou dado de cliente. Plano e decisões: `docs/specs/` e `docs/adr/`. Operação: `docs/runbook.md`.
 
+## Esteira: feature → staging → produção
+
+Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-producao.md)):
+`staging` (ambiente de integração) e `main` (produção). Não há outro caminho.
+
+1. Branch de feature a partir da `staging`; PR com **base `staging`** (`gh pr create --base staging`).
+   Squash merge. O CI roda e o deploy do ambiente `staging` é automático depois do merge.
+2. Release: `scripts/release.sh` abre a PR `staging` → `main`. Merge com **Create a merge commit**
+   (nunca squash). O push na `main` roda o CI e o deploy de `prod` espera a aprovação no environment
+   `prod` (GitHub Actions).
+3. Correção urgente é uma feature como as outras e vai à produção por uma release logo em seguida.
+   Nunca abra PR de feature para a `main`.
+
 ## Pull request
 
 - Título e corpo em inglês; commit em Conventional Commits, em inglês. `gh pr create --assignee @me`.
@@ -24,7 +37,7 @@ sensível ou dado de cliente. Plano e decisões: `docs/specs/` e `docs/adr/`. Op
   - sem diagrama que esclareça, não force um: uma tabela antes e depois resolve.
 - **Verificação honesta:** diga o que foi exercitado de verdade (teste, navegador real, banco real) e o
   que NÃO foi. Aprovação de UI com dublê não vale como teste do serviço real.
-- PR com conflito não roda o CI. A `main` anda sozinha (deploy e infra): rebasear antes de abrir.
+- PR com conflito não roda o CI. A `staging` anda sozinha (deploy e infra): rebasear antes de abrir.
   Depois do merge, apagar a branch e o worktree.
 
 ## Código

@@ -6,13 +6,14 @@ name: CI
 #     testado e a varredura de segredo e de dependência; o job `CI ok` agrega tudo;
 #   - as imagens da plataforma e dos jobs constroem e o Terraform valida (SPEC 010).
 #
-# O deploy fica em deploy.yml (depois deste CI na main): staging sozinho, produção com aprovação.
+# O deploy fica em deploy.yml, um ambiente por branch (ADR 0013): `staging` publica no staging
+# sozinho; `main` publica em produção depois da aprovação no environment `prod`.
 # Migration é ADITIVA (coluna nova, tabela nova): deploy e migration não são atômicos.
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, staging]
   workflow_dispatch:
 
 # Mínimo possível. Nenhum job precisa de mais que ler o repositório.
