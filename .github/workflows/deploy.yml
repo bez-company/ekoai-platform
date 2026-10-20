@@ -2,14 +2,18 @@ name: Deploy
 
 # Um ambiente por branch (docs/adr/0013-esteira-feature-staging-producao.md):
 #
-#   staging -> ambiente staging, sozinho, depois que o CI passa na branch staging;
-#   main    -> produção, depois que o CI passa na main, e SÓ depois da aprovação no environment
-#              `prod` (Settings > Environments > prod > Required reviewers). A main só recebe a PR
-#              de release (staging -> main).
+#   push em staging -> CI, depois o ambiente staging, sozinho;
+#   push em main    -> CI, depois produção, e SÓ depois da aprovação no environment `prod`
+#                      (Settings > Environments > prod > Required reviewers). A main só recebe a
+#                      PR de release (staging -> main).
 #
-# Cada environment só aceita a própria branch (deployment branch policy). Entra no Google Cloud por
-# Workload Identity Federation, sem chave JSON. As imagens são construídas aqui (amd64) e empurradas
-# para o Artifact Registry do projeto do ambiente.
+# O deploy roda no MESMO run do push (não em workflow_run): assim `github.ref` é a branch que
+# recebeu o push e a deployment branch policy de cada environment (staging só aceita `staging`,
+# prod só aceita `main`) faz o que promete. Em workflow_run o ref seria sempre a main.
+# A PR de release não publica nada: o deploy só reage a push.
+#
+# Entra no Google Cloud por Workload Identity Federation, sem chave JSON. As imagens são construídas
+# aqui (amd64) e empurradas para o Artifact Registry do projeto do ambiente.
 #
 # Ordem em cada ambiente: imagens -> migrations (job `ekoai-migrate`, espera terminar) ->
 # jobs -> plataforma -> health check. Migration é ADITIVA: deploy e migration não são atômicos.
@@ -20,9 +24,7 @@ name: Deploy
 # Variáveis por environment (Settings > Environments): GCP_PROJECT, WIF_PROVIDER, DEPLOY_SA.
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main, staging]
   # Refazer o deploy do ambiente a partir da branch dele (a policy do environment recusa outra).
   workflow_dispatch:
@@ -36,36 +38,46 @@ on:
 permissions:
   contents: read
 
-env:
-  REGION: southamerica-east1
+concurrency:
+  group: deploy-pipeline-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  ci:
+    name: CI
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   staging:
     name: Staging
-    # `event == push` descarta o CI de uma PR: a PR de release sai de uma branch chamada staging,
-    # e não deve publicar nada.
+    needs: [ci]
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'staging')
+      always() && !cancelled() &&
+      (needs.ci.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.ci.result == 'skipped')) &&
+      github.ref == 'refs/heads/staging' &&
+      (github.event_name == 'push' || inputs.environment == 'staging')
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: staging
-      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+      sha: ${{ github.sha }}
     permissions:
       contents: read
       id-token: write
 
   prod:
     name: Produção
+    needs: [ci]
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
+      always() && !cancelled() &&
+      (needs.ci.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.ci.result == 'skipped')) &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.environment == 'prod')
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: prod
-      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+      sha: ${{ github.sha }}
     permissions:
       contents: read
       id-token: write

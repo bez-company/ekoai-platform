@@ -83,8 +83,8 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
    automático. Teste lá o que vai sair.
 2. **Abrir a release:** `scripts/release.sh` (PR `staging` → `main`, com a lista do que sai).
 3. **Mergear com "Create a merge commit"**, nunca squash.
-4. **Aprovar o deploy:** o push na `main` roda o CI e o deploy de `prod` espera no GitHub
-   (Actions > o run de Deploy > Review deployments > `prod`). Sem aprovação, nada muda em produção.
+4. **Aprovar o deploy:** o push na `main` roda, no run de Deploy, o CI e depois o job de `prod`, que
+   espera no GitHub (Actions > o run de Deploy > Review deployments > `prod`). Sem aprovação, nada muda em produção.
 5. **Conferir:** `/api/health` de produção mostra a revisão (`sha-<7 primeiros>`).
 
 **Desfazer:** `gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100
