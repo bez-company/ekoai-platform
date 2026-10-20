@@ -3,14 +3,13 @@ name: Deploy
 # Um ambiente por branch (docs/adr/0013-esteira-feature-staging-producao.md):
 #
 #   push em staging -> CI, depois o ambiente staging, sozinho;
-#   push em main    -> CI, depois produção, e SÓ depois da aprovação no environment `prod`
-#                      (Settings > Environments > prod > Required reviewers). A main só recebe a
-#                      PR de release (staging -> main).
+#   push em main    -> CI, confere que o commit veio da staging, e produção SÓ depois da aprovação
+#                      no environment `prod` (Settings > Environments > prod > Required reviewers).
+#                      A main só recebe o fast-forward da release (scripts/release.sh).
 #
 # O deploy roda no MESMO run do push (não em workflow_run): assim `github.ref` é a branch que
 # recebeu o push e a deployment branch policy de cada environment (staging só aceita `staging`,
 # prod só aceita `main`) faz o que promete. Em workflow_run o ref seria sempre a main.
-# A PR de release não publica nada: o deploy só reage a push.
 #
 # Entra no Google Cloud por Workload Identity Federation, sem chave JSON. As imagens são construídas
 # aqui (amd64) e empurradas para o Artifact Registry do projeto do ambiente.
@@ -66,11 +65,31 @@ jobs:
       contents: read
       id-token: write
 
+  # Produção só recebe commit que passou pela staging: o commit da main precisa estar na história da
+  # staging. Barra qualquer escrita direta na main.
+  gate:
+    name: Veio da staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: O commit está na staging
+        run: |
+          git fetch -q origin staging
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/staging; then
+            echo "::error::o commit ${GITHUB_SHA:0:7} da main não está na staging. Produção só recebe o que passou pela staging (scripts/release.sh)."
+            exit 1
+          fi
+
   prod:
     name: Produção
-    needs: [ci]
+    needs: [ci, gate]
     if: >-
-      always() && !cancelled() &&
+      always() && !cancelled() && needs.gate.result == 'success' &&
       (needs.ci.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.ci.result == 'skipped')) &&
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || inputs.environment == 'prod')
