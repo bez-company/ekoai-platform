@@ -10,6 +10,7 @@ import Logo from '@/components/Logo';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
 import { isVisualEmpty, isVoiceEmpty, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
 import type { FieldErrors } from '@/lib/company-profile-model';
+import LogoField from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
 const STEPS = ['Conta', 'Negócio', 'Jeito de falar', 'Visual'] as const;
@@ -18,7 +19,7 @@ const COPY = [
   null,
   { title: 'Conte sobre o negócio', lead: 'Na próxima fase, a IA usa isso para escrever do jeito da sua empresa.' },
   { title: 'Como a marca fala', lead: 'Opcional. Ajuda a IA a acertar o tom desde o primeiro post.' },
-  { title: 'Visual da marca', lead: 'Opcional. Na próxima fase, as artes dos posts saem com as suas cores e as suas fontes.' },
+  { title: 'Visual da marca', lead: 'Opcional. Na próxima fase, as artes dos posts saem com o seu logo, as suas cores e as suas fontes.' },
 ] as const;
 
 type Props = { initial: { about: AboutForm; voice: VoiceForm; visual: VisualForm } };
@@ -32,6 +33,7 @@ export default function ProfileWizard({ initial }: Props) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
 
   const last = step === STEPS.length - 1;
   const clearError = (field: string) => setErrors(({ [field]: _gone, ...rest }) => rest);
@@ -114,7 +116,12 @@ export default function ProfileWizard({ initial }: Props) {
         <div className="mt-6">
           {step === 1 && <AboutSection value={about} onChange={setAbout} errors={errors} onClearError={clearError} disabled={busy} />}
           {step === 2 && <VoiceSection value={voice} onChange={setVoice} errors={errors} onClearError={clearError} disabled={busy} />}
-          {step === 3 && <VisualSection value={visual} onChange={setVisual} errors={errors} onClearError={clearError} disabled={busy} />}
+          {step === 3 && (
+            <div className="space-y-5">
+              <LogoField assetId={logo} canEdit onChange={setLogo} />
+              <VisualSection value={visual} onChange={setVisual} errors={errors} onClearError={clearError} disabled={busy} />
+            </div>
+          )}
         </div>
         {(error || Object.keys(errors).length > 0) && (
           <div className="mt-5">

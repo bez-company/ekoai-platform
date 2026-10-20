@@ -38,6 +38,7 @@ const EXPECTED = {
   'team/members/[userId]': ['team.manage', 'team.manage'],
   profile: ['profile.view', 'brand.manage'],
   onboarding: ['team.manage'],
+  'brand/logo': ['profile.view', 'brand.manage', 'brand.manage'],
 };
 
 function routes(dir) {

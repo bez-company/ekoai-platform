@@ -15,12 +15,12 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 
 1. **Duas branches de longa vida.** `staging` é o ambiente de integração; `main` é o que está em
    produção.
-2. **Feature entra em `staging` por PR, sempre com merge por rebase** (o único método permitido no
-   repositório, e o único aceito pela regra da `staging`). O CI roda na PR e de novo no push;
+2. **Feature entra em `staging` por PR, com merge por rebase ou squash** (merge commit fica
+   desligado no repositório e na regra da `staging`). O CI roda na PR e de novo no push;
    passando, o deploy do ambiente `staging` roda sozinho. A `staging` só recebe PR com `CI ok`.
 3. **Release é o fast-forward da `main` até o commit atual da `staging`** (`scripts/release.sh`), sem
    PR e sem commit novo: a `main` fica no mesmo SHA da `staging`. Uma PR `staging` → `main` com
-   rebase não serve: o rebase reescreve os SHAs, a `main` passa a divergir da `staging` e a próxima
+   rebase ou squash não serve: ambos reescrevem os SHAs, a `main` passa a divergir da `staging` e a próxima
    release volta com conflito (testado: a segunda PR ficou `CONFLICTING`). Fast-forward não reescreve
    nada. O script exige que o staging tenha publicado esse commit com sucesso.
 4. **Produção só com aprovação.** O push na `main` roda o CI, confere que o commit está na história
