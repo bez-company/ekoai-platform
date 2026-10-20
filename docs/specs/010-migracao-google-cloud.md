@@ -292,3 +292,15 @@ tabela de decisões.
 - `refresh-tokens` gravando versão nova no Secret Manager: coberto por teste unitário e pela
   permissão `secretVersionAdder`, sem execução real (precisa de token de rede de verdade).
 - Primeira publicação real e o Identity Platform com login de pessoa (depende da tela).
+
+### Restauração do banco, executada no staging (2026-10-19)
+
+Clone por ponto no tempo (`gcloud sql instances clone ekoai-pg ekoai-pg-restore-test
+--point-in-time=<UTC>`) em um banco novo, consultado por um job temporário do Cloud Run na mesma
+VPC (segredo e job temporários, apagados no fim). O clone voltou com as 26 tabelas, as 16
+migrations que existiam naquele instante e as contas `exemplo` e `pilar`; o servidor era outro
+(IP do clone). Tempo: cerca de 25 minutos até o clone aceitar conexão com o banco ainda vazio de
+dados (`db-f1-micro`); a primeira conexão logo ao ficar `RUNNABLE` foi recusada enquanto o
+Postgres terminava a recuperação, e a segunda passou. Esse tempo cresce com o tamanho do banco e
+é o número a considerar em um incidente. Também há um backup sob demanda e os automáticos
+diários (14 mantidos) com recuperação a qualquer ponto de 7 dias.

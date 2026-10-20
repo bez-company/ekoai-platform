@@ -110,6 +110,12 @@ resource "google_cloud_run_v2_service" "platform" {
         name  = "KMS_KEY_NAME"
         value = local.kms_key_name
       }
+      # Endereço público: base dos links de convite (/convite/<token>). No Cloud Run, os
+      # cabeçalhos do proxy podem trazer o endereço interno. Troca para o domínio próprio quando houver.
+      env {
+        name  = "APP_BASE_URL"
+        value = local.platform_url
+      }
       env {
         name  = "CRON_OIDC_AUDIENCE"
         value = local.platform_url
