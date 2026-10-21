@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { requireUserPermission } from '@/lib/session';
 import { accountOf, idpUidOf } from '@/lib/accounts';
 import { deleteAccount } from '@/lib/account-deletion';
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
     if (refusal) return NextResponse.json({ error: REAUTH_MESSAGES[refusal], code: refusal }, { status: refusal === 'stale' ? 401 : 403 });
 
     const deleted = await deleteAccount({ tenantId: t.tenantId, actorUserId: user.id, kind: account.kind });
+    await track(t.tenantId, 'account_deleted', { kind: account.kind });
 
     // Aviso aos outros administradores: melhor esforço, a conta já foi excluída.
     try {

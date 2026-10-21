@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { requireUserPermission } from '@/lib/session';
 import { parseCreateInvitation, inviteLink } from '@/lib/invitation-model';
 import { createInvitation } from '@/lib/team';
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     const mailer = getMailer(); // configuração errada falha antes de criar o convite
     const { id, token } = await createInvitation(t, user, parsed.value);
     const link = inviteLink(appOrigin(req), token);
+    await track(t.tenantId, 'invitation_sent', { role: parsed.value.role, by_email: Boolean(mailer) });
     if (!mailer) return NextResponse.json({ id, sent: false, link }, { status: 201 });
     const account = await accountOf(t.tenantId);
     await mailer.sendInvitation({ to: parsed.value.email, accountName: account?.name ?? '', inviterName: user.name, role: parsed.value.role, link });

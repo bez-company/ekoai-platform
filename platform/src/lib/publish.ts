@@ -4,6 +4,7 @@
 // status (scheduled → publishing) com update condicional anti-corrida.
 
 import { db } from './db';
+import { track } from './analytics';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { notify, channelName } from './notifications';
 import * as instagram from './channels/instagram';
@@ -211,6 +212,7 @@ async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean;
           body: `${msg} (tentativa ${attempts} de ${MAX_ATTEMPTS}).`,
           link: '/calendar',
         });
+    if (failed) await track(t.tenantId, 'post_publish_failed', { channel: s.channel, attempts });
     return { ok: false, error: msg };
   }
 
@@ -236,6 +238,7 @@ async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean;
         link: '/history',
       }
     : { kind: 'publish.ok', title: `Publicado no ${channelName(s.channel)}`, body: hook || undefined, link: '/history' });
+  await track(t.tenantId, 'post_published', { channel: s.channel, recorded: !persistError });
   return { ok: true };
 }
 

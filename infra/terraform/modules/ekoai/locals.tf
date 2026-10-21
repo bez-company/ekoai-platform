@@ -74,6 +74,7 @@ locals {
     "x-access-token",
     "x-access-token-secret",
     "sentry-dsn",
+    "posthog-key",
   ]
 
   # Variável de ambiente => segredo. Plataforma e jobs leem os mesmos.
@@ -91,6 +92,7 @@ locals {
     X_ACCESS_TOKEN         = "x-access-token"
     X_ACCESS_TOKEN_SECRET  = "x-access-token-secret"
     SENTRY_DSN             = "sentry-dsn"
+    POSTHOG_KEY            = "posthog-key"
   }
 
   platform_secret_env = merge(local.integration_env, {
