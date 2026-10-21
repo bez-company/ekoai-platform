@@ -35,6 +35,15 @@ atendimento.
 | D6 | **Gemini continua pela chave** (`@google/genai`) na primeira etapa. Passar para o Vertex com a conta de serviço, sem chave, fica como melhoria | não misturar migração de hospedagem com troca de provedor de modelo |
 | D7 | **Dados: `pg_dump` do Supabase e restauração no Cloud SQL** numa janela curta combinada com a atendente. O banco é pequeno | sem replicação contínua |
 
+### Como o bot consome o `@ekoai/db`
+
+O pacote vive em `packages/db` do repositório da Ekoai e não está publicado, e o bot é outro repositório.
+Opções: (a) copiar o pacote para o bot, com o teste de conformidade junto (diverge com o tempo); (b)
+publicar como pacote privado no GitHub Packages (o CI do bot e a imagem passam a precisar de token de
+leitura); (c) um repositório de bibliotecas da BEZ. **Recomendação: (a) agora**, porque são duas cópias de
+um pacote sem dependência de runtime e de uso estável, e subir para (b) ou (c) quando houver o terceiro
+consumidor (o Pilar). Registrar a versão copiada e o commit de origem.
+
 ## Custo estimado
 
 Produção: Cloud SQL `f1-micro` com 10 GB cerca de US$ 14, Cloud Run e Scheduler perto de zero, Secret
