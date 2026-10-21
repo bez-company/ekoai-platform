@@ -26,6 +26,13 @@ revogado). Um **erro** com o motivo é problema nosso: o mais provável é a con
 plataforma sem `roles/firebaseauth.viewer` (o servidor consulta o usuário no Identity Toolkit para
 saber se o token foi revogado), ou o `IDENTITY_PROJECT_ID` errado. Já aconteceu no staging.
 
+## Segundo fator (MFA)
+
+`MFA_MODE` (Terraform `mfa_mode`): `required` exige o app autenticador do administrador para entrar,
+criar conta e excluir conta; `optional` não exige em lugar nenhum. Staging está em `optional` desde
+21/10/2026 (BEZ-169); produção em `required`. Para mudar, edite `mfa_mode` no `envs/<ambiente>/main.tf`
+e aplique o Terraform. Quem já ativou o app continua com o desafio no login nos dois modos.
+
 ## Criar um tenant (piloto ou cliente)
 
 ```bash

@@ -86,6 +86,10 @@ resource "google_cloud_run_v2_service" "platform" {
         value = var.signup_mode
       }
       env {
+        name  = "MFA_MODE"
+        value = var.mfa_mode
+      }
+      env {
         name  = "IDENTITY_PROJECT_ID"
         value = var.project_id
       }

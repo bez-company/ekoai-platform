@@ -60,6 +60,8 @@ module "ekoai" {
   # Produção segue com senha única e cadastro por convite até haver limite de taxa no cadastro.
   auth_provider = "identity"
   signup_mode   = "open"
+  # Sem segundo fator obrigatório por enquanto (decisão de 21/10/2026, BEZ-169). Produção segue em `required`.
+  mfa_mode = "optional"
 
   sql_tier               = "db-f1-micro"
   sql_availability       = "ZONAL"

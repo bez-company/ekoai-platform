@@ -57,6 +57,16 @@ com login por pessoa, um leitor conseguiria aprovar post pela API.
   sem tela (operação de sistema, até existir convite).
 - Teste de integração contra o emulador do Firebase Auth no CI (`demo-` project, sem conta Google).
 
+## Atualização de 21/10/2026: MFA configurável por ambiente (BEZ-169)
+
+Decisão do Matheus: o app começa sem segundo fator obrigatório. `MFA_MODE` vale `required` (padrão do
+código, é o que esta SPEC descreve) ou `optional`. Com `optional`, ninguém precisa do app autenticador
+para entrar, criar conta, aceitar convite como administrador nem excluir a conta (a exclusão pede só a
+senha de agora). Quem ativou o app por conta própria continua recebendo o desafio no login, porque
+isso é do Identity Platform. O staging roda `optional`; produção segue `required` (o Terraform tem
+`mfa_mode`, padrão `required`). A tela para ativar o MFA depois fica para uma entrega própria.
+Qualquer valor desconhecido de `MFA_MODE` cai em `required`.
+
 ## Fora do escopo
 
 - Telas (login, MFA, seletor de conta): protótipo no Claude Design primeiro.
@@ -66,7 +76,8 @@ com login por pessoa, um leitor conseguiria aprovar post pela API.
 
 - [ ] ID token do emulador vira sessão; e-mail não verificado, login antigo e pessoa sem conta
       são recusados.
-- [ ] Administrador sem segundo fator é recusado; criador e leitor entram sem.
+- [ ] Com `MFA_MODE=required`, administrador sem segundo fator é recusado; criador e leitor entram sem.
+- [ ] Com `MFA_MODE=optional`, administrador entra, cria conta e exclui conta só com senha.
 - [ ] Sessão com versão antiga, de pessoa removida da conta ou adulterada é recusada.
 - [ ] Toda rota da API declara permissão; leitor recebe 403 ao aprovar.
 - [ ] A senha única segue funcionando com `AUTH_PROVIDER=password`.

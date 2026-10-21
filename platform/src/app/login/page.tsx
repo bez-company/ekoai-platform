@@ -3,6 +3,7 @@ import AuthLayout from '@/components/AuthLayout';
 import IdentityEntry from '@/components/auth/IdentityEntry';
 import { authProvider } from '@/lib/auth';
 import { signupMode } from '@/lib/account-model';
+import { mfaMode } from '@/lib/login-policy';
 import { firebaseWebConfig } from '@/lib/firebase-config';
 import LoginForm from './LoginForm';
 
@@ -22,7 +23,7 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <Suspense fallback={null}>
-        <IdentityEntry config={firebaseWebConfig()} signupOpen={signupMode() === 'open'} />
+        <IdentityEntry config={firebaseWebConfig()} signupOpen={signupMode() === 'open'} mfaRequired={mfaMode() === 'required'} />
       </Suspense>
     </AuthLayout>
   );

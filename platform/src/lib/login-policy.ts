@@ -6,6 +6,16 @@ import type { Role } from './permissions';
 
 export const MAX_LOGIN_AGE_S = 5 * 60;
 
+// `required` (padrão): administrador entra, cria conta e exclui conta só com segundo fator.
+// `optional`: o segundo fator não é exigido em lugar nenhum; quem ativou o app autenticador
+// continua recebendo o desafio no login (o Identity Platform decide, não esta regra). Qualquer
+// valor desconhecido também fica em `required` (falha segura).
+export type MfaMode = 'required' | 'optional';
+
+export function mfaMode(env: Record<string, string | undefined> = process.env): MfaMode {
+  return env.MFA_MODE === 'optional' ? 'optional' : 'required';
+}
+
 export type LoginRefusal = { status: 401 | 403; code: string; error: string };
 
 export type Membership = { tenantId: string; role: Role; createdAt: string };
@@ -28,9 +38,9 @@ export function identityRefusal(id: Identity, nowS: number): LoginRefusal | null
 }
 
 // Depois de achar as contas: precisa ter alguma, e administrador entra com segundo fator.
-export function membershipRefusal(id: Identity, memberships: Membership[]): LoginRefusal | null {
+export function membershipRefusal(id: Identity, memberships: Membership[], mode: MfaMode = mfaMode()): LoginRefusal | null {
   if (memberships.length === 0) return REFUSALS.noAccess;
-  if (memberships.some((m) => m.role === 'admin') && !id.secondFactor) return REFUSALS.mfa;
+  if (mode === 'required' && memberships.some((m) => m.role === 'admin') && !id.secondFactor) return REFUSALS.mfa;
   return null;
 }
 

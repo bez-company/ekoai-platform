@@ -34,7 +34,7 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 // do convite e fica travado no cadastro.
 export type InviteProps = { token: string; email: string; accountName: string; inviterName: string | null; role: Role; expiresAt: string };
 
-export default function IdentityEntry({ config, signupOpen, invite }: { config: FirebaseWebConfig; signupOpen: boolean; invite?: InviteProps }) {
+export default function IdentityEntry({ config, signupOpen, mfaRequired, invite }: { config: FirebaseWebConfig; signupOpen: boolean; mfaRequired: boolean; invite?: InviteProps }) {
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
@@ -130,7 +130,8 @@ export default function IdentityEntry({ config, signupOpen, invite }: { config: 
         await startEnroll(user, false);
         return;
       case 'create-account':
-        if (multiFactor(user).enrolledFactors.length === 0) await startEnroll(user, true);
+        // Com MFA opcional a pessoa vai direto para criar a conta, sem ativar o app autenticador.
+        if (mfaRequired && multiFactor(user).enrolledFactors.length === 0) await startEnroll(user, true);
         else go('create-account');
         return;
       case 'continue-login':
