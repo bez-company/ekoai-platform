@@ -381,3 +381,21 @@ horas de migração do Pilar e consumo real de cada produto.
 - **E2.6, em andamento:** os MCPs do Google Cloud da BEZ passaram para o `bez-platform` (helper e
   `contexts.json`; os três endpoints respondem 200). O `My First Project` fica 48 horas como volta
   rápida e depois é apagado (BEZ-92).
+
+### Release da Ekoai para produção (2026-10-21, BEZ-125)
+
+- **Antes:** backup sob demanda do banco de produção; `plan` de prod com 3 criações e 29 alterações, sem destruição.
+- **Terraform de prod aplicado** com as imagens que já rodavam: banco `db-g1-small` para `db-f1-micro` (recuperação e
+  proteção mantidas), labels, alertas de conexões e memória, pool de 2 nos jobs e `firebaseauth.viewer` da conta do app.
+  `plan` limpo depois, health 200.
+- **`release.sh`:** `main` em `76ecd88`. O deploy de produção esperou a aprovação do environment `prod` e passou a rodar
+  a promoção por digest. **A primeira tentativa falhou** no passo "Ligar o banco, se estiver parado": a conta de deploy de
+  produção não tinha `cloudsql.instances.get` (o papel que criei na #70 existia só no staging, e o passo nunca tinha
+  rodado em produção). O job parou antes de tocar no Cloud Run. Correção: `roles/cloudsql.viewer` em todos os ambientes
+  (#76); o job foi reexecutado e passou.
+- **Resultado:** produção em `ekoai-platform-sha-76ecd88`, com os digests de plataforma e jobs **idênticos** aos da
+  staging, migrations aplicadas e health ok (`db: ok`).
+- **Restore de teste em produção executado:** clone por ponto no tempo e leitura por job temporário (34 tabelas, 21
+  migrations, 1 tenant); tudo apagado depois. Passo a passo e tempos no runbook.
+- **Achados:** o GitHub avisou de 16 vulnerabilidades do Dependabot na branch padrão, 3 críticas (BEZ-139). Outra sessão
+  mergeou na `staging` o ambiente `envs/ekoai-site` (SPEC 015); ele ainda não está aplicado nem faz parte desta release.
