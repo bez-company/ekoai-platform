@@ -1,0 +1,30 @@
+# Atualizações de dependência (SPEC 013, BEZ-139). Todas as PRs do Dependabot apontam para a `staging`:
+# a `main` não recebe PR (ADR 0013), então sem `target-branch` o Dependabot abria contra ela e o CI
+# "Fluxo de branches" reprovava. Os alertas de segurança só fecham depois da release que leva a
+# correção à `main`, a branch padrão.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      raiz-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directory: /platform
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      plataforma-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
