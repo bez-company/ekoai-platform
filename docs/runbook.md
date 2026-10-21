@@ -92,6 +92,12 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
 --region southamerica-east1` (migrations são aditivas, então o código antigo continua funcionando).
 Para tirar a mudança de vez, reverta o commit na `staging` (por PR) e faça uma nova release.
 
+**O que o deploy faz com o banco e com a imagem:** no staging liga o Cloud SQL se estiver parado (cerca
+de 10 minutos, enquanto as imagens constroem) e espera ficar `RUNNABLE` antes de migrar; em produção,
+banco fora de `RUNNABLE` interrompe o deploy. O staging constrói a imagem; a produção copia a imagem
+do mesmo commit do registry da staging, confere o digest e publica por digest. Se a imagem do commit
+não estiver no registry da staging, o deploy de produção para e pede para refazer o da staging.
+
 **Refazer o deploy de um ambiente:** Actions > Deploy > Run workflow, escolhendo a branch do ambiente
 (`staging` ou `main`); o environment recusa outra branch.
 

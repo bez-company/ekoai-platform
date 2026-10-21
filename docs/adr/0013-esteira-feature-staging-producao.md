@@ -45,9 +45,10 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 - O staging pode ficar à frente da produção por dias. Quem faz a release leva tudo o que está na
   `staging`: não dá para liberar uma feature sozinha sem tirar as outras antes (reverter na
   `staging` ou esperar).
-- A produção reconstrói a imagem a partir do mesmo commit da `staging`. O código é idêntico, mas
-  não é o mesmo artefato: promover o digest da imagem entre os dois
-  projetos do Google Cloud fica como melhoria.
+- A produção não reconstrói a imagem: o deploy de produção copia, do registry da `staging` para o de
+  produção, a imagem desse mesmo commit (digest conferido) e os dois ambientes publicam por digest, não
+  por tag. O artefato que passou na `staging` é o que roda em produção (SPEC 013, E1.12). A conta de
+  deploy de produção só lê o registry da `staging`.
 - Migrations rodam primeiro no staging, contra um banco com a forma de produção, antes de chegarem à
   produção. Como são aditivas, a ordem entre migration e código continua segura.
 - A história é linear: a `main` é sempre um prefixo da `staging`, sem commit de merge. O registro de
