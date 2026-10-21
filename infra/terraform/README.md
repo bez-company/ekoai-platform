@@ -102,6 +102,31 @@ cujo workspace já foi arquivado, e a imagem não guarda o código original (os 
 imagem (digest `sha256:88a18b7f...`) é hoje o único artefato do site; ela está no registry de
 `bez-site-prod`. Sem o código não há deploy por GitHub Actions.
 
+## Site da Ekoai (`envs/ekoai-site/`)
+
+Landing page de `ekoai.com.br` ([SPEC 015](../../docs/specs/015-site-da-ekoai-em-ekoai-com-br.md),
+[ADR 0016](../../docs/adr/0016-site-da-ekoai-estatico-no-hosting-do-ekoai-prod.md)). Site estático num
+site próprio do Firebase Hosting (`ekoai`) no projeto `ekoai-prod`, sem Cloud Run. O código está em
+`bez-company/ekoai-website`, que publica pelo provider `github-site` do pool `github` com a conta
+`ekoai-site-deploy` (só Hosting). Estado próprio (prefixo `ekoai-site`): não depende da release.
+
+```bash
+cd infra/terraform/envs/ekoai-site && terraform init && terraform apply    # base (aplicada em 21/10/2026)
+```
+
+**Domínio da Ekoai.** Só com a página pronta (BEZ-137). O DNS é o do próprio Registro.br.
+
+```bash
+terraform apply -var connect_domain=true
+terraform output dns_records      # registros que o Firebase pede para o apex e o www
+# Registro.br › ekoai.com.br › DNS › Editar zona: criar o TXT, o A do apex e o CNAME do www
+# certificado emitido (minutos a 24 h) e depois:
+terraform apply -var connect_domain=true -var uptime_host=ekoai.com.br
+```
+
+`app.ekoai.com.br` é da plataforma (BEZ-42, Load Balancer): o Hosting só repassa o cookie
+`__session` ao Cloud Run, e o login usa outro.
+
 ## Orçamentos e exportação de faturamento (`platform/`)
 
 Um orçamento mensal por projeto (50%, 80%, 100% e previsão de 100%) mais o global de R$ 330, todos
