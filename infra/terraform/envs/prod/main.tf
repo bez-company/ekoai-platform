@@ -1,9 +1,9 @@
 terraform {
   required_version = ">= 1.9"
 
-  # Estado dos dois ambientes no bucket do projeto de produção, um prefixo por ambiente.
+  # Estado no bucket do projeto bez-platform (SPEC 013), um prefixo por ambiente.
   backend "gcs" {
-    bucket = "ekoai-prod-tfstate"
+    bucket = "bez-platform-tfstate"
     prefix = "prod"
   }
 }

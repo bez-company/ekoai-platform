@@ -251,7 +251,7 @@ jobs:
       - name: Validação dos ambientes e da fundação
         run: |
           set -euo pipefail
-          for dir in envs/staging envs/prod foundation; do
+          for dir in envs/staging envs/prod foundation platform; do
             terraform -chdir=infra/terraform/$dir init -backend=false -input=false
             terraform -chdir=infra/terraform/$dir validate
           done
