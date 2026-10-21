@@ -41,6 +41,14 @@ describe('reautenticação', () => {
     expect(m.reauthRefusal(id({ authTime: NOW / 1000 - 299 }), 'idp-a', NOW)).toBeNull();
   });
 
+  it('com MFA opcional a reautenticação por senha basta; o resto continua exigido', () => {
+    expect(m.reauthRefusal(id({ secondFactor: null }), 'idp-a', NOW, 'optional')).toBeNull();
+    expect(m.reauthRefusal(id({ secondFactor: null }), 'idp-a', NOW, 'required')).toBe('no_second_factor');
+    expect(m.reauthRefusal(id({ secondFactor: null, uid: 'idp-b' }), 'idp-a', NOW, 'optional')).toBe('wrong_person');
+    expect(m.reauthRefusal(id({ secondFactor: null, authTime: NOW / 1000 - 301 }), 'idp-a', NOW, 'optional')).toBe('stale');
+    expect(m.reauthRefusal(id({ secondFactor: null, emailVerified: false }), 'idp-a', NOW, 'optional')).toBe('email_not_verified');
+  });
+
   it('cada falha tem o seu motivo', () => {
     expect(m.reauthRefusal(id({ uid: 'idp-b' }), 'idp-a', NOW)).toBe('wrong_person');
     expect(m.reauthRefusal(id(), null, NOW)).toBe('wrong_person');

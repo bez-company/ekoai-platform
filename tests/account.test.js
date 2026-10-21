@@ -106,6 +106,13 @@ describe('quem pode criar conta', () => {
     expect(model.accountRefusal(identity({ secondFactor: null }), now()).code).toBe('mfa_required');
   });
 
+  it('com MFA opcional dispensa só o segundo fator, o resto continua exigido', () => {
+    expect(model.accountRefusal(identity({ secondFactor: null }), now(), 'optional')).toBeNull();
+    expect(model.accountRefusal(identity({ secondFactor: null }), now(), 'required').code).toBe('mfa_required');
+    expect(model.accountRefusal(identity({ secondFactor: null, emailVerified: false }), now(), 'optional').code).toBe('email_not_verified');
+    expect(model.accountRefusal(identity({ secondFactor: null, authTime: now() - 3600 }), now(), 'optional').code).toBe('login_stale');
+  });
+
   it('limita as contas que uma pessoa administra', () => {
     expect(model.adminAccountLimitRefusal(model.MAX_ADMIN_ACCOUNTS - 1)).toBeNull();
     expect(model.adminAccountLimitRefusal(model.MAX_ADMIN_ACCOUNTS).code).toBe('account_limit');
@@ -139,6 +146,18 @@ describe('POST /api/account', () => {
     expect(res.status).toBe(401);
     expect((await res.json()).code).toBe('invalid_token');
     expect(accountsMock.touched).toBe(0);
+  });
+
+  it('com MFA_MODE=optional, sem segundo fator a conta é criada', async () => {
+    process.env.MFA_MODE = 'optional';
+    try {
+      identityMock.result = identity({ secondFactor: null });
+      const res = await call(ok);
+      expect(res.status).toBe(201);
+      expect(accountsMock.created.length).toBe(1);
+    } finally {
+      delete process.env.MFA_MODE;
+    }
   });
 
   it('sem segundo fator: 403 e nada é criado, nem a pessoa', async () => {

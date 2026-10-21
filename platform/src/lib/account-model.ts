@@ -3,7 +3,7 @@
 // nem Firebase.
 
 import type { Identity } from './identity';
-import { identityRefusal, type LoginRefusal } from './login-policy';
+import { identityRefusal, mfaMode, type LoginRefusal, type MfaMode } from './login-policy';
 import { isIdTokenShape } from './route-input';
 
 export type AccountKind = 'empresa' | 'pessoa';
@@ -86,10 +86,10 @@ const REFUSALS = {
 } satisfies Record<string, LoginRefusal>;
 
 // Antes de tocar no banco: e-mail verificado, login recente e segundo fator (quem cria é admin).
-export function accountRefusal(id: Identity, nowS: number): LoginRefusal | null {
+export function accountRefusal(id: Identity, nowS: number, mode: MfaMode = mfaMode()): LoginRefusal | null {
   const early = identityRefusal(id, nowS);
   if (early) return early;
-  return id.secondFactor ? null : REFUSALS.mfa;
+  return mode === 'optional' || id.secondFactor ? null : REFUSALS.mfa;
 }
 
 export function adminAccountLimitRefusal(adminAccounts: number): LoginRefusal | null {

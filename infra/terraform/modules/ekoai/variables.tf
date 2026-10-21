@@ -151,3 +151,14 @@ variable "signup_mode" {
     error_message = "signup_mode deve ser invite ou open."
   }
 }
+
+variable "mfa_mode" {
+  description = "Segundo fator (env MFA_MODE): `required` (administrador entra, cria e exclui conta com app autenticador, SPEC 009) ou `optional` (não exigido em lugar nenhum; quem ativou continua com o desafio). Só vale com auth_provider = identity."
+  type        = string
+  default     = "required"
+
+  validation {
+    condition     = contains(["required", "optional"], var.mfa_mode)
+    error_message = "mfa_mode deve ser required ou optional."
+  }
+}

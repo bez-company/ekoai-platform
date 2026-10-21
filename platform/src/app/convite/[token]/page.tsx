@@ -7,6 +7,7 @@ import InviteClosed from '@/components/auth/InviteClosed';
 import { authProvider } from '@/lib/auth';
 import { signupMode } from '@/lib/account-model';
 import { firebaseWebConfig } from '@/lib/firebase-config';
+import { mfaMode } from '@/lib/login-policy';
 import { hashInviteToken, isInviteToken } from '@/lib/invitation-model';
 import { previewInvitation } from '@/lib/accounts';
 
@@ -40,6 +41,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <IdentityEntry
           config={firebaseWebConfig()}
           signupOpen={signupMode() === 'open'}
+          mfaRequired={mfaMode() === 'required'}
           invite={{ token, email: preview.email, accountName: preview.accountName, inviterName: preview.inviterName, role: preview.role, expiresAt: preview.expiresAt }}
         />
       </Suspense>

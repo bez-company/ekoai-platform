@@ -85,6 +85,20 @@ describe('regras do login', () => {
     expect(policy.membershipRefusal(identity(), [member('acme', 'creator'), member('beta', 'viewer')])).toBeNull();
   });
 
+  it('MFA_MODE: sem valor ou desconhecido exige o segundo fator; só `optional` solta', () => {
+    expect(policy.mfaMode({})).toBe('required');
+    expect(policy.mfaMode({ MFA_MODE: 'required' })).toBe('required');
+    expect(policy.mfaMode({ MFA_MODE: 'OPTIONAL' })).toBe('required');
+    expect(policy.mfaMode({ MFA_MODE: 'off' })).toBe('required');
+    expect(policy.mfaMode({ MFA_MODE: 'optional' })).toBe('optional');
+  });
+
+  it('com MFA opcional o administrador entra sem segundo fator, mas sem conta continua recusado', () => {
+    expect(policy.membershipRefusal(identity(), [member('acme', 'admin')], 'optional')).toBeNull();
+    expect(policy.membershipRefusal(identity(), [member('acme', 'admin')], 'required').code).toBe('mfa_required');
+    expect(policy.membershipRefusal(identity(), [], 'optional').code).toBe('no_access');
+  });
+
   it('conta: a pedida, senão a última, senão a mais antiga', () => {
     const ms = [member('beta', 'viewer', '2026-03-01T00:00:00Z'), member('acme', 'creator', '2026-01-01T00:00:00Z')];
     expect(policy.pickTenant(ms, 'beta', null)).toEqual({ tenantId: 'beta', role: 'viewer' });

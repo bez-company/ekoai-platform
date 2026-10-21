@@ -18,19 +18,21 @@ import { firebaseAuth, type FirebaseWebConfig } from '@/lib/firebase-client';
 import { errorCode, firebaseMessage } from '@/lib/auth-flow';
 import { confirmationMatches } from '@/lib/account-deletion-model';
 
-type Props = { accountName: string; kind: 'pessoa' | 'empresa'; email: string; config: FirebaseWebConfig };
+type Props = { accountName: string; kind: 'pessoa' | 'empresa'; email: string; config: FirebaseWebConfig; mfaRequired: boolean };
 
-export default function DataPrivacy({ accountName, kind, email, config }: Props) {
+export default function DataPrivacy({ accountName, kind, email, config, mfaRequired }: Props) {
   const router = useRouter();
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  // Com MFA opcional o código só aparece se a conta tiver ativado o app autenticador por conta própria.
+  const [needCode, setNeedCode] = useState(mfaRequired);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const ready = confirmationMatches(typed, accountName) && password.length > 0 && code.length === 6;
+  const ready = confirmationMatches(typed, accountName) && password.length > 0 && (!needCode || code.length === 6);
 
   function reset() {
     setTyped('');
@@ -39,7 +41,7 @@ export default function DataPrivacy({ accountName, kind, email, config }: Props)
     setError('');
   }
 
-  // Reautentica (senha + código do app) e devolve um ID token com o segundo fator de agora.
+  // Reautentica (senha, e o código do app quando a conta tem as duas etapas) e devolve um ID token novo.
   async function freshIdToken(): Promise<string> {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -47,6 +49,7 @@ export default function DataPrivacy({ accountName, kind, email, config }: Props)
       return await cred.user.getIdToken(true);
     } catch (e) {
       if (errorCode(e) !== 'auth/multi-factor-auth-required') throw e;
+      if (code.length !== 6) throw Object.assign(new Error('precisa do código'), { code: 'ekoai/need-code' });
       const resolver = getMultiFactorResolver(auth, e as Parameters<typeof getMultiFactorResolver>[1]);
       const hint = resolver.hints.find((h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID);
       if (!hint) throw Object.assign(new Error('outro fator'), { code: 'ekoai/other-factor' });
@@ -71,6 +74,11 @@ export default function DataPrivacy({ accountName, kind, email, config }: Props)
       router.refresh();
     } catch (e) {
       const c = errorCode(e);
+      if (c === 'ekoai/need-code') {
+        setNeedCode(true);
+        setError('Sua conta tem verificação em duas etapas. Digite o código do app autenticador.');
+        return;
+      }
       setError(c === 'ekoai/other-factor' ? 'Sua conta usa outro tipo de verificação. Fale com o suporte da Ekoai.' : firebaseMessage(c));
     } finally {
       setBusy(false);
@@ -121,10 +129,12 @@ export default function DataPrivacy({ accountName, kind, email, config }: Props)
           >
             <Field label={`Digite ${accountName} para confirmar`} value={typed} onChange={setTyped} autoComplete="off" autoFocus disabled={busy} />
             <Field label="Sua senha" type="password" value={password} onChange={setPassword} autoComplete="current-password" disabled={busy} />
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold">Código do app autenticador</p>
-              <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy} />
-            </div>
+            {needCode && (
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">Código do app autenticador</p>
+                <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy} />
+              </div>
+            )}
             {error && <ErrorLine>{error}</ErrorLine>}
             <div className="flex justify-end gap-2">
               <button

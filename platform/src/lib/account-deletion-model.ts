@@ -1,8 +1,9 @@
 // account-deletion-model.ts: as regras de excluir uma conta, sem I/O (SPEC 011 R8). A exclusão é
-// definitiva, então exige duas provas além da sessão: o NOME da conta digitado e um segundo fator
-// RECENTE, vindo de uma reautenticação (um ID token novo, com senha e código do app).
+// definitiva, então exige duas provas além da sessão: o NOME da conta digitado e uma reautenticação
+// RECENTE (um ID token novo, com a senha e, com MFA_MODE=required, o código do app).
 
 import { isIdTokenShape } from './route-input';
+import { mfaMode, type MfaMode } from './login-policy';
 import type { Identity } from './identity';
 
 // Quanto tempo vale a reautenticação: a pessoa acabou de confirmar com o código do app.
@@ -39,12 +40,13 @@ export const REAUTH_MESSAGES: Record<ReauthRefusal, string> = {
   stale: 'A confirmação venceu. Digite a senha e o código do app de novo.',
 };
 
-// O ID token de uma reautenticação: é da mesma pessoa da sessão, trouxe o segundo fator e a
-// autenticação (auth_time) é de poucos minutos atrás. Token antigo com o claim do login não serve.
-export function reauthRefusal(identity: Identity, expectedUid: string | null, nowMs = Date.now()): ReauthRefusal | null {
+// O ID token de uma reautenticação: é da mesma pessoa da sessão, trouxe o segundo fator (só se o
+// MFA for obrigatório) e a autenticação (auth_time) é de poucos minutos atrás. Token antigo com o
+// claim do login não serve.
+export function reauthRefusal(identity: Identity, expectedUid: string | null, nowMs = Date.now(), mode: MfaMode = mfaMode()): ReauthRefusal | null {
   if (!expectedUid || identity.uid !== expectedUid) return 'wrong_person';
   if (!identity.emailVerified) return 'email_not_verified';
-  if (!identity.secondFactor) return 'no_second_factor';
+  if (mode === 'required' && !identity.secondFactor) return 'no_second_factor';
   if (nowMs / 1000 - identity.authTime > REAUTH_MAX_AGE_S || identity.authTime > nowMs / 1000 + 60) return 'stale';
   return null;
 }
