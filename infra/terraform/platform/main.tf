@@ -43,6 +43,12 @@ variable "site_project_id" {
   default     = ""
 }
 
+variable "saint_jardin_projects" {
+  description = "Os projetos do bot (saint-jardin-staging e saint-jardin-prod) já existem. Verdadeiro só depois de criá-los: o orçamento lê o número de cada um."
+  type        = bool
+  default     = false
+}
+
 locals {
   # Orçamento mensal por projeto, em reais. Os valores seguem o nível de cada projeto (tabela de
   # níveis da SPEC 013): beta cerca de US$ 25, lab cerca de US$ 5. O staging da Ekoai fica mais
@@ -56,6 +62,8 @@ locals {
       "bez-company-sandbox" = 30
     },
     var.site_project_id == "" ? {} : { (var.site_project_id) = 30 },
+    # Bot de atendimento (SPEC 014): beta, f1-micro. O staging só liga o banco nos testes.
+    var.saint_jardin_projects ? { "saint-jardin-prod" = 60, "saint-jardin-staging" = 30 } : {},
   )
 
   # Teto do conjunto: o limite que o Matheus fixou para a infraestrutura fixa da BEZ.

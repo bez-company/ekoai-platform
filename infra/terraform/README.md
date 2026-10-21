@@ -102,6 +102,36 @@ cujo workspace já foi arquivado, e a imagem não guarda o código original (os 
 imagem (digest `sha256:88a18b7f...`) é hoje o único artefato do site; ela está no registry de
 `bez-site-prod`. Sem o código não há deploy por GitHub Actions.
 
+## Bot de atendimento (`envs/saint-jardin-staging/` e `envs/saint-jardin-prod/`)
+
+Bot do espaço de eventos ([SPEC 014](../../docs/specs/014-bot-de-atendimento-no-google-cloud.md)). Dois
+projetos, `saint-jardin-staging` e `saint-jardin-prod`, numa pasta `saint-jardin`, nível `beta`, criados
+pelo mesmo módulo (`modules/saint-jardin`): rede privada, Cloud SQL Postgres 17 `db-f1-micro`, Cloud Run
+(`saint-jardin-bot` e o job `saint-jardin-migrate`), Cloud Scheduler a cada minuto em `/api/process` com
+token OIDC, bucket privado `<projeto>-propostas` (PDFs e vídeo, só leitura para o bot, URL assinada sem
+chave), Secret Manager, Artifact Registry e Workload Identity restrito a
+`bez-company/saint-jardin-chatbot` na `main`. O código e o deploy ficam no repositório do bot.
+
+```bash
+gcloud resource-manager folders create --display-name=saint-jardin --organization=<id da organização>
+for env in staging prod; do
+  gcloud projects create saint-jardin-$env --folder=<id da pasta> --labels=product=saint-jardin,env=$env,tier=beta
+  gcloud billing projects link saint-jardin-$env --billing-account=<id da conta de faturamento>
+  gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
+    storage.googleapis.com --project=saint-jardin-$env
+done
+cd infra/terraform/envs/saint-jardin-staging && terraform init && terraform apply   # 1. base, sem imagem
+# o repositório do bot constrói e publica a imagem (deploy.yml) e depois:
+terraform apply -var deploy_workloads=true -var bot_image=<registry>/bot@sha256:...
+```
+
+Depois do primeiro apply: preencher os segredos (`terraform output secrets_to_fill`, com
+`gcloud secrets versions add`), subir os arquivos das propostas para o bucket, e gravar no environment do
+GitHub (`staging`, `prod`) as variáveis `GCP_PROJECT`, `WIF_PROVIDER` e `DEPLOY_SA`. O Scheduler nasce
+pausado nos dois: em produção só liga no cutover (`-var schedules_paused=false`), quando o webhook da Meta
+passa a apontar para a URL nova. Para criar o orçamento dos dois projetos: `terraform apply
+-var saint_jardin_projects=true` em `platform/`.
+
 ## Site da Ekoai (`envs/ekoai-site/`)
 
 Landing page de `ekoai.com.br` ([SPEC 015](../../docs/specs/015-site-da-ekoai-em-ekoai-com-br.md),
