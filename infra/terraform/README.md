@@ -11,40 +11,9 @@ envs/staging/      projeto ekoai-staging, banco f1-micro, sem proteção contra 
 envs/prod/         projeto ekoai-prod, banco f1-micro, proteção contra exclusão e uptime check
 ```
 
-O estado do Terraform de todos os ambientes fica no bucket `bez-platform-tfstate` (versionado, projeto
-`bez-platform`), um prefixo por ambiente. Os ambientes da Ekoai são só uma parte da BEZ: o que é da
-organização inteira mora em `platform/` e `foundation/` ([SPEC 013](../../docs/specs/013-bez-cloud-platform.md)).
-
-```
-platform/      projeto bez-platform: orçamentos por projeto e o dataset da exportação de faturamento
-foundation/    políticas de organização (valem para todas as pastas e projetos)
-envs/bez-site/ projeto bez-site-prod: site da BEZ (Cloud Run, Firebase Hosting, domínio)
-```
-
-## Bootstrap do projeto de plataforma (uma vez, já feito)
-
-O projeto `bez-platform` guarda o estado do Terraform de todos e o dataset da exportação de
-faturamento. O Terraform não o cria: pastas, projetos e o bucket do estado nascem à mão. O ID
-`bez-sandbox` estava em uso no mundo, então o sandbox é `bez-company-sandbox`.
-
-```bash
-ORG=<id da organização>; BILLING=<id da conta de faturamento>
-PF=$(gcloud resource-manager folders create --display-name=bez-platform --organization=$ORG --format='value(name)')
-SF=$(gcloud resource-manager folders create --display-name=sandbox --organization=$ORG --format='value(name)')
-gcloud projects create bez-platform --folder=${PF#folders/} --labels=product=platform,env=prod,tier=production
-gcloud projects create bez-company-sandbox --folder=${SF#folders/} --labels=product=sandbox,env=dev,tier=lab
-for p in bez-platform bez-company-sandbox; do gcloud billing projects link $p --billing-account=$BILLING; done
-gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
-  storage.googleapis.com cloudbilling.googleapis.com billingbudgets.googleapis.com orgpolicy.googleapis.com \
-  bigquery.googleapis.com --project=bez-platform
-gcloud storage buckets create gs://bez-platform-tfstate --project=bez-platform --location=southamerica-east1 \
-  --uniform-bucket-level-access --public-access-prevention
-gcloud storage buckets update gs://bez-platform-tfstate --versioning
-```
-
-Em 21/10/2026 os estados `foundation`, `prod` e `staging` foram copiados do `ekoai-prod-tfstate`, com
-o hash conferido, e os backends passaram para o bucket novo. O bucket antigo fica até a próxima
-release passar limpa e é apagado depois.
+O estado do Terraform fica no bucket `bez-platform-tfstate` (do projeto `bez-platform`), um prefixo por
+ambiente: `staging`, `prod` e `ekoai-site`. Pastas, projetos, orçamentos, políticas e o próprio bucket são da
+plataforma da BEZ, no repositório `bez-company/bez-platform`; aqui fica só a Ekoai.
 
 ## Bootstrap da Ekoai (uma vez, já feito)
 
@@ -64,73 +33,6 @@ done
 
 Criar a pasta pede o papel `roles/resourcemanager.folderAdmin` no nível da organização
 (`organizationAdmin` sozinho não basta).
-
-## Site da BEZ (`envs/bez-site/`)
-
-Projeto `bez-site-prod`, pasta `bez-site`, nível `beta`, só produção (uma página, sem banco): Cloud Run
-com mínimo 0 e máximo 2 em São Paulo, Firebase Hosting na frente (o Cloud Run em São Paulo não tem
-domínio próprio nativo), conta de serviço própria sem papel nenhum, uptime check no domínio e alerta.
-
-```bash
-gcloud resource-manager folders create --display-name=bez-site --organization=<id da organização>
-gcloud projects create bez-site-prod --folder=<id da pasta> --labels=product=bez-site,env=prod,tier=beta
-gcloud billing projects link bez-site-prod --billing-account=<id da conta de faturamento>
-gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
-  run.googleapis.com artifactregistry.googleapis.com firebase.googleapis.com firebasehosting.googleapis.com \
-  logging.googleapis.com monitoring.googleapis.com --project=bez-site-prod
-cd infra/terraform/envs/bez-site && terraform init && terraform apply            # 1. base
-# copie a imagem para o registry (docker pull, tag, push; o digest se mantém) e depois:
-terraform apply -var site_image=<registry>/bez-website@sha256:... -var uptime_host=bezcompany.com.br
-```
-
-**Limite de projetos por faturamento.** A conta de faturamento de teste aceita 5 projetos vinculados
-("Cloud billing quota exceeded"). O sandbox ficou sem faturamento até sobrar vaga (ele está vazio) e o
-projeto padrão antigo sai depois de 48 horas de observação. Pedir aumento de cota ou converter a conta
-para paga antes de criar os projetos do bot e do Pilar.
-
-**Domínio do site (migração ao vivo, sem tirar o site do ar).** O Firebase migra um domínio de um site
-para outro quando o DNS passa a apontar para o novo. Foram só dois registros no GoDaddy:
-`TXT @ hosting-site=bezcompany` (no lugar de `hosting-site=bez-company`) e
-`CNAME www bezcompany.web.app.` (no lugar de `bez-company.web.app.`). O A (`199.36.158.100`), o MX, o SPF
-e a verificação do Google ficam como estão. O apex passou em cerca de 1 minuto; o `www` esperou o cache
-de 1 hora do CNAME antigo. Para voltar atrás, restaure os dois registros e recrie os domínios no site
-antigo.
-
-**Código-fonte.** O repositório `bez-company/bez-website` não tem o código do Next.js: só marca e
-design system. A imagem em produção foi construída de um diretório de trabalho que não foi commitado e
-cujo workspace já foi arquivado, e a imagem não guarda o código original (os sourcemaps vêm vazios). A
-imagem (digest `sha256:88a18b7f...`) é hoje o único artefato do site; ela está no registry de
-`bez-site-prod`. Sem o código não há deploy por GitHub Actions.
-
-## Bot de atendimento (`envs/saint-jardin-staging/` e `envs/saint-jardin-prod/`)
-
-Bot do espaço de eventos ([SPEC 014](../../docs/specs/014-bot-de-atendimento-no-google-cloud.md)). Dois
-projetos, `saint-jardin-staging` e `saint-jardin-prod`, numa pasta `saint-jardin`, nível `beta`, criados
-pelo mesmo módulo (`modules/saint-jardin`): rede privada, Cloud SQL Postgres 17 `db-f1-micro`, Cloud Run
-(`saint-jardin-bot` e o job `saint-jardin-migrate`), Cloud Scheduler a cada minuto em `/api/process` com
-token OIDC, bucket privado `<projeto>-propostas` (PDFs e vídeo, só leitura para o bot, URL assinada sem
-chave), Secret Manager, Artifact Registry e Workload Identity restrito a
-`bez-company/saint-jardin-chatbot` na `main`. O código e o deploy ficam no repositório do bot.
-
-```bash
-gcloud resource-manager folders create --display-name=saint-jardin --organization=<id da organização>
-for env in staging prod; do
-  gcloud projects create saint-jardin-$env --folder=<id da pasta> --labels=product=saint-jardin,env=$env,tier=beta
-  gcloud billing projects link saint-jardin-$env --billing-account=<id da conta de faturamento>
-  gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
-    storage.googleapis.com --project=saint-jardin-$env
-done
-cd infra/terraform/envs/saint-jardin-staging && terraform init && terraform apply   # 1. base, sem imagem
-# o repositório do bot constrói e publica a imagem (deploy.yml) e depois:
-terraform apply -var deploy_workloads=true -var bot_image=<registry>/bot@sha256:...
-```
-
-Depois do primeiro apply: preencher os segredos (`terraform output secrets_to_fill`, com
-`gcloud secrets versions add`), subir os arquivos das propostas para o bucket, e gravar no environment do
-GitHub (`staging`, `prod`) as variáveis `GCP_PROJECT`, `WIF_PROVIDER` e `DEPLOY_SA`. O Scheduler nasce
-pausado nos dois: em produção só liga no cutover (`-var schedules_paused=false`), quando o webhook da Meta
-passa a apontar para a URL nova. Para criar o orçamento dos dois projetos: `terraform apply
--var saint_jardin_projects=true` em `platform/`.
 
 ## Site da Ekoai (`envs/ekoai-site/`)
 
@@ -156,38 +58,6 @@ terraform apply -var connect_domain=true -var uptime_host=ekoai.com.br
 
 `app.ekoai.com.br` é da plataforma (BEZ-42, Load Balancer): o Hosting só repassa o cookie
 `__session` ao Cloud Run, e o login usa outro.
-
-## Orçamentos e exportação de faturamento (`platform/`)
-
-Um orçamento mensal por projeto (50%, 80%, 100% e previsão de 100%) mais o global de R$ 330, todos
-sobre o custo **antes** dos créditos, e o dataset `billing_export` em São Paulo. O aviso vai por
-e-mail para quem administra a conta de faturamento.
-
-```bash
-export GOOGLE_OAUTH_ACCESS_TOKEN=$(CLOUDSDK_ACTIVE_CONFIG_NAME=bez gcloud auth print-access-token)
-export TF_VAR_billing_account=<id da conta de faturamento>   # fora do repositório
-export TF_VAR_site_project_id=<projeto onde o site roda hoje>
-cd infra/terraform/platform && terraform init && terraform plan && terraform apply
-```
-
-A exportação de faturamento para o BigQuery só se liga pelo console (não há API): Faturamento >
-Exportação do faturamento > Custo de uso padrão e detalhado > dataset `billing_export` do
-`bez-platform`. Ela não recupera o passado.
-
-Projeto novo entra em `local.project_budgets` com o valor do nível dele.
-
-## Políticas de organização (`foundation/`)
-
-Valem para a organização inteira, então toda pasta e todo projeto novo as herda: sem criar chave de
-conta de serviço, Cloud SQL sem IP público, bucket sem acesso público e sem a rede `default`. A
-subida de chave (`iam.disableServiceAccountKeyUpload`) já vem ligada na organização por padrão do
-Google. Aplica-se uma vez, com a conta administradora, e só ela precisa de
-`roles/orgpolicy.policyAdmin`, que o Google só deixa conceder no nível da organização: dê o papel,
-aplique e revogue (`export TF_VAR_org_id=<id da organização>`, depois `terraform apply` em
-`infra/terraform/foundation`). `run.requireInvokerIam` fica de fora de propósito: a plataforma é
-pública pela opção `invoker_iam_disabled`. A restrição de região (`gcp.resourceLocations`) não foi
-aplicada: segredos com replicação automática, o endpoint global do Vertex e o Identity Platform
-podem esbarrar nela, e só entra depois de testada no sandbox.
 
 ## Aplicar
 

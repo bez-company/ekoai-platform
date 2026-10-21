@@ -2,7 +2,7 @@
 
 - **Status:** aceito
 - **Data:** 2026-10-16
-- **Mesmo desenho de:** ADR 0011 do Saint-Jardin e o job de deploy do Pilar
+- **Mesmo desenho de:** o desenho de migrations automáticas que já existia em outros produtos da BEZ
 
 ## Contexto
 

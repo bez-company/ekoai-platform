@@ -3,7 +3,7 @@
 - **Status:** aceito
 - **Data:** 2026-10-21
 - **Specs que dependem:** [SPEC 015](../specs/015-site-da-ekoai-em-ekoai-com-br.md)
-- **Estende:** [ADR 0015](0015-bez-cloud-platform.md) (um projeto por produto e ambiente)
+- **Estende:** ADR 0015 da plataforma BEZ, repositório `bez-platform` (um projeto por produto e ambiente)
 
 ## Contexto
 

@@ -34,8 +34,8 @@ Claude Design antes do código, e o protótipo precisa de uma base visual.
   Sora e DM Mono; cartões com raio 28, campos 20, botões e etiquetas em pílula; barra lateral em
   ameixa mesmo no tema claro; grafismo de arcos de eco. Logo: cinco gotas em formação em V, a da
   frente em pêssego (`platform/src/components/Logo.tsx`, `platform/src/app/icon.svg`).
-- **BEZ (a holding) = design system 01, "Grafite e sinal"**, com a asa. Mora no repositório
-  `bez-company/bez-website`. As duas marcas não se misturam: a Ekoai não usa coral, Geist nem a
+- **BEZ (a holding) = design system 01, "Grafite e sinal"**, com a asa. Mora em outro
+  repositório da BEZ. As duas marcas não se misturam: a Ekoai não usa coral, Geist nem a
   asa; a BEZ não usa ameixa, pêssego, Sora nem as gotas.
 - **Onde estão os tokens:** `platform/src/app/globals.css` (canais RGB, claro e escuro por
   `data-theme`) mapeados em `platform/tailwind.config.ts` (`bg-page`, `bg-raised`, `text-fg`,
