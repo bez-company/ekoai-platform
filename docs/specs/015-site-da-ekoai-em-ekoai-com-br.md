@@ -5,7 +5,7 @@
   protótipo BEZ-133, repositório e CI BEZ-134, implementação BEZ-136, domínio BEZ-137. Plataforma:
   cobrança BEZ-135, limite de taxa no cadastro BEZ-29, domínio do app BEZ-42, termos e privacidade BEZ-32.
 - **Depende de:** [ADR 0016](../adr/0016-site-da-ekoai-estatico-no-hosting-do-ekoai-prod.md),
-  [ADR 0015](../adr/0015-bez-cloud-platform.md), [ADR 0011](../adr/0011-design-system-neutro-ate-a-marca.md)
+  ADR 0015 da plataforma BEZ (repositório `bez-platform`), [ADR 0011](../adr/0011-design-system-neutro-ate-a-marca.md)
   (design system por tokens)
 - **Repositório do site:** `bez-company/ekoai-website` (privado)
 

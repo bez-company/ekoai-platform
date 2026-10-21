@@ -57,7 +57,7 @@ module "ekoai" {
 
   # f1-micro até haver cliente pagante (US$ 11,53 por mês em São Paulo, contra US$ 38,33 do g1-small):
   # sem SLA, CPU compartilhada e 0,6 GB de RAM. Subir para db-g1-small ou uma instância dedicada
-  # reinicia o banco por alguns minutos. Custo medido em docs/analises/2026-10-20-custo-infraestrutura.md.
+  # reinicia o banco por alguns minutos. Custo medido na análise de custo da plataforma BEZ (repositório bez-platform).
   sql_tier         = "db-f1-micro"
   sql_availability = "ZONAL"
   protect_data     = true

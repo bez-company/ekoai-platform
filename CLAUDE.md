@@ -3,6 +3,13 @@
 Repo público da BEZ (`bez-company/ekoai-platform`): nunca commitar e-mail, token, ID de projeto
 sensível ou dado de cliente. Plano e decisões: `docs/specs/` e `docs/adr/`. Operação: `docs/runbook.md`.
 
+## Só a Ekoai neste repositório
+
+Código, infra, spec, ADR, runbook e análise **da Ekoai**. Nada do Saint-Jardin, do site da BEZ, da Pilar nem da
+organização (políticas, orçamentos, estado do Terraform, SPEC 013): cada um mora no repositório do próprio
+produto, e o da organização é `bez-company/bez-platform`. `tests/product-boundaries.test.js` reprova menção
+a outro produto. Este repositório é público.
+
 ## Esteira: feature → staging → produção
 
 Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-producao.md)):
