@@ -49,6 +49,7 @@ module "ekoai" {
   env           = "staging"
   deploy_branch = "staging"
 
+  tier             = "beta"
   deploy_workloads = var.deploy_workloads
   platform_image   = var.platform_image
   jobs_image       = var.jobs_image

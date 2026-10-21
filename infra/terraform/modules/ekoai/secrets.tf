@@ -2,7 +2,7 @@ resource "google_secret_manager_secret" "s" {
   for_each  = toset(concat(["database-url"], local.generated_secrets, local.integration_secrets))
   project   = var.project_id
   secret_id = each.value
-  labels    = { app = local.name, env = var.env }
+  labels    = local.labels
 
   replication {
     user_managed {

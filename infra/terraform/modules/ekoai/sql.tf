@@ -23,9 +23,9 @@ resource "google_sql_database_instance" "main" {
 
     backup_configuration {
       enabled                        = true
-      point_in_time_recovery_enabled = true
+      point_in_time_recovery_enabled = local.tier_profile.pitr
       start_time                     = "06:00" # UTC, 03:00 em Brasília
-      transaction_log_retention_days = 7
+      transaction_log_retention_days = local.tier_profile.pitr ? 7 : null
       backup_retention_settings {
         retained_backups = 14
       }
@@ -46,7 +46,14 @@ resource "google_sql_database_instance" "main" {
       query_insights_enabled = true
     }
 
-    user_labels = { app = local.name, env = var.env }
+    user_labels = local.labels
+  }
+
+  # Ligar e desligar o banco do staging é operação (scripts/sql-power.sh), não Terraform: sem isto o
+  # próximo apply religaria a máquina parada. Vale para os dois ambientes; em produção a política
+  # nasce ALWAYS e não muda por aqui.
+  lifecycle {
+    ignore_changes = [settings[0].activation_policy]
   }
 
   depends_on = [google_service_networking_connection.sql]

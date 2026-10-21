@@ -14,7 +14,7 @@ resource "google_cloud_run_v2_service" "platform" {
   location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = var.protect_data
-  labels              = { app = local.name, env = var.env }
+  labels              = local.labels
 
   # A organização barra `allUsers` no IAM (compartilhamento restrito a domínio). O app já exige
   # sessão em toda rota privada, então a checagem de IAM do Cloud Run fica desligada.
@@ -27,7 +27,7 @@ resource "google_cloud_run_v2_service" "platform" {
 
     scaling {
       min_instance_count = var.platform_min_instances
-      max_instance_count = var.platform_max_instances
+      max_instance_count = coalesce(var.platform_max_instances, local.tier_profile.max_instances)
     }
 
     vpc_access {
@@ -164,7 +164,7 @@ resource "google_cloud_run_v2_job" "job" {
   name                = "${local.name}-${each.key}"
   location            = var.region
   deletion_protection = var.protect_data
-  labels              = { app = local.name, env = var.env }
+  labels              = local.labels
 
   template {
     parallelism = 1
@@ -195,6 +195,11 @@ resource "google_cloud_run_v2_job" "job" {
         env {
           name  = "STATE_BACKEND"
           value = "postgres"
+        }
+        # Pool de 2: um job usa uma ou duas conexões, e o f1-micro só tem 25 (a conta está no runbook).
+        env {
+          name  = "DB_POOL_MAX"
+          value = "2"
         }
         env {
           name  = "STORAGE_BUCKET"

@@ -22,7 +22,7 @@ resource "google_kms_crypto_key" "social_tokens" {
   key_ring        = google_kms_key_ring.main.id
   purpose         = "ENCRYPT_DECRYPT"
   rotation_period = "7776000s" # 90 dias; as versões antigas continuam decifrando o que cifraram
-  labels          = { app = local.name, env = var.env }
+  labels          = local.labels
 
   version_template {
     algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"

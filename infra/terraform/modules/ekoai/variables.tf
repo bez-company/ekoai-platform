@@ -8,6 +8,17 @@ variable "env" {
   type        = string
 }
 
+variable "tier" {
+  description = "Nível de maturidade do produto (SPEC 013): lab, beta ou production. Vira o label `tier` e define os padrões de escala e de recuperação."
+  type        = string
+  default     = "beta"
+
+  validation {
+    condition     = contains(["lab", "beta", "production"], var.tier)
+    error_message = "tier deve ser lab, beta ou production."
+  }
+}
+
 variable "region" {
   type    = string
   default = "southamerica-east1"
@@ -78,8 +89,9 @@ variable "platform_min_instances" {
 }
 
 variable "platform_max_instances" {
-  type    = number
-  default = 3
+  description = "Máximo de instâncias da plataforma. Nulo usa o padrão do nível (lab 2, beta 3, production 10). O máximo protege o banco de conexões, não só a fatura."
+  type        = number
+  default     = null
 }
 
 variable "schedules_paused" {

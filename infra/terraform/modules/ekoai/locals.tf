@@ -5,6 +5,21 @@ data "google_project" "this" {
 locals {
   name = "ekoai"
 
+  # Labels de todo recurso: `product`, `env` e `tier` alimentam o painel de custo por produto
+  # (SPEC 013). `app` fica por compatibilidade com os filtros que já existiam.
+  labels = { app = local.name, product = local.name, env = var.env, tier = var.tier }
+
+  # Padrões por nível (tabela de níveis da SPEC 013). O que muda entre níveis é configuração.
+  tier_profile = {
+    lab        = { max_instances = 2, pitr = false }
+    beta       = { max_instances = 3, pitr = true }
+    production = { max_instances = 10, pitr = true }
+  }[var.tier]
+
+  # Conexões padrão do Cloud SQL por tamanho de máquina (documentação do Google, 20/10/2026).
+  # Servem de base ao alerta de conexões; instância maior cai no valor de 100.
+  sql_max_connections = lookup({ "db-f1-micro" = 25, "db-g1-small" = 50 }, var.sql_tier, 100)
+
   apis = [
     "apikeys.googleapis.com",
     "artifactregistry.googleapis.com",
