@@ -55,6 +55,14 @@ resource "google_project_iam_member" "deploy_registry" {
   member  = "serviceAccount:${google_service_account.deploy.email}"
 }
 
+# Leitura do Cloud SQL em todo ambiente: o deploy confere o estado do banco antes de migrar (e a
+# produção para se ele não estiver de pé). Só leitura; ligar o banco parado é o papel abaixo, só do staging.
+resource "google_project_iam_member" "deploy_sql_viewer" {
+  project = var.project_id
+  role    = "roles/cloudsql.viewer"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
 # Staging sob demanda: o deploy liga o banco parado antes de migrar. O papel só lê e atualiza a
 # instância, e só existe onde `deploy_can_power_db` está ligado.
 resource "google_project_iam_custom_role" "sql_power" {
