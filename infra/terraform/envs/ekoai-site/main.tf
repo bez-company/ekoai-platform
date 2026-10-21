@@ -216,7 +216,7 @@ output "workload_identity_provider" {
   value = google_iam_workload_identity_pool_provider.site.name
 }
 
-# Registros que o Registro.br precisa receber quando o domínio ligar (TXT, A e CNAME).
+# Registros que o DNS (GoDaddy) precisa receber quando o domínio ligar (TXT, A e CNAME).
 output "dns_records" {
   value = {
     apex = try(google_firebase_hosting_custom_domain.apex[0].required_dns_updates, null)

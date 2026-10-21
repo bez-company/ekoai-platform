@@ -1,6 +1,6 @@
 # SPEC 015: site da Ekoai em ekoai.com.br, vendendo direto
 
-- **Status:** em andamento (21/10/2026). Infra aplicada; protótipo v1 publicado, aguarda aprovação.
+- **Status:** no ar em `ekoai.com.br` desde 21/10/2026 (protótipo v2 aprovado, implementação no ekoai-website #4). Indexação desligada até o preço entrar.
 - **Cartões:** pai [BEZ-131](https://linear.app/bez-company/issue/BEZ-131); spec e infra BEZ-132,
   protótipo BEZ-133, repositório e CI BEZ-134, implementação BEZ-136, domínio BEZ-137. Plataforma:
   cobrança BEZ-135, limite de taxa no cadastro BEZ-29, domínio do app BEZ-42, termos e privacidade BEZ-32.
@@ -11,7 +11,7 @@
 
 ## Problema
 
-O domínio `ekoai.com.br` foi registrado no Registro.br (DNS do próprio Registro.br, nenhum registro
+O domínio `ekoai.com.br` foi registrado e o DNS é servido pela GoDaddy (`ns09` e `ns10.domaincontrol.com`; nenhum registro
 criado). A Ekoai não tem página pública: quem ouve falar do produto não tem onde entender o que é,
 ver o preço e assinar.
 
@@ -48,6 +48,11 @@ cadastro aberto com limite de taxa, CNPJ ativo no provedor de pagamento.
 Consequência para esta SPEC: a página pode ficar pronta antes da cobrança, mas **só vai ao ar quando o
 CTA leva a uma compra que funciona**. Uma página que vende algo que ainda não se compra queima a
 primeira impressão.
+
+**Atualização (21/10/2026, decisão do Matheus):** publicar já, mesmo com o preço em "R$ XX", sem
+`/termos` e `/privacidade` e com os CTAs apontando para `app.ekoai.com.br`, que ainda não tem DNS. Esses
+pontos seguem nos cartões BEZ-135, BEZ-32 e BEZ-42. Para não levar o "R$ XX" ao Google, a indexação
+continua desligada (`LAUNCHED = false` no site) até o preço entrar.
 
 ## Requisitos
 
@@ -88,7 +93,7 @@ sequenceDiagram
   participant M as Matheus
   participant TF as Terraform (envs/ekoai-site)
   participant FH as Firebase Hosting
-  participant RB as Registro.br (DNS)
+  participant RB as GoDaddy (DNS)
   M->>TF: apply -var connect_domain=true
   TF->>FH: custom domain ekoai.com.br e www
   FH-->>TF: registros pedidos (output dns_records)
@@ -99,7 +104,7 @@ sequenceDiagram
 ```
 
 Os registros exatos vêm do output `dns_records` (o Firebase pode pedir um TXT de verificação além do
-A e do CNAME). No Registro.br: Domínios › `ekoai.com.br` › DNS › Editar zona. Não criar nada em
+A e do CNAME). Na GoDaddy: Portfólio de domínios › `ekoai.com.br` › DNS › Registros DNS. O apex vinha com um `A` "Parked" (15.197.148.33 e 3.33.130.190) e o `www` com CNAME para o apex: os dois foram trocados em 21/10/2026. Não criar nada em
 `app.` (BEZ-42) nem MX (Workspace, BEZ-87).
 
 ## Verificação
