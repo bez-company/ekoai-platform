@@ -171,3 +171,18 @@ Limpeza, nesta ordem: apagar o job e o segredo; esperar a operação `CLONE` ter
 recusa mudança); `gcloud sql instances patch <clone> --no-deletion-protection` (o clone herda a proteção do
 original); `gcloud sql instances delete <clone>`. Confira o nome duas vezes: o banco de produção continua com a
 proteção ligada.
+
+## Dependências e alertas do Dependabot
+
+- As PRs do Dependabot apontam para a `staging` (`.github/dependabot.yml`), nunca para a `main`. Os alertas de
+  segurança são avaliados na branch padrão (`main`) e só fecham depois da release que leva a correção.
+- O CI reprova `npm audit --omit=dev --audit-level=high` na raiz e na plataforma. Dependência de desenvolvimento
+  não bloqueia, mas se triam os críticos (o vitest 3 e o tinypool foram críticos em 21/10/2026).
+- O Next 15 fixa um `postcss` exato (8.4.31, vulnerável). A plataforma sobrescreve para `^8.5.30`
+  (`overrides.next.postcss` em `platform/package.json`) e o `@grpc/grpc-js` do Firebase para `^1.14.6`. O npm não
+  refaz sozinho a resolução de um `postcss` já gravado no lock: ao mudar o override, remova a entrada
+  `node_modules/next/node_modules/postcss` do `package-lock.json` antes do `npm install`. Ao subir o Next, confira
+  se o override ainda é necessário.
+- **Exceção aceita:** sobram 7 avisos do `npm audit` na plataforma (`braces`, `micromatch`, `chokidar`, `fast-glob`,
+  `postcss-nested`, `postcss-selector-parser`, `tailwindcss`), todos da cadeia do Tailwind 3, só em build e fora do
+  que roda em produção. Saem com a migração para o Tailwind 4, que é mudança maior e entra à parte.

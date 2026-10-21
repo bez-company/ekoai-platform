@@ -189,14 +189,14 @@ jobs:
           fi
           ./gitleaks git . --no-banner --redact --log-opts="$range"
 
-      # A raiz (jobs do GitHub Actions) bloqueia a partir de "alta". A plataforma, que fica
-      # exposta na internet, bloqueia "crítica": o que sobra nela é o PostCSS embutido no
-      # Next 15 (só em build, corrige no Next 16, mudança maior que entra à parte).
+      # As duas bloqueiam a partir de "alta" nas dependências de produção. O PostCSS que o Next 15
+      # fixa foi trocado por um corrigido (override em platform/package.json); se um dia o Next
+      # voltar a fixar uma versão vulnerável, o gate reprova aqui.
       - name: Dependências da raiz
         run: npm audit --omit=dev --audit-level=high
       - name: Dependências da plataforma
         working-directory: platform
-        run: npm audit --omit=dev --audit-level=critical
+        run: npm audit --omit=dev --audit-level=high
 
   data-layer:
     name: Camada de dados no Postgres
