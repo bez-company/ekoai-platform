@@ -7,7 +7,7 @@
 
 ## Contexto
 
-O domínio `ekoai.com.br` foi registrado no Registro.br e a Ekoai não tem landing page. A página
+O domínio `ekoai.com.br` foi registrado (DNS na GoDaddy) e a Ekoai não tem landing page. A página
 apresenta o produto e leva a pessoa a criar a conta pagante (decisão do Matheus, 21/10/2026). Ela não
 tem login, banco nem formulário: todo CTA é um link para o app. A conta de faturamento de teste só
 aceita 5 projetos vinculados e já está no limite (SPEC 013, Etapa 2).

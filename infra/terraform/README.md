@@ -114,12 +114,12 @@ site próprio do Firebase Hosting (`ekoai`) no projeto `ekoai-prod`, sem Cloud R
 cd infra/terraform/envs/ekoai-site && terraform init && terraform apply    # base (aplicada em 21/10/2026)
 ```
 
-**Domínio da Ekoai.** Só com a página pronta (BEZ-137). O DNS é o do próprio Registro.br.
+**Domínio da Ekoai.** Só com a página pronta (BEZ-137). O DNS é servido pela GoDaddy (`ns09` e `ns10.domaincontrol.com`).
 
 ```bash
 terraform apply -var connect_domain=true
 terraform output dns_records      # registros que o Firebase pede para o apex e o www
-# Registro.br › ekoai.com.br › DNS › Editar zona: criar o TXT, o A do apex e o CNAME do www
+# GoDaddy › ekoai.com.br › DNS: trocar o A "Parked" pelo do Hosting, criar o TXT e apontar o CNAME do www
 # certificado emitido (minutos a 24 h) e depois:
 terraform apply -var connect_domain=true -var uptime_host=ekoai.com.br
 ```
