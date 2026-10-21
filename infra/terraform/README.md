@@ -96,11 +96,16 @@ e a verificação do Google ficam como estão. O apex passou em cerca de 1 minut
 de 1 hora do CNAME antigo. Para voltar atrás, restaure os dois registros e recrie os domínios no site
 antigo.
 
-**Código-fonte.** O repositório `bez-company/bez-website` não tem o código do Next.js: só marca e
-design system. A imagem em produção foi construída de um diretório de trabalho que não foi commitado e
-cujo workspace já foi arquivado, e a imagem não guarda o código original (os sourcemaps vêm vazios). A
-imagem (digest `sha256:88a18b7f...`) é hoje o único artefato do site; ela está no registry de
-`bez-site-prod`. Sem o código não há deploy por GitHub Actions.
+**Deploy pelo GitHub Actions (`deploy.tf`).** O código do site está em `bez-company/bez-website` desde
+21/10/2026. Cada push na `main` de lá roda `.github/workflows/deploy.yml`: typecheck, lint e build,
+depois `scripts/deploy.sh` (imagem, teste do container, troca só da imagem, release do Hosting). Entra
+por Workload Identity Federation (pool `github`, só esse repositório e só a `main`) com a conta
+`bez-site-deploy`: `run.developer`, `artifactregistry.writer` no repositório `bez`, `serviceAccountUser`
+na conta do site, `firebasehosting.admin` e `serviceUsageConsumer`. As variáveis do environment `prod`
+no GitHub vêm de `terraform output -raw wif_provider` e `terraform output -raw deploy_sa`.
+
+O `apply` deste ambiente precisa de `TF_VAR_alert_email` (o mesmo do estado), senão o plano apaga o
+canal de e-mail dos alertas.
 
 ## Site da Ekoai (`envs/ekoai-site/`)
 
@@ -136,7 +141,6 @@ e-mail para quem administra a conta de faturamento.
 ```bash
 export GOOGLE_OAUTH_ACCESS_TOKEN=$(CLOUDSDK_ACTIVE_CONFIG_NAME=bez gcloud auth print-access-token)
 export TF_VAR_billing_account=<id da conta de faturamento>   # fora do repositório
-export TF_VAR_site_project_id=<projeto onde o site roda hoje>
 cd infra/terraform/platform && terraform init && terraform plan && terraform apply
 ```
 
