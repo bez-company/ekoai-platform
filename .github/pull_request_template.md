@@ -1,6 +1,6 @@
 <!--
 Delete the sections that do not apply. Title and body in English, Conventional Commits in the title.
-Base branch is always `staging`; merge by rebase or squash. Visual change = screenshots below, always. Behavior, data or flow change = skeleton + diagram when it clarifies.
+Base branch is always `staging`; merge by rebase (default) or squash. Visual change = screenshots below, always. Behavior, data or flow change = skeleton + diagram when it clarifies.
 -->
 
 ## Why

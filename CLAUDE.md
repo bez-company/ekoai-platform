@@ -16,7 +16,7 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
 `staging` (ambiente de integração) e `main` (produção). Não há outro caminho.
 
 1. Branch de feature a partir da `staging`; PR com **base `staging`** (`gh pr create --base staging`).
-   Merge por **rebase ou squash** (merge commit não). O CI roda e o deploy do ambiente
+   Merge por **rebase (padrão) ou squash** (merge commit não). Ao mergear: `gh pr merge --rebase`. O CI roda e o deploy do ambiente
    `staging` é automático depois do merge. A branch de feature é apagada no merge.
 2. Release: `scripts/release.sh` leva a `main` até o commit da `staging` por **fast-forward** (sem PR
    e sem commit novo). O push na `main` roda o CI e o deploy de `prod`, que espera a aprovação no
