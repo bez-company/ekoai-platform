@@ -15,7 +15,7 @@ reutilizável por ambiente (`deploy-env.yml`), mas ligado a uma branch só.
 
 1. **Duas branches de longa vida.** `staging` é o ambiente de integração; `main` é o que está em
    produção.
-2. **Feature entra em `staging` por PR, com merge por rebase ou squash** (merge commit fica
+2. **Feature entra em `staging` por PR, com merge por rebase (padrão) ou squash** (merge commit fica
    desligado no repositório e na regra da `staging`). O CI roda na PR e de novo no push;
    passando, o deploy do ambiente `staging` roda sozinho. A `staging` só recebe PR com `CI ok`.
 3. **Release é o fast-forward da `main` até o commit atual da `staging`** (`scripts/release.sh`), sem

@@ -86,7 +86,7 @@ criados (fase 0); não há ambiente publicado.
 
 Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao.md). Resumo:
 
-1. **Staging** recebe tudo por PR de feature (base `staging`, merge por rebase ou squash). Depois do merge, o
+1. **Staging** recebe tudo por PR de feature (base `staging`, merge por rebase (padrão) ou squash). Depois do merge, o
    deploy de staging é automático. Teste lá o que vai sair.
 2. **Release:** `scripts/release.sh` mostra o que sai, confere que o staging publicou esse commit e
    leva a `main` até ele por fast-forward (mesmo SHA, sem PR).
