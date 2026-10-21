@@ -1,6 +1,6 @@
 # SPEC 015: site da Ekoai em ekoai.com.br, vendendo direto
 
-- **Status:** em andamento (21/10/2026). Infra aplicada; a página espera o protótipo.
+- **Status:** em andamento (21/10/2026). Infra aplicada; protótipo v1 publicado, aguarda aprovação.
 - **Cartões:** pai [BEZ-131](https://linear.app/bez-company/issue/BEZ-131); spec e infra BEZ-132,
   protótipo BEZ-133, repositório e CI BEZ-134, implementação BEZ-136, domínio BEZ-137. Plataforma:
   cobrança BEZ-135, limite de taxa no cadastro BEZ-29, domínio do app BEZ-42, termos e privacidade BEZ-32.
@@ -56,7 +56,12 @@ primeira impressão.
 Briefing em `docs/briefing-claude-design.md` do repositório do site: seções, texto de exemplo,
 design system 06, estados, desktop (1440) e celular (390). O Matheus prototipa no Claude Design e
 devolve o handoff bundle. Decidir no protótipo: promessa do hero, nomes e preços dos planos (ou
-marcadores até o BEZ-135), exemplos de post e perguntas frequentes. O link do protótipo entra aqui.
+marcadores até o BEZ-135), exemplos de post e perguntas frequentes.
+
+Protótipo v1 (21/10/2026): https://claude.ai/artifact/Udvd4CYKzybgoQQuDDeQrG , fonte em
+`docs/prototipo/` do repositório do site. Aguarda aprovação. Achado: `muted` e `accent-text` do tema
+claro do DS 06 reprovam AA sobre `page` e `inset`; o site usa valores mais escuros e a plataforma
+corrige no BEZ-141.
 
 ### R2. Repositório e CI (BEZ-134)
 
