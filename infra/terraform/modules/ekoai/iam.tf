@@ -55,6 +55,24 @@ resource "google_project_iam_member" "deploy_registry" {
   member  = "serviceAccount:${google_service_account.deploy.email}"
 }
 
+# Staging sob demanda: o deploy liga o banco parado antes de migrar. O papel só lê e atualiza a
+# instância, e só existe onde `deploy_can_power_db` está ligado.
+resource "google_project_iam_custom_role" "sql_power" {
+  count       = var.deploy_can_power_db ? 1 : 0
+  project     = var.project_id
+  role_id     = "ekoaiSqlPower"
+  title       = "Ligar o Cloud SQL parado"
+  description = "Ler e atualizar a instância do Cloud SQL (ativar o banco do staging no deploy)."
+  permissions = ["cloudsql.instances.get", "cloudsql.instances.update"]
+}
+
+resource "google_project_iam_member" "deploy_sql_power" {
+  count   = var.deploy_can_power_db ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.sql_power[0].id
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
 resource "google_service_account_iam_member" "deploy_acts_as_app" {
   service_account_id = google_service_account.app.name
   role               = "roles/iam.serviceAccountUser"

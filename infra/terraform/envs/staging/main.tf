@@ -67,6 +67,20 @@ module "ekoai" {
   platform_min_instances = 0
   schedules_paused       = true
   uptime_check           = false
+
+  # O deploy liga o banco parado antes de migrar (o staging fica desligado fora dos testes).
+  deploy_can_power_db = true
+}
+
+# Promoção por digest (SPEC 013, E1.12): o deploy de produção lê daqui a imagem que passou na
+# staging e a copia para o registry de produção, sem reconstruir. Só leitura, e só a conta de
+# deploy de produção.
+resource "google_artifact_registry_repository_iam_member" "prod_deploy_reads_staging" {
+  project    = "ekoai-staging"
+  location   = "southamerica-east1"
+  repository = "ekoai"
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:ekoai-deploy@ekoai-prod.iam.gserviceaccount.com"
 }
 
 output "platform_url" { value = module.ekoai.platform_url }

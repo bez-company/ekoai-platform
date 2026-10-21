@@ -19,6 +19,12 @@ variable "tier" {
   }
 }
 
+variable "deploy_can_power_db" {
+  description = "O deploy pode ligar o Cloud SQL parado (staging sob demanda, SPEC 013 E1.11). Só no staging: em produção o banco nunca desliga e o papel não existe."
+  type        = bool
+  default     = false
+}
+
 variable "region" {
   type    = string
   default = "southamerica-east1"
