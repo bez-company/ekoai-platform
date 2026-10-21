@@ -11,9 +11,41 @@ envs/staging/      projeto ekoai-staging, banco f1-micro, sem proteção contra 
 envs/prod/         projeto ekoai-prod, banco f1-micro, proteção contra exclusão e uptime check
 ```
 
-O estado do Terraform fica no bucket `ekoai-prod-tfstate` (versionado), um prefixo por ambiente.
+O estado do Terraform de todos os ambientes fica no bucket `bez-platform-tfstate` (versionado, projeto
+`bez-platform`), um prefixo por ambiente. Os ambientes da Ekoai são só uma parte da BEZ: o que é da
+organização inteira mora em `platform/` e `foundation/` ([SPEC 013](../../docs/specs/013-bez-cloud-platform.md)).
 
-## Bootstrap (uma vez, já feito)
+```
+platform/      projeto bez-platform: orçamentos por projeto e o dataset da exportação de faturamento
+foundation/    políticas de organização (valem para todas as pastas e projetos)
+```
+
+## Bootstrap do projeto de plataforma (uma vez, já feito)
+
+O projeto `bez-platform` guarda o estado do Terraform de todos e o dataset da exportação de
+faturamento. O Terraform não o cria: pastas, projetos e o bucket do estado nascem à mão. O ID
+`bez-sandbox` estava em uso no mundo, então o sandbox é `bez-company-sandbox`.
+
+```bash
+ORG=<id da organização>; BILLING=<id da conta de faturamento>
+PF=$(gcloud resource-manager folders create --display-name=bez-platform --organization=$ORG --format='value(name)')
+SF=$(gcloud resource-manager folders create --display-name=sandbox --organization=$ORG --format='value(name)')
+gcloud projects create bez-platform --folder=${PF#folders/} --labels=product=platform,env=prod,tier=production
+gcloud projects create bez-company-sandbox --folder=${SF#folders/} --labels=product=sandbox,env=dev,tier=lab
+for p in bez-platform bez-company-sandbox; do gcloud billing projects link $p --billing-account=$BILLING; done
+gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
+  storage.googleapis.com cloudbilling.googleapis.com billingbudgets.googleapis.com orgpolicy.googleapis.com \
+  bigquery.googleapis.com --project=bez-platform
+gcloud storage buckets create gs://bez-platform-tfstate --project=bez-platform --location=southamerica-east1 \
+  --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update gs://bez-platform-tfstate --versioning
+```
+
+Em 21/10/2026 os estados `foundation`, `prod` e `staging` foram copiados do `ekoai-prod-tfstate`, com
+o hash conferido, e os backends passaram para o bucket novo. O bucket antigo fica até a próxima
+release passar limpa e é apagado depois.
+
+## Bootstrap da Ekoai (uma vez, já feito)
 
 O que o Terraform não cria: a pasta, os projetos, o faturamento e o bucket do estado. Com a conta
 administradora da BEZ (`CLOUDSDK_ACTIVE_CONFIG_NAME=bez`):
@@ -27,23 +59,42 @@ for env in staging prod; do
   gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com \
     iam.googleapis.com storage.googleapis.com --project=ekoai-$env
 done
-gcloud storage buckets create gs://ekoai-prod-tfstate --project=ekoai-prod \
-  --location=southamerica-east1 --uniform-bucket-level-access --public-access-prevention
-gcloud storage buckets update gs://ekoai-prod-tfstate --versioning
 ```
 
 Criar a pasta pede o papel `roles/resourcemanager.folderAdmin` no nível da organização
 (`organizationAdmin` sozinho não basta).
 
+## Orçamentos e exportação de faturamento (`platform/`)
+
+Um orçamento mensal por projeto (50%, 80%, 100% e previsão de 100%) mais o global de R$ 330, todos
+sobre o custo **antes** dos créditos, e o dataset `billing_export` em São Paulo. O aviso vai por
+e-mail para quem administra a conta de faturamento.
+
+```bash
+export GOOGLE_OAUTH_ACCESS_TOKEN=$(CLOUDSDK_ACTIVE_CONFIG_NAME=bez gcloud auth print-access-token)
+export TF_VAR_billing_account=<id da conta de faturamento>   # fora do repositório
+export TF_VAR_site_project_id=<projeto onde o site roda hoje>
+cd infra/terraform/platform && terraform init && terraform plan && terraform apply
+```
+
+A exportação de faturamento para o BigQuery só se liga pelo console (não há API): Faturamento >
+Exportação do faturamento > Custo de uso padrão e detalhado > dataset `billing_export` do
+`bez-platform`. Ela não recupera o passado.
+
+Projeto novo entra em `local.project_budgets` com o valor do nível dele.
+
 ## Políticas de organização (`foundation/`)
 
-Políticas da pasta `ekoai`, valem para os dois projetos e para os futuros: sem chave de conta de
-serviço (criar e subir), Cloud SQL sem IP público, bucket sem acesso público e sem a rede `default`.
-Aplica-se uma vez, com a conta administradora, e só ela precisa de
+Valem para a organização inteira, então toda pasta e todo projeto novo as herda: sem criar chave de
+conta de serviço, Cloud SQL sem IP público, bucket sem acesso público e sem a rede `default`. A
+subida de chave (`iam.disableServiceAccountKeyUpload`) já vem ligada na organização por padrão do
+Google. Aplica-se uma vez, com a conta administradora, e só ela precisa de
 `roles/orgpolicy.policyAdmin`, que o Google só deixa conceder no nível da organização: dê o papel,
-aplique e revogue (`export TF_VAR_folder_id=<id da pasta>`, depois `terraform apply` em
+aplique e revogue (`export TF_VAR_org_id=<id da organização>`, depois `terraform apply` em
 `infra/terraform/foundation`). `run.requireInvokerIam` fica de fora de propósito: a plataforma é
-pública pela opção `invoker_iam_disabled`.
+pública pela opção `invoker_iam_disabled`. A restrição de região (`gcp.resourceLocations`) não foi
+aplicada: segredos com replicação automática, o endpoint global do Vertex e o Identity Platform
+podem esbarrar nela, e só entra depois de testada no sandbox.
 
 ## Aplicar
 
