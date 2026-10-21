@@ -15,6 +15,8 @@ permissions:
 
 env:
   REGION: southamerica-east1
+  # Projeto de onde a produção promove a imagem que passou na staging (SPEC 013, E1.12).
+  STAGING_PROJECT: ekoai-staging
 
 jobs:
   deploy:
@@ -55,29 +57,83 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
 
-      - name: Registry e imagens
+      # Staging sob demanda (SPEC 013, E1.11): se o banco estiver parado, liga já, enquanto as imagens
+      # constroem; ligar leva cerca de 10 minutos. Produção nunca desliga: se não estiver de pé, o
+      # deploy para e avisa.
+      - name: Ligar o banco, se estiver parado
+        run: |
+          set -euo pipefail
+          state=$(gcloud sql instances describe ekoai-pg --project "$PROJECT" --format='value(state)')
+          echo "banco: $state"
+          if [ "$state" = "RUNNABLE" ]; then exit 0; fi
+          if [ "${{ inputs.environment }}" != "staging" ]; then
+            echo "::error::o banco de produção está $state; deploy interrompido. Investigue antes de seguir."
+            exit 1
+          fi
+          gcloud sql instances patch ekoai-pg --project "$PROJECT" --activation-policy=ALWAYS --quiet --async
+
+      # Staging constrói e empurra. Produção não constrói: promove, byte a byte, a imagem que passou
+      # na staging (mesmo digest). O deploy usa sempre o digest, nunca a tag.
+      - name: Imagens
         run: |
           set -euo pipefail
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           REGISTRY="$REGION-docker.pkg.dev/$PROJECT/ekoai"
           echo "REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
-          docker build -f docker/platform.Dockerfile -t "$REGISTRY/platform:$SHA" .
-          docker build -f docker/jobs.Dockerfile -t "$REGISTRY/jobs:$SHA" .
-          docker push "$REGISTRY/platform:$SHA"
-          docker push "$REGISTRY/jobs:$SHA"
+          digest() { gcloud artifacts docker images describe "$1" --format='value(image_summary.digest)'; }
+          if [ "${{ inputs.environment }}" = "staging" ]; then
+            docker build -f docker/platform.Dockerfile -t "$REGISTRY/platform:$SHA" .
+            docker build -f docker/jobs.Dockerfile -t "$REGISTRY/jobs:$SHA" .
+            docker push "$REGISTRY/platform:$SHA"
+            docker push "$REGISTRY/jobs:$SHA"
+          else
+            SRC="$REGION-docker.pkg.dev/$STAGING_PROJECT/ekoai"
+            for img in platform jobs; do
+              want=$(digest "$SRC/$img:$SHA" 2>/dev/null || true)
+              if [ -z "$want" ]; then
+                echo "::error::não há $img:${SHA:0:7} no registry da staging. Produção só recebe imagem que passou por lá (scripts/release.sh); refaça o deploy da staging."
+                exit 1
+              fi
+              docker pull --platform linux/amd64 "$SRC/$img@$want"
+              docker tag "$SRC/$img@$want" "$REGISTRY/$img:$SHA"
+              docker push "$REGISTRY/$img:$SHA"
+              got=$(digest "$REGISTRY/$img:$SHA")
+              if [ "$got" != "$want" ]; then
+                echo "::error::o digest de $img mudou na cópia ($want na staging, $got em produção)."
+                exit 1
+              fi
+            done
+          fi
+          for img in platform jobs; do
+            d=$(digest "$REGISTRY/$img:$SHA")
+            echo "$img: $d"
+            echo "${img^^}_IMAGE=$REGISTRY/$img@$d" >> "$GITHUB_ENV"
+          done
+
+      - name: Esperar o banco
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 80); do
+            state=$(gcloud sql instances describe ekoai-pg --project "$PROJECT" --format='value(state)')
+            echo "banco: $state"
+            if [ "$state" = "RUNNABLE" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "::error::o banco não ficou RUNNABLE em 20 minutos"
+          exit 1
 
       # Migrations antes de trocar o código, e o deploy para se elas falharem.
       - name: Migrations
         run: |
           set -euo pipefail
-          gcloud run jobs update ekoai-migrate --region "$REGION" --image "$REGISTRY/jobs:$SHA" --quiet
+          gcloud run jobs update ekoai-migrate --region "$REGION" --image "$JOBS_IMAGE" --quiet
           gcloud run jobs execute ekoai-migrate --region "$REGION" --wait
 
       - name: Jobs
         run: |
           set -euo pipefail
           for job in refresh-tokens token-health weekly-report tenant-create access-grant platform-admin; do
-            gcloud run jobs update "ekoai-$job" --region "$REGION" --image "$REGISTRY/jobs:$SHA" --quiet
+            gcloud run jobs update "ekoai-$job" --region "$REGION" --image "$JOBS_IMAGE" --quiet
           done
 
       - name: Plataforma
@@ -85,7 +141,7 @@ jobs:
           set -euo pipefail
           # O SHA vai no nome da revisão (K_REVISION, mostrado em /api/health). Variável de ambiente
           # não serve: o Terraform a desfaria no próximo apply.
-          gcloud run services update ekoai-platform --region "$REGION" --image "$REGISTRY/platform:$SHA" \
+          gcloud run services update ekoai-platform --region "$REGION" --image "$PLATFORM_IMAGE" \
             --revision-suffix "sha-${SHA:0:7}" --quiet
           URL=$(gcloud run services describe ekoai-platform --region "$REGION" --format 'value(status.url)')
           echo "URL=$URL" >> "$GITHUB_ENV"
