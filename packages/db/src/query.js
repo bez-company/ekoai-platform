@@ -1,6 +1,6 @@
 // query.js: construtor de consulta no formato do supabase-js, o subconjunto que o código usa:
 //   from(t).select(cols, { count, head }) | insert | update | upsert | delete
-//   .eq .neq .gt .gte .lt .lte .in .is .not .or
+//   .eq .neq .gt .gte .lt .lte .in .is .not .or .ilike
 //   .order .limit .range .single .maybeSingle
 // Resolve sempre `{ data, error, count }` e nunca rejeita por erro de banco, como o supabase-js.
 // Erro de uso do construtor (select com embed, update sem filtro) lança na hora: é bug de código.
@@ -124,6 +124,14 @@ export class Query {
     else if (op === 'in') this.#filters.push({ kind: 'in', column, values: [...value], negate: true });
     else if (op in COMPARE) this.#filters.push({ kind: 'compare', op, column, value, negate: true });
     else throw new Error(`not() com operador não suportado: ${String(op)}`);
+    return this;
+  }
+
+  // Comparação sem diferença de maiúscula. O padrão vai por parâmetro; "%" e "_" continuam sendo
+  // curinga do próprio Postgres, então quem monta o padrão a partir de texto do usuário limpa os dois.
+  ilike(column, pattern) {
+    if (typeof pattern !== 'string') throw new Error(`ilike(${column}, ...) exige texto`);
+    this.#filters.push({ kind: 'ilike', column, pattern, negate: false });
     return this;
   }
 
@@ -293,6 +301,9 @@ export class Query {
     if (filter.kind === 'is') {
       const literal = filter.value === null ? 'null' : String(filter.value);
       return { sql: `${target.sql} is ${not}${literal}` };
+    }
+    if (filter.kind === 'ilike') {
+      return { sql: `${not}${target.sql}::text ilike ${target.bind(filter.pattern)}` };
     }
     if (filter.kind === 'in') {
       if (filter.values.length === 0) return { sql: filter.negate ? 'true' : 'false' };

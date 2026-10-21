@@ -31,6 +31,22 @@ beforeEach(() => pool.query('truncate zz_probe'));
 
 const seed = (rows) => db.from('zz_probe').insert(rows);
 
+describe('ilike', () => {
+  it('ignora maiúscula, trata % e _ como curinga do Postgres e vai por parâmetro', async () => {
+    await seed([{ tenant: 't', name: 'Ana Souza' }, { tenant: 't', name: 'Bruno' }, { tenant: 't', name: "x'; drop table zz_probe; --" }]);
+    const exato = await db.from('zz_probe').select('name').ilike('name', 'ana souza');
+    expect(exato.error).toBeNull();
+    expect(exato.data.map((r) => r.name)).toEqual(['Ana Souza']);
+    const prefixo = await db.from('zz_probe').select('name').ilike('name', 'bru%');
+    expect(prefixo.data.map((r) => r.name)).toEqual(['Bruno']);
+    const injecao = await db.from('zz_probe').select('name').ilike('name', "x'; drop table zz_probe; --");
+    expect(injecao.error).toBeNull();
+    expect(injecao.data).toHaveLength(1);
+    const { count } = await db.from('zz_probe').select('id', { count: 'exact', head: true });
+    expect(count).toBe(3);
+  });
+});
+
 describe('tipos', () => {
   it('jsonb, text[], date, timestamptz e bigint voltam no formato do PostgREST', async () => {
     const { error } = await seed({ tenant: 't', name: 'a', meta: { x: [1, 2] }, tags: ['p', 'q'], day: '2026-10-19', big: 9007199254740, score: '12.50' });

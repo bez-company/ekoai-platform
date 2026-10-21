@@ -29,6 +29,7 @@ export interface QueryBuilder<T = Row[]> extends PromiseLike<DbResult<T>> {
   is(column: string, value: null | boolean): QueryBuilder<T>;
   not(column: string, op: string, value: unknown): QueryBuilder<T>;
   or(expression: string): QueryBuilder<T>;
+  ilike(column: string, pattern: string): QueryBuilder<T>;
   order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): QueryBuilder<T>;
   limit(count: number): QueryBuilder<T>;
   range(from: number, to: number): QueryBuilder<T>;
