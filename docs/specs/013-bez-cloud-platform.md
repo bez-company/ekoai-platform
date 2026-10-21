@@ -325,3 +325,25 @@ horas de migração do Pilar e consumo real de cada produto.
 - **Políticas da organização:** a organização já tinha `iam.managed.disableServiceAccountKeyCreation` e
   `iam.disableServiceAccountKeyUpload` (padrão do Google). A pasta `ekoai` acrescenta só
   `sql.restrictPublicIp`, `storage.publicAccessPrevention` e `compute.skipDefaultNetworkCreation`.
+- **E1.5, orçamentos (PR #68):** um orçamento mensal por projeto (50%, 80%, 100% e previsão de 100%) e o
+  global passou de R$ 100 para R$ 330, o teto da infraestrutura fixa. Todos medem o custo **antes** dos
+  créditos. Aplicado e conferido por `gcloud`.
+- **E1.6, políticas na organização (PR #68):** as quatro políticas que só a pasta `ekoai` tinha subiram
+  para a organização e a pasta ficou sem nenhuma. Teste real: criar chave de conta de serviço no
+  sandbox é negado pela política. A restrição de região **não** foi aplicada (segredos com replicação
+  automática, endpoint global do Vertex e Identity Platform podem esbarrar nela).
+- **E1.4, exportação de faturamento:** ligada pelo console (não há API), custo padrão e detalhado, no
+  dataset `billing_export` de `bez-platform`. Não recupera o passado e as tabelas levam horas para
+  aparecer; a conferência com dados fica para a E1.15.
+- **E1.8 e E1.9 (PR #69):** labels `product`, `env` e `tier` em todo recurso da Ekoai e nos projetos, variável
+  `tier`, alertas de conexões e memória do Cloud SQL, pool de 2 nos jobs. Aplicado no staging;
+  produção recebe com a próxima release (o `envs/prod` também carrega código ainda não liberado, como o
+  banco para `db-f1-micro`).
+- **E1.11, staging sob demanda (PRs #69 e #70):** script `sql-power.sh`, `ignore_changes` e o deploy ligando o
+  banco. Medido: desligar leva 37 segundos, ligar cerca de 10 minutos, e a plataforma volta uns 2
+  minutos depois.
+- **E1.12, digest (PR #70):** produção promove a imagem da staging, com o digest conferido. O caminho de
+  produção só roda de verdade na próxima release.
+- **E1.13:** a política de limpeza do registry já existia e o Cloud Build está desligado em todo projeto.
+- **E1.14 (PR #71):** controle de custo de IA entrou como R5.1 da SPEC 012, não como spec nova.
+- **Achado (BEZ-120):** o probe de startup consulta o banco; sem banco o Cloud Run não sobe instância.
