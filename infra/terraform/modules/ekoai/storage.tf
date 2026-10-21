@@ -5,7 +5,7 @@ resource "google_storage_bucket" "media" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
   force_destroy               = !var.protect_data
-  labels                      = { app = local.name, env = var.env }
+  labels                      = local.labels
   depends_on                  = [google_project_service.api]
 }
 
@@ -21,6 +21,7 @@ resource "google_artifact_registry_repository" "images" {
   repository_id = local.name
   format        = "DOCKER"
   description   = "Imagens da plataforma e dos jobs"
+  labels        = local.labels
 
   cleanup_policies {
     id     = "delete-untagged"

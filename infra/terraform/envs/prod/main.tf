@@ -48,6 +48,7 @@ module "ekoai" {
   project_id = "ekoai-prod"
   env        = "prod"
 
+  tier             = "beta"
   deploy_workloads = var.deploy_workloads
   platform_image   = var.platform_image
   jobs_image       = var.jobs_image

@@ -81,6 +81,55 @@ resource "google_monitoring_alert_policy" "sql_disk" {
   depends_on = [google_project_service.api]
 }
 
+# Conexões perto do limite da máquina (o f1-micro aceita 25 por padrão). Cada instância da
+# plataforma abre até DB_POOL_MAX conexões (5), e os jobs somam: a conta está no runbook.
+resource "google_monitoring_alert_policy" "sql_connections" {
+  project               = var.project_id
+  display_name          = "Conexões do Cloud SQL acima de 80% do limite (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Conexões abertas"
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/num_backends\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = floor(local.sql_max_connections * 0.8)
+      duration        = "300s"
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_MAX"
+        cross_series_reducer = "REDUCE_SUM"
+      }
+    }
+  }
+  depends_on = [google_project_service.api]
+}
+
+# Memória: o f1-micro tem 0,6 GB e o Postgres usa quase tudo como cache, então o limiar é alto e
+# deve ser recalibrado com os 30 dias medidos (SPEC 013, E1.15).
+resource "google_monitoring_alert_policy" "sql_memory" {
+  project               = var.project_id
+  display_name          = "Memória do Cloud SQL acima de 95% (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Uso de memória"
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.95
+      duration        = "900s"
+      aggregations {
+        alignment_period   = "300s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+  depends_on = [google_project_service.api]
+}
+
 resource "google_monitoring_uptime_check_config" "health" {
   count        = var.uptime_check && var.deploy_workloads ? 1 : 0
   project      = var.project_id

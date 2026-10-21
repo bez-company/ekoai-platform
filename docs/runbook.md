@@ -94,3 +94,48 @@ Para tirar a mudança de vez, reverta o commit na `staging` (por PR) e faça uma
 
 **Refazer o deploy de um ambiente:** Actions > Deploy > Run workflow, escolhendo a branch do ambiente
 (`staging` ou `main`); o environment recusa outra branch.
+
+## Conexões do banco (conta do `f1-micro`)
+
+O Cloud SQL `db-f1-micro` aceita 25 conexões por padrão (`db-g1-small`, 50), e parte delas fica
+reservada ao superusuário e ao próprio serviço: conte com cerca de 20 úteis.
+
+| Quem | Conta | Conexões |
+| --- | --- | --- |
+| Plataforma | no máximo 3 instâncias (`platform_max_instances` do nível `beta`) × pool de 5 (`DB_POOL_MAX`) | 15 |
+| Jobs | pool de 2 (`DB_POOL_MAX` do job) × até 2 jobs ao mesmo tempo (o `migrate` do deploy e um agendado) | 4 |
+| **Pior caso** | | **19** |
+
+Há folga de uma conexão. O alerta "Conexões do Cloud SQL acima de 80% do limite" dispara em 20, e o de
+memória em 95%. Se subir o máximo de instâncias ou o pool, refaça a conta antes; instância maior
+(`production`) tem limite maior (100 para 3,75 a 6 GB), e o alerta acompanha o tamanho da máquina.
+
+## Ligar e desligar o banco do staging
+
+Parado, o Cloud SQL não cobra a máquina (disco e IP continuam). O Terraform ignora a política de
+ativação, então o próximo `apply` não religa.
+
+```bash
+CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging status
+CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging down   # cerca de 40 segundos
+CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging up     # cerca de 10 minutos
+```
+
+Medido em 21/10/2026: desligar levou 37 segundos; religar, cerca de 10 minutos, e a plataforma só voltou
+a responder uns 2 minutos depois do banco ficar `RUNNABLE` (o probe de startup consulta o banco, então
+sem banco o Cloud Run não sobe instância nova). Produção nunca desliga por este script. Com o banco
+parado, o deploy do staging falha no `migrate`: ligue antes.
+
+## Subir de nível (`beta` para `production`)
+
+O nível (`tier`) é uma variável do Terraform e um label em todo recurso. Subir é este roteiro, na ordem:
+
+1. `sql_tier` para uma máquina dedicada (1 vCPU ou mais) no `envs/prod`; reinicia o banco por alguns
+   minutos, então faça fora do horário de uso.
+2. `tier = "production"` no `envs/prod` (máximo de instâncias passa de 3 para 10, ajustável por
+   `platform_max_instances` conforme a carga medida).
+3. `protect_data` ligado em tudo que guarda dado (já está em produção).
+4. Alta disponibilidade (`sql_availability = "REGIONAL"`) só se o cliente exigir.
+5. Orçamento do projeto por cliente e por receita em `infra/terraform/platform/main.tf`.
+6. Restore executado por trimestre (e agora, uma vez, para o nível novo), registrado aqui.
+7. Conferir as conexões (seção acima) com o limite novo.
