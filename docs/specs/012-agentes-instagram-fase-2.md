@@ -102,6 +102,41 @@ com origem, e dá para ligar e desligar cada uma.
 cobrança). A tela mostra "N de M posts este mês" e, no limite, diz o que fazer (esperar a virada do
 mês ou falar com a Ekoai). Post manual e edição de texto não contam.
 
+### R5.1. Controle de custo de IA (complemento, SPEC 013 E1.14)
+
+Gastar uma vez, parar a tempo e saber de quem foi o gasto. O R5 diz o que o plano limita; isto diz
+como a geração garante o limite e não paga duas vezes pela mesma coisa.
+
+1. **Reserva antes de gastar.** O limite do plano é checado por gatilho no banco, no padrão de
+   `app.check_seat_limit` (ADR 0012). A geração só chama um modelo depois de gravar, numa transação, uma
+   linha em `generation_runs` com `status = reserved` que confere "posts do mês mais reservas abaixo do
+   máximo". Duas gerações ao mesmo tempo no último post: só uma reserva passa. Sem reserva, nenhuma
+   chamada ao modelo.
+2. **Idempotência.** `generation_runs` tem chave única por (conta, brief, etapa, hash da entrada). Pedido
+   repetido (duplo clique, nova tentativa de rede, repetição da fila) devolve o resultado gravado, não
+   chama o modelo e não cobra. "Outra direção" é entrada nova (muda o hash) e conta no limite.
+3. **Teto por post.** No máximo 2 voltas do revisor (decisão 4) e no máximo N chamadas de imagem por
+   brief (N inicial 3, a calibrar na prova). Estourou: o post sai com o melhor resultado ou falha com
+   mensagem clara. Nunca laço.
+4. **Cache do visual.** O fundo ou ilustração gerado fica guardado por hash (prompt, modelo, versão e
+   formato). Trocar legenda, editar texto ou re-renderizar com outro tema não chama o modelo de imagem.
+   *A validar na prova:* se o mesmo visual serve ao trocar entre 1:1 e 4:5.
+5. **Atribuição do custo.** Toda chamada ao Vertex leva labels (`product`, `env`, `step` e o id da conta,
+   nunca nome nem dado pessoal) para a exportação de faturamento separar o custo por conta
+   (SPEC 013, E1.16). `generation_runs.cost_cents` é a estimativa na hora; a exportação é a conciliação
+   do mês, e divergência acima de 15% vira ajuste da tabela de preços do código. *A confirmar na
+   prova:* que a chamada de geração aceita labels e que eles chegam à exportação.
+6. **Freio no provedor.** Além do limite do plano, a cota de requisições do Vertex fica limitada por
+   projeto e há um orçamento do projeto filtrado pelo serviço Vertex AI, com alerta. Um bug que
+   contorne o banco não gasta além da cota. Valores iniciais definidos depois da prova.
+7. **Degradação.** No limite do plano ou do provedor, "novo post" e "outra direção" param com a
+   mensagem do R5; editar texto, aprovar, agendar, publicar e baixar continuam, porque não usam modelo.
+   Falha do provedor (429, 5xx): até 2 tentativas com espera crescente e depois erro claro; o pedido
+   nunca fica preso (R2).
+8. **Anomalia.** Alerta quando o custo por post aprovado da semana passa de 2 vezes a mediana das 4
+   semanas anteriores, ou quando uma conta gasta uma fração grande do limite em uma hora (valores a
+   calibrar com a prova).
+
 ### R6. Agenda
 Post aprovado cai no próximo slot livre da conta (a grade que já existe). Sem Instagram conectado
 ele fica agendado e a tela diz que a publicação espera a conexão.
@@ -111,7 +146,7 @@ ele fica agendado e a tela diz que a publicação espera a conexão.
 | Tabela | Para quê |
 | --- | --- |
 | `company_facts` | Fatos da empresa: texto, fonte, "nunca afirmar". Escopo por conta, RLS, entra em `TENANT_TABLES`. |
-| `generation_runs` | Uma linha por chamada de modelo: conta, brief, etapa, modelo e versão, tokens, imagens, custo, tempo, resultado. |
+| `generation_runs` | Uma linha por chamada de modelo: conta, brief, etapa, modelo e versão, tokens, imagens, custo, tempo, resultado. Com `status` (`reserved`, `done`, `failed`) e chave única de idempotência (R5.1). |
 | `post_designs` | O schema de slots do post (layout, texto de cada slot, referência do visual) para re-renderizar sem IA. Cada slot de texto é editável na imagem; o motor refaz a quebra de linha e o tamanho da fonte a cada edição e o revisor confere de novo (por exemplo, título acima de 6 palavras). O logo e as cores não se editam aí: vêm do perfil. |
 | `plans.max_posts_per_month` | Limite mensal do plano. |
 
@@ -146,11 +181,11 @@ descrição das telas. Cada tela em desktop e mobile, com vazio, carregando, err
 | 0 | **Prova de conceito de design** (script isolado, sem tela nem tabela), decide imagem inteira por IA ou híbrido e mede o custo por post aprovado | critérios definidos antes de rodar, no briefing da prova |
 | 1 | ADR do motor de render e do modelo (Vertex AI) | decisão registrada com os números da prova |
 | 2 | Protótipo aprovado no Claude Design | link na SPEC e nas PRs |
-| 3 | Banco: `company_facts`, `generation_runs`, `post_designs`, limite do plano | `rls_test.sql`, cascata da exclusão da conta cobre as tabelas novas |
+| 3 | Banco: `company_facts`, `generation_runs` (com reserva e chave de idempotência), `post_designs`, limite do plano | `rls_test.sql`, cascata da exclusão da conta cobre as tabelas novas; teste de reserva concorrente contra Postgres real |
 | 4 | Motor de render (schema de slots para PNG, com os tokens do perfil) | testes de contraste, margem, acento; o mesmo schema gera o mesmo PNG |
 | 5 | Agentes e revisor por regra | testes com modelo simulado; uma execução real por tipo de post |
 | 6 | Telas: Criar, Aprovar, Aprendizado, fatos no perfil | prints, teste de rota por papel |
-| 7 | Custos e limite | teste de limite no servidor, tela de limite |
+| 7 | Custos e limite (R5.1: labels do Vertex, cota e orçamento do provedor, alerta de anomalia, cache do visual) | teste de limite no servidor, tela de limite, labels conferidos na exportação de faturamento, cota conferida por `gcloud` |
 
 ## Critérios de aceite
 
@@ -159,6 +194,10 @@ descrição das telas. Cada tela em desktop e mobile, com vazio, carregando, err
 3. O post não afirma número, preço ou claim que não esteja na base de fatos.
 4. Palavra proibida do perfil nunca aparece na legenda nem na imagem.
 5. O custo de cada post aprovado está registrado e a conta para no limite do plano.
+5.1. Dois pedidos idênticos seguidos geram uma linha em `generation_runs` e uma cobrança. Duas gerações
+   ao mesmo tempo no último post do plano: uma passa e a outra recebe o aviso de limite (teste contra
+   Postgres real). Sem reserva gravada, o modelo simulado falha se for chamado. A chamada ao Vertex leva
+   os labels e a cota do provedor está limitada no projeto.
 6. Excluir a conta apaga também as tabelas novas e os PNGs do bucket.
 7. Leitor não cria nem aprova (404 e 403 como nas outras telas).
 
