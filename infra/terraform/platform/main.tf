@@ -52,6 +52,7 @@ locals {
       "ekoai-prod"          = 150
       "ekoai-staging"       = 100
       "bez-platform"        = 30
+      "bez-site-prod"       = 30
       "bez-company-sandbox" = 30
     },
     var.site_project_id == "" ? {} : { (var.site_project_id) = 30 },

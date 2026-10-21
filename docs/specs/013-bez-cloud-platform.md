@@ -356,3 +356,28 @@ horas de migração do Pilar e consumo real de cada produto.
   conveniência. Alternativas: (a) exceção da política no `bez-platform`; (b) canal do Monitoring em vez
   de Pub/Sub; (c) função agendada lendo o gasto na exportação do BigQuery, com atraso de horas;
   (d) só alerta e cota baixa. Fica (d) por ora, com (c) como candidata (BEZ-121).
+
+### Etapa 2, site da BEZ (2026-10-21)
+
+- **E2.1:** o site roda no projeto padrão (`bez-website`, Cloud Run em São Paulo, Firebase Hosting `bez-company`
+  na frente). O projeto só tem o site e o registry: sem dado, usuário nem segredo.
+- **Achado grave, código-fonte:** o repositório `bez-company/bez-website` não tem o código do site. A imagem
+  foi construída de um diretório não commitado (tag `89c0080-...` sobre um commit que só tem marca e design
+  system), o workspace foi arquivado e a imagem não guarda o código (sourcemaps vazios). A imagem é o único
+  artefato; foi copiada para o registry novo com o digest conferido. **Sem o código não há CI (E2.3) nem
+  mudança de conteúdo**: precisa recuperar de outra cópia ou reescrever.
+- **Achado, 404 no ar:** o domínio raiz servia um "Site Not Found" em cache no CDN do Firebase (as outras
+  URLs davam 200). Resolvido com um novo release da mesma configuração.
+- **E2.2, `project-baseline`:** adiado. Sem CI do site não há consumidor para a conta de deploy e o WIF; o
+  módulo é extraído na Etapa 3, quando o bot trouxer o segundo consumidor real.
+- **E2.3 a E2.5:** projeto `bez-site-prod` e `envs/bez-site` por Terraform (Cloud Run mínimo 0 e máximo 2, registry,
+  conta de serviço sem papel, Hosting, domínios, uptime check e alerta). Orçamento de R$ 30. Sentry não, pelo
+  mesmo motivo do código. Domínio migrado pela migração ao vivo do Firebase (dois registros no GoDaddy);
+  apex e www ativos no site novo, HTML idêntico ao de antes. Teste: 200 no apex, 301 do www e do HTTP para
+  o apex, certificado válido, 404 e ícone como antes.
+- **Achado, limite de faturamento:** a conta de teste só aceita 5 projetos vinculados. O sandbox ficou sem
+  faturamento (vazio) para o site entrar. Os projetos do bot e do Pilar exigem aumento de cota ou conta
+  paga (E1.7).
+- **E2.6, em andamento:** os MCPs do Google Cloud da BEZ passaram para o `bez-platform` (helper e
+  `contexts.json`; os três endpoints respondem 200). O `My First Project` fica 48 horas como volta
+  rápida e depois é apagado (BEZ-92).

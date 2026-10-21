@@ -18,6 +18,7 @@ organização inteira mora em `platform/` e `foundation/` ([SPEC 013](../../docs
 ```
 platform/      projeto bez-platform: orçamentos por projeto e o dataset da exportação de faturamento
 foundation/    políticas de organização (valem para todas as pastas e projetos)
+envs/bez-site/ projeto bez-site-prod: site da BEZ (Cloud Run, Firebase Hosting, domínio)
 ```
 
 ## Bootstrap do projeto de plataforma (uma vez, já feito)
@@ -63,6 +64,43 @@ done
 
 Criar a pasta pede o papel `roles/resourcemanager.folderAdmin` no nível da organização
 (`organizationAdmin` sozinho não basta).
+
+## Site da BEZ (`envs/bez-site/`)
+
+Projeto `bez-site-prod`, pasta `bez-site`, nível `beta`, só produção (uma página, sem banco): Cloud Run
+com mínimo 0 e máximo 2 em São Paulo, Firebase Hosting na frente (o Cloud Run em São Paulo não tem
+domínio próprio nativo), conta de serviço própria sem papel nenhum, uptime check no domínio e alerta.
+
+```bash
+gcloud resource-manager folders create --display-name=bez-site --organization=<id da organização>
+gcloud projects create bez-site-prod --folder=<id da pasta> --labels=product=bez-site,env=prod,tier=beta
+gcloud billing projects link bez-site-prod --billing-account=<id da conta de faturamento>
+gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
+  run.googleapis.com artifactregistry.googleapis.com firebase.googleapis.com firebasehosting.googleapis.com \
+  logging.googleapis.com monitoring.googleapis.com --project=bez-site-prod
+cd infra/terraform/envs/bez-site && terraform init && terraform apply            # 1. base
+# copie a imagem para o registry (docker pull, tag, push; o digest se mantém) e depois:
+terraform apply -var site_image=<registry>/bez-website@sha256:... -var uptime_host=bezcompany.com.br
+```
+
+**Limite de projetos por faturamento.** A conta de faturamento de teste aceita 5 projetos vinculados
+("Cloud billing quota exceeded"). O sandbox ficou sem faturamento até sobrar vaga (ele está vazio) e o
+projeto padrão antigo sai depois de 48 horas de observação. Pedir aumento de cota ou converter a conta
+para paga antes de criar os projetos do bot e do Pilar.
+
+**Domínio do site (migração ao vivo, sem tirar o site do ar).** O Firebase migra um domínio de um site
+para outro quando o DNS passa a apontar para o novo. Foram só dois registros no GoDaddy:
+`TXT @ hosting-site=bezcompany` (no lugar de `hosting-site=bez-company`) e
+`CNAME www bezcompany.web.app.` (no lugar de `bez-company.web.app.`). O A (`199.36.158.100`), o MX, o SPF
+e a verificação do Google ficam como estão. O apex passou em cerca de 1 minuto; o `www` esperou o cache
+de 1 hora do CNAME antigo. Para voltar atrás, restaure os dois registros e recrie os domínios no site
+antigo.
+
+**Código-fonte.** O repositório `bez-company/bez-website` não tem o código do Next.js: só marca e
+design system. A imagem em produção foi construída de um diretório de trabalho que não foi commitado e
+cujo workspace já foi arquivado, e a imagem não guarda o código original (os sourcemaps vêm vazios). A
+imagem (digest `sha256:88a18b7f...`) é hoje o único artefato do site; ela está no registry de
+`bez-site-prod`. Sem o código não há deploy por GitHub Actions.
 
 ## Orçamentos e exportação de faturamento (`platform/`)
 
