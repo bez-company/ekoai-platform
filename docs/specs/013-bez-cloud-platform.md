@@ -46,10 +46,10 @@ pasta, projeto e faturamento vêm da SPEC 010 e do painel de contextos, e a E1.2
 | D2 | Estrutura | uma pasta por produto; um projeto por produto e ambiente (`<produto>-staging`, `<produto>-prod`; `-dev` único para `lab`); mais `bez-platform` e `bez-sandbox` | IAM, cotas, Identity Platform e franquias gratuitas separados por projeto. Muda parte do D1 da SPEC 010: o estado do Terraform sai do `ekoai-prod`, porque outro produto não pode morar no projeto da Ekoai |
 | D3 | Níveis | `lab`, `beta`, `production`, escolhidos pela variável `tier` do Terraform e pelo label `tier` | produto sem cliente não paga fixo; produto com cliente sobe de nível sem trocar de arquitetura |
 | D4 | Banco | Postgres para SaaS multi-tenant com RLS; Firestore só para bot e agente com dado simples; Postgres local em Docker no `lab`. **Sem Cloud SQL compartilhado entre projetos até haver 3 produtos com cliente**; o módulo aceita uma instância externa como entrada, para não precisar reescrever quando chegar a hora | compartilhar entre projetos exige Shared VPC ou Private Service Connect e juntar riscos; antes de medir CPU, memória e conexões é palpite |
-| D5 | Módulos de Terraform | extrair cada bloco **quando o segundo consumidor real precisar**, não antes: `project-baseline` com o site (E2.2); `cloud-run-service`, `cloud-tasks-queue`, `firestore` e `cloud-sql` com o bot (E3.5); `modules/ekoai` continua funcionando até lá | regra de três: extrair com um só consumidor produz abstração errada |
+| D5 | Módulos de Terraform | extrair cada bloco **quando o segundo consumidor real precisar**, não antes: `project-baseline`, `cloud-run-service` e `cloud-sql` com o bot (E2.2 e E3.5; o site não tem CI para consumir o baseline); `modules/ekoai` continua funcionando até lá | regra de três: extrair com um só consumidor produz abstração errada |
 | D6 | Governança | políticas na organização (não só na pasta), orçamento por projeto, exportação de faturamento para BigQuery, labels `product`, `env`, `tier` em tudo, regra de custo compartilhado declarada | permite responder "quanto custa cada produto" e impede produto novo de nascer sem guarda |
 | D7 | Pilar | **preparar sem migrar** (Etapa 4): a produção segue no Supabase Pro com backup (BEZ-81) até a virada. No Google Cloud nascem projetos, Terraform, Identity Platform, buckets e um staging com dado anonimizado; o Cloud SQL de produção só nasce na janela da virada. A virada tem SPEC própria (E4.12), depois de: autorização da Trinity e transferência do repo e do Supabase, inventário das 58 funções e 259 políticas, piloto de `auth.uid()` com teste de isolamento e ensaio cronometrado | o ensaio prova a infra sem pagar US$ 76,55 por mês por um banco de produção parado, e a produção do Pilar não muda antes de estar provada |
-| D8 | Bot de atendimento | primeiro produto migrado depois da Ekoai: Cloud Run, Cloud Tasks (atraso de 60 s) e Scheduler; banco por spike (Firestore ou Postgres) | pequeno, com portas que isolam o banco, e sai da Vercel e do `pg_net`. Valida o padrão de módulos |
+| D8 | Bot de atendimento | segundo produto no Google Cloud: Cloud Run, Cloud Scheduler por minuto e Postgres no Cloud SQL `f1-micro` pelo `@ekoai/db`. Firestore e Cloud Tasks **descartados** depois de ler o código ([SPEC 014](014-bot-de-atendimento-no-google-cloud.md)) | a fila, a trava por telefone e as reivindicações atômicas dependem de SQL; o adaptador usa só o subconjunto que o `@ekoai/db` já cobre. Valida o padrão de módulos |
 | D9 | Site da BEZ | segue no Cloud Run com mínimo 0 e Firebase Hosting, num projeto próprio (`bez-site-prod`) | já custa perto de zero; exportação estática é opcional e fica para depois |
 | D10 | Créditos | nenhum crédito entra no orçamento. Pedir PostHog e Sentry for Startups; Google for Startups só se a BEZ pretende captar investimento (o programa pede) | crédito vence e a conta precisa fechar sem ele |
 
@@ -184,16 +184,16 @@ Cliente real: sem janela de manutenção no horário de atendimento, e um só re
 - **E3.2** Levantamento do bot em produção: mensagens por mês, plano atual da Vercel (o Hobby é só
   para uso não comercial), custo de hoje, dados reais no banco, horários de pico e quem avisa o
   cliente numa janela.
-- **E3.3** Spike de banco, meio dia: adapter de Firestore atrás de `src/ports` contra o emulador,
-  com fila e idempotência. Decide Firestore ou Postgres (`f1-micro`).
-- **E3.4** Spec curta do bot no Google Cloud (é mudança de arquitetura).
-- **E3.5** Extrair o `cloud-run-service` (e `cloud-tasks-queue`, e `firestore` se escolhido) do módulo
+- **E3.3** Decisão de banco, resolvida lendo o código: Postgres no Cloud SQL pelo `@ekoai/db`; Firestore
+  descartado (SPEC 014, D1). Falta só conferir `upsert` com `onConflict` e `or` no `@ekoai/db`.
+- **E3.4** [SPEC 014](014-bot-de-atendimento-no-google-cloud.md): a spec do bot no Google Cloud.
+- **E3.5** Extrair o `project-baseline`, o `cloud-run-service` e o `cloud-sql` do módulo
   da Ekoai: o bot é o segundo consumidor desses blocos.
 - **E3.6** Projetos `saint-jardin-staging` e `saint-jardin-prod` por Terraform, com CI por Workload
-  Identity. Staging sem Cloud SQL custa perto de zero.
-- **E3.7** Webhook enxuto (valida a assinatura da Meta, grava o evento, cria a tarefa e responde
-  200) e worker em serviço separado; Cloud Tasks com `scheduleTime` de agora mais 60 s e nome igual
-  ao `message_id`; `eventos_processados` mantida, porque a entrega é pelo menos uma vez.
+  Identity. O Cloud SQL do staging fica ligado só nos testes (cerca de US$ 3 por mês).
+- **E3.7** O webhook que já existe (valida a assinatura, deduplica por `message_id`, grava na fila com
+  atraso e responde 200) e a rota `/api/process` chamada por Cloud Scheduler a cada minuto com token
+  OIDC, no lugar de `pg_cron` e `pg_net`. Sem Cloud Tasks nem serviço separado (SPEC 014, D2).
 - **E3.8** Medir o p95 do webhook depois de inatividade com mínimo 0 e confirmar o prazo de resposta
   da Meta na documentação oficial. Só manter instância mínima se estourar.
 - **E3.9** Alertas: fila parada, tentativas excedidas, mensagem duplicada, falha do Telegram.

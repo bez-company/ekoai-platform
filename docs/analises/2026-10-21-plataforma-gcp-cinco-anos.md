@@ -146,6 +146,10 @@ comporta como `beta`. Valores iniciais na [SPEC 013](../specs/013-bez-cloud-plat
 
 ### Bot de atendimento: o que o código mostra
 
+> **Revisado em 21/10/2026.** Esta seção propunha Firestore e Cloud Tasks por mensagem, antes de ler o
+> código. Depois da leitura a recomendação mudou para Postgres no Cloud SQL (pelo `@ekoai/db`) e Cloud
+> Scheduler por minuto: ver a [SPEC 014](../specs/014-bot-de-atendimento-no-google-cloud.md).
+
 Schema com 8 tabelas pequenas (`contatos`, `conversas`, `mensagens`, `handoffs`,
 `eventos_processados`, `disponibilidade`, `consentimentos`, `fila_mensagens`), sem junção complexa, e
 o banco isolado por portas (`src/ports`, `src/adapters/supabase.ts`). A fila é uma tabela com
