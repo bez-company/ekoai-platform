@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { parseCommentText } from '@/lib/engage-model';
 import { publishEngagement } from '@/lib/engage';
 import { ForbiddenError, requirePermission, UnauthorizedError } from '@/lib/session';
@@ -12,6 +13,7 @@ export async function POST(req: Request) {
     const parsed = parseCommentText(await req.json().catch(() => null));
     if (!parsed.ok) return badRequest(parsed.error);
     const result = await publishEngagement(t, parsed.value.id, parsed.value.text);
+    if (result.ok) await track(t.tenantId, 'engagement_published');
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });

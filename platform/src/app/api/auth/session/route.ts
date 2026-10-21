@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { SESSION_COOKIE, USER_SESSION_TTL_S, authProvider, createUserSessionToken, sessionCookie } from '@/lib/auth';
 import { InvalidIdentityError, verifyIdToken } from '@/lib/identity';
 import { identityRefusal, isRefusal, membershipRefusal, pickTenant, type LoginRefusal } from '@/lib/login-policy';
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
 
     const token = await createUserSessionToken({ userId: user.id, tenantId: picked.tenantId, sessionVersion: user.sessionVersion });
     await markLogin(user.id, picked.tenantId);
+    await track(picked.tenantId, 'signed_in', { role: picked.role });
     const res = NextResponse.json({ ok: true, tenantId: picked.tenantId, role: picked.role });
     res.cookies.set(SESSION_COOKIE, token, { ...sessionCookie, maxAge: USER_SESSION_TTL_S });
     return res;

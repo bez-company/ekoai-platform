@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { rejectPending } from '@/lib/scheduling';
 import { parseFeedbackInput } from '@/lib/learning';
 import { saveFeedback } from '@/lib/feedback';
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     const why = parsedFeedback ? `${parsedFeedback.aspect}: ${parsedFeedback.note}` : reason;
     await rejectPending(t, pendingId, why);
     if (parsedFeedback) await saveFeedback(t, parsedFeedback);
+    await track(t.tenantId, 'post_rejected', { with_feedback: Boolean(parsedFeedback) });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return apiError(e, 'api/reject');

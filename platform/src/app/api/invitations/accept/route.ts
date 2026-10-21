@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { track } from '@/lib/analytics';
 import { SESSION_COOKIE, USER_SESSION_TTL_S, authProvider, createUserSessionToken, sessionCookie } from '@/lib/auth';
 import { InvalidIdentityError, verifyIdToken } from '@/lib/identity';
 import { identityRefusal, membershipRefusal, type LoginRefusal } from '@/lib/login-policy';
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
     const memberships = await membershipsOf(user.id);
     const late: LoginRefusal | null = membershipRefusal(identity, memberships);
     const role = memberships.find((m) => m.tenantId === tenantId)?.role ?? null;
+    await track(tenantId, 'invitation_accepted', { role });
     // Aviso para quem administra a conta (melhor esforço, sem o e-mail no texto).
     await notify(tenantDb(tenantId), {
       kind: 'team.member_joined',
