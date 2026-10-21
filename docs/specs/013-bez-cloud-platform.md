@@ -347,3 +347,12 @@ horas de migração do Pilar e consumo real de cada produto.
 - **E1.13:** a política de limpeza do registry já existia e o Cloud Build está desligado em todo projeto.
 - **E1.14 (PR #71):** controle de custo de IA entrou como R5.1 da SPEC 012, não como spec nova.
 - **Achado (BEZ-120):** o probe de startup consulta o banco; sem banco o Cloud Run não sobe instância.
+- **E1.8, sandbox sem corte automático (decisão de 21/10/2026):** o projeto `bez-company-sandbox` existe com
+  orçamento de R$ 30 e alerta. O corte automático do faturamento (orçamento para Pub/Sub, função que
+  desliga o faturamento) foi construído, aplicado e **desfeito**: o orçamento não consegue publicar no
+  Pub/Sub porque a política de domínios da organização (`iam.allowedPolicyMemberDomains`, padrão do
+  Google) barra a conta de sistema do faturamento ("users named in the policy do not belong to a
+  permitted customer"). Abrir exceção nessa política só para ganhar o corte seria afrouxar segurança por
+  conveniência. Alternativas: (a) exceção da política no `bez-platform`; (b) canal do Monitoring em vez
+  de Pub/Sub; (c) função agendada lendo o gasto na exportação do BigQuery, com atraso de horas;
+  (d) só alerta e cota baixa. Fica (d) por ora, com (c) como candidata (BEZ-121).
