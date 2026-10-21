@@ -1,6 +1,8 @@
 # SPEC 014: bot de atendimento no Google Cloud
 
-- **Status:** proposta (21/10/2026), Etapa 3 da [SPEC 013](013-bez-cloud-platform.md)
+- **Status:** em implementação (21/10/2026), Etapa 3 da [SPEC 013](013-bez-cloud-platform.md). Código do bot na
+  [PR 21 do repositório do bot](https://github.com/bez-company/saint-jardin-chatbot/pull/21), infraestrutura nesta
+  PR; faltam os projetos (cota de faturamento, BEZ-123), os dados e o cutover
 - **Depende de:** [ADR 0015](../adr/0015-bez-cloud-platform.md), [ADR 0008](../adr/0008-acesso-ao-postgres-sem-supabase-js.md)
   (`@ekoai/db`), [BEZ-95](https://linear.app/bez-company/issue/BEZ-95) (dado pessoal no repositório do bot)
 - **Escopo:** levar o bot de atendimento no WhatsApp (repositório `bez-company/saint-jardin-chatbot`) da
@@ -34,6 +36,7 @@ atendimento.
 | D5 | **Segredos no Secret Manager;** `PROCESS_SECRET` some porque o Scheduler autentica por OIDC (a rota confere o token, como a `publish-due` da Ekoai) | sem segredo compartilhado em variável de ambiente |
 | D6 | **Gemini continua pela chave** (`@google/genai`) na primeira etapa. Passar para o Vertex com a conta de serviço, sem chave, fica como melhoria | não misturar migração de hospedagem com troca de provedor de modelo |
 | D7 | **Dados: `pg_dump` do Supabase e restauração no Cloud SQL** numa janela curta combinada com a atendente. O banco é pequeno | sem replicação contínua |
+| D8 | **Arquivos das propostas: Cloud Storage**, bucket privado por projeto, URL assinada de 10 minutos pela conta de serviço (signBlob, sem chave). Só leitura para o bot | o bot lia PDFs e o vídeo do Supabase Storage; sem isso o Supabase não sai. Não estava na primeira versão da spec |
 
 ### Como o bot consome o `@ekoai/db`
 

@@ -186,3 +186,37 @@ proteção ligada.
 - **Exceção aceita:** sobram 7 avisos do `npm audit` na plataforma (`braces`, `micromatch`, `chokidar`, `fast-glob`,
   `postcss-nested`, `postcss-selector-parser`, `tailwindcss`), todos da cadeia do Tailwind 3, só em build e fora do
   que roda em produção. Saem com a migração para o Tailwind 4, que é mudança maior e entra à parte.
+
+## Bot de atendimento: migração dos dados e cutover
+
+O bot (`bez-company/saint-jardin-chatbot`, [SPEC 014](specs/014-bot-de-atendimento-no-google-cloud.md)) tem
+dois projetos, `saint-jardin-staging` e `saint-jardin-prod`. Enquanto o Scheduler de produção estiver
+pausado, o webhook da Meta continua na Vercel e nada muda para a atendente.
+
+**Ensaio (staging, sem cliente):** restaurar o dump no banco do staging e conferir contagem de linhas por
+tabela contra o Supabase; subir os arquivos para o bucket e pedir uma URL assinada; ligar o Scheduler do staging
+e mandar uma conversa completa em `MODO_TESTE` com o número de teste da Meta (a mesma entrega reenviada não
+duplica resposta).
+
+**Dados (janela combinada com a atendente):**
+
+```bash
+# 1. no Supabase, com a fila drenada (nada pendente em fila_mensagens): só dados do schema public
+pg_dump "$SUPABASE_DB_URL" --data-only --schema=public --no-owner --no-privileges \
+  --exclude-table=public.schema_migrations -Fc -f bot-dados.dump
+# 2. no Cloud SQL de produção, depois do job saint-jardin-migrate ter criado as tabelas vazias
+pg_restore --data-only --no-owner --disable-triggers -d "$DATABASE_URL" bot-dados.dump
+# 3. conferir contagem por tabela dos dois lados
+# 4. arquivos: baixar os 3 PDFs e o vídeo do bucket `propostas` do Supabase e
+gcloud storage cp <arquivos> gs://saint-jardin-prod-propostas/
+```
+
+**Cutover:** (1) `terraform apply -var schedules_paused=false` em `envs/saint-jardin-prod`; (2) na Meta, trocar a
+URL de callback do webhook para `<bot_url>/api/whatsapp` (o verify token é o do Secret Manager); (3) conferir
+no log do Cloud Run uma mensagem real entrando e saindo; (4) desligar o `pg_cron` do Supabase
+(`select cron.unschedule('processar-fila')`) para o banco antigo não processar mais nada.
+
+**Volta:** repontar o webhook da Meta para a Vercel e pausar o Scheduler (`-var schedules_paused=true`). Mensagens
+chegadas no Cloud SQL durante a janela ficam lá; se voltar depois de muita conversa, exportar o delta
+(`conversas` e `mensagens` por `atualizado_em`) antes de repontar. Vercel e Supabase só saem depois de 30 dias
+sem tráfego (BEZ-111).
