@@ -145,3 +145,29 @@ O nível (`tier`) é uma variável do Terraform e um label em todo recurso. Subi
 5. Orçamento do projeto por cliente e por receita em `infra/terraform/platform/main.tf`.
 6. Restore executado por trimestre (e agora, uma vez, para o nível novo), registrado aqui.
 7. Conferir as conexões (seção acima) com o limite novo.
+
+## Restore do banco (como se faz e quanto leva)
+
+Clone por ponto no tempo numa instância temporária, consultada por um job temporário do Cloud Run na mesma
+VPC. Nunca mexe no banco original.
+
+```bash
+gcloud sql instances clone ekoai-pg ekoai-pg-restore-test --project=<projeto> \
+  --point-in-time=<UTC, ex.: 2026-10-21T14:17:46.000Z> --async
+```
+
+Medido em produção, 21/10/2026 (banco `db-f1-micro` com dados pequenos): o clone ficou `RUNNABLE` em cerca de
+22 minutos e a operação só fechou uns 10 minutos depois, junto do primeiro backup do clone. A primeira
+conexão logo ao ficar `RUNNABLE` foi recusada (o Postgres ainda termina a recuperação); a segunda passou.
+Resultado: 34 tabelas, 21 migrations aplicadas e o tenant existente, lidos por um job que devolve só
+contagens. Esse é o número a considerar em um incidente: **cerca de meia hora até ter o banco de volta**,
+mais o tempo de apontar a plataforma para ele.
+
+Para verificar sem expor dado: segredo temporário com a URL do clone (mesmo usuário e senha, host trocado), job
+temporário com a imagem dos jobs e `--command node --args "^@^--input-type=module@-e@<script>"` (o `gcloud`
+separa `--args` por vírgula, então use o delimitador `^@^`), que imprime só contagens.
+
+Limpeza, nesta ordem: apagar o job e o segredo; esperar a operação `CLONE` terminar (antes disso a instância
+recusa mudança); `gcloud sql instances patch <clone> --no-deletion-protection` (o clone herda a proteção do
+original); `gcloud sql instances delete <clone>`. Confira o nome duas vezes: o banco de produção continua com a
+proteção ligada.
