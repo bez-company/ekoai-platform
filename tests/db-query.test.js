@@ -34,6 +34,20 @@ describe('@ekoai/db: SQL gerado', () => {
     expect(calls[0].params).toEqual(['t1', ['a', 'b']]);
   });
 
+  it('ilike vai por parâmetro e converte a coluna para texto', async () => {
+    const { db, calls } = fakeDb();
+    await db.from('posts').select('id').ilike('status', "Ana%'; drop table posts; --").limit(1);
+    expect(calls[0].text).toBe('select "id" from "posts" where "status"::text ilike $1 limit 1');
+    expect(calls[0].params).toEqual(["Ana%'; drop table posts; --"]);
+  });
+
+  it('ilike recusa valor que não é texto e coluna que não existe', async () => {
+    const { db } = fakeDb();
+    expect(() => db.from('posts').select('id').ilike('status', 5)).toThrow(/exige texto/);
+    const { error } = await db.from('posts').select('id').ilike('nao_existe', 'x');
+    expect(error?.code).toBe('42703');
+  });
+
   it('valor com SQL dentro continua sendo dado', async () => {
     const { db, calls } = fakeDb();
     await db.from('posts').select('id').eq('status', "x'; drop table posts; --");
