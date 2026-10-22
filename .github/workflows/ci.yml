@@ -148,6 +148,13 @@ jobs:
             values ('exemplo', 'resposta', 'https://www.linkedin.com/feed/update/urn:li:activity:1/', 'urn:li:activity:1',
                     'urn:li:comment:(urn:li:activity:1,2)', 'texto', '["a"]', 'publicado');
           insert into engage_targets (tenant_id, name, profile_url) values ('exemplo', 'Ana', 'https://www.linkedin.com/in/ana/');
+          insert into company_facts (tenant_id, kind, text, source) values ('exemplo', 'fact', 'Entrega no mesmo dia em Marília', 'site');
+          insert into generation_runs (tenant_id, brief_id, step, input_hash, status, model, images, cost_usd, result)
+            select 'exemplo', id, 'visual', repeat('a', 64), 'done', 'gemini-3.1-flash-image', 1, 0.0672, '{"key":"images/00000000-0000-4000-8000-000000000001.png"}' from briefs limit 1;
+          insert into post_designs (tenant_id, brief_id, kind, ratio, layout, design)
+            select 'exemplo', id, 'informativo', '4:5', 'lista-numerada', '{"texts":{"title":"ci"}}' from briefs limit 1;
+          update pending_approvals set post_kind = 'informativo', post_design_id = (select id from post_designs limit 1) where pending_id = 'ci-linkedin';
+          update briefs set post_kind = 'informativo', source = 'platform', error = null where idea = 'ci';
           insert into notifications (tenant_id, kind, level, title, body, link)
             values ('exemplo', 'publish.ok', 'info', 'Publicado no LinkedIn', null, '/history');
           SQL
