@@ -16,12 +16,13 @@ import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
-import { inputHash, type PostKind } from './generation-model';
-import { buildCopyPrompt, imageTextsOf, parseCopy, visualPromptFor, type Copy } from './agents';
+import { inputHash, LIMIT_MESSAGE, type PostKind } from './generation-model';
+import { buildCopyPrompt, buildRewritePrompt, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
+import { UserError } from './errors';
 import { log } from './log';
 import type { ModelClient } from './vertex';
 
@@ -35,13 +36,13 @@ export type GenerationOutcome =
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
 const RATIO = '4:5' as const;
 
-type Brief = { id: string; idea: string; kind: PostKind | null; status: string };
+type Brief = { id: string; idea: string; kind: PostKind | null; status: string; direction: number };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,status').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,status,direction').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
-  return { id: String(data.id), idea: String(data.idea), kind: (data.post_kind as PostKind | null) ?? null, status: String(data.status) };
+  return { id: String(data.id), idea: String(data.idea), kind: (data.post_kind as PostKind | null) ?? null, status: String(data.status), direction: Number(data.direction ?? 1) };
 }
 
 async function setBrief(t: TenantDb, briefId: string, values: Record<string, unknown>): Promise<void> {
@@ -80,7 +81,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, profile, facts: facts.facts, never: facts.never, rules, feedback, previous });
+    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -225,3 +226,32 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
 }
 
 export { profileFromRow };
+
+// Atalho de ajuste da legenda (Encurtar, Mais descontraído, Mais formal, Outro CTA): uma chamada de
+// texto reservada como as outras (idempotente pelo pedido), sem tocar na imagem nem no limite.
+export async function rewriteCaption(t: TenantDb, deps: Pick<GenerationDeps, 'model'>, input: { briefId: string; mode: RewriteMode; caption: string; hashtags: string[] }): Promise<{ caption: string; hashtags: string[] }> {
+  const [account, profile, factRows] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t)]);
+  if (!profile) throw new UserError('Preencha o perfil da empresa antes.');
+  const facts = factsForPrompt(factRows);
+  const prompt = buildRewritePrompt({ mode: input.mode, caption: input.caption, hashtags: input.hashtags, profile, facts: facts.facts, never: facts.never });
+  const model = deps.model.config.textModel;
+  const reservation = await reserveRun(t, { briefId: input.briefId, step: 'writer', inputHash: inputHash('writer', model, { prompt }), model }, account?.plan.maxPostsPerMonth ?? 20);
+  if (!reservation.ok) throw new UserError(LIMIT_MESSAGE(reservation.usage.max));
+  let json: unknown;
+  if (reservation.reused && reservation.run.status === 'done') json = reservation.run.result;
+  else {
+    try {
+      const out = await deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step: 'rewrite', brief: input.briefId }, maxOutputTokens: 1024 });
+      await completeRun(t, reservation.run.id, { result: out.json, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd, durationMs: out.durationMs });
+      json = out.json;
+    } catch (e) {
+      await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  }
+  const parsed = parseRewrite(json);
+  if (!parsed.ok) throw new UserError('A Ekoai não conseguiu reescrever agora. Tente de novo.');
+  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
+  if (issues.length) throw new UserError(`A nova legenda não passou no revisor: ${issues[0].message} Tente outro atalho ou edite à mão.`);
+  return { caption: parsed.caption, hashtags: parsed.hashtags };
+}

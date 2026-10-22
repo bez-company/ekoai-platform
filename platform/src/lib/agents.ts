@@ -15,6 +15,7 @@ export type CopyInput = {
   rules: string[]; // regras ativas do Aprendizado
   feedback?: Issue[]; // achados da volta anterior
   previous?: Copy | null; // o texto recusado
+  direction?: number; // 1 = a primeira; acima disso, "outra direção" pedida pela pessoa
 };
 
 export type Copy = {
@@ -70,6 +71,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('## O pedido');
   lines.push(`- Ideia: ${input.idea}`);
   lines.push(input.kind ? `- Tipo do post: ${input.kind}` : '- Tipo do post: escolha entre "informativo" (o texto manda: dica, dado, passo a passo) e "atmosfera" (a imagem manda: bastidor, produto, clima da marca)');
+  if ((input.direction ?? 1) > 1) lines.push(`- Direção ${input.direction}: a pessoa pediu OUTRA direção. Escolha um ângulo, um gancho e (no atmosfera) uma cena diferentes das óbvias para este tema; evite repetir a abordagem mais comum.`);
   lines.push('');
   lines.push('## Regras do texto');
   lines.push('- Frase curta, voz ativa, sentence case (só a primeira letra maiúscula). Nada de travessão (— ou –): use vírgula, ponto ou dois-pontos.');
@@ -144,4 +146,53 @@ export function visualPromptFor(copy: Copy): string {
 export function imageTextsOf(copy: Copy): string[] {
   const t = copy.texts;
   return [t.kicker, t.title, t.sub, ...(t.items ?? [])].filter((x): x is string => !!x);
+}
+
+// Atalhos de ajuste da legenda (SPEC 012, decisão 2): uma chamada curta, só sobre a legenda. O texto
+// da imagem não muda (seria outra renderização); o limite do mês não é tocado.
+export const REWRITE_MODES = ['shorter', 'casual', 'formal', 'cta'] as const;
+export type RewriteMode = (typeof REWRITE_MODES)[number];
+
+export function isRewriteMode(value: unknown): value is RewriteMode {
+  return typeof value === 'string' && (REWRITE_MODES as readonly string[]).includes(value);
+}
+
+const REWRITE_ASK: Record<RewriteMode, string> = {
+  shorter: 'Encurte a legenda: metade do tamanho, mantendo a ideia central e a chamada final.',
+  casual: 'Deixe a legenda mais descontraída e próxima, como quem conversa com um cliente, sem perder a informação.',
+  formal: 'Deixe a legenda mais formal e direta, sem perder a informação nem virar texto de manual.',
+  cta: 'Troque a chamada final por outra, diferente da atual, coerente com a empresa.',
+};
+
+export function buildRewritePrompt(input: { mode: RewriteMode; caption: string; hashtags: string[]; profile: CompanyProfile; facts: string[]; never: string[] }): string {
+  const p = input.profile;
+  const lines = [
+    'Você é o redator de uma pequena empresa brasileira no Instagram. Responda SÓ com um objeto JSON, em português do Brasil, com acentos corretos.',
+    '',
+    `## A empresa: ${p.offering}. Para quem: ${p.audience}. Jeito de falar: ${voiceLine(p)}.${p.ctaDefault && CTA_TEXT[p.ctaDefault] ? ` Chamada padrão: ${CTA_TEXT[p.ctaDefault]}.` : ''}`,
+    `## Pode afirmar: ${input.facts.length ? input.facts.join('; ') : 'nenhum número, preço ou prazo'}`,
+    input.never.length ? `## Nunca afirma: ${input.never.join('; ')}` : '',
+    p.bannedWords.length ? `## Palavras proibidas: ${p.bannedWords.join(', ')}` : '',
+    '',
+    `## Pedido: ${REWRITE_ASK[input.mode]}`,
+    '- Sem travessão (— ou –). Sem "imperdível", "garantido" nem superlativo vazio. Mantenha ou troque as hashtags só se fizer sentido (3 a 8, sem o #).',
+    '',
+    `## Legenda atual:\n${input.caption}`,
+    `## Hashtags atuais: ${input.hashtags.join(', ')}`,
+    '',
+    '## Formato da resposta (JSON)',
+    '{"caption":"...","hashtags":["..."]}',
+  ];
+  return lines.filter((l) => l !== '').join('\n');
+}
+
+export function parseRewrite(json: unknown): { ok: true; caption: string; hashtags: string[] } | { ok: false; error: string } {
+  const o = json && typeof json === 'object' && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
+  const caption = typeof o?.caption === 'string' ? o.caption.trim().slice(0, LIMITS.caption) : '';
+  if (!caption) return { ok: false, error: 'O modelo não devolveu a legenda.' };
+  const hashtags = (Array.isArray(o?.hashtags) ? o!.hashtags : [])
+    .map((h) => String(h).trim().replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}_]/gu, ''))
+    .filter((h, i, arr) => h && arr.indexOf(h) === i)
+    .slice(0, LIMITS.hashtags);
+  return { ok: true, caption, hashtags };
 }

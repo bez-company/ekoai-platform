@@ -44,6 +44,10 @@ const EXPECTED = {
   posts: ['content.create'],
   'posts/[id]': ['content.view'],
   'posts/[id]/retry': ['content.create'],
+  'posts/[id]/direction': ['content.edit'],
+  'posts/[id]/caption': ['content.edit'],
+  facts: ['profile.view', 'brand.manage'],
+  'facts/[id]': ['brand.manage', 'brand.manage'],
 };
 
 function routes(dir) {

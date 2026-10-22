@@ -8,6 +8,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if (!(await can('profile.view'))) notFound();
   const tabs: SettingsTab[] = [{ href: '/settings', label: 'Publicação' }];
   if (await canAccess('profile.view')) tabs.push({ href: '/settings/company', label: 'Empresa' });
+  if (await canAccess('profile.view')) tabs.push({ href: '/settings/facts', label: 'Fatos da empresa' });
   if (await canAccess('team.manage')) tabs.push({ href: '/settings/team', label: 'Equipe' });
   if (await canAccess('account.export')) tabs.push({ href: '/settings/data', label: 'Dados e privacidade' });
   return (

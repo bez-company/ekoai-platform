@@ -3,6 +3,7 @@
 
 import { Readable } from 'node:stream';
 import { mediaFile, parseMediaKey, parseRange } from '@/lib/media';
+import { localStore } from '@/lib/brand-logo';
 import { log } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,16 @@ const BASE_HEADERS = {
 export async function GET(req: Request, { params }: { params: Promise<{ key: string[] }> }) {
   const parsed = parseMediaKey((await params).key);
   if (!parsed) return new Response('Não encontrado', { status: 404 });
+
+  // Desenvolvimento sem bucket: os PNGs gerados ficam em LOCAL_BLOB_DIR (ignorada em produção).
+  if (process.env.LOCAL_BLOB_DIR && process.env.NODE_ENV !== 'production') {
+    try {
+      const bytes = await localStore(process.env.LOCAL_BLOB_DIR).get(parsed.key);
+      return new Response(Buffer.from(bytes), { headers: { ...BASE_HEADERS, 'Content-Type': parsed.contentType, 'Content-Length': String(bytes.length) } });
+    } catch {
+      return new Response('Não encontrado', { status: 404 });
+    }
+  }
 
   try {
     const file = mediaFile(parsed.key);

@@ -174,6 +174,30 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     expect(fixed.calls.map((c) => c.step)).toEqual(['visual']);
   });
 
+  it('"outra direção" reenfileira com o contador avançado, tira a pendência da fila e muda o prompt', async () => {
+    const t = tenantDb(A);
+    const { id } = (await admin.query("select b.id from briefs b join pending_approvals p on p.brief_id = b.id where b.tenant_id = $1 and b.post_kind = 'atmosfera' limit 1", [A])).rows[0];
+    await requests.requestAnotherDirection(t, id);
+    expect(await one('select direction, status from briefs where id = $1', [id])).toEqual({ direction: 2, status: 'queued' });
+    expect((await admin.query('select count(*)::int as n from pending_approvals where brief_id = $1', [id])).rows[0].n).toBe(0);
+    const model = fakeModel({ text: [{ ...ATM, visual_prompt: 'a new scene for direction two' }], image: [{}] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect(model.calls[0].prompt).toContain('Direção 2');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'visual']);
+    await expect(requests.requestAnotherDirection(tenantDb('it-flow-nope'), id)).rejects.toThrow(/não encontrado/);
+  });
+
+  it('o atalho de legenda reescreve e passa pelo revisor', async () => {
+    const t = tenantDb(A);
+    const { id } = (await admin.query("select id from briefs where tenant_id = $1 and status = 'ready' limit 1", [A])).rows[0];
+    const model = fakeModel({ text: [{ caption: 'Curta e boa.', hashtags: ['bolo'] }, { caption: 'Oferta imperdível', hashtags: [] }], image: [] });
+    const { rewriteCaption } = await import('../../platform/src/lib/generation.ts');
+    expect(await rewriteCaption(t, { model }, { briefId: id, mode: 'shorter', caption: 'Uma legenda longa demais para o feed.', hashtags: ['bolo'] })).toEqual({ caption: 'Curta e boa.', hashtags: ['bolo'] });
+    await expect(rewriteCaption(t, { model }, { briefId: id, mode: 'casual', caption: 'Outra', hashtags: [] })).rejects.toThrow(/não passou no revisor/);
+    expect(model.calls.map((c) => c.labels.step)).toEqual(['rewrite', 'rewrite']);
+  });
+
   it('o worker pega a fila com skip locked e devolve o resumo', async () => {
     const t = tenantDb(A);
     const id = await brief('promoção de natal', 'informativo');

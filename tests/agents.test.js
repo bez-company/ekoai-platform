@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCopyPrompt, parseCopy, visualPromptFor, imageTextsOf, LIMITS, VISUAL_SUFFIX } from '../platform/src/lib/agents.ts';
+import { buildCopyPrompt, parseCopy, visualPromptFor, imageTextsOf, LIMITS, VISUAL_SUFFIX, buildRewritePrompt, parseRewrite, isRewriteMode } from '../platform/src/lib/agents.ts';
 
 const profile = { niche: 'Alimentação', offering: 'Bolos sob encomenda', audience: 'Famílias de Marília', region: 'Marília, SP', siteUrl: null, instagramHandle: 'doceponto', differentiators: ['Entrega no dia'], pains: ['Bolo que chega amassado'], voiceFormal: 4, voiceTechnical: 5, voiceSerious: 3, bannedWords: ['imperdível'], logoAssetId: null, colorPrimary: null, colorAccent: null, fontHeading: null, fontBody: null, ctaDefault: 'whatsapp', postsPerWeek: null, updatedAt: '' };
 
@@ -47,5 +47,21 @@ describe('leitura da resposta', () => {
 
   it('lista os textos que vão para a imagem', () => {
     expect(imageTextsOf({ kind: 'informativo', angle: '', texts: { kicker: 'K', title: 'T', items: ['a'] }, caption: '', hashtags: [], visualPrompt: null })).toEqual(['K', 'T', 'a']);
+  });
+});
+
+describe('direção e atalhos de legenda', () => {
+  it('direção acima de 1 pede outro ângulo; a primeira não', () => {
+    expect(buildCopyPrompt({ idea: 'x', kind: null, profile, facts: [], never: [], rules: [], direction: 1 })).not.toContain('OUTRA direção');
+    expect(buildCopyPrompt({ idea: 'x', kind: null, profile, facts: [], never: [], rules: [], direction: 2 })).toContain('Direção 2');
+  });
+
+  it('o prompt de reescrita leva o pedido, a legenda e as regras; a resposta é normalizada', () => {
+    const p = buildRewritePrompt({ mode: 'shorter', caption: 'Legenda atual', hashtags: ['bolo'], profile, facts: ['Entrega no dia'], never: ['cura'] });
+    for (const piece of ['Encurte a legenda', 'Legenda atual', 'imperdível', 'Entrega no dia', 'cura', 'Hashtags atuais: bolo']) expect(p).toContain(piece);
+    expect(parseRewrite({ caption: ' Nova ', hashtags: ['#Bolo', 'bolo', 'x y'] })).toEqual({ ok: true, caption: 'Nova', hashtags: ['bolo', 'xy'] });
+    expect(parseRewrite({ hashtags: [] })).toMatchObject({ ok: false });
+    expect(isRewriteMode('cta')).toBe(true);
+    expect(isRewriteMode('louder')).toBe(false);
   });
 });

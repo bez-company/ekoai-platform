@@ -8,12 +8,13 @@ import { UserError } from './errors';
 import { isPostKind, type PostKind, type Step } from './generation-model';
 import { runsOfBrief } from './generation-db';
 import { log } from './log';
+import { IDEA_MAX } from './post-limits';
 
 export type PostRequestInput = { idea: string; kind: PostKind | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
-export const IDEA_MAX = 500;
+export { IDEA_MAX };
 
 export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
@@ -91,4 +92,20 @@ export async function retryPostRequest(t: TenantDb, briefId: string): Promise<vo
   const { data, error } = await t.update('briefs', { status: 'queued', error: null }).eq('id', briefId).eq('status', 'failed').select('id');
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data?.length) throw new UserError('Este pedido não está com falha. Recarregue a página.');
+}
+
+// "Outra direção": o mesmo pedido volta à fila com o contador de direção avançado. O hash do texto e
+// do visual mudam, então a Ekoai gera de novo (e o visual novo conta no limite). A pendência atual
+// sai da fila de Aprovar; o design dela fica guardado.
+export async function requestAnotherDirection(t: TenantDb, briefId: string): Promise<void> {
+  const cur = await t.select('briefs', 'id,direction,status').eq('id', briefId).maybeSingle();
+  if (cur.error) throw new Error(`briefs: ${cur.error.message}`);
+  if (!cur.data) throw new UserError('Pedido não encontrado. Recarregue a página.');
+  if (cur.data.status === 'queued' || cur.data.status === 'generating') throw new UserError('Este post ainda está sendo gerado.');
+  const direction = Number(cur.data.direction ?? 1) + 1;
+  if (direction > 20) throw new UserError('Este pedido já teve 20 direções. Crie um post novo.');
+  const del = await t.delete('pending_approvals').eq('brief_id', briefId);
+  if (del.error) throw new Error(`pendências: ${del.error.message}`);
+  const { error } = await t.update('briefs', { direction, status: 'queued', error: null }).eq('id', briefId);
+  if (error) throw new Error(`briefs: ${error.message}`);
 }
