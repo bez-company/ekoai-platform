@@ -136,4 +136,27 @@ describe('publicar foto sem IA', () => {
     expect(calls[0].labels).toMatchObject({ tenant: A, step: 'photo_caption' });
     await expect(photoPost.photoCaption(t, { assetId: asset.id, idea: null }, { model: model({ caption: 'Oferta imperdível', hashtags: [] }), store })).rejects.toThrow(/revisor/);
   });
+  it('escolher dia e hora: o post entra no horário pedido, fora da grade da agenda (BEZ-254)', async () => {
+    const asset = await upload();
+    const at = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const out = await photoPost.createPhotoPost(t, ANA, input(asset.id, { when: 'at', scheduledFor: at }), { store });
+    expect(out).toMatchObject({ status: 'scheduled', scheduledFor: at });
+    const row = await one('select status, scheduled_for from scheduled_posts where id = $1', [out.id]);
+    expect(row.status).toBe('scheduled');
+    expect(new Date(row.scheduled_for).toISOString()).toBe(at);
+  });
+
+  it('atalho da legenda: texto sem a foto, entra no teto da legenda pela foto e passa pelo revisor (BEZ-254)', async () => {
+    const asset = await upload();
+    const calls = [];
+    const model = (answer) => ({ config: { textModel: 'texto-falso' }, async generateJson(i) { calls.push(i); return { json: answer, raw: '', inputTokens: 10, outputTokens: 10, modelVersion: null, durationMs: 1, costUsd: 0.0001 }; } });
+    const before = (await one("select count(*)::int as n from vision_calls where tenant_id = $1 and kind = 'photo_caption'", [A])).n;
+    const out = await photoPost.photoRewrite(t, { assetId: asset.id, mode: 'shorter', caption: 'Bolo de morango saindo agora, quentinho, do jeito que você gosta.', hashtags: ['bolo'] }, { model: model({ caption: 'Bolo de morango saindo agora.', hashtags: ['bolo'] }) });
+    expect(out).toEqual({ caption: 'Bolo de morango saindo agora.', hashtags: ['bolo'] });
+    expect(calls[0].image).toBeUndefined();
+    expect(calls[0].labels).toMatchObject({ tenant: A, step: 'photo_rewrite' });
+    expect((await one("select count(*)::int as n from vision_calls where tenant_id = $1 and kind = 'photo_caption'", [A])).n).toBe(before + 1);
+    await expect(photoPost.photoRewrite(t, { assetId: asset.id, mode: 'casual', caption: 'x', hashtags: [] }, { model: model({ caption: 'Uma oferta imperdível', hashtags: [] }) })).rejects.toThrow(/revisor/);
+    await expect(photoPost.photoRewrite(t, { assetId: '3f8b2c1e-1d2a-4b5c-9e8f-0a1b2c3d4e5f', mode: 'cta', caption: 'x', hashtags: [] }, { model: model({}) })).rejects.toThrow(/não está mais no banco/);
+  });
 });

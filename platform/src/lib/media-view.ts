@@ -70,6 +70,11 @@ export type PhotoRatio = '4:5' | '1:1' | '1.91:1';
 export type Focus = { x: number; y: number };
 export type Box = { x: number; y: number; w: number; h: number };
 
+// Formato do post guardado no pedido (seed.ratio): 1:1 e 1.91:1 quando vierem; o resto é 4:5.
+export function ratioOf(seedRatio: unknown): PhotoRatio {
+  return seedRatio === '1:1' || seedRatio === '1.91:1' ? seedRatio : '4:5';
+}
+
 export const RATIOS: { value: PhotoRatio; label: string }[] = [
   { value: '4:5', label: 'Retrato 4:5' },
   { value: '1:1', label: 'Quadrado 1:1' },

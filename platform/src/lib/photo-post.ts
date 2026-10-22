@@ -19,7 +19,7 @@ import { getProfile } from './company-profile';
 import { listFacts } from './company-facts';
 import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
-import { parseRewrite } from './agents';
+import { buildRewritePrompt, parseRewrite, type RewriteMode } from './agents';
 import { blocking, reviewText } from './design/review';
 import { defaultStore, type BlobStore } from './brand-logo';
 import { exifOrientation } from './media-asset-model';
@@ -112,7 +112,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
   }
 
   const now = input.when === 'now';
-  const scheduledFor = now ? new Date().toISOString() : await nextFreeSlot(t, 'instagram');
+  const scheduledFor = now ? new Date().toISOString() : input.when === 'at' && input.scheduledFor ? input.scheduledFor : await nextFreeSlot(t, 'instagram');
   const id = randomUUID();
   const captionFinal = composeCaption(variation);
   const ins = await t.insert('scheduled_posts', {
@@ -174,5 +174,31 @@ export async function photoCaption(t: TenantDb, input: { assetId: string; idea: 
   if (!parsed.ok) throw new UserError('A Ekoai não conseguiu escrever a legenda agora. Tente de novo ou escreva você.');
   const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
   if (issues.length) throw new UserError(`A legenda sugerida não passou no revisor: ${issues[0].message} Peça de novo ou escreva você.`);
+  return { caption: parsed.caption, hashtags: parsed.hashtags };
+}
+
+// Atalho da legenda do post de foto (Encurtar, Mais descontraído, Mais formal, Outro CTA; BEZ-254). Uma
+// chamada curta de texto, sem a foto e sem pedido de geração por trás. Não conta no limite de posts;
+// entra no teto diário da legenda pela foto (vision_calls, photo_caption), que é o que limita o custo
+// do Publicar foto. O revisor por regra confere a nova legenda.
+export async function photoRewrite(
+  t: TenantDb,
+  input: { assetId: string; mode: RewriteMode; caption: string; hashtags: string[] },
+  deps: { model: ModelClient },
+): Promise<{ caption: string; hashtags: string[] }> {
+  const [asset, profile, factRows] = await Promise.all([getMediaAsset(t, input.assetId), getProfile(t), listFacts(t)]);
+  if (!asset) throw new UserError('Esta foto não está mais no banco de imagens. Escolha outra.');
+  if (!profile) throw new UserError('Preencha o perfil da empresa antes de pedir o ajuste.');
+  const facts = factsForPrompt(factRows);
+  const prompt = buildRewritePrompt({ mode: input.mode, caption: input.caption, hashtags: input.hashtags, profile, facts: facts.facts, never: facts.never });
+  const out = await withVisionBudget(t, 'photo_caption', asset.id, () =>
+    deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step: 'photo_rewrite' }, maxOutputTokens: 1024 }),
+  );
+  if (!out) throw new UserError(CAPTION_CAP_MESSAGE);
+  const parsed = parseRewrite(out.json);
+  if (!parsed.ok) throw new UserError('A Ekoai não conseguiu ajustar a legenda agora. Tente de novo ou edite à mão.');
+  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
+  if (issues.length) throw new UserError(`A nova legenda não passou no revisor: ${issues[0].message} Tente outro atalho ou edite à mão.`);
+  log('info', 'photo-post', 'atalho da legenda', { tenant: t.tenantId, asset: asset.id, mode: input.mode, costUsd: out.costUsd });
   return { caption: parsed.caption, hashtags: parsed.hashtags };
 }
