@@ -1,0 +1,187 @@
+// A geração de ponta a ponta contra o Postgres (SPEC 012 entrega 5), com modelo e bucket falsos:
+// pedido na fila, worker pega, texto com uma volta do revisor, visual em cache, render, pendência
+// em Aprovar; limite do plano; falha e nova tentativa reaproveitando o que deu certo.
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import pg from 'pg';
+import { join } from 'node:path';
+import { resetTenantData } from './helpers.js';
+
+const url = process.env.TEST_DATABASE_URL;
+if (!url) throw new Error('TEST_DATABASE_URL ausente');
+process.env.DATABASE_URL = url;
+process.env.MEDIA_BASE_URL = 'https://app.test/api/media';
+
+const admin = new pg.Pool({ connectionString: url, max: 4 });
+const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
+const { generatePost } = await import('../../platform/src/lib/generation.ts');
+const worker = await import('../../platform/src/lib/generation-worker.ts');
+const requests = await import('../../platform/src/lib/post-requests.ts');
+const profile = await import('../../platform/src/lib/company-profile.ts');
+const facts = await import('../../platform/src/lib/company-facts.ts');
+const { pngSize } = await import('../../platform/src/lib/design/render.ts');
+
+const A = 'it-flow-a';
+const PLAN = 'it-flow-plan';
+const ANA = { id: '00000000-0000-4000-8000-000000000801', name: 'Ana', sessionVersion: 1, lastTenantId: null };
+const FONT_DIR = join(import.meta.dirname, '../../platform/fonts');
+
+// Bucket de memória.
+const objects = new Map();
+const store = {
+  put: async (key, bytes, type) => void objects.set(key, { bytes: Buffer.from(bytes), type }),
+  get: async (key) => objects.get(key).bytes,
+  remove: async (key) => void objects.delete(key),
+  removePrefix: async (prefix) => { for (const k of [...objects.keys()]) if (k.startsWith(prefix)) objects.delete(k); },
+};
+
+// Modelo falso: devolve o que o teste programa e conta as chamadas. Chamada sem reserva seria um
+// bug: a contagem confere isso contra generation_runs.
+function fakeModel(script) {
+  const calls = [];
+  return {
+    calls,
+    config: { project: 'p', location: 'global', textModel: 'texto-falso', imageModel: 'imagem-falsa' },
+    async generateJson({ prompt, labels }) {
+      calls.push({ step: 'writer', labels, prompt });
+      const next = script.text.shift();
+      if (next instanceof Error) throw next;
+      return { json: typeof next === 'function' ? next(prompt) : next, raw: '', inputTokens: 100, outputTokens: 50, modelVersion: 'v1', durationMs: 10, costUsd: 0.0001 };
+    },
+    async generateImage({ prompt, labels }) {
+      calls.push({ step: 'visual', labels, prompt });
+      const next = script.image.shift();
+      if (next instanceof Error) throw next;
+      // PNG válido de 1x1 para o render embutir
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      return { png, inputTokens: 20, outputTokens: 1120, modelVersion: 'img-1', durationMs: 20, costUsd: 0.0672 };
+    },
+  };
+}
+
+const INFO = { kind: 'informativo', angle: 'dica', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Confira sem abrir o forno', items: ['A massa desgruda da borda', 'O palito sai limpo', 'O topo volta ao toque'] }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'] };
+const ATM = { kind: 'atmosfera', angle: 'bastidor', texts: { kicker: 'Quarta de massa', title: 'Bolo bom não tem pressa' }, caption: 'Bastidor de hoje.', hashtags: ['bastidores'], visual_prompt: 'flour on a wooden table, warm light' };
+
+async function brief(idea, kind = null) {
+  return (await requests.createPostRequest(tenantDb(A), ANA, { idea, kind })).id;
+}
+const one = async (sql, params) => (await admin.query(sql, params)).rows[0];
+
+beforeAll(async () => {
+  await resetTenantData(admin, [A]);
+  await admin.query("insert into plans (id, name, kind, max_seats, max_instagram_accounts, max_posts_per_month) values ($1, 'It Flow', 'empresa', 5, 1, 2) on conflict (id) do update set max_posts_per_month = 2", [PLAN]);
+  await admin.query("insert into users (id, email, name) values ($1, 'it-flow-ana@example.test', 'Ana') on conflict (id) do nothing", [ANA.id]);
+  await admin.query("insert into tenants (id, name, kind, plan_id) values ($1, 'It Flow', 'empresa', $2)", [A, PLAN]);
+  const t = tenantDb(A);
+  await profile.saveSection(t, ANA, { ok: true, section: 'about', values: { niche: 'Alimentação', offering: 'Bolos sob encomenda', audience: 'Famílias', region: null, site_url: null, instagram_handle: 'itflow' } });
+  await profile.saveSection(t, ANA, { ok: true, section: 'voice', values: { voice_formal: 4, voice_technical: 5, voice_serious: 3, banned_words: ['imperdível'], differentiators: [], pains: [] } });
+  await profile.saveSection(t, ANA, { ok: true, section: 'visual', values: { color_primary: '#B83262', color_accent: '#F2A9C4', font_heading: 'Playfair Display', font_body: 'Inter', cta_default: 'whatsapp', posts_per_week: null } });
+  await facts.createFact(t, ANA, { kind: 'fact', text: 'Três sinais de bolo pronto', source: 'owner', source_note: null });
+});
+
+afterAll(async () => {
+  await resetTenantData(admin, [A]);
+  await admin.query('delete from plans where id = $1', [PLAN]);
+  await admin.end();
+});
+
+describe('post informativo', () => {
+  it('o revisor devolve a palavra proibida ao modelo e a segunda versão vira pendência com PNG', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [{ ...INFO, caption: 'Oferta imperdível de bolo' }, INFO], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'writer']);
+    expect(model.calls[1].prompt).toContain('"imperdível"');
+    expect(model.calls[0].labels).toEqual({ tenant: A, step: 'writer', brief: id });
+
+    const pending = await one('select * from pending_approvals where brief_id = $1', [id]);
+    expect(pending.channel).toBe('instagram');
+    expect(pending.post_kind).toBe('informativo');
+    expect(pending.generation.variations[0]).toMatchObject({ id: 1, hook: 'Seu bolo está pronto?', hashtags: ['bolo', 'marilia'] });
+    expect(pending.images[0].url).toMatch(/^https:\/\/app\.test\/api\/media\/images\/[0-9a-f-]+\.png$/);
+    const png = objects.get(pending.images[0].path).bytes;
+    expect(pngSize(png)).toEqual({ width: 1080, height: 1350 });
+    const design = await one('select * from post_designs where id = $1', [pending.post_design_id]);
+    expect(design).toMatchObject({ kind: 'informativo', layout: 'lista-numerada', visual_key: null });
+    expect(design.design.texts.title).toBe('Seu bolo está pronto?');
+    expect((await one('select status, error from briefs where id = $1', [id]))).toEqual({ status: 'ready', error: null });
+    const runs = (await admin.query("select step, status, cost_usd from generation_runs where brief_id = $1 order by created_at", [id])).rows;
+    expect(runs.map((r) => [r.step, r.status])).toEqual([['writer', 'done'], ['writer', 'done']]);
+    expect((await admin.query("select title, audience from notifications where tenant_id = $1 and kind = 'post.ready'", [A])).rows).toHaveLength(1);
+    // rodar de novo o mesmo pedido não chama o modelo nem cria outra pendência
+    const again = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(again).toEqual(out);
+    expect(model.calls).toHaveLength(2);
+  });
+
+  it('o andamento lê a fila, as etapas e a pendência', async () => {
+    const t = tenantDb(A);
+    const { id } = (await admin.query("select id from briefs where tenant_id = $1 and status = 'ready' limit 1", [A])).rows[0];
+    const progress = await requests.postProgress(t, id);
+    expect(progress).toMatchObject({ status: 'ready', kind: 'informativo', step: 'writer' });
+    expect(progress.pendingId).toMatch(/^plat-/);
+  });
+});
+
+describe('post de atmosfera, limite e nova tentativa', () => {
+  it('gera o visual uma vez (cache por hash), conta no limite e respeita o teto do plano', async () => {
+    const t = tenantDb(A);
+    const id1 = await brief('bastidor da cozinha', 'atmosfera');
+    const model = fakeModel({ text: [ATM, ATM, ATM], image: [{}, {}, {}] });
+    const out1 = await generatePost(t, id1, { model, store, fontDir: FONT_DIR });
+    expect(out1.status, JSON.stringify(out1)).toBe('ready');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'visual']);
+    expect(model.calls[1].prompt).toContain('No text, no letters');
+    const design = await one('select visual_key, layout from post_designs where brief_id = $1', [id1]);
+    expect(design.layout).toBe('foto-titulo');
+    expect(objects.has(design.visual_key)).toBe(true);
+
+    // mesmo pedido de visual noutro brief: cache, sem chamada e sem contar de novo
+    const id2 = await brief('bastidor da cozinha de novo', 'atmosfera');
+    await generatePost(t, id2, { model, store, fontDir: FONT_DIR });
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'visual', 'writer', 'visual']);
+    expect((await admin.query("select count(*)::int as n from generation_runs where tenant_id = $1 and step = 'visual'", [A])).rows[0].n).toBe(2);
+
+    // o plano de teste permite 2 por mês: o terceiro visual diferente bate no limite
+    const id3 = await brief('outro clima', 'atmosfera');
+    const other = fakeModel({ text: [{ ...ATM, visual_prompt: 'a different scene' }], image: [{}] });
+    const out3 = await generatePost(t, id3, { model: other, store, fontDir: FONT_DIR });
+    expect(out3).toEqual({ status: 'limit', briefId: id3, max: 2 });
+    expect(other.calls.map((c) => c.step)).toEqual(['writer']);
+    expect(await one('select status, error from briefs where id = $1', [id3])).toMatchObject({ status: 'failed', error: expect.stringContaining('limite') });
+  });
+
+  it('falha no modelo marca o pedido; tentar de novo reaproveita o texto que deu certo', async () => {
+    const t = tenantDb(A);
+    await admin.query("update plans set max_posts_per_month = 10 where id = $1", [PLAN]);
+    const id = await brief('festa de aniversário', 'atmosfera');
+    const broken = fakeModel({ text: [ATM], image: [new Error('Vertex AI 503 em imagem-falsa: indisponível')] });
+    const out = await generatePost(t, id, { model: broken, store, fontDir: FONT_DIR });
+    expect(out).toMatchObject({ status: 'failed', error: expect.stringContaining('503') });
+    expect(await one('select status from briefs where id = $1', [id])).toEqual({ status: 'failed' });
+    expect((await admin.query("select step, status from generation_runs where brief_id = $1 order by created_at", [id])).rows).toEqual([{ step: 'writer', status: 'done' }, { step: 'visual', status: 'failed' }]);
+
+    await requests.retryPostRequest(t, id);
+    expect(await one('select status from briefs where id = $1', [id])).toEqual({ status: 'queued' });
+    const fixed = fakeModel({ text: [new Error('não deveria chamar o texto de novo')], image: [{}] });
+    const claimed = await worker.claimQueued(5);
+    expect(claimed.map((c) => c.id)).toContain(id);
+    const summary = await worker.runGenerateQueue({ model: fixed, store, fontDir: FONT_DIR });
+    expect(summary.claimed).toBe(0); // o claim de cima já tinha pegado; o worker de verdade faz os dois juntos
+    const retry = await generatePost(t, id, { model: fixed, store, fontDir: FONT_DIR });
+    expect(retry.status, JSON.stringify(retry)).toBe('ready');
+    expect(fixed.calls.map((c) => c.step)).toEqual(['visual']);
+  });
+
+  it('o worker pega a fila com skip locked e devolve o resumo', async () => {
+    const t = tenantDb(A);
+    const id = await brief('promoção de natal', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [] });
+    const summary = await worker.runGenerateQueue({ model, store, fontDir: FONT_DIR }, { limit: 5 });
+    expect(summary, JSON.stringify(summary.outcomes)).toMatchObject({ claimed: 1, ready: 1, failed: 0, limit: 0 });
+    expect(summary.outcomes[0]).toMatchObject({ status: 'ready', briefId: id });
+    expect(await worker.claimQueued(5)).toEqual([]);
+    expect(await requests.retryPostRequest(t, id).catch((e) => e.message)).toMatch(/não está com falha/);
+  });
+});

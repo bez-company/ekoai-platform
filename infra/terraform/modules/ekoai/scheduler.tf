@@ -50,6 +50,30 @@ resource "google_cloud_scheduler_job" "publish_due" {
   }
 }
 
+# generate: o worker da geração de posts (ADR 0018). O pedido acorda o worker na hora; o Scheduler
+# é a reserva para o que ficou na fila (worker que caiu, chamada que falhou).
+resource "google_cloud_scheduler_job" "generate" {
+  count            = var.deploy_workloads ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-generate"
+  description      = "Processa a fila de pedidos de post"
+  schedule         = "*/2 * * * *"
+  time_zone        = "Etc/UTC"
+  paused           = var.schedules_paused
+  attempt_deadline = "300s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/generate"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}
+
 resource "google_cloud_run_v2_job_iam_member" "scheduler_runs" {
   for_each = { for k, v in local.jobs : k => v if var.deploy_workloads && v.cron != "" }
   project  = var.project_id
