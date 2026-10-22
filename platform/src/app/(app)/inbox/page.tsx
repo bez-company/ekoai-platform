@@ -3,7 +3,7 @@ import { getPendings } from '@/lib/queries';
 import { fmtDateTime } from '@/lib/format';
 import { groupIdeas, roleOf } from '@/lib/ideas-model';
 import type { PendingApproval } from '@/lib/types';
-import { pageTenant } from '@/lib/session';
+import { can, pageTenant } from '@/lib/session';
 import { pageError } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -21,8 +21,11 @@ function DbHint({ message }: { message: string }) {
   );
 }
 
+const KIND_LABEL = { informativo: 'Informativo', atmosfera: 'Atmosfera' } as const;
+
 export default async function InboxPage() {
   const t = await pageTenant();
+  const canCreate = await can('content.create');
   let pendings: PendingApproval[] = [];
   let err = '';
   try {
@@ -36,17 +39,35 @@ export default async function InboxPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Aprovar</h1>
-        <span className="text-sm text-muted">
-          {ideas.length} {ideas.length === 1 ? 'ideia' : 'ideias'} · {pendings.length} {pendings.length === 1 ? 'rede' : 'redes'}
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Aprovar</h1>
+          <p className="text-sm text-muted">Posts prontos para você revisar, ajustar e aprovar.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted">
+            {pendings.length} {pendings.length === 1 ? 'post' : 'posts'}
+          </span>
+          {canCreate && (
+            <Link href="/create" className="btn-primary">
+              Criar post
+            </Link>
+          )}
+        </div>
       </div>
 
       {err && <DbHint message={err} />}
 
       {!err && pendings.length === 0 && (
-        <div className="card text-sm text-muted">Nada para aprovar. Os posts criados pela IA chegam aqui para você revisar e aprovar.</div>
+        <div className="card space-y-3 py-8 text-center">
+          <h2 className="text-lg font-semibold">Nada para aprovar</h2>
+          <p className="mx-auto max-w-md text-sm text-muted">Os posts criados pela Ekoai chegam aqui para você revisar e aprovar.</p>
+          {canCreate && (
+            <Link href="/create" className="btn-primary">
+              Criar o primeiro post
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="grid gap-3">
@@ -69,16 +90,20 @@ export default async function InboxPage() {
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  {idea.pendings.map((p) => (
+                  {lead.post_kind && <span className="chip">{KIND_LABEL[lead.post_kind]}</span>}
+                  {lead.post_kind && <span className="chip">Retrato 4:5</span>}
+                  {!lead.post_kind && idea.pendings.map((p) => (
                     <span key={p.pending_id} className="chip uppercase" title={roleOf(p)}>
                       {p.channel}
                       {roleOf(p) === 'reuse' ? ' (reaproveitado)' : ''}
                     </span>
                   ))}
-                  {lead.generation?.pillar && <span className="chip">{lead.generation.pillar}</span>}
-                  {lead.generation?.angle && <span className="chip">{lead.generation.angle}</span>}
+                  {!lead.post_kind && lead.generation?.pillar && <span className="chip">{lead.generation.pillar}</span>}
+                  {!lead.post_kind && lead.generation?.angle && <span className="chip">{lead.generation.angle}</span>}
+                  {lead.generation?.guardrail_flags?.length ? <span className="chip border-warning/40 text-warning">Com aviso do revisor</span> : null}
                 </div>
-                <p className="mt-2 line-clamp-2 font-medium">{top?.hook || '(sem hook)'}</p>
+                <p className="mt-2 line-clamp-2 font-medium">{top?.hook || '(sem título)'}</p>
+                {lead.post_kind && <p className="mt-1 line-clamp-2 text-sm text-muted">{top?.body}</p>}
                 <p className="mt-1 text-xs text-muted">recebido {fmtDateTime(lead.saved_at)}</p>
               </div>
             </Link>

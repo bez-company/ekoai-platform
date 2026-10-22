@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Checklist from '@/components/home/Checklist';
 import { accountOf, onboardingSkipped } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
@@ -9,15 +10,27 @@ import { listTeam } from '@/lib/team';
 
 export const dynamic = 'force-dynamic';
 
-function Phase2Card({ viewer = false }: { viewer?: boolean }) {
+function Phase2Card({ viewer = false, ready = false }: { viewer?: boolean; ready?: boolean }) {
   return (
-    <section className="card space-y-2 border-accent/30 bg-accent/10">
-      <h2 className="text-lg font-semibold">Criação de posts com IA</h2>
+    <section className="card space-y-3 border-accent/30 bg-accent/10">
+      <h2 className="text-lg font-semibold">Criar post com a Ekoai</h2>
       <p className="text-sm">
         {viewer
-          ? 'Chega na próxima fase. Quando chegar, você dá o seu parecer nos posts por aqui.'
-          : 'Chega na próxima fase. Enquanto isso, deixe a conta pronta para começar no primeiro dia.'}
+          ? 'Quando a equipe pedir a sua opinião sobre um post, ele aparece em Aprovar.'
+          : ready
+            ? 'Diga o tema em uma frase. A Ekoai escreve a legenda e desenha a imagem com a marca da empresa; você revisa e aprova.'
+            : 'Complete o perfil da empresa (nicho, o que vende e para quem) e a Ekoai já escreve e desenha os posts.'}
       </p>
+      {!viewer && (
+        <div className="flex flex-wrap gap-2">
+          <Link href="/create" className={ready ? 'btn-primary' : 'btn-ghost'}>
+            Criar post
+          </Link>
+          <Link href="/inbox" className="btn-ghost">
+            Ver posts para aprovar
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
@@ -76,7 +89,7 @@ export default async function HomePage() {
         </div>
         <div className="grid items-start gap-5 md:grid-cols-2">
           <Checklist checklist={checklist} summary={summary} />
-          <Phase2Card />
+          <Phase2Card ready={isProfileComplete(profile)} />
         </div>
       </div>
     );

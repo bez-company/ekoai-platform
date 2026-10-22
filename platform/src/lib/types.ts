@@ -42,6 +42,8 @@ export type PendingApproval = {
   pending_id: string;
   channel: Channel;
   brief_id?: string | null; // ideia da rodada (SPEC 003): redes da mesma ideia compartilham
+  post_design_id?: string | null; // post feito pela Ekoai (SPEC 012): o design que re-renderiza sem IA
+  post_kind?: 'informativo' | 'atmosfera' | null;
   generation: Generation;
   top_id?: number;
   images?: ImageRef[];
