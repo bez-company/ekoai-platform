@@ -5,6 +5,7 @@ import { groupIdeas, roleOf } from '@/lib/ideas-model';
 import type { PendingApproval } from '@/lib/types';
 import { can, pageTenant } from '@/lib/session';
 import { pageError } from '@/lib/api';
+import CoachMark from '@/components/onboarding/CoachMark';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,8 @@ export default async function InboxPage() {
           )}
         </div>
       </div>
+
+      <CoachMark id="inbox" title="Aqui ficam os posts para revisar." body="Abra um post, ajuste a legenda se quiser e aprove: ele entra no próximo horário da agenda." />
 
       {err && <DbHint message={err} />}
 

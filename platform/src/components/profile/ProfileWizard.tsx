@@ -38,8 +38,9 @@ export default function ProfileWizard({ initial }: Props) {
   const last = step === STEPS.length - 1;
   const clearError = (field: string) => setErrors(({ [field]: _gone, ...rest }) => rest);
 
+  // Depois do perfil, as 3 perguntas rápidas (SPEC 017); quem não cuida da publicação segue para o Início.
   function finish() {
-    router.push('/');
+    router.push('/onboarding/perguntas');
     router.refresh();
   }
 

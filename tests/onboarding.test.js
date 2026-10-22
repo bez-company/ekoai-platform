@@ -147,6 +147,16 @@ describe('guia até a primeira publicação (SPEC 017, decisões 11 e 12)', () =
   });
 });
 
+describe('subtítulo do guia', () => {
+  const all = { create: true, approve: true, publishing: true, channels: true, brand: true, team: true };
+  const g0 = { role: 'admin', kind: 'empresa', can: all, hasProfile: true, profileComplete: true, instagramConnected: true, postCreated: true, postApproved: false, hasSlots: true, paused: true, published: false, teamStarted: false, skipped: [] };
+  it('conta os passos obrigatórios que faltam; falta só publicar vira frase própria', () => {
+    expect(o.guideSummary(o.buildGuide(g0))).toBe('Você está a 3 passos da primeira publicação automática.');
+    expect(o.guideSummary(o.buildGuide({ ...g0, postApproved: true }))).toBe('Você está a 2 passos da primeira publicação automática.');
+    expect(o.guideSummary(o.buildGuide({ ...g0, postApproved: true, paused: false }))).toBe('Falta só a primeira publicação.');
+  });
+});
+
 describe('posts esquecidos em Aprovar (decisão 12)', () => {
   const now = Date.parse('2026-10-22T12:00:00Z');
   const daysAgo = (d) => new Date(now - d * 86400000).toISOString();
