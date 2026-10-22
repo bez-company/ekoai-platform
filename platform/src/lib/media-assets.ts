@@ -16,6 +16,7 @@ import { auditTenant } from './audit';
 import { log } from './log';
 import { defaultStore, type BlobStore } from './brand-logo';
 import { vertexClient, type ModelClient } from './vertex';
+import { withVisionBudget } from './vision-calls';
 import {
   MEDIA_MAX_PER_ACCOUNT,
   mediaAssetKey,
@@ -77,13 +78,21 @@ export async function describeMediaAsset(t: TenantDb, id: string, deps: MediaDep
     if (!models) return false;
     const file = await readMediaAssetBytes(t, id, store);
     if (!file) return false;
-    const out = await models.generateJson({
-      prompt: visionPrompt(await niche(t)),
-      image: { bytes: file.bytes, mimeType: file.contentType },
-      labels: { tenant: t.tenantId, step: 'media_describe' },
-      maxOutputTokens: 400,
-      temperature: 0.2,
-    });
+    const prompt = visionPrompt(await niche(t));
+    const out = await withVisionBudget(t, 'media_describe', id, () =>
+      models.generateJson({
+        prompt,
+        image: { bytes: file.bytes, mimeType: file.contentType },
+        labels: { tenant: t.tenantId, step: 'media_describe' },
+        maxOutputTokens: 400,
+        temperature: 0.2,
+      }),
+    );
+    // Teto do dia: a foto fica sem descrição, como numa falha da visão, e o upload segue.
+    if (!out) {
+      log('info', 'media-assets', 'teto diário de descrições atingido; a foto fica sem descrição', { tenant: t.tenantId, asset: id });
+      return false;
+    }
     const vision = parseVisionResult(out.json);
     if (!vision) throw new Error('a visão não devolveu descrição');
     const upd = await t
