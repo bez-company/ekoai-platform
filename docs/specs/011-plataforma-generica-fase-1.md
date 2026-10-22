@@ -91,6 +91,9 @@ Só administrador edita (`brand.manage`); criador vê; leitor não vê.
 4. Desconectar revoga e apaga. Callback de exclusão de dados da Meta.
 5. Até o App Review, só contas adicionadas como tester no app funcionam. O fluxo fica pronto.
 
+Status (2026-10-22): conectar, voltar, token cifrado, status e desconectar estão feitos (registro abaixo).
+Falta a renovação por conta (item 3) e os callbacks de desautorização e exclusão de dados (item 4).
+
 ### R6. Estrutura
 
 1. Menu e rotas lidos de uma lista única de telas com a permissão de cada uma; tela proibida some
@@ -465,3 +468,32 @@ decorativo.
   (administrador, sem o e-mail no texto).
 - **Fora desta PR:** e-mail de aviso crítico (BEZ-28), o menu da pessoa (perfil) na barra de cima e o
   seletor de conta para quem está em várias.
+
+### R5, parte 1: conectar e desconectar (2026-10-22)
+
+Cartão: BEZ-212.
+
+- **Fluxo:** `GET /api/instagram/connect` (`channels.manage`) guarda um `state` aleatório em cookie
+  httpOnly e redireciona para `instagram.com/oauth/authorize` (Instagram Login, escopos
+  `instagram_business_basic` e `instagram_business_content_publish`, `force_reauth`). A volta é
+  `GET /api/instagram/callback`: confere o `state` com o cookie, troca o `code` por token, estende
+  para o de 60 dias, lê id, @ e tipo da conta, recusa conta pessoal e permissão faltando, cifra com o
+  Cloud KMS e grava a conta e o token numa transação só. Termina em `/settings/channels?ig=<chave>`.
+- **Desconectar:** `DELETE /api/social-accounts/[id]` (`channels.manage`) marca como revogada; o gatilho
+  da migration 0018 apaga o token na mesma operação.
+- **Publicação:** `lib/publish.ts` usa o token da conta que agendou o post (`instagramCredentials`).
+  Sem conexão ou com o token vencido o post falha na hora, com o próximo passo, e nunca usa o token de
+  outra conta. As variáveis `IG_ACCESS_TOKEN` e `IG_BUSINESS_ACCOUNT_ID` não valem mais para a plataforma.
+- **Tela:** Configurações › Redes (`channels.view` vê; `channels.manage` conecta), com os estados sem
+  conexão, conectado (dias até vencer), precisa reconectar e a confirmação de desconectar. O
+  checklist do Início passou a linkar para ela.
+- **Ambiente:** segredos `instagram-app-id` e `instagram-app-secret` no Terraform (só a plataforma lê).
+  A URL de redirecionamento de cada ambiente se registra no app da Meta
+  ([SETUP.md](../../SETUP.md), seção 7).
+- **Verificado:** testes unitários do modelo, da troca de código (Meta simulada) e da cifra (KMS
+  simulado); 12 testes contra Postgres real (token só cifrado, atômico com a conta, limite do plano,
+  Instagram já usado em outra conta, desconectar apaga o token, uma conta nunca recebe o token de outra).
+- **Não exercitado:** o fluxo contra a Meta de verdade e o Cloud KMS de verdade (só no staging, com um
+  testador).
+- **Fora desta parte:** renovação por conta (job `refresh-tokens` ainda lê o `.env`), callbacks de
+  desautorização e exclusão de dados da Meta, e o aviso aos administradores quando o token vence.

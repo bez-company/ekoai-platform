@@ -8,11 +8,13 @@ import { track } from './analytics';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { notify, channelName } from './notifications';
 import * as instagram from './channels/instagram';
+import { instagramCredentials } from './social-accounts';
 import * as linkedin from './channels/linkedin';
 import * as x from './channels/x';
 import { LINK_POLICY, linkCommentText } from './utm';
 import { canAutoPublish, notPublishableReason } from './capabilities';
 import { getPauseState } from './pause';
+import { UserError } from './errors';
 import type { ScheduledPost, Generation, Variation } from './types';
 
 const MAX_ATTEMPTS = 3;
@@ -103,11 +105,11 @@ async function publishToChannel(t: TenantDb, s: ScheduledPost): Promise<Record<s
   if (!canAutoPublish(s.channel, format)) throw new NotPublishableError(notPublishableReason(s.channel, format));
   const caption = s.caption_final || '';
   if (s.channel === 'instagram') {
-    if (s.variation?.format === 'carousel' && Array.isArray(s.slide_urls) && s.slide_urls.length >= 2) {
-      return instagram.publishCarousel(s.slide_urls, caption);
-    }
-    if (!s.image_url) throw new Error('Instagram exige image_url');
-    return instagram.publishSingle(s.image_url, caption);
+    const isCarousel = s.variation?.format === 'carousel' && Array.isArray(s.slide_urls) && s.slide_urls.length >= 2;
+    if (!isCarousel && !s.image_url) throw new Error('Instagram exige image_url');
+    // O token é o da conta que agendou o post; sem conexão a publicação falha com o próximo passo.
+    const creds = await instagramCredentials(t);
+    return isCarousel ? instagram.publishCarousel(creds, s.slide_urls!, caption) : instagram.publishSingle(creds, s.image_url!, caption);
   }
   if (s.channel === 'linkedin') {
     const result: Record<string, unknown> = s.video_url
@@ -193,7 +195,8 @@ async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const attempts = (s.attempts ?? 0) + 1;
-    const failed = attempts >= MAX_ATTEMPTS || e instanceof NotPublishableError;
+    // Erro com próximo passo para a pessoa (sem conexão, conexão vencida) não melhora com nova tentativa.
+    const failed = attempts >= MAX_ATTEMPTS || e instanceof NotPublishableError || e instanceof UserError;
     await t
       .update('scheduled_posts', { status: failed ? 'failed' : 'scheduled', attempts, last_error: msg })
       .eq('id', s.id);

@@ -23,8 +23,8 @@ describe('checklist do Início', () => {
     expect(done.items[0]).toMatchObject({ status: 'done', actions: [] });
   });
 
-  it('Instagram: sem a conexão pronta a tela diz que chega em breve; conectado vira feito', () => {
-    expect(o.buildChecklist(base).items[1]).toMatchObject({ status: 'todo', actions: [], note: 'A conexão chega em breve.' });
+  it('Instagram: administrador pendente recebe o link para conectar; conectado vira feito', () => {
+    expect(o.buildChecklist(base).items[1]).toMatchObject({ status: 'todo', actions: [{ kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }] });
     expect(o.buildChecklist({ ...base, instagramConnected: true }).items[1].status).toBe('done');
   });
 

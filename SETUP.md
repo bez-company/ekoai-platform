@@ -140,10 +140,34 @@ Esperado: testes passam. A criação de posts com IA volta na fase 2
 
 ## 7. Conectar o Instagram por conta
 
-Hoje os tokens vêm do `.env` (uma conta por instalação). O fluxo "Conectar Instagram" por conta,
-com token cifrado no banco, é o R5 da [SPEC 011](docs/specs/011-plataforma-generica-fase-1.md).
+Cada conta da Ekoai conecta o próprio Instagram em **Configurações › Redes › Conectar Instagram**
+(SPEC 011 R5). A pessoa entra no Instagram, toca em Permitir e volta com a conta conectada. O token
+fica cifrado no banco (Cloud KMS) e a plataforma publica com ele; o `.env` não vale mais para isso.
 
----
+Uma vez por ambiente, no painel de desenvolvedor da Meta (app com **Instagram Login**, não Facebook Login):
+
+1. Caso de uso "Gerenciar mensagens e conteúdo no Instagram" com as permissões
+   `instagram_business_basic` e `instagram_business_content_publish`.
+2. Em "Configurar o login da empresa no Instagram", registre a URL de redirecionamento:
+   `<endereço público da plataforma>/api/instagram/callback`. Cada ambiente tem a sua; dá para
+   registrar várias.
+3. Enquanto o app está em modo desenvolvimento, só conta adicionada como **Testador do Instagram**
+   (Funções do app) conecta; o convite é aceito dentro do Instagram, em Configurações, Apps e sites.
+4. Grave o **ID do app do Instagram** e a **Chave secreta do app do Instagram** (mesma tela do
+   passo 2) nos segredos `instagram-app-id` e `instagram-app-secret` do projeto do ambiente:
+
+```bash
+printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-id --data-file=- --project=<projeto>
+printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-secret --data-file=- --project=<projeto>
+```
+
+   O Cloud Run lê `latest` ao subir uma revisão: depois de gravar, faça um novo deploy (ou force uma
+   revisão com `gcloud run services update <serviço> --update-env-vars=SECRETS_AT=<data>`) para a
+   plataforma enxergar o valor.
+   Sem os dois segredos a tela de Redes diz que a conexão ainda não está ativa.
+
+Para trocar de app da Meta (por exemplo, para o da empresa dona do produto), grave os dois segredos
+do app novo e registre a URL no app novo. Quem já conectou reconecta uma vez: o token é do app.
 
 ## Troubleshooting
 

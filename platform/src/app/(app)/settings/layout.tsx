@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   if (!(await can('profile.view'))) notFound();
   const tabs: SettingsTab[] = [{ href: '/settings', label: 'Publicação' }];
+  if (await canAccess('channels.view')) tabs.push({ href: '/settings/channels', label: 'Redes' });
   if (await canAccess('profile.view')) tabs.push({ href: '/settings/company', label: 'Empresa' });
   if (await canAccess('profile.view')) tabs.push({ href: '/settings/facts', label: 'Fatos da empresa' });
   if (await canAccess('team.manage')) tabs.push({ href: '/settings/team', label: 'Equipe' });
