@@ -18,6 +18,7 @@ const { UserError } = await import('../../platform/src/lib/errors.ts');
 const A = 'it-coord-a';
 const B = 'it-coord-b';
 const C = 'it-coord-c';
+const D = 'it-coord-d';
 const ANA = { id: '00000000-0000-4000-8000-000000000601', name: 'Ana', sessionVersion: 1, lastTenantId: null };
 const ta = tenantDb(A);
 const tb = tenantDb(B);
@@ -34,7 +35,7 @@ const ideas = (list) => ({ calls: [], async generateJson(input) { this.calls.pus
 let photoId;
 
 async function cleanup() {
-  await resetTenantData(admin, [A, B, C]);
+  await resetTenantData(admin, [A, B, C, D]);
 }
 
 beforeAll(async () => {
@@ -128,5 +129,40 @@ describe('coordenador de conteúdo', () => {
     await expect(admin.query("insert into content_suggestions (tenant_id, slot_at, goal, idea, reason) values ($1, now(), 'auto', 'x', 'y')", [A])).rejects.toThrow(/check/);
     await admin.query("insert into content_suggestions (tenant_id, slot_at, goal, idea, reason) values ($1, '2026-11-01T21:00:00Z', 'ensinar', 'x', 'y')", [A]);
     await expect(admin.query("insert into content_suggestions (tenant_id, slot_at, goal, idea, reason) values ($1, '2026-11-01T21:00:00Z', 'produto', 'x', 'y')", [A])).rejects.toThrow(/content_suggestions_open_slot_idx/);
+  });
+});
+
+// Com métricas reais (BEZ-246): posts publicados de bastidores engajam bem mais que os de novidade, só
+// com curtidas e comentários (conta sem o escopo de insights). O coordenador puxa para bastidores.
+describe('coordenador com métricas do Instagram', () => {
+  const td = tenantDb(D);
+  async function published(goal, daysAgo, likes, comments) {
+    const at = new Date(now.getTime() - daysAgo * 86_400_000).toISOString();
+    const brief = await one("insert into briefs (tenant_id, pillar, idea, status, goal) values ($1, $2, 'x', 'ready', $2) returning id", [D, goal]);
+    const sched = await one("insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for, published_at, brief_id, status) values ($1, 'instagram', '{}', 'x', $2, $2, $3, 'published') returning id", [D, at, brief.id]);
+    const post = await one("insert into posts (tenant_id, pillar, channel, scheduled_post_id, published_at, is_dry_run) values ($1, $2, 'instagram', $3, $4, false) returning id", [D, goal, sched.id, at]);
+    await admin.query("insert into metrics_snapshots (tenant_id, post_id, channel, likes, comments, captured_at) values ($1, $2, 'instagram', $3, $4, $5)", [D, post.id, likes, comments, now.toISOString()]);
+  }
+
+  beforeAll(async () => {
+    await admin.query("insert into tenants (id, name) values ($1, 'It Coord D') on conflict do nothing", [D]);
+    await admin.query("insert into publishing_controls (tenant_id, paused) values ($1, false) on conflict (tenant_id) do update set paused = false", [D]);
+    await admin.query("insert into publish_slots (tenant_id, channel, weekday, hour, minute) values ($1, 'instagram', 6, 18, 0)", [D]);
+    await published('bastidores', 20, 80, 12);
+    await published('bastidores', 14, 60, 9);
+    await published('novidade', 10, 9, 1);
+    await published('novidade', 4, 7, 0);
+  });
+
+  it('puxa para o objetivo que mais engaja e diz isso no motivo', async () => {
+    const [sat] = await coord.planForTenant(td, { now, models: null });
+    expect(sat).toMatchObject({ slotAt: SAT, goal: 'bastidores', reason: 'Bastidores é o que mais engaja na sua conta.' });
+  });
+
+  it('sem a regra de sequência quebrar: o último publicado sendo bastidores, não repete', async () => {
+    await admin.query('delete from content_suggestions where tenant_id = $1', [D]);
+    await published('bastidores', 3, 50, 5);
+    const [sat] = await coord.planForTenant(td, { now, models: null });
+    expect(sat.goal).not.toBe('bastidores');
   });
 });

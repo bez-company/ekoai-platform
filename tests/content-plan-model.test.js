@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planSuggestions, commemorativeDates, parseIdeas, fallbackIdea, ideasPrompt, PROMO_WINDOW } from '../platform/src/lib/content-plan-model.ts';
+import { planSuggestions, commemorativeDates, parseIdeas, fallbackIdea, ideasPrompt, engagementByGoal, PROMO_WINDOW } from '../platform/src/lib/content-plan-model.ts';
 
 // Quarta, 21/10/2026, 12:00 em Brasília (15:00 UTC).
 const now = new Date('2026-10-21T15:00:00Z');
@@ -94,5 +94,34 @@ describe('datas e ideias', () => {
     expect(p).toContain('0. objetivo: mostrar os bastidores');
     expect(p).toContain('foto: Forno aceso');
     expect(p).toContain('data: Natal');
+  });
+});
+
+describe('engajamento por objetivo (BEZ-246)', () => {
+  const day = (n) => new Date(now.getTime() - n * 86_400_000).toISOString();
+  const s = (goal, ago, likes, comments, rate = null) => ({ goal, publishedAt: day(ago), likes, comments, rate });
+
+  it('sem alcance em algum post, compara curtidas mais comentários', () => {
+    const out = engagementByGoal([s('bastidores', 5, 40, 10), s('bastidores', 9, 30, 0), s('ensinar', 6, 10, 2), s('ensinar', 12, 6, 2, 0.05)], now);
+    expect(out).toEqual({ bastidores: 40, ensinar: 10 });
+  });
+
+  it('todos com alcance: vale a taxa', () => {
+    const out = engagementByGoal([s('bastidores', 5, 40, 10, 0.08), s('bastidores', 9, 30, 0, 0.06), s('ensinar', 6, 900, 2, 0.02), s('ensinar', 12, 6, 2, 0.04)], now);
+    expect(out.bastidores).toBeCloseTo(0.07, 6);
+    expect(out.ensinar).toBeCloseTo(0.03, 6);
+  });
+
+  it('amostra pequena, post novo demais ou velho demais, sem objetivo: fica de fora', () => {
+    const out = engagementByGoal([s('bastidores', 5, 40, 10), s('ensinar', 6, 10, 2), s('ensinar', 1, 500, 50), s('ensinar', 120, 500, 50), s(null, 5, 999, 9), s('auto', 5, 1, 1), s('auto', 6, 1, 1)], now);
+    expect(out).toEqual({});
+  });
+
+  it('ligado ao planejador: puxa para o que mais engaja só com 2 objetivos medidos', () => {
+    const samples = [s('bastidores', 5, 40, 10), s('bastidores', 9, 30, 0), s('novidade', 6, 5, 0), s('novidade', 12, 3, 1)];
+    const out = planSuggestions({ ...base, slots: [at(22)], history: [past(20, 'ensinar')], engagement: engagementByGoal(samples, now) });
+    expect(out[0]).toMatchObject({ goal: 'bastidores', reason: 'Bastidores é o que mais engaja na sua conta.' });
+    const single = planSuggestions({ ...base, slots: [at(22)], history: [past(20, 'ensinar')], engagement: engagementByGoal(samples.slice(0, 2), now) });
+    expect(single[0].reason).not.toMatch(/engaja/);
   });
 });

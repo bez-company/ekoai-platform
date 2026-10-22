@@ -168,6 +168,37 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
   return out;
 }
 
+// Engajamento por objetivo a partir das métricas do Instagram (BEZ-246). Sem o escopo de insights só
+// curtidas e comentários vêm; com ele, também o alcance. A medida precisa ser a mesma em todos os posts
+// comparados: se todos têm alcance, vale a taxa (interações / alcance); se algum não tem, vale curtidas
+// mais comentários. Post com menos de 2 dias ainda está juntando curtida e fica de fora. Objetivo com
+// menos de MIN_POSTS_PER_GOAL posts medidos não entra; com menos de 2 objetivos, o planejador ignora
+// (fica só com a regra de sequência).
+export const METRICS_DAYS = 90;
+export const MIN_POST_AGE_HOURS = 48;
+export const MIN_POSTS_PER_GOAL = 2;
+
+export type MetricSample = { goal: PostGoal | null; publishedAt: string; likes: number | null; comments: number | null; rate: number | null };
+
+export function engagementByGoal(samples: MetricSample[], now: Date): Partial<Record<PostGoal, number>> {
+  const nowMs = now.getTime();
+  const valid = samples.filter((s): s is MetricSample & { goal: PostGoal } => {
+    if (!s.goal || !(SEQUENCE_GOALS as readonly string[]).includes(s.goal)) return false;
+    const age = nowMs - new Date(s.publishedAt).getTime();
+    return age >= MIN_POST_AGE_HOURS * 3_600_000 && age <= METRICS_DAYS * DAY && (s.likes !== null || s.comments !== null || s.rate !== null);
+  });
+  const useRate = valid.length > 0 && valid.every((s) => s.rate !== null);
+  const value = (s: MetricSample) => (useRate ? s.rate! : (s.likes ?? 0) + (s.comments ?? 0));
+  const byGoal = new Map<PostGoal, number[]>();
+  for (const s of valid) byGoal.set(s.goal, [...(byGoal.get(s.goal) ?? []), value(s)]);
+  const out: Partial<Record<PostGoal, number>> = {};
+  for (const [goal, values] of byGoal) {
+    if (values.length < MIN_POSTS_PER_GOAL) continue;
+    out[goal] = values.reduce((a, b) => a + b, 0) / values.length;
+  }
+  return out;
+}
+
 // Datas comemorativas de alcance nacional, no dia local. As móveis são calculadas.
 function nthWeekday(year: number, month: number, weekday: number, n: number): string {
   const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();

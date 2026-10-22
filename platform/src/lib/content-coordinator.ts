@@ -4,6 +4,8 @@
 // sugestão por horário livre (as regras estão em content-plan-model.ts). A ideia de cada sugestão
 // sai de uma chamada ao modelo de texto por rodada; se falhar, sai do próprio objetivo.
 //
+// Com métricas de ao menos 2 objetivos (BEZ-246), o engajamento pesa junto da sequência.
+//
 // A pessoa decide cada sugestão: Criar este post (vira pedido de post, que gasta o limite do plano
 // só quando gerar o visual), Trocar (outra sugestão para o mesmo horário) ou Pular. Piloto automático
 // (gerar sozinho) fica fora até medir a taxa de aprovação (decisão do Matheus pendente na SPEC).
@@ -21,13 +23,17 @@ import { DEFAULT_RATIO, GOALS, isPostGoal, kindForGoal, type PostGoal } from './
 import { listMediaAssets } from './media-assets';
 import { isSuggestable } from './media-asset-model';
 import { vertexClient, type ModelClient } from './vertex';
+import { latestPostMetrics } from './instagram-metrics';
 import {
+  METRICS_DAYS,
   PLAN_DAYS,
   commemorativeDates,
+  engagementByGoal,
   fallbackIdea,
   ideasPrompt,
   parseIdeas,
   planSuggestions,
+  type MetricSample,
   type PlanHistoryItem,
   type PlannedSuggestion,
 } from './content-plan-model';
@@ -133,6 +139,39 @@ async function loadContext(t: TenantDb, now: Date): Promise<Context | null> {
   return { freeSlots, history, avoid, usedDateKeys, openAssetIds };
 }
 
+// Engajamento por objetivo dos posts publicados nos últimos 90 dias: o post (métricas) liga ao agendado,
+// que liga ao pedido (objetivo). Falha de leitura não derruba o planejamento: fica sem métrica.
+async function goalEngagement(t: TenantDb, now: Date): Promise<Partial<Record<PostGoal, number>>> {
+  try {
+    const since = new Date(now.getTime() - METRICS_DAYS * DAY).toISOString();
+    const posts = await t.select('posts', 'id,scheduled_post_id,published_at').eq('channel', 'instagram').eq('is_dry_run', false).gte('published_at', since).limit(300);
+    if (posts.error) throw new Error(posts.error.message);
+    const rows = (posts.data ?? []).filter((p) => p.scheduled_post_id);
+    if (!rows.length) return {};
+    const sched = await t.select('scheduled_posts', 'id,brief_id').in('id', rows.map((p) => String(p.scheduled_post_id)));
+    if (sched.error) throw new Error(sched.error.message);
+    const briefOf = new Map((sched.data ?? []).filter((r) => r.brief_id).map((r) => [String(r.id), String(r.brief_id)]));
+    const briefIds = [...new Set(briefOf.values())];
+    const goals = new Map<string, PostGoal | null>();
+    if (briefIds.length) {
+      const briefs = await t.select('briefs', 'id,goal').in('id', briefIds);
+      if (briefs.error) throw new Error(briefs.error.message);
+      for (const b of briefs.data ?? []) goals.set(String(b.id), isPostGoal(b.goal) ? b.goal : null);
+    }
+    const metrics = await latestPostMetrics(t, rows.map((p) => String(p.id)));
+    const samples: MetricSample[] = rows.flatMap((p) => {
+      const m = metrics[String(p.id)];
+      const brief = briefOf.get(String(p.scheduled_post_id));
+      if (!m || !brief) return [];
+      return [{ goal: goals.get(brief) ?? null, publishedAt: new Date(p.published_at as string).toISOString(), likes: m.likes, comments: m.comments, rate: m.engagement }];
+    });
+    return engagementByGoal(samples, now);
+  } catch (e) {
+    log('warn', 'content-coordinator', 'não leu as métricas; segue só com a regra de sequência', { tenant: t.tenantId, error: e instanceof Error ? e.message : String(e) });
+    return {};
+  }
+}
+
 async function profileOf(t: TenantDb): Promise<{ niche: string | null; offering: string | null }> {
   const res = await t.select('company_profiles', 'niche,offering').maybeSingle();
   if (res.error || !res.data) return { niche: null, offering: null };
@@ -179,8 +218,8 @@ export async function planForTenant(t: TenantDb, deps: CoordinatorDeps = {}, onl
     history: ctx.history,
     photos,
     dates,
-    // Métricas por objetivo entram com o BEZ-183 (post_metrics); até lá, só as regras de sequência.
-    engagement: {},
+    // Métricas do Instagram por objetivo (BEZ-246); com amostra pequena vem vazio e vale só a sequência.
+    engagement: await goalEngagement(t, now),
     avoid: ctx.avoid,
     usedDateKeys: ctx.usedDateKeys,
     tzOffsetHours: tzOffsetHours(),
