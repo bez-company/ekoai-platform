@@ -50,15 +50,18 @@ describe('jobs da raiz', () => {
     expect(later.pillar).toBe('dica');
   });
 
-  it('pendência: salva (upsert por canal), espia, consome e expira', async () => {
+  it('pendência: salva (várias por rede, upsert por id), espia, consome e expira', async () => {
     const base = { channel: 'instagram', pending_id: 'ig-1', generation: { variations: [] }, images: [{ id: 'a', url: 'https://x/y.png' }], seed: { pillar: 'dor' } };
     await queue.savePending(base);
     await queue.savePending({ ...base, pending_id: 'ig-2' });
-    expect(await queue.getPending()).toHaveLength(1);
+    await queue.savePending({ ...base, pending_id: 'ig-2', seed: { pillar: 'dica' } });
+    expect(await queue.getPending()).toHaveLength(2);
     const peek = await queue.loadPending('instagram', { peek: true });
     expect(peek.pending_id).toBe('ig-2');
+    expect(peek.seed).toEqual({ pillar: 'dica' });
     expect(peek.images).toEqual([{ id: 'a', url: 'https://x/y.png' }]);
     expect((await queue.loadPending('instagram')).pending_id).toBe('ig-2');
+    expect((await queue.loadPending('instagram')).pending_id).toBe('ig-1');
     expect(await queue.loadPending('instagram')).toBeNull();
 
     await queue.savePending(base);

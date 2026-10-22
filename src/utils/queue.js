@@ -282,8 +282,7 @@ export async function savePending(item) {
     status: item.status ?? 'awaiting_decision',
     saved_at: new Date().toISOString(),
   };
-  // upsert por canal: o pending novo substitui o anterior da mesma rede
-  const { error } = await getDb().from('pending_approvals').upsert(row, { onConflict: 'tenant_id,channel' });
+  const { error } = await getDb().from('pending_approvals').upsert(row, { onConflict: 'pending_id' }); // vários por rede (0023)
   if (error) throw new Error(`Falha ao salvar pending no banco: ${error.message}`);
 }
 
