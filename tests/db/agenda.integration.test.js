@@ -63,4 +63,17 @@ describe('agenda por período', () => {
     expect([local.getUTCDay(), local.getUTCHours(), local.getUTCMinutes()]).toEqual([5, 9, 30]);
     await expect(updateSlot(tenantDb(B), s.id, { channel: 'instagram', weekday: 1, hour: 8, minute: 0 })).rejects.toThrow(/não encontrado/);
   });
+
+  it('o horário vazio traz a sugestão aberta do coordenador da própria conta', async () => {
+    await addSlot(t, { channel: 'instagram', weekday: 6, hour: 10, minute: 0 });
+    const ins = `insert into content_suggestions (tenant_id, slot_at, goal, idea, reason, status) values ($1, '2026-10-24T13:00:00Z', 'bastidores', $2, 'Os dois últimos foram dicas.', $3)`;
+    await admin.query(ins, [A, 'Como a massa é feita', 'suggested']);
+    await admin.query(ins, [B, 'Sugestão de outra conta', 'suggested']);
+    const agenda = await getAgenda(t, { view: 'week', date: '2026-10-22' }, { nowMs: Date.parse('2026-10-22T15:00:00Z') });
+    const sabado = agenda.days.find((d) => d.date === '2026-10-24');
+    expect(sabado.cells).toHaveLength(1);
+    expect(sabado.cells[0]).toMatchObject({ time: '10:00', post: null, suggestion: { idea: 'Como a massa é feita', goal: 'bastidores', goalLabel: 'Bastidores' } });
+    const linkedinOnly = await getAgenda(t, { view: 'week', date: '2026-10-22' }, { nowMs: Date.parse('2026-10-22T15:00:00Z'), channel: 'linkedin' });
+    expect(linkedinOnly.days.flatMap((d) => d.cells)).toEqual([]);
+  });
 });
