@@ -40,7 +40,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
   return (
     <div className="space-y-4">
       <div className="card space-y-3">
-        <h2 className="label">Adicionar slot</h2>
+        <h2 className="label">Adicionar horário</h2>
         <div className="flex flex-wrap items-end gap-2">
           <select
             value={channel}
@@ -90,7 +90,7 @@ export default function SlotEditor({ initial }: { initial: PublishSlot[] }) {
       {CHANNELS.map((c) => (
         <div key={c} className="card space-y-2">
           <h2 className="label uppercase">{c}</h2>
-          {byChannel(c).length === 0 && <p className="text-sm text-muted">Sem slots.</p>}
+          {byChannel(c).length === 0 && <p className="text-sm text-muted">Sem horários.</p>}
           <div className="grid gap-1">
             {byChannel(c).map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-md border border-line px-3 py-1.5 text-sm">

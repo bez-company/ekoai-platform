@@ -1,5 +1,7 @@
 // scheduling.ts: ações de aprovação/agendamento (lado escrita). Aprovar uma pendência vira
-// um scheduled_post (não publica na hora); cancelar/reagendar mexem na fila.
+// um scheduled_post: no próximo horário livre, na fila sem horário (status 'queued') quando a
+// agenda não tem horário, ou na hora quando a pessoa pede "Publicar agora" (a rota chama o
+// publishNow). Cancelar/reagendar mexem na fila.
 
 import type { TenantDb } from './tenant-db';
 import { notify, channelName } from './notifications';
@@ -7,7 +9,7 @@ import { composeCaption } from './caption';
 import { nextFreeSlot } from './slots';
 import { distributionUtm } from './utm';
 import { splitThread } from './thread';
-import type { PendingApproval, Variation, ImageRef, MediaKind } from './types';
+import type { Channel, PendingApproval, Variation, ImageRef, MediaKind } from './types';
 import { UserError } from './errors';
 
 const NOT_FOUND = 'Post agendado não encontrado, ou já mudou de estado. Recarregue a página.';
@@ -48,10 +50,11 @@ export type ApproveInput = {
   artId: number; // arte escolhida
   noImage?: boolean; // publica só o texto (SPEC 005); o Instagram não aceita
   captionText?: string; // legenda editada (sobrescreve a sugerida)
-  scheduledFor?: string; // ISO; se ausente cai no próximo slot livre
+  scheduledFor?: string; // ISO; se ausente cai no próximo slot livre (ou na fila, sem slot)
+  publishNow?: boolean; // agenda para agora; a rota publica em seguida
 };
 
-export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string; id: string }> {
+export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string | null; id: string }> {
   const p = await loadPending(t, input.pendingId);
   if (!p) throw new UserError('Pendência não encontrada (já resolvida?).');
 
@@ -66,10 +69,8 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
 
   const captionFinal = (input.captionText && input.captionText.trim()) || composeCaption(variation);
 
-  const scheduledFor = input.scheduledFor || (await nextFreeSlot(t, p.channel));
-  if (!scheduledFor) {
-    throw new UserError('Sem slot livre na grade. Defina um horário manual ou adicione slots.');
-  }
+  // Sem horário livre o post não trava: fica na fila e entra no primeiro horário criado.
+  const scheduledFor = input.publishNow ? new Date().toISOString() : input.scheduledFor || (await nextFreeSlot(t, p.channel));
 
   // O id nasce aqui pra entrar no utm_content antes do insert.
   const id = crypto.randomUUID();
@@ -92,7 +93,7 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       document_url: variation.documentUrl ?? null,
       generation: p.generation,
       seed: p.seed ?? null,
-      status: 'scheduled',
+      status: scheduledFor ? 'scheduled' : 'queued',
       scheduled_for: scheduledFor,
       source_pending_id: p.pending_id,
       brief_id: p.brief_id ?? null,
@@ -107,12 +108,17 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
   // consome a pendência
   await t.delete('pending_approvals').eq('pending_id', p.pending_id);
 
-  await notify(t, {
-    kind: 'schedule.created',
-    title: `Agendado no ${channelName(p.channel)} para ${fmtLocal(scheduledFor)}`,
-    body: (variation.hook || '').slice(0, 80) || undefined,
-    link: '/calendar',
-  });
+  // Publicar agora avisa pelo resultado da publicação, não pelo agendamento.
+  if (!input.publishNow) {
+    await notify(t, {
+      kind: 'schedule.created',
+      title: scheduledFor
+        ? `Agendado no ${channelName(p.channel)} para ${fmtLocal(scheduledFor)}`
+        : `Aprovado para o ${channelName(p.channel)}: na fila até ter horário na agenda`,
+      body: (variation.hook || '').slice(0, 80) || undefined,
+      link: '/calendar',
+    });
+  }
   return { scheduledFor, id: data!.id as string };
 }
 
@@ -142,14 +148,14 @@ export async function reschedulePost(t: TenantDb, id: string, scheduledFor: stri
   const { data, error } = await t
     .update('scheduled_posts', { scheduled_for: scheduledFor, status: 'scheduled', last_error: null })
     .eq('id', id)
-    .in('status', ['scheduled', 'failed'])
+    .in('status', ['scheduled', 'queued', 'failed'])
     .select('id');
   if (error) throw new Error(`Falha ao reagendar: ${error.message}`);
   if (!data?.length) throw new UserError(NOT_FOUND);
 }
 
 export async function cancelScheduled(t: TenantDb, id: string): Promise<void> {
-  const { data, error } = await t.delete('scheduled_posts').eq('id', id).in('status', ['scheduled', 'failed']).select('id');
+  const { data, error } = await t.delete('scheduled_posts').eq('id', id).in('status', ['scheduled', 'queued', 'failed']).select('id');
   if (error) throw new Error(`Falha ao cancelar: ${error.message}`);
   if (!data?.length) throw new UserError(NOT_FOUND);
 }
@@ -162,6 +168,29 @@ export async function retryScheduled(t: TenantDb, id: string): Promise<void> {
     .select('id');
   if (error) throw new Error(`Falha ao re-tentar: ${error.message}`);
   if (!data?.length) throw new UserError(NOT_FOUND);
+}
+
+// Horário novo na agenda: os aprovados que esperavam na fila entram nos horários livres, na ordem
+// em que foram aprovados. Devolve quantos ganharam horário.
+export async function scheduleQueued(t: TenantDb, channel: Channel): Promise<number> {
+  const { data, error } = await t
+    .select('scheduled_posts', 'id')
+    .eq('channel', channel)
+    .eq('status', 'queued')
+    .order('approved_at', { ascending: true });
+  if (error) throw new Error(`Falha ao ler a fila: ${error.message}`);
+  let scheduled = 0;
+  for (const row of data || []) {
+    const when = await nextFreeSlot(t, channel);
+    if (!when) break;
+    const { error: ue } = await t
+      .update('scheduled_posts', { status: 'scheduled', scheduled_for: when })
+      .eq('id', row.id as string)
+      .eq('status', 'queued');
+    if (ue) throw new Error(`Falha ao agendar a fila: ${ue.message}`);
+    scheduled += 1;
+  }
+  return scheduled;
 }
 
 export { fmtLocal };

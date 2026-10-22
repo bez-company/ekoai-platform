@@ -188,7 +188,9 @@ async function postLinkComment(t: TenantDb, postUrn: string, text: string): Prom
 // Tenta publicar UM scheduled_post já travado em 'publishing'. Em sucesso grava
 // posts + marca published; em falha incrementa attempts e volta pra scheduled
 // (ou marca failed ao esgotar as tentativas).
-async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean; error?: string }> {
+// `lastTry` (publicar agora): a pessoa está olhando, então a falha não vira nova tentativa no
+// próximo ciclo; o post fica como falhou, com o erro e o botão de tentar de novo.
+async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {}): Promise<{ ok: boolean; error?: string }> {
   let result: Record<string, unknown>;
   try {
     result = await publishToChannel(t, s);
@@ -196,7 +198,7 @@ async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean;
     const msg = e instanceof Error ? e.message : String(e);
     const attempts = (s.attempts ?? 0) + 1;
     // Erro com próximo passo para a pessoa (sem conexão, conexão vencida) não melhora com nova tentativa.
-    const failed = attempts >= MAX_ATTEMPTS || e instanceof NotPublishableError || e instanceof UserError;
+    const failed = lastTry || attempts >= MAX_ATTEMPTS || e instanceof NotPublishableError || e instanceof UserError;
     await t
       .update('scheduled_posts', { status: failed ? 'failed' : 'scheduled', attempts, last_error: msg })
       .eq('id', s.id);
@@ -256,6 +258,20 @@ export async function hasPendingPublishes(): Promise<boolean> {
     if (!(await getPauseState(tenantDb(tenantId))).paused) return true;
   }
   return false;
+}
+
+// Publicar agora: trava o post (agendado, na fila ou que falhou) e publica na hora, fora do ciclo
+// do cron. Conta pausada não publica nem assim: a pausa é o freio de emergência.
+export async function publishNow(t: TenantDb, id: string): Promise<{ ok: boolean; error?: string }> {
+  if ((await getPauseState(t)).paused) throw new UserError('A publicação está pausada. Retome em Configurações para publicar agora.');
+  const { data: locked, error } = await t
+    .update('scheduled_posts', { status: 'publishing', scheduled_for: new Date().toISOString() })
+    .eq('id', id)
+    .in('status', ['scheduled', 'queued', 'failed'])
+    .select('*')
+    .single();
+  if (error || !locked) throw new UserError('Este post já está sendo publicado ou mudou de estado. Recarregue a página.');
+  return processOne(t, locked as ScheduledPost, { lastTry: true });
 }
 
 // Varre os vencidos de TODOS os tenants (job de sistema), trava cada um (anti-corrida) e

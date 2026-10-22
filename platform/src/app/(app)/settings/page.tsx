@@ -36,10 +36,10 @@ export default async function SettingsPage() {
         <PauseControl state={pause} overdue={overdue} />
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold">Slots editoriais</h2>
+      <div id="horarios" className="scroll-mt-4">
+        <h2 className="text-lg font-semibold">Horários de publicação</h2>
         <p className="text-sm text-muted">
-          Grade recorrente por canal. Aprovar um post o joga no próximo slot livre. Horário no fuso editorial (BRT).
+          Os horários da semana em que a Ekoai publica, por rede. O post aprovado entra no próximo horário livre; sem horário, espera na fila e entra no primeiro que você criar. Horário de Brasília.
         </p>
       </div>
       {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
