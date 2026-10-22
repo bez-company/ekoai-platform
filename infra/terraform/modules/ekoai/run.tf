@@ -55,7 +55,7 @@ resource "google_cloud_run_v2_service" "platform" {
 
       startup_probe {
         http_get {
-          path = "/api/health"
+          path = var.probe_path
         }
         initial_delay_seconds = 3
         period_seconds        = 5
@@ -65,7 +65,7 @@ resource "google_cloud_run_v2_service" "platform" {
 
       liveness_probe {
         http_get {
-          path = "/api/health"
+          path = var.probe_path
         }
         period_seconds  = 30
         timeout_seconds = 5
@@ -108,6 +108,14 @@ resource "google_cloud_run_v2_service" "platform" {
       env {
         name  = "PUBLISH_TZ_OFFSET"
         value = "-3"
+      }
+      # Staging sob demanda (SPEC 016): só o staging liga. Sem estas variáveis a plataforma não faz nada disso.
+      dynamic "env" {
+        for_each = var.wake_enabled ? local.wake_env : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
       }
       dynamic "env" {
         for_each = local.account_env

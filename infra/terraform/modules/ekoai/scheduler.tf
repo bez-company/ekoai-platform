@@ -106,3 +106,26 @@ resource "google_cloud_run_v2_job_iam_member" "scheduler_runs" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.scheduler.email}"
 }
+
+# sleep-if-idle: desliga o banco do staging sem uso (SPEC 016). Não pausa com `schedules_paused`: o staging
+# mantém os outros jobs pausados e este precisa rodar sempre, senão o banco fica ligado para sempre.
+resource "google_cloud_scheduler_job" "sleep_if_idle" {
+  count            = var.deploy_workloads && var.wake_enabled ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-sleep-if-idle"
+  description      = "Desliga o banco do staging depois de ${var.wake_idle_minutes} minutos sem uso"
+  schedule         = "*/15 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "60s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/sleep-if-idle"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}

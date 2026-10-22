@@ -25,6 +25,24 @@ variable "deploy_can_power_db" {
   default     = false
 }
 
+variable "wake_enabled" {
+  description = "Staging sob demanda (SPEC 016): a plataforma mostra a tela \"Ligar o ambiente\" com o banco parado e o Scheduler o desliga sem uso. Só no staging."
+  type        = bool
+  default     = false
+}
+
+variable "wake_idle_minutes" {
+  description = "Minutos sem nenhuma requisição de gente até o banco do staging desligar sozinho (a partir de 15)."
+  type        = number
+  default     = 60
+}
+
+variable "probe_path" {
+  description = "Caminho dos probes do Cloud Run. /api/health confere o banco; /api/live só o processo, para o staging subir com o banco parado (BEZ-120)."
+  type        = string
+  default     = "/api/health"
+}
+
 variable "region" {
   type    = string
   default = "southamerica-east1"

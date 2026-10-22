@@ -113,6 +113,13 @@ locals {
   # Modelos da geração de posts (SPEC 012, decisão 6; números da prova de conceito, BEZ-74).
   vertex = { location = "global", text_model = "gemini-2.5-flash", image_model = var.vertex_image_model }
 
+  wake_env = {
+    WAKE_ENABLED      = "true"
+    WAKE_SQL_PROJECT  = var.project_id
+    WAKE_SQL_INSTANCE = "${local.name}-pg"
+    WAKE_IDLE_MINUTES = tostring(var.wake_idle_minutes)
+  }
+
   # Nome completo da chave de cifra dos tokens das redes (env KMS_KEY_NAME).
   kms_key_name = google_kms_crypto_key.social_tokens.id
 

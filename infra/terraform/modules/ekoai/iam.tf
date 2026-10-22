@@ -71,15 +71,16 @@ resource "google_project_iam_member" "deploy_sql_viewer" {
   member  = "serviceAccount:${google_service_account.deploy.email}"
 }
 
-# Staging sob demanda: o deploy liga o banco parado antes de migrar. O papel só lê e atualiza a
-# instância, e só existe onde `deploy_can_power_db` está ligado.
+# Staging sob demanda: o deploy liga o banco parado antes de migrar, e a plataforma o liga pela tela
+# "Ligar o ambiente" e o desliga sem uso (SPEC 016). O papel só lê e atualiza a instância, e só
+# existe onde `deploy_can_power_db` ou `wake_enabled` está ligado.
 resource "google_project_iam_custom_role" "sql_power" {
-  count       = var.deploy_can_power_db ? 1 : 0
+  count       = var.deploy_can_power_db || var.wake_enabled ? 1 : 0
   project     = var.project_id
   role_id     = "ekoaiSqlPower"
   title       = "Ligar o Cloud SQL parado"
-  description = "Ler e atualizar a instância do Cloud SQL (ativar o banco do staging no deploy)."
-  permissions = ["cloudsql.instances.get", "cloudsql.instances.update"]
+  description = "Ler, listar as operações e atualizar a instância do Cloud SQL (ligar e desligar o banco do staging)."
+  permissions = ["cloudsql.instances.get", "cloudsql.instances.list", "cloudsql.instances.update"]
 }
 
 resource "google_project_iam_member" "deploy_sql_power" {
@@ -87,6 +88,21 @@ resource "google_project_iam_member" "deploy_sql_power" {
   project = var.project_id
   role    = google_project_iam_custom_role.sql_power[0].id
   member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# A plataforma liga e desliga o banco do staging, e lê a métrica de uso para decidir (SPEC 016).
+resource "google_project_iam_member" "app_sql_power" {
+  count   = var.wake_enabled ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.sql_power[0].id
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
+resource "google_project_iam_member" "app_monitoring_viewer" {
+  count   = var.wake_enabled ? 1 : 0
+  project = var.project_id
+  role    = "roles/monitoring.viewer"
+  member  = "serviceAccount:${google_service_account.app.email}"
 }
 
 resource "google_service_account_iam_member" "deploy_acts_as_app" {

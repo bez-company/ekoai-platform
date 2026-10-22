@@ -10,7 +10,9 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 // leva UUID e só o formato de lib/media.ts passa (tests/media.test.js).
 // `invitations/accept` e `account` (criar conta) também: quem chama ainda não tem sessão; a prova é o ID token, a rota
 // responde 404 fora de SIGNUP_MODE=open e o middleware a libera só pelo caminho exato.
-const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
+// `live`, `ambiente` e `ambiente/ligar` são do staging sob demanda (SPEC 016): com o banco parado ninguém tem sessão; só
+// devolvem o estado ou ligam o banco, e respondem 404 fora do staging (WAKE_ENABLED). `cron/sleep-if-idle` é do Scheduler.
+const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/sleep-if-idle', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
 const EXPECTED = {
   approve: ['content.approve'],
