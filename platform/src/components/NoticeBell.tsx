@@ -1,7 +1,8 @@
 'use client';
 
-// NoticeBell.tsx: o sino de avisos da barra de cima (SPEC 011 R6.3): contador de não lidos e um
-// painel com os últimos. "Marcar todos como lidos" vale para a pessoa; "Ver todos" abre a página.
+// NoticeBell.tsx: o sino de avisos (SPEC 011 R6.3): contador de não lidos e um painel com os últimos.
+// "Marcar todos como lidos" vale para a pessoa; "Ver todos" abre a página. Mora na barra lateral no
+// desktop (o painel abre para a direita, sobre o conteúdo) e na barra de cima no celular.
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import NoticeItem, { type NoticeView } from './NoticeItem';
 import { bellLabel } from '@/lib/notice-view';
 
-export default function NoticeBell({ notices, unread }: { notices: NoticeView[]; unread: number }) {
+export default function NoticeBell({ notices, unread, placement = 'top' }: { notices: NoticeView[]; unread: number; placement?: 'side' | 'top' }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,7 +50,7 @@ export default function NoticeBell({ notices, unread }: { notices: NoticeView[];
         {unread > 0 && <span aria-hidden="true" className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Avisos" className="fixed inset-x-3 top-14 z-30 rounded-xl border border-line bg-raised p-4 shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-12 md:w-[22rem]">
+        <div role="dialog" aria-label="Avisos" className={`z-30 rounded-xl border border-line bg-raised p-4 text-fg shadow-lg ${placement === 'side' ? 'absolute left-0 top-12 w-[22rem]' : 'fixed inset-x-3 top-14'}`}>
           <div className="flex items-center justify-between gap-3">
             <strong className="text-sm">Avisos</strong>
             {unread > 0 && (
