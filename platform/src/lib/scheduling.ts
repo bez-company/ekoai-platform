@@ -97,6 +97,8 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       scheduled_for: scheduledFor,
       source_pending_id: p.pending_id,
       brief_id: p.brief_id ?? null,
+      // foto do banco de imagens mandada para Aprovar (BEZ-236): o publish marca a foto como usada
+      media_asset_id: typeof p.seed?.media_asset_id === 'string' ? p.seed.media_asset_id : null,
       campaign_id: campaignId,
       media_kind: mediaKindOf(p.channel, variation, imageUrl, captionFinal),
       utm,

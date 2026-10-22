@@ -22,6 +22,7 @@ export type ProductEvent =
   | 'post_rejected'
   | 'post_published'
   | 'post_publish_failed'
+  | 'photo_post_created'
   | 'engagement_published'
   | 'instagram_connected'
   | 'instagram_disconnected'
