@@ -35,3 +35,18 @@ describe('pedido de post', () => {
     expect(() => wakeWorker({ APP_BASE_URL: 'https://app.test', CRON_SECRET: 's3' }, async () => Promise.reject(new Error('down')))).not.toThrow();
   });
 });
+
+describe('foto do banco no pedido (BEZ-237)', () => {
+  const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+  it('com foto o post é de atmosfera, qualquer que seja o objetivo', () => {
+    expect(parsePostRequest({ idea: 'forno', goal: 'ensinar', asset_id: ID, photo_usage: 'background' })).toEqual({
+      ok: true,
+      value: { idea: 'forno', kind: 'atmosfera', goal: 'ensinar', ratio: '4:5', photo: { assetId: ID, usage: 'background' } },
+    });
+  });
+
+  it('foto sem uso, ou uso sem foto, é recusado com o campo', () => {
+    expect(parsePostRequest({ idea: 'x', asset_id: ID })).toMatchObject({ ok: false, field: 'photo_usage' });
+    expect(parsePostRequest({ idea: 'x', photo_usage: 'as_is' })).toMatchObject({ ok: false, field: 'asset_id' });
+  });
+});

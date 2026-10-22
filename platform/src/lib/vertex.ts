@@ -16,7 +16,8 @@ export interface ModelClient {
   readonly config: VertexConfig;
   // `image`: foto que o modelo de texto olha junto do pedido (visão), como no banco de imagens.
   generateJson(input: { prompt: string; labels: Labels; maxOutputTokens?: number; temperature?: number; image?: { bytes: Uint8Array; mimeType: string } }): Promise<TextResult>;
-  generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels }): Promise<ImageResult>;
+  // `reference`: foto da empresa que o modelo usa como inspiração (BEZ-237, uso "inspiração").
+  generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels; reference?: { bytes: Uint8Array; mimeType: string } }): Promise<ImageResult>;
 }
 
 // Preço de lista (catálogo do Cloud Billing, endpoint global, lido em 21/10/2026), em US$ por
@@ -142,10 +143,12 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
       }
       return { json, raw, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCost(inputTokens, outputTokens) };
     },
-    async generateImage({ prompt, aspect, labels }) {
+    async generateImage({ prompt, aspect, labels, reference }) {
       const started = Date.now();
+      const parts: Record<string, unknown>[] = [{ text: prompt }];
+      if (reference) parts.push({ inlineData: { mimeType: reference.mimeType, data: Buffer.from(reference.bytes).toString('base64') } });
       const data = await call(config.imageModel, {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts }],
         generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: aspect } },
         labels: cleanLabels(labels),
       });

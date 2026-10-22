@@ -47,6 +47,7 @@ const EXPECTED = {
   'account/delete': ['account.delete'],
   'notifications/read': ['content.view'],
   posts: ['content.create'],
+  'posts/photo-questions': ['content.create'],
   'posts/[id]': ['content.view'],
   'posts/[id]/retry': ['content.create'],
   'posts/[id]/direction': ['content.edit'],
