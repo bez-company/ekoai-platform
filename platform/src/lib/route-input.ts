@@ -107,6 +107,15 @@ export function parseReject(body: unknown): Parsed<{ pendingId: string; reason?:
   return { ok: true, value: { pendingId, reason: text(b.reason, 1000), feedback: b.feedback || undefined } };
 }
 
+// Arquivar um post de Aprovar ou desfazer (SPEC 017, decisão 12).
+export function parseArchive(body: unknown): Parsed<{ pendingId: string; archived: boolean }> {
+  const b = obj(body);
+  const pendingId = text(b.pendingId, 200);
+  if (!pendingId) return { ok: false, error: 'Pendência não encontrada. Recarregue a página.' };
+  if (typeof b.archived !== 'boolean') return { ok: false, error: 'Diga se é para arquivar ou desfazer.' };
+  return { ok: true, value: { pendingId, archived: b.archived } };
+}
+
 export function parseLogin(body: unknown): Parsed<{ password: string }> {
   const b = obj(body);
   if (typeof b.password !== 'string' || !b.password) return { ok: false, error: 'Digite a senha.' };

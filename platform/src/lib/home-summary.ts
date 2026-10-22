@@ -30,7 +30,7 @@ export async function homeSummary(t: TenantDb, can: HomeCan, nowMs = Date.now())
   const weekEnd = new Date(nowMs + WEEK_MS).toISOString();
 
   const [pending, scheduled, queued, failed, slots, accounts, week, last, pause] = await Promise.all([
-    count('pending_approvals'),
+    count('pending_approvals').is('archived_at', null),
     count('scheduled_posts').eq('status', 'scheduled'),
     count('scheduled_posts').eq('status', 'queued'),
     count('scheduled_posts').eq('status', 'failed'),

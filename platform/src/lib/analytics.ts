@@ -20,6 +20,7 @@ export type ProductEvent =
   | 'idea_rework_requested'
   | 'post_approved'
   | 'post_rejected'
+  | 'post_archived'
   | 'post_published'
   | 'post_publish_failed'
   | 'photo_post_created'
