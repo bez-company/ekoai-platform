@@ -264,3 +264,21 @@ export async function listMetricsAccounts(): Promise<MetricsAccount[]> {
   }
   return out;
 }
+
+// ── Callbacks da Meta (SPEC 011 R5.4, BEZ-215): a Meta diz qual conta do Instagram saiu ──────
+
+export type RevokedAccount = { id: string; tenantId: string; handle: string | null };
+
+// Revoga toda conexão ativa (ou que precisa reconectar) desse usuário do Instagram, em qualquer conta da
+// Ekoai. O gatilho da 0018 apaga o token na mesma operação. Já revogada fica de fora.
+export async function revokeInstagramByExternalId(externalId: string, reason: 'meta_deauthorized' | 'meta_data_deletion'): Promise<RevokedAccount[]> {
+  const { data, error } = await system()
+    .from('social_accounts')
+    .update({ status: 'revoked', status_reason: reason })
+    .eq('channel', 'instagram')
+    .eq('external_id', externalId)
+    .neq('status', 'revoked')
+    .select('id,tenant_id,handle');
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  return (data ?? []).map((r) => ({ id: String(r.id), tenantId: String(r.tenant_id), handle: (r.handle as string | null) ?? null }));
+}

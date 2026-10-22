@@ -18,3 +18,19 @@ describe('middleware: mídia pública x banco de imagens', () => {
     expect(await pass('/api/mediax')).toBe(false);
   });
 });
+
+// Callbacks da Meta (SPEC 011 R5.4): públicos só no caminho exato; a página de status, só debaixo do prefixo.
+describe('middleware: callbacks da Meta', () => {
+  it('libera os dois callbacks e a página de status do pedido', async () => {
+    expect(await pass('/api/instagram/deauthorize')).toBe(true);
+    expect(await pass('/api/instagram/data-deletion')).toBe(true);
+    expect(await pass('/instagram/exclusao/AbCdEf0123456789_-xy')).toBe(true);
+  });
+
+  it('não libera o resto do Instagram nem variação do caminho', async () => {
+    expect(await pass('/api/instagram/connect')).toBe(false);
+    expect(await pass('/api/instagram/deauthorize/x')).toBe(false);
+    expect(await pass('/api/instagram/data-deletionx')).toBe(false);
+    expect(await pass('/instagram/exclusao')).toBe(false);
+  });
+});
