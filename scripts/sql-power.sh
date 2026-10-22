@@ -27,6 +27,13 @@ state() {
     --format='value(state,settings.activationPolicy)'
 }
 
+# Operação do Cloud SQL ainda em andamento (ligar, desligar, atualizar). O `state` do `gcloud` volta a dizer
+# RUNNABLE em segundos, com o banco ainda subindo (medido em 22/10/2026: 14,8 min até responder), então só o
+# estado não basta para saber que terminou.
+busy() {
+  gcloud sql operations list --instance="$instance" --project="$project" --filter='status!=DONE' --format='value(name)' | wc -l | tr -d ' '
+}
+
 # Ligar pode passar de 10 minutos (o `gcloud` desiste de esperar antes disso), por isso o patch
 # é assíncrono e a espera é nossa: até 30 minutos, olhando o estado a cada 15 segundos.
 wait_for() {
@@ -34,7 +41,7 @@ wait_for() {
   for _ in $(seq 1 120); do
     now="$(state | tr '\t' ' ')"
     echo "  $(date +%H:%M:%S) $now"
-    [ "$now" = "$want" ] && return 0
+    [ "$now" = "$want" ] && [ "$(busy)" = "0" ] && return 0
     sleep 15
   done
   echo "tempo esgotado esperando '$want' em $project" >&2

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
+import WakeScreen from '@/components/wake/WakeScreen';
+import { environmentAsleep } from '@/lib/wake-gate';
 
 // Fontes servidas pela própria plataforma (sem chamada ao Google em runtime): Sora e DM Mono.
 const sora = localFont({
@@ -24,10 +26,15 @@ export const metadata: Metadata = {
   description: 'O Instagram da sua empresa: você aprova, a Ekoai agenda e publica.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Dinâmico de propósito: no staging sob demanda (SPEC 016) cada pedido confere se o banco está de pé e,
+// se não estiver, mostra a tela "Ligar o ambiente" no lugar do app. Fora do staging a conferência não faz nada.
+export const dynamic = 'force-dynamic';
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const asleep = await environmentAsleep();
   return (
     <html lang="pt-BR" data-theme="light" className={`${sora.variable} ${dmMono.variable}`}>
-      <body>{children}</body>
+      <body>{asleep ? <WakeScreen /> : children}</body>
     </html>
   );
 }

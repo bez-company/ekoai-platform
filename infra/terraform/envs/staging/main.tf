@@ -72,6 +72,11 @@ module "ekoai" {
 
   # O deploy liga o banco parado antes de migrar (o staging fica desligado fora dos testes).
   deploy_can_power_db = true
+
+  # Staging sob demanda (SPEC 016): tela "Ligar o ambiente", corte por ociosidade e probes que não dependem do banco.
+  wake_enabled      = true
+  wake_idle_minutes = 60
+  probe_path        = "/api/live"
 }
 
 # Promoção por digest (SPEC 013, E1.12): o deploy de produção lê daqui a imagem que passou na

@@ -176,3 +176,19 @@ resource "google_monitoring_alert_policy" "uptime" {
     }
   }
 }
+
+# Requisições de gente na plataforma (SPEC 016): tudo menos os caminhos de máquina (probes, cron e a própria
+# tela de espera). É o que a rota sleep-if-idle lê para saber se o staging está em uso.
+resource "google_logging_metric" "user_requests" {
+  count   = var.wake_enabled ? 1 : 0
+  project = var.project_id
+  name    = "ekoai_user_requests"
+  filter  = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${local.name}-platform\" AND log_id(\"run.googleapis.com/requests\") AND NOT httpRequest.requestUrl=~\"/api/(live|health|cron|ambiente)\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+  depends_on = [google_project_service.api]
+}

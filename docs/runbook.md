@@ -194,6 +194,22 @@ proteção ligada.
   `postcss-nested`, `postcss-selector-parser`, `tailwindcss`), todos da cadeia do Tailwind 3, só em build e fora do
   que roda em produção. Saem com a migração para o Tailwind 4, que é mudança maior e entra à parte.
 
+## Staging sob demanda (SPEC 016)
+
+- **O que é:** o banco do staging fica desligado fora do uso. Abrir a URL com o banco parado mostra "O ambiente de teste
+  está desligado" com o botão **Ligar o ambiente** (cerca de 15 minutos até o app abrir). Depois de 60 minutos sem
+  requisição de gente, o Scheduler (`ekoai-sleep-if-idle`, a cada 15 min) desliga o banco.
+- **Ligar e desligar à mão:** `CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging up|down|status`. O deploy também liga.
+- **Ligado só no staging:** `wake_enabled = true` em `envs/staging/main.tf` (variáveis `WAKE_*` no Cloud Run, papel `ekoaiSqlPower`
+  e `monitoring.viewer` na conta do app, métrica `ekoai_user_requests`, probes em `/api/live`). Produção não tem nada disso.
+- **Por que o banco não desligou:** chame `POST /api/cron/sleep-if-idle` com `Bearer CRON_SECRET` e leia `reason`
+  (`foi ligado há menos de 60 min`, `N requisições nos últimos 60 min`). Erro 500 é de propósito: métrica ausente ou API
+  fora deixam o banco ligado. A métrica nasce no `terraform apply`; sem ela nada desliga.
+- **Banco ligado e a tela não sai:** o app só deixa a tela quando `select 1` responde. Confira o `DATABASE_URL` e o estado em
+  `GET /api/ambiente` (`state`, `elapsedS`, `message`).
+- **Medido em 22/10/2026:** ligar leva 888 s (14,8 min); desligar, cerca de 46 s. O `state=RUNNABLE` do `gcloud` aparece em
+  segundos e engana: o `scripts/sql-power.sh` espera o estado e o fim das operações, e `GET /api/health` confirma que a plataforma responde.
+
 ## Geração de posts (SPEC 012, ADR 0018)
 
 - O pedido (`POST /api/posts`) só grava o brief e acorda o worker (`/api/cron/generate`, `Bearer
