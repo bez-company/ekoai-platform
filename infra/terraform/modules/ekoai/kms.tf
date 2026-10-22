@@ -35,7 +35,7 @@ resource "google_kms_crypto_key" "social_tokens" {
 }
 
 # A plataforma e os jobs rodam com a mesma conta de serviço: um papel cobre os dois (a plataforma
-# cifra ao conectar e decifra ao publicar; o refresh-tokens decifra e grava o token novo).
+# cifra ao conectar, decifra ao publicar e, na renovação diária (/api/cron/refresh-instagram), decifra e grava o token novo).
 resource "google_kms_crypto_key_iam_member" "app_uses_social_tokens" {
   crypto_key_id = google_kms_crypto_key.social_tokens.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"

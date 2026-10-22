@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as m from '../platform/src/lib/instagram-oauth-model.ts';
-import { connectWithCode, instagramApp } from '../platform/src/lib/instagram-oauth.ts';
+import { MetaApiError, connectWithCode, instagramApp, refreshLongToken } from '../platform/src/lib/instagram-oauth.ts';
 
 const APP = { appId: '27356348073961636', appSecret: 'segredo-do-app' };
 const REDIRECT = 'https://ekoai.example/api/instagram/callback';
@@ -152,6 +152,7 @@ describe('connectWithCode', () => {
   it('código recusado pela Meta falha sem vazar segredo na mensagem', async () => {
     const { fetchFn } = fakeMeta([{ status: 400, body: '{"error_type":"OAuthException","error_message":"Invalid authorization code"}' }]);
     const err = await connectWithCode({ code: 'C', redirectUri: REDIRECT, app: APP }, fetchFn, NOW).catch((e) => e);
+    expect(err).toBeInstanceOf(MetaApiError);
     expect(err.message).toBe('Meta code: 400');
     expect(err.message).not.toContain(APP.appSecret);
   });
@@ -162,5 +163,80 @@ describe('instagramApp', () => {
     expect(instagramApp({ INSTAGRAM_APP_ID: '1', INSTAGRAM_APP_SECRET: 's' })).toEqual({ appId: '1', appSecret: 's' });
     expect(instagramApp({ INSTAGRAM_APP_ID: '1', INSTAGRAM_APP_SECRET: '  ' })).toBeNull();
     expect(instagramApp({})).toBeNull();
+  });
+});
+
+const D = 86_400_000;
+const at = (offsetMs) => new Date(NOW + offsetMs).toISOString();
+
+describe('refreshDecision', () => {
+  const base = { status: 'active', expiresAt: at(5 * D), refreshedAt: null, connectedAt: at(-10 * D) };
+  it('renova dentro da janela de 15 dias e só depois de 24 horas de vida', () => {
+    expect(m.refreshDecision(base, NOW)).toBe('refresh');
+    expect(m.refreshDecision({ ...base, expiresAt: at(15 * D) }, NOW)).toBe('refresh');
+    expect(m.refreshDecision({ ...base, connectedAt: at(-2 * 3_600_000) }, NOW)).toBe('wait');
+    expect(m.refreshDecision({ ...base, refreshedAt: at(-23 * 3_600_000) }, NOW)).toBe('wait');
+    expect(m.refreshDecision({ ...base, refreshedAt: at(-25 * 3_600_000) }, NOW)).toBe('refresh');
+  });
+  it('longe de vencer, sem prazo ou fora de ativo não faz nada', () => {
+    expect(m.refreshDecision({ ...base, expiresAt: at(16 * D) }, NOW)).toBe('skip');
+    expect(m.refreshDecision({ ...base, expiresAt: null }, NOW)).toBe('skip');
+    expect(m.refreshDecision({ ...base, status: 'reauth_required' }, NOW)).toBe('skip');
+    expect(m.refreshDecision({ ...base, status: 'revoked' }, NOW)).toBe('skip');
+  });
+  it('já vencido pede reconexão em vez de tentar renovar', () => {
+    expect(m.refreshDecision({ ...base, expiresAt: at(-1000) }, NOW)).toBe('expired');
+    expect(m.refreshDecision({ ...base, expiresAt: at(0) }, NOW)).toBe('expired');
+  });
+});
+
+describe('falha da Meta', () => {
+  it('token inválido ou retirado é permanente; rede, 5xx e limite de taxa não', () => {
+    expect(m.isPermanentMetaFailure({ status: 400, code: 190, type: 'OAuthException' })).toBe(true);
+    expect(m.isPermanentMetaFailure({ status: 400, code: 463, type: null })).toBe(true);
+    expect(m.isPermanentMetaFailure({ status: 500, code: null, type: null })).toBe(false);
+    expect(m.isPermanentMetaFailure({ status: null, code: null, type: null })).toBe(false);
+  });
+
+  it('limite de taxa chega como 400 OAuthException e não derruba a conexão', () => {
+    for (const code of [4, 17, 32, 613]) expect(m.isPermanentMetaFailure({ status: 400, code, type: 'OAuthException' })).toBe(false);
+    expect(m.isPermanentMetaFailure({ status: 401, code: null, type: 'OAuthException' })).toBe(false);
+  });
+});
+
+describe('refreshLongToken', () => {
+  it('pede a renovação com o token e devolve o prazo novo', async () => {
+    const { calls, fetchFn } = fakeMeta([{ body: '{"access_token":"IGQnew","token_type":"bearer","expires_in":5183944}' }]);
+    const got = await refreshLongToken('IGQold', fetchFn, NOW);
+    expect(got.accessToken).toBe('IGQnew');
+    expect(got.expiresAt.toISOString()).toBe(new Date(NOW + 5183944 * 1000).toISOString());
+    expect(calls[0].url.origin + calls[0].url.pathname).toBe('https://graph.instagram.com/refresh_access_token');
+    expect(calls[0].url.searchParams.get('grant_type')).toBe('ig_refresh_token');
+    expect(calls[0].url.searchParams.get('access_token')).toBe('IGQold');
+  });
+
+  it('erro de token da Meta vira MetaApiError permanente, sem o token na mensagem', async () => {
+    const { fetchFn } = fakeMeta([{ status: 400, body: '{"error":{"message":"Error validating access token","type":"OAuthException","code":190}}' }]);
+    const err = await refreshLongToken('IGQold', fetchFn, NOW).catch((e) => e);
+    expect(err).toBeInstanceOf(MetaApiError);
+    expect(err).toMatchObject({ status: 400, code: 190, type: 'OAuthException', permanent: true });
+    expect(err.message).not.toContain('IGQold');
+  });
+
+  it('5xx e queda de rede são passageiros', async () => {
+    const down = fakeMeta([{ status: 503, body: 'indisponível' }]);
+    const e1 = await refreshLongToken('IGQold', down.fetchFn, NOW).catch((e) => e);
+    expect(e1).toMatchObject({ status: 503, permanent: false });
+    const offline = async () => {
+      throw new TypeError('fetch failed');
+    };
+    const e2 = await refreshLongToken('IGQold', offline, NOW).catch((e) => e);
+    expect(e2).toBeInstanceOf(MetaApiError);
+    expect(e2).toMatchObject({ status: null, permanent: false });
+  });
+
+  it('resposta sem expires_in falha cedo e claro', async () => {
+    const { fetchFn } = fakeMeta([{ body: '{"access_token":"IGQnew"}' }]);
+    await expect(refreshLongToken('IGQold', fetchFn, NOW)).rejects.toThrow(/expires_in/);
   });
 });

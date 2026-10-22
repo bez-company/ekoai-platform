@@ -158,6 +158,47 @@ export function daysUntil(expiresAt: Date | string | null, nowMs: number): numbe
   return Number.isNaN(ms) ? null : Math.max(0, Math.ceil(ms / DAY_MS));
 }
 
+// ── Renovação do token (SPEC 011 R5.3) ────────────────────────────────────────────────────────
+
+// O token dura 60 dias; a renovação roda todo dia e age só dentro desta janela antes do vencimento.
+export const REFRESH_WINDOW_DAYS = 15;
+// A Meta só renova token com pelo menos 24 horas de vida.
+export const MIN_TOKEN_AGE_MS = DAY_MS;
+
+export type RefreshCandidate = {
+  status: string;
+  expiresAt: Date | string | null;
+  refreshedAt: Date | string | null;
+  connectedAt: Date | string | null;
+};
+
+// skip: ainda longe de vencer (ou sem prazo conhecido); wait: dentro da janela, mas novo demais para a
+// Meta renovar; refresh: renovar agora; expired: já venceu, não tem como renovar, pede reconexão.
+export type RefreshDecision = 'skip' | 'wait' | 'refresh' | 'expired';
+
+export function refreshDecision(c: RefreshCandidate, nowMs: number): RefreshDecision {
+  if (c.status !== 'active' || !c.expiresAt) return 'skip';
+  const expires = new Date(c.expiresAt).getTime();
+  if (Number.isNaN(expires)) return 'skip';
+  if (expires <= nowMs) return 'expired';
+  if (expires - nowMs > REFRESH_WINDOW_DAYS * DAY_MS) return 'skip';
+  const since = new Date(c.refreshedAt ?? c.connectedAt ?? 0).getTime();
+  return Number.isNaN(since) || nowMs - since < MIN_TOKEN_AGE_MS ? 'wait' : 'refresh';
+}
+
+// Erro da Meta sem o token: `permanent` só para token inválido, vencido ou retirado pela pessoa (a conta
+// precisa ser reconectada). Na dúvida é passageiro: limite de taxa também chega como HTTP 400
+// OAuthException (códigos 4, 17, 32, 613), e marcar uma conta saudável como desconectada é pior que
+// tentar de novo no dia seguinte (se o token de fato vencer, o prazo cuida: `expired`).
+export type MetaFailure = { status: number | null; code: number | null; type: string | null };
+
+// 190 e os subcódigos de token (458 a 467) chegam como 190; 102 é sessão inválida.
+const PERMANENT_CODES = new Set([102, 190, 458, 459, 460, 463, 464, 467]);
+
+export function isPermanentMetaFailure(f: MetaFailure): boolean {
+  return f.code !== null && PERMANENT_CODES.has(f.code);
+}
+
 // Erro de conexão que a pessoa entende e sabe corrigir: vira `?ig=<chave>` na volta.
 export class ConnectError extends UserError {
   constructor(public readonly flash: FlashKey) {

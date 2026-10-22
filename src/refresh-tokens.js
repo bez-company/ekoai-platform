@@ -1,8 +1,8 @@
-// refresh-tokens.js — renova tokens IG + LinkedIn antes do vencimento.
+// refresh-tokens.js — renova o token do LinkedIn antes do vencimento. O Instagram saiu daqui: cada conta
+// conectada é renovada pela plataforma (POST /api/cron/refresh-instagram, SPEC 011 R5.3).
 // Chamado pelos jobs `refresh-tokens` (mensal) e `token-health` (diário, alerta); src/jobs.js.
 
 import 'dotenv/config';
-import * as instagram from './channels/instagram.js';
 import * as linkedin from './channels/linkedin.js';
 import { notify } from './utils/notifications.js';
 import { updateSecret, canUpdateSecrets } from './utils/secret-store.js';
@@ -13,11 +13,6 @@ const MODE = process.argv[2] || 'refresh'; // refresh | check
 async function main() {
   assertStateBackend();
   const results = {};
-
-  results.instagram = await runStep('Instagram', async () => {
-    if (MODE === 'check') return instagram.checkTokenHealth();
-    return instagram.refreshToken();
-  });
 
   results.linkedin = await runStep('LinkedIn', async () => {
     if (MODE === 'check') return linkedin.checkTokenHealth();
@@ -54,8 +49,6 @@ async function main() {
 // degrada com aviso (você atualiza à mão) em vez de quebrar.
 async function persistTokens(results) {
   const updates = [];
-  const ig = results.instagram;
-  if (ig?.ok && ig.access_token) updates.push(['IG_ACCESS_TOKEN', ig.access_token]);
   const li = results.linkedin;
   if (li?.ok && li.access_token) updates.push(['LINKEDIN_ACCESS_TOKEN', li.access_token]);
   if (li?.ok && li.refresh_token) updates.push(['LINKEDIN_REFRESH_TOKEN', li.refresh_token]);

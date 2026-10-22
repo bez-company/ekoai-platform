@@ -91,8 +91,8 @@ Só administrador edita (`brand.manage`); criador vê; leitor não vê.
 4. Desconectar revoga e apaga. Callback de exclusão de dados da Meta.
 5. Até o App Review, só contas adicionadas como tester no app funcionam. O fluxo fica pronto.
 
-Status (2026-10-22): conectar, voltar, token cifrado, status e desconectar estão feitos (registro abaixo).
-Falta a renovação por conta (item 3) e os callbacks de desautorização e exclusão de dados (item 4).
+Status (2026-10-22): conectar, voltar, token cifrado, status, desconectar e a renovação por conta estão feitos
+(registro abaixo). Faltam o callback de desautorização e o de exclusão de dados (item 4).
 
 ### R6. Estrutura
 
@@ -497,3 +497,25 @@ Cartão: BEZ-212.
   testador).
 - **Fora desta parte:** renovação por conta (job `refresh-tokens` ainda lê o `.env`), callbacks de
   desautorização e exclusão de dados da Meta, e o aviso aos administradores quando o token vence.
+
+### R5, parte 2: renovação do token por conta (2026-10-22)
+
+Cartão: BEZ-214.
+
+- **Rota e agenda:** `POST /api/cron/refresh-instagram` (OIDC do Scheduler ou `CRON_SECRET`, como o
+  `publish-due`), chamada todo dia às 09:00 UTC pelo Scheduler `ekoai-refresh-instagram`.
+- **Regra** (`refreshDecision`, pura): conta ativa que vence em até 15 dias e tem mais de 24 horas de
+  vida é renovada (a Meta não renova token mais novo que isso); vencida vira "precisa reconectar".
+- **Renovar:** abre o token (KMS), pede `ig_refresh_token`, cifra o novo e grava com `expires_at` e
+  `refreshed_at` numa transação só, e só se a conta ainda estiver ativa (desconectada no meio não ganha token).
+- **Falha:** código de token inválido da Meta (190 e subcódigos) leva a `reauth_required`, com aviso aos
+  administradores e auditoria do sistema, uma vez só. Rede, 5xx e limite de taxa (também chega como HTTP
+  400 `OAuthException`) ficam como erro passageiro: a conta segue ativa e tenta no dia seguinte.
+- **Limpeza:** o job `refresh-tokens` da raiz deixou de renovar o Instagram (só o LinkedIn); o segredo
+  `ig-access-token` não tem mais quem o grave. `ig-access-token` e `ig-business-account-id` continuam no
+  módulo como legado do job de métricas e saem quando produção migrar.
+- **Verificado:** unitários (regra, classificação de falha, chamada à Meta simulada) e 10 testes contra
+  Postgres real (renova, nova demais espera, vencida e recusada pedem reconexão com um aviso só, falha
+  passageira não avisa, revogada fica de fora, segunda rodada sem aviso repetido, conta desconectada no
+  meio não recebe token). **Não exercitado:** a renovação contra a Meta de verdade (só depois do primeiro
+  token chegar a 24 horas e entrar na janela de 15 dias, ou forçando a data no banco do staging).

@@ -74,6 +74,30 @@ resource "google_cloud_scheduler_job" "generate" {
   }
 }
 
+# refresh-instagram: renova o token de cada conta de Instagram antes de vencer (SPEC 011 R5.3). Todo dia
+# às 09:00 UTC (06:00 em Brasília); a rota só age sobre as contas que vencem em até 15 dias.
+resource "google_cloud_scheduler_job" "refresh_instagram" {
+  count            = var.deploy_workloads ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-refresh-instagram"
+  description      = "Renova os tokens de Instagram que vencem em breve"
+  schedule         = "0 9 * * *"
+  time_zone        = "Etc/UTC"
+  paused           = var.schedules_paused
+  attempt_deadline = "180s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/refresh-instagram"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}
+
 resource "google_cloud_run_v2_job_iam_member" "scheduler_runs" {
   for_each = { for k, v in local.jobs : k => v if var.deploy_workloads && v.cron != "" }
   project  = var.project_id
