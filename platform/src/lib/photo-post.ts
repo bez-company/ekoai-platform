@@ -23,7 +23,7 @@ import { blocking, reviewText } from './design/review';
 import { defaultStore, type BlobStore } from './brand-logo';
 import { exifOrientation } from './media-asset-model';
 import { getMediaAsset, publishableMediaUrl, readMediaAssetBytes } from './media-assets';
-import { renderPhoto } from './design/photo';
+import { orientedSize, renderPhoto } from './design/photo';
 import { buildPhotoCaptionPrompt, type PhotoPostInput } from './photo-post-model';
 import type { ModelClient } from './vertex';
 import type { Generation, Variation } from './types';
@@ -53,6 +53,14 @@ export function jpegOrientation(bytes: Uint8Array): number {
   return 1;
 }
 
+// Medidas cruas do arquivo e a orientação, para o corte. O banco de imagens guarda largura e altura
+// já em pé (troca as duas quando a orientação vai de 5 a 8); o render gira sozinho a partir das cruas,
+// então a troca é desfeita aqui (trocar de novo volta ao original).
+export function photoSource(asset: { contentType: string; width: number; height: number }, bytes: Uint8Array): { width: number; height: number; orientation: number } {
+  const orientation = asset.contentType === 'image/jpeg' ? jpegOrientation(bytes) : 1;
+  return { ...orientedSize({ width: asset.width, height: asset.height }, orientation), orientation };
+}
+
 // O que a foto cortada leva para a Aprovar e a Agenda: legenda como variação única, sem modelo.
 function photoGeneration(caption: string, hashtags: string[]): Generation {
   const hook = caption.split('\n')[0].slice(0, 120);
@@ -75,9 +83,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
   const cropped = renderPhoto({
     bytes: file.bytes,
     contentType: asset.contentType,
-    width: asset.width,
-    height: asset.height,
-    orientation: asset.contentType === 'image/jpeg' ? jpegOrientation(file.bytes) : 1,
+    ...photoSource(asset, file.bytes),
     ratio: input.ratio,
     focus: input.focus,
   });
