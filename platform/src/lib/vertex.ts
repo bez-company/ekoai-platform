@@ -22,12 +22,23 @@ export interface ModelClient {
 // milhão de tokens. Serve para a estimativa por chamada; a fatura real é a do provedor.
 export const PRICING = { textIn: 0.3, textOut: 2.5, imageIn: 0.5, imageOut: 60 };
 
+// Imagem: o preço muda de modelo para modelo (torneio de 22/10/2026, BEZ-220). Modelo fora da lista
+// cai no preço do 3.1 Flash, o mais caro dos candidatos que importam, para a estimativa nunca ficar abaixo do real.
+export const IMAGE_PRICING: Record<string, { imageIn: number; imageOut: number }> = {
+  'gemini-3.1-flash-image': { imageIn: 0.5, imageOut: 60 },
+  'gemini-3.1-flash-lite-image': { imageIn: 0.25, imageOut: 30 },
+  'gemini-nano-banana-2.1': { imageIn: 1.5, imageOut: 30 },
+  'gemini-2.5-flash-image': { imageIn: 0.3, imageOut: 30 },
+  'gemini-3-pro-image': { imageIn: 2, imageOut: 120 },
+};
+
 export function textCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens * PRICING.textIn + outputTokens * PRICING.textOut) / 1e6;
 }
 
-export function imageCost(inputTokens: number, outputTokens: number): number {
-  return (inputTokens * PRICING.imageIn + outputTokens * PRICING.imageOut) / 1e6;
+export function imageCost(inputTokens: number, outputTokens: number, model?: string): number {
+  const price = (model && IMAGE_PRICING[model]) || { imageIn: PRICING.imageIn, imageOut: PRICING.imageOut };
+  return (inputTokens * price.imageIn + outputTokens * price.imageOut) / 1e6;
 }
 
 export function vertexConfig(env: Record<string, string | undefined> = process.env): VertexConfig {
@@ -139,7 +150,7 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
       if (!part) throw new Error(`O modelo de imagem não devolveu imagem (${data.candidates?.[0]?.finishReason ?? 'sem candidato'}).`);
       const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? 0);
       const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
-      return { png: Buffer.from(part.inlineData.data, 'base64'), inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: imageCost(inputTokens, outputTokens) };
+      return { png: Buffer.from(part.inlineData.data, 'base64'), inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: imageCost(inputTokens, outputTokens, config.imageModel) };
     },
   };
 }

@@ -201,7 +201,7 @@ proteção ligada.
   staging, como os outros). Brief preso em `generating` por mais de 15 minutos volta sozinho à fila.
 - O Vertex AI roda no projeto do ambiente, pelo endpoint global, com a conta de serviço do app
   (`roles/aiplatform.user`). Variáveis: `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_TEXT_MODEL`,
-  `VERTEX_IMAGE_MODEL` (Terraform). Toda chamada leva os labels `tenant`, `step` e `brief`; filtrar por
+  `VERTEX_IMAGE_MODEL` (Terraform, variável `vertex_image_model`; a staging usa `gemini-3.1-flash-lite-image`, a produção o 3.1 Flash). Toda chamada leva os labels `tenant`, `step` e `brief`; filtrar por
   eles no relatório de faturamento.
 - Custo e limite: cada chamada fica em `generation_runs` (tokens, custo estimado, tempo); o limite
   mensal do plano vale na reserva do visual (gatilho `app.check_post_limit`). Para ver o uso de uma

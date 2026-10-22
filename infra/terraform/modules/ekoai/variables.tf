@@ -60,6 +60,12 @@ variable "jobs_image" {
   default     = ""
 }
 
+variable "vertex_image_model" {
+  description = "Modelo de imagem do Vertex AI (env VERTEX_IMAGE_MODEL). O preço por modelo está em IMAGE_PRICING (platform/src/lib/vertex.ts)."
+  type        = string
+  default     = "gemini-3.1-flash-image"
+}
+
 variable "sql_tier" {
   type    = string
   default = "db-f1-micro"

@@ -111,7 +111,7 @@ locals {
   })
 
   # Modelos da geração de posts (SPEC 012, decisão 6; números da prova de conceito, BEZ-74).
-  vertex = { location = "global", text_model = "gemini-2.5-flash", image_model = "gemini-3.1-flash-image" }
+  vertex = { location = "global", text_model = "gemini-2.5-flash", image_model = var.vertex_image_model }
 
   # Nome completo da chave de cifra dos tokens das redes (env KMS_KEY_NAME).
   kms_key_name = google_kms_crypto_key.social_tokens.id
