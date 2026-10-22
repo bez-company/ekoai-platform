@@ -32,4 +32,5 @@ export const TENANT_TABLES = [
   'scheduled_posts',
   'social_accounts',
   'style_rules',
+  'vision_calls',
 ] as const;

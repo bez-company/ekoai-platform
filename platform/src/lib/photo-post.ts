@@ -8,6 +8,7 @@ import type { TenantDb } from './tenant-db';
 import type { SessionUser } from './accounts';
 import { UserError } from './errors';
 import { log } from './log';
+import { CAPTION_CAP_MESSAGE, withVisionBudget } from './vision-calls';
 import { notify } from './notifications';
 import { composeCaption } from './caption';
 import { distributionUtm } from './utm';
@@ -153,12 +154,15 @@ export async function photoCaption(t: TenantDb, input: { assetId: string; idea: 
   if (!file) throw new UserError('Esta foto não está mais no banco de imagens. Escolha outra.');
   const facts = factsForPrompt(factRows);
   const prompt = buildPhotoCaptionPrompt({ profile, facts: facts.facts, never: facts.never, rules: ruleRows.filter((r) => r.active).map((r) => r.rule), description: asset.description, idea: input.idea });
-  const out = await deps.model.generateJson({
-    prompt,
-    image: { bytes: file.bytes, mimeType: file.contentType },
-    labels: { tenant: t.tenantId, step: 'photo_caption' },
-    maxOutputTokens: 1024,
-  });
+  const out = await withVisionBudget(t, 'photo_caption', asset.id, () =>
+    deps.model.generateJson({
+      prompt,
+      image: { bytes: file.bytes, mimeType: file.contentType },
+      labels: { tenant: t.tenantId, step: 'photo_caption' },
+      maxOutputTokens: 1024,
+    }),
+  );
+  if (!out) throw new UserError(CAPTION_CAP_MESSAGE);
   log('info', 'photo-post', 'legenda pela foto', { tenant: t.tenantId, asset: asset.id, costUsd: out.costUsd, inputTokens: out.inputTokens, outputTokens: out.outputTokens });
   const parsed = parseRewrite(out.json);
   if (!parsed.ok) throw new UserError('A Ekoai não conseguiu escrever a legenda agora. Tente de novo ou escreva você.');
