@@ -74,6 +74,9 @@ module "ekoai" {
   schedules_paused       = true
   uptime_check           = false
 
+  # Os agendados saem no horário (BEZ-228). O sleep-if-idle não desliga o banco com post esperando.
+  publish_paused = false
+
   # O deploy liga o banco parado antes de migrar (o staging fica desligado fora dos testes).
   deploy_can_power_db = true
 

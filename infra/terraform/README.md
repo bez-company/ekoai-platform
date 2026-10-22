@@ -132,4 +132,5 @@ domínio próprio verificado.
   Cloud Run desligada (`invoker_iam_disabled`); o app exige sessão em toda rota privada. A mídia
   fica em bucket privado e só sai pela rota `/api/media`.
 - As agendas nascem **pausadas** (`schedules_paused = true`). Ligar é decisão explícita, quando for
-  para publicar de verdade.
+  para publicar de verdade. O `publish-due` tem pausa própria (`publish_paused`): o staging o mantém
+  ligado para os agendados saírem no horário; a produção segue pausada.

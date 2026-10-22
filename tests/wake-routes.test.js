@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // o que se prova aqui é o contrato de cada rota e que fora do staging elas não existem.
 const power = { policy: vi.fn(), lastUpdate: vi.fn(), setPolicy: vi.fn(), userRequests: vi.fn() };
 const probe = vi.fn();
+const pending = vi.fn();
+vi.mock('@/lib/publish', () => ({ hasPendingPublishes: (...a) => pending(...a) }));
 vi.mock('@/lib/env-power', async (orig) => ({ ...(await orig()), powerClient: () => power, probeDb: (...a) => probe(...a) }));
 
 const { GET: live } = await import('../platform/src/app/api/live/route.ts');
@@ -23,6 +25,7 @@ beforeEach(() => {
   Object.assign(process.env, ON);
   Object.values(power).forEach((m) => m.mockReset());
   probe.mockReset().mockResolvedValue(false);
+  pending.mockReset().mockResolvedValue(false);
   power.lastUpdate.mockResolvedValue({ startedAtMs: Date.now() - 6 * MIN, status: 'RUNNING', failed: false });
   resetWakeThrottle();
 });
@@ -141,11 +144,31 @@ describe('POST /api/cron/sleep-if-idle', () => {
     expect(power.setPolicy).not.toHaveBeenCalled();
   });
 
+  it('com post agendado esperando, o banco continua ligado mesmo sem uso', async () => {
+    power.policy.mockResolvedValue('ALWAYS');
+    power.lastUpdate.mockResolvedValue({ startedAtMs: Date.now() - 180 * MIN, status: 'DONE', failed: false });
+    power.userRequests.mockResolvedValue(0);
+    pending.mockResolvedValue(true);
+    const body = await (await sleepIfIdle(cron('segredo-do-teste'))).json();
+    expect(body).toMatchObject({ ok: true, action: 'none', reason: expect.stringContaining('post agendado') });
+    expect(power.setPolicy).not.toHaveBeenCalled();
+  });
+
+  it('falha ao ler os agendados deixa o banco ligado (500)', async () => {
+    power.policy.mockResolvedValue('ALWAYS');
+    power.lastUpdate.mockResolvedValue({ startedAtMs: Date.now() - 180 * MIN, status: 'DONE', failed: false });
+    power.userRequests.mockResolvedValue(0);
+    pending.mockRejectedValue(new Error('Falha ao buscar agendados'));
+    expect((await sleepIfIdle(cron('segredo-do-teste'))).status).toBe(500);
+    expect(power.setPolicy).not.toHaveBeenCalled();
+  });
+
   it('banco já desligado não consulta o uso nem muda nada', async () => {
     power.policy.mockResolvedValue('NEVER');
     const body = await (await sleepIfIdle(cron('segredo-do-teste'))).json();
     expect(body.action).toBe('none');
     expect(power.userRequests).not.toHaveBeenCalled();
+    expect(pending).not.toHaveBeenCalled();
     expect(power.setPolicy).not.toHaveBeenCalled();
   });
 
