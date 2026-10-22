@@ -4,11 +4,15 @@ import * as s from '../platform/src/lib/screens.ts';
 const grant = (...p) => (permission) => p.includes(permission);
 
 describe('menu por permissão', () => {
-  it('administrador e criador veem tudo; o leitor não vê Configurações', () => {
-    const admin = s.screensFor(grant('content.view', 'profile.view', 'team.manage')).map((x) => x.label);
-    expect(admin).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Aprendizado', 'Configurações']);
-    expect(s.screensFor(grant('content.view', 'profile.view')).map((x) => x.label)).toEqual(admin);
+  it('administrador e criador veem tudo; o leitor não vê Banco de imagens nem Configurações', () => {
+    const admin = s.screensFor(grant('content.view', 'content.create', 'profile.view', 'team.manage')).map((x) => x.label);
+    expect(admin).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Banco de imagens', 'Aprendizado', 'Configurações']);
+    expect(s.screensFor(grant('content.view', 'content.create', 'profile.view')).map((x) => x.label)).toEqual(admin);
     expect(s.screensFor(grant('content.view')).map((x) => x.label)).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Aprendizado']);
+  });
+
+  it('no celular, a barra de baixo tem as quatro telas do dia a dia; o resto vai para Mais', () => {
+    for (const href of s.MOBILE_PRIMARY) expect(s.SCREENS.some((x) => x.href === href)).toBe(true);
   });
 
   it('sem nenhuma permissão o menu fica vazio', () => {

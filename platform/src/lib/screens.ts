@@ -4,7 +4,7 @@
 
 import type { Permission } from './permissions';
 
-export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'chart' | 'spark' | 'settings';
+export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'chart' | 'image' | 'spark' | 'settings';
 
 export type Screen = { href: string; label: string; icon: ScreenIcon; permission: Permission };
 
@@ -13,10 +13,15 @@ export const SCREENS: readonly Screen[] = [
   { href: '/inbox', label: 'Aprovar', icon: 'inbox', permission: 'content.view' },
   { href: '/calendar', label: 'Agenda', icon: 'calendar', permission: 'content.view' },
   { href: '/history', label: 'Publicados', icon: 'chart', permission: 'content.view' },
+  // Banco de imagens (SPEC 017, BEZ-198): quem cria post sobe e escolhe fotos; o leitor não vê.
+  { href: '/media', label: 'Banco de imagens', icon: 'image', permission: 'content.create' },
   { href: '/learning', label: 'Aprendizado', icon: 'spark', permission: 'content.view' },
   // O leitor não vê configuração da conta: quem tem o perfil da empresa à vista (admin e criador).
   { href: '/settings', label: 'Configurações', icon: 'settings', permission: 'profile.view' },
 ];
+
+// No celular, a barra de baixo mostra estas; o resto fica em "Mais".
+export const MOBILE_PRIMARY = ['/', '/inbox', '/calendar', '/history'] as const;
 
 export function screensFor(allowed: (permission: Permission) => boolean): Screen[] {
   return SCREENS.filter((s) => allowed(s.permission));
