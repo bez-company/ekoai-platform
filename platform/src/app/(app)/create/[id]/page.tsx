@@ -5,10 +5,11 @@ import { pageError } from '@/lib/api';
 import { postProgress } from '@/lib/post-requests';
 import { isUuid } from '@/lib/route-input';
 import { pageTenant } from '@/lib/session';
+import { GOALS } from '@/lib/post-goals';
 
 export const dynamic = 'force-dynamic';
 
-const KIND_LABEL = { informativo: 'Informativo', atmosfera: 'Atmosfera' } as const;
+const RATIO_LABEL = { '4:5': 'Retrato 4:5', '1:1': 'Quadrado 1:1' } as const;
 
 // O andamento de um pedido (SPEC 012 R1): etapas, falha com nova tentativa, e o caminho para Aprovar.
 export default async function GeneratingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +28,7 @@ export default async function GeneratingPage({ params }: { params: Promise<{ id:
           <h1 className="text-xl font-semibold">{progress.status === 'ready' ? 'Post pronto' : progress.status === 'failed' ? 'Não deu para gerar o post' : 'Criando o post'}</h1>
           <p className="text-sm text-muted">
             {progress.idea}
-            {progress.kind ? ` · ${KIND_LABEL[progress.kind]}` : ''} · Retrato 4:5
+            {progress.goal && progress.goal !== 'auto' ? ` · ${GOALS[progress.goal].label}` : ''} · {RATIO_LABEL[progress.ratio]}
           </p>
         </div>
         <GenerationProgress initial={progress} />

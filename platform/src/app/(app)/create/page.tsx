@@ -10,10 +10,15 @@ import { can, pageSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-// Criar post (SPEC 012 R1). Só quem cria conteúdo (administrador e criador); o leitor não vê a tela.
-// Sem perfil completo (nicho, o que vende e para quem), a tela leva ao perfil em vez do formulário.
-export default async function CreatePostPage() {
+// Criar post (SPEC 012 R1, SPEC 017 decisões 4 a 7). Só quem cria conteúdo (administrador e criador); o
+// leitor não vê a tela. Sem perfil completo (nicho, o que vende e para quem), a tela leva ao perfil em vez
+// do formulário. ?asset=<id> abre com a foto do banco de imagens já anexada.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function CreatePostPage({ searchParams }: { searchParams: Promise<{ asset?: string }> }) {
   const { t, role } = await pageSession();
+  const { asset } = await searchParams;
+  const initialAssetId = typeof asset === 'string' && UUID.test(asset) ? asset.toLowerCase() : null;
   if (!(await can('content.create'))) notFound();
   try {
     const [account, profile] = await Promise.all([accountOf(t.tenantId), getProfile(t)]);
@@ -41,46 +46,20 @@ export default async function CreatePostPage() {
       );
     }
     const atLimit = usage.used >= usage.max;
+    const accountName = account?.name ?? 'sua empresa';
+    const handle = profile!.instagramHandle ? `@${profile!.instagramHandle.replace(/^@/, '')}` : accountName;
     return (
       <div className="space-y-4">
         <div>
           <h1 className="text-xl font-semibold">Criar post</h1>
-          <p className="text-sm text-muted">Diga o tema e a Ekoai escreve a legenda e desenha a imagem como a {account?.name ?? 'sua empresa'} faria.</p>
+          <p className="text-sm text-muted">Descreva o que quer. A Ekoai escreve a legenda e monta a imagem do jeito da {accountName}.</p>
         </div>
         {atLimit && (
           <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
             <strong>Você usou os {usage.max} posts deste mês.</strong> O limite volta no dia 1º. Você ainda pode editar e aprovar os posts que já existem.
           </div>
         )}
-        <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-          <CreatePostForm usage={usage} />
-          <section className="card space-y-3">
-            <h2 className="text-base font-semibold">O que a Ekoai vai usar</h2>
-            <p className="text-sm text-muted">Vem do perfil da empresa. Mudou algo? Edite lá, vale para os próximos posts.</p>
-            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[7rem_1fr]">
-              <dt className="text-muted">Nicho</dt>
-              <dd>{profile!.niche}</dd>
-              <dt className="text-muted">Nunca usa</dt>
-              <dd>{profile!.bannedWords.length ? profile!.bannedWords.join(', ') : <span className="text-muted">Nada cadastrado</span>}</dd>
-              <dt className="text-muted">Cores</dt>
-              <dd>{profile!.colorPrimary ? `${profile!.colorPrimary}${profile!.colorAccent ? ` e ${profile!.colorAccent}` : ''}` : <span className="text-muted">Padrão neutro</span>}</dd>
-              <dt className="text-muted">Fontes</dt>
-              <dd>{profile!.fontHeading || profile!.fontBody ? `${profile!.fontHeading ?? 'Sora'} e ${profile!.fontBody ?? 'Inter'}` : <span className="text-muted">Sora e Inter</span>}</dd>
-              <dt className="text-muted">Logo</dt>
-              <dd>{profile!.logoAssetId ? 'Enviado' : <span className="text-muted">Sem logo: o post sai com o @</span>}</dd>
-            </dl>
-            <div className="flex flex-wrap gap-2">
-              {role === 'admin' && (
-                <Link href="/settings/company" className="btn-ghost">
-                  Editar o perfil
-                </Link>
-              )}
-              <Link href="/settings/facts" className="btn-ghost">
-                Fatos da empresa
-              </Link>
-            </div>
-          </section>
-        </div>
+        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} initialAssetId={initialAssetId} />
       </div>
     );
   } catch (e) {
