@@ -3,12 +3,25 @@ import { parsePostRequest, wakeWorker, IDEA_MAX } from '../platform/src/lib/post
 
 describe('pedido de post', () => {
   it('exige a ideia e aceita o tipo opcional', () => {
-    expect(parsePostRequest({ idea: '  bolo   pronto ', kind: '' })).toEqual({ ok: true, value: { idea: 'bolo pronto', kind: null } });
-    expect(parsePostRequest({ idea: 'x', kind: 'atmosfera' })).toEqual({ ok: true, value: { idea: 'x', kind: 'atmosfera' } });
+    expect(parsePostRequest({ idea: '  bolo   pronto ', kind: '' })).toEqual({ ok: true, value: { idea: 'bolo pronto', kind: null, goal: null, ratio: '4:5' } });
+    expect(parsePostRequest({ idea: 'x', kind: 'atmosfera' })).toEqual({ ok: true, value: { idea: 'x', kind: 'atmosfera', goal: null, ratio: '4:5' } });
     expect(parsePostRequest({ idea: '' })).toMatchObject({ ok: false, field: 'idea' });
     expect(parsePostRequest({ idea: 'x'.repeat(IDEA_MAX + 1) })).toMatchObject({ ok: false, field: 'idea' });
     expect(parsePostRequest({ idea: 'x', kind: 'reels' })).toMatchObject({ ok: false, field: 'kind' });
     expect(parsePostRequest(null)).toMatchObject({ ok: false });
+  });
+
+  it('objetivo decide a montagem e o formato é 4:5 ou 1:1 (SPEC 017 decisões 5 e 6)', () => {
+    expect(parsePostRequest({ idea: 'x', goal: 'bastidores', ratio: '1:1' })).toEqual({ ok: true, value: { idea: 'x', kind: 'atmosfera', goal: 'bastidores', ratio: '1:1' } });
+    expect(parsePostRequest({ idea: 'x', goal: 'promocao' })).toMatchObject({ ok: true, value: { kind: 'informativo', ratio: '4:5' } });
+    // data comemorativa e "deixar a Ekoai escolher": o estrategista decide a montagem
+    expect(parsePostRequest({ idea: 'x', goal: 'data_comemorativa' })).toMatchObject({ ok: true, value: { kind: null } });
+    expect(parsePostRequest({ idea: 'x', goal: 'auto' })).toMatchObject({ ok: true, value: { kind: null, goal: 'auto' } });
+    // o tipo escolhido à mão vale sobre o objetivo
+    expect(parsePostRequest({ idea: 'x', goal: 'ensinar', kind: 'atmosfera' })).toMatchObject({ ok: true, value: { kind: 'atmosfera', goal: 'ensinar' } });
+    expect(parsePostRequest({ idea: 'x', goal: 'reels' })).toMatchObject({ ok: false, field: 'goal' });
+    expect(parsePostRequest({ idea: 'x', ratio: '9:16' })).toMatchObject({ ok: false, field: 'ratio' });
+    expect(parsePostRequest({ idea: 'x', ratio: '1.91:1' })).toMatchObject({ ok: false, field: 'ratio' });
   });
 
   it('acorda o worker com o segredo do cron, sem esperar; sem configuração, só avisa', async () => {

@@ -115,6 +115,27 @@ describe('post informativo', () => {
     expect(model.calls).toHaveLength(2);
   });
 
+  it('objetivo e formato do pedido (SPEC 017): o objetivo vai ao prompt e o 1:1 sai 1080x1080', async () => {
+    const t = tenantDb(A);
+    const parsed = requests.parsePostRequest({ idea: 'qual sabor vocês preferem', goal: 'conversa', ratio: '1:1' });
+    expect(parsed).toEqual({ ok: true, value: { idea: 'qual sabor vocês preferem', kind: 'informativo', goal: 'conversa', ratio: '1:1' } });
+    const { id } = await requests.createPostRequest(t, ANA, parsed.value);
+    expect(await one('select goal, ratio, post_kind from briefs where id = $1', [id])).toEqual({ goal: 'conversa', ratio: '1:1', post_kind: 'informativo' });
+    const model = fakeModel({ text: [{ ...INFO, items: undefined, texts: { title: 'Ninho ou morango?' } }], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status, JSON.stringify(out)).toBe('ready');
+    expect(model.calls[0].prompt).toContain('Objetivo do post: puxar conversa');
+    const pending = await one('select * from pending_approvals where brief_id = $1', [id]);
+    expect(pngSize(objects.get(pending.images[0].path).bytes)).toEqual({ width: 1080, height: 1080 });
+    expect(pending.seed).toMatchObject({ goal: 'conversa', ratio: '1:1' });
+    expect(await one('select ratio from post_designs where id = $1', [pending.post_design_id])).toEqual({ ratio: '1:1' });
+    expect(await requests.postProgress(t, id)).toMatchObject({ goal: 'conversa', ratio: '1:1' });
+    // pedido antigo, sem objetivo nem formato: retrato 4:5 e sem objetivo
+    const old = await brief('pedido sem objetivo');
+    expect(await one('select goal, ratio from briefs where id = $1', [old])).toEqual({ goal: null, ratio: '4:5' });
+    await expect(admin.query("update briefs set ratio = '9:16' where id = $1", [old])).rejects.toThrow(/check/);
+  });
+
   it('o andamento lê a fila, as etapas e a pendência', async () => {
     const t = tenantDb(A);
     const { id } = (await admin.query("select id from briefs where tenant_id = $1 and status = 'ready' limit 1", [A])).rows[0];

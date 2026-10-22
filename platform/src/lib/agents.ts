@@ -9,6 +9,7 @@ import type { PostKind } from './generation-model';
 export type CopyInput = {
   idea: string;
   kind: PostKind | null; // null = o estrategista escolhe
+  goal?: string | null; // o objetivo do post em uma frase (SPEC 017 decisão 6)
   profile: CompanyProfile;
   facts: string[];
   never: string[];
@@ -70,6 +71,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('');
   lines.push('## O pedido');
   lines.push(`- Ideia: ${input.idea}`);
+  if (input.goal) lines.push(`- Objetivo do post: ${input.goal}`);
   lines.push(input.kind ? `- Tipo do post: ${input.kind}` : '- Tipo do post: escolha entre "informativo" (o texto manda: dica, dado, passo a passo) e "atmosfera" (a imagem manda: bastidor, produto, clima da marca)');
   if ((input.direction ?? 1) > 1) lines.push(`- Direção ${input.direction}: a pessoa pediu OUTRA direção. Escolha um ângulo, um gancho e (no atmosfera) uma cena diferentes das óbvias para este tema; evite repetir a abordagem mais comum.`);
   lines.push('');
