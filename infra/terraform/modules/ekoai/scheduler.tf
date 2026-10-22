@@ -26,7 +26,8 @@ resource "google_cloud_scheduler_job" "job" {
   }
 }
 
-# publish-due não é job: o Scheduler chama a plataforma com um token OIDC, que ela confere.
+# publish-due não é job: o Scheduler chama a plataforma com um token OIDC, que ela confere. Pausa por
+# `publish_paused`, não por `schedules_paused`: o staging mantém os outros jobs pausados e este ligado.
 resource "google_cloud_scheduler_job" "publish_due" {
   count            = var.deploy_workloads ? 1 : 0
   project          = var.project_id
@@ -35,7 +36,7 @@ resource "google_cloud_scheduler_job" "publish_due" {
   description      = "Publica o que está agendado e venceu"
   schedule         = "*/10 * * * *"
   time_zone        = "Etc/UTC"
-  paused           = var.schedules_paused
+  paused           = var.publish_paused
   attempt_deadline = "120s"
 
 

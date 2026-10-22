@@ -52,13 +52,15 @@ export function statusOf(input: { dbReachable: boolean; policy: string | null; l
 
 export type SleepDecision = { stop: boolean; reason: string };
 
-// Desliga só o que está ligado há mais que a janela de ociosidade e sem nenhuma requisição de gente nela.
-export function sleepDecision(input: { policy: string | null; lastOpStartMs: number | null; requests: number; nowMs: number; idleMinutes: number }): SleepDecision {
+// Desliga só o que está ligado há mais que a janela de ociosidade, sem nenhuma requisição de gente nela
+// e sem post agendado esperando para sair (o publish-due precisa do banco no horário).
+export function sleepDecision(input: { policy: string | null; lastOpStartMs: number | null; requests: number; pendingPublishes: boolean; nowMs: number; idleMinutes: number }): SleepDecision {
   if (input.policy !== 'ALWAYS') return { stop: false, reason: 'o banco já está desligado' };
   if (input.lastOpStartMs !== null && input.nowMs - input.lastOpStartMs < input.idleMinutes * 60_000) {
     return { stop: false, reason: `o banco foi ligado há menos de ${input.idleMinutes} min` };
   }
   if (input.requests > 0) return { stop: false, reason: `${input.requests} requisições nos últimos ${input.idleMinutes} min` };
+  if (input.pendingPublishes) return { stop: false, reason: 'há post agendado esperando para publicar' };
   return { stop: true, reason: `sem requisições nos últimos ${input.idleMinutes} min` };
 }
 

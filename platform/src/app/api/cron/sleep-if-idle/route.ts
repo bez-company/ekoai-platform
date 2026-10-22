@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { powerClient, powerConfig, sleepDecision } from '@/lib/env-power';
+import { hasPendingPublishes } from '@/lib/publish';
 import { log, logError } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
@@ -16,9 +17,9 @@ async function handle(req: Request) {
   try {
     const power = powerClient(config);
     const policy = await power.policy();
-    if (policy !== 'ALWAYS') return NextResponse.json({ ok: true, action: 'none', reason: sleepDecision({ policy, lastOpStartMs: null, requests: 0, nowMs: Date.now(), idleMinutes: config.idleMinutes }).reason });
-    const [lastOp, requests] = await Promise.all([power.lastUpdate(), power.userRequests(config.idleMinutes)]);
-    const decision = sleepDecision({ policy, lastOpStartMs: lastOp?.startedAtMs ?? null, requests, nowMs: Date.now(), idleMinutes: config.idleMinutes });
+    if (policy !== 'ALWAYS') return NextResponse.json({ ok: true, action: 'none', reason: sleepDecision({ policy, lastOpStartMs: null, requests: 0, pendingPublishes: false, nowMs: Date.now(), idleMinutes: config.idleMinutes }).reason });
+    const [lastOp, requests, pendingPublishes] = await Promise.all([power.lastUpdate(), power.userRequests(config.idleMinutes), hasPendingPublishes()]);
+    const decision = sleepDecision({ policy, lastOpStartMs: lastOp?.startedAtMs ?? null, requests, pendingPublishes, nowMs: Date.now(), idleMinutes: config.idleMinutes });
     if (decision.stop) {
       await power.setPolicy('NEVER');
       log('info', 'cron/sleep-if-idle', 'banco desligado por ociosidade', { reason: decision.reason });

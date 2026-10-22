@@ -54,7 +54,7 @@ describe('statusOf: o que a tela mostra', () => {
 });
 
 describe('sleepDecision: só desliga com a janela inteira sem uso', () => {
-  const base = { policy: 'ALWAYS', lastOpStartMs: NOW - 120 * MIN, requests: 0, nowMs: NOW, idleMinutes: 60 };
+  const base = { policy: 'ALWAYS', lastOpStartMs: NOW - 120 * MIN, requests: 0, pendingPublishes: false, nowMs: NOW, idleMinutes: 60 };
 
   it('desliga: ligado há mais que a janela e nenhuma requisição de gente', () => {
     expect(sleepDecision(base)).toMatchObject({ stop: true });
@@ -70,6 +70,10 @@ describe('sleepDecision: só desliga com a janela inteira sem uso', () => {
 
   it('não desliga com uma requisição que seja', () => {
     expect(sleepDecision({ ...base, requests: 1 })).toMatchObject({ stop: false, reason: expect.stringContaining('1 requisições') });
+  });
+
+  it('não desliga com post agendado esperando para publicar: o cron não conta como uso', () => {
+    expect(sleepDecision({ ...base, pendingPublishes: true })).toMatchObject({ stop: false, reason: expect.stringContaining('post agendado') });
   });
 
   it('sem registro de operação, decide pelo uso', () => {

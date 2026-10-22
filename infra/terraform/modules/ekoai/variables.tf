@@ -130,6 +130,12 @@ variable "schedules_paused" {
   default     = true
 }
 
+variable "publish_paused" {
+  description = "Agenda do publish-due pausada, à parte das outras: o staging a mantém ligada para os posts agendados saírem no horário."
+  type        = bool
+  default     = true
+}
+
 variable "site_url" {
   description = "Site da conta, destino dos links com UTM (env SITE_URL). Vazio = post sem link rastreado."
   type        = string

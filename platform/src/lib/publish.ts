@@ -245,6 +245,19 @@ async function processOne(t: TenantDb, s: ScheduledPost): Promise<{ ok: boolean;
   return { ok: true };
 }
 
+// Há agendado esperando para sair? O banco do staging só pode dormir sem isso: o cron não conta como
+// uso e, com o banco desligado, ninguém acorda para publicar. Tenant pausado não conta (os agendados
+// dele esperam a retomada). Erro de leitura sobe: na dúvida o banco fica ligado.
+export async function hasPendingPublishes(): Promise<boolean> {
+  // sistema: leitura entre tenants, só o dono
+  const { data, error } = await db().from('scheduled_posts').select('tenant_id').eq('status', 'scheduled').limit(200);
+  if (error) throw new Error(`Falha ao buscar agendados: ${error.message}`);
+  for (const tenantId of new Set((data || []).map((r) => r.tenant_id as string))) {
+    if (!(await getPauseState(tenantDb(tenantId))).paused) return true;
+  }
+  return false;
+}
+
 // Varre os vencidos de TODOS os tenants (job de sistema), trava cada um (anti-corrida) e
 // publica no escopo do tenant dono da linha. Tenant pausado em /settings fica de fora: os
 // vencidos dele esperam a retomada.
