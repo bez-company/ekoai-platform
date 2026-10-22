@@ -17,6 +17,7 @@ export const TENANT_TABLES = [
   'invitations',
   'metrics_snapshots',
   'notifications',
+  'onboarding_answers',
   'pending_approvals',
   'post_designs',
   'post_events',
