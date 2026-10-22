@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonical, inputHash, isPlanPostsLimit, monthStart, usageOf, runFromRow, isPostKind, LIMIT_MESSAGE } from '../platform/src/lib/generation-model.ts';
+import { canonical, inputHash, isPlanPostsLimit, monthStart, usageOf, runFromRow, isPostKind, LIMIT_MESSAGE, GOALS, POST_GOALS, kindForGoal, isRatio } from '../platform/src/lib/generation-model.ts';
 
 describe('chave de idempotência da geração (SPEC 012 R5.1)', () => {
   it('a mesma entrada dá o mesmo hash, em qualquer ordem de chaves', () => {
@@ -51,5 +51,22 @@ describe('linha da chamada', () => {
   it('tipo do post só aceita os dois da SPEC', () => {
     expect(isPostKind('informativo')).toBe(true);
     expect(isPostKind('carrossel')).toBe(false);
+  });
+});
+
+describe('objetivo do post (SPEC 017 decisão 6)', () => {
+  it('cada objetivo tem rótulo, exemplo e montagem; só data comemorativa e auto deixam o estrategista escolher', () => {
+    for (const g of POST_GOALS) expect(GOALS[g].label, g).toBeTruthy();
+    expect(POST_GOALS.filter((g) => GOALS[g].kind === null)).toEqual(['data_comemorativa', 'auto']);
+    expect(kindForGoal('produto')).toBe('atmosfera');
+    expect(kindForGoal(null)).toBe(null);
+    expect(kindForGoal('ensinar', 'atmosfera')).toBe('atmosfera');
+  });
+
+  it('formato: retrato e quadrado; story e paisagem ficam fora da geração', () => {
+    expect(isRatio('4:5')).toBe(true);
+    expect(isRatio('1:1')).toBe(true);
+    expect(isRatio('9:16')).toBe(false);
+    expect(isRatio('1.91:1')).toBe(false);
   });
 });

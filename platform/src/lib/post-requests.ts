@@ -5,12 +5,14 @@
 import type { TenantDb } from './tenant-db';
 import type { SessionUser } from './accounts';
 import { UserError } from './errors';
-import { isPostKind, type PostKind, type Step } from './generation-model';
+import { DEFAULT_RATIO, isPostGoal, isPostKind, isRatio, kindForGoal, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
 import { runsOfBrief } from './generation-db';
 import { log } from './log';
 import { IDEA_MAX } from './post-limits';
 
-export type PostRequestInput = { idea: string; kind: PostKind | null };
+// goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
+// vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
+export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -22,15 +24,19 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   if (!idea) return { ok: false, error: 'Diga em uma frase sobre o que é o post.', field: 'idea' };
   if (idea.length > IDEA_MAX) return { ok: false, error: `Use até ${IDEA_MAX} caracteres.`, field: 'idea' };
   if (b.kind != null && b.kind !== '' && !isPostKind(b.kind)) return { ok: false, error: 'Escolha informativo ou atmosfera, ou deixe a Ekoai decidir.', field: 'kind' };
-  return { ok: true, value: { idea, kind: isPostKind(b.kind) ? b.kind : null } };
+  if (b.goal != null && b.goal !== '' && !isPostGoal(b.goal)) return { ok: false, error: 'Escolha um dos objetivos da lista, ou deixe a Ekoai escolher.', field: 'goal' };
+  if (b.ratio != null && b.ratio !== '' && !isRatio(b.ratio)) return { ok: false, error: 'Escolha o formato retrato (4:5) ou quadrado (1:1).', field: 'ratio' };
+  const goal = isPostGoal(b.goal) ? b.goal : null;
+  const kind = kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
+  return { ok: true, value: { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO } };
 }
 
 export const BRIEF_STATUS = ['queued', 'generating', 'ready', 'failed'] as const;
 export type BriefStatus = (typeof BRIEF_STATUS)[number];
 
-export async function createPostRequest(t: TenantDb, actor: SessionUser | null, input: PostRequestInput): Promise<{ id: string }> {
+export async function createPostRequest(t: TenantDb, actor: SessionUser | null, input: Pick<PostRequestInput, 'idea' | 'kind'> & Partial<PostRequestInput>): Promise<{ id: string }> {
   const { data, error } = await t
-    .insert('briefs', { idea: input.idea, pillar: input.kind ?? 'post', post_kind: input.kind, status: 'queued', source: 'platform', requested_by: actor?.id ?? null })
+    .insert('briefs', { idea: input.idea, pillar: input.goal ?? input.kind ?? 'post', post_kind: input.kind, goal: input.goal ?? null, ratio: input.ratio ?? DEFAULT_RATIO, status: 'queued', source: 'platform', requested_by: actor?.id ?? null })
     .select('id')
     .single();
   if (error) throw new Error(`briefs: ${error.message}`);
@@ -56,6 +62,8 @@ export type PostProgress = {
   status: BriefStatus;
   idea: string;
   kind: PostKind | null;
+  goal: PostGoal | null;
+  ratio: Ratio;
   step: Step | null; // a etapa em andamento (ou a última concluída)
   steps: { step: Step; status: 'reserved' | 'done' | 'failed' }[];
   error: string | null;
@@ -66,7 +74,7 @@ export type PostProgress = {
 const STEP_ORDER: Step[] = ['strategist', 'writer', 'art', 'visual', 'review', 'render'];
 
 export async function postProgress(t: TenantDb, briefId: string): Promise<PostProgress | null> {
-  const brief = await t.select('briefs', 'id,idea,post_kind,status,error,created_at').eq('id', briefId).maybeSingle();
+  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at').eq('id', briefId).maybeSingle();
   if (brief.error) throw new Error(`briefs: ${brief.error.message}`);
   if (!brief.data) return null;
   const [runs, pending] = await Promise.all([runsOfBrief(t, briefId), t.select('pending_approvals', 'pending_id').eq('brief_id', briefId).limit(1)]);
@@ -79,6 +87,8 @@ export async function postProgress(t: TenantDb, briefId: string): Promise<PostPr
     status,
     idea: String(brief.data.idea),
     kind: isPostKind(brief.data.post_kind) ? brief.data.post_kind : null,
+    goal: isPostGoal(brief.data.goal) ? brief.data.goal : null,
+    ratio: isRatio(brief.data.ratio) ? brief.data.ratio : DEFAULT_RATIO,
     step: last?.step ?? null,
     steps,
     error: typeof brief.data.error === 'string' ? brief.data.error : null,

@@ -16,7 +16,7 @@ import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
-import { inputHash, LIMIT_MESSAGE, type PostKind } from './generation-model';
+import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { buildCopyPrompt, buildRewritePrompt, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
@@ -34,15 +34,21 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-const RATIO = '4:5' as const;
-
-type Brief = { id: string; idea: string; kind: PostKind | null; status: string; direction: number };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,status,direction').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
-  return { id: String(data.id), idea: String(data.idea), kind: (data.post_kind as PostKind | null) ?? null, status: String(data.status), direction: Number(data.direction ?? 1) };
+  return {
+    id: String(data.id),
+    idea: String(data.idea),
+    kind: (data.post_kind as PostKind | null) ?? null,
+    goal: isPostGoal(data.goal) ? data.goal : null,
+    ratio: isRatio(data.ratio) ? data.ratio : DEFAULT_RATIO,
+    status: String(data.status),
+    direction: Number(data.direction ?? 1),
+  };
 }
 
 async function setBrief(t: TenantDb, briefId: string, values: Record<string, unknown>): Promise<void> {
@@ -81,7 +87,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
+    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -119,13 +125,13 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
 async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy: Copy, planMax: number, store: BlobStore): Promise<{ key: string } | { limit: number }> {
   const prompt = visualPromptFor(copy);
   const model = deps.model.config.imageModel;
-  const hash = inputHash('visual', model, { prompt, aspect: RATIO });
+  const hash = inputHash('visual', model, { prompt, aspect: brief.ratio });
   const reservation = await reserveRun(t, { briefId: brief.id, step: 'visual', inputHash: hash, model }, planMax);
   if (!reservation.ok) return { limit: reservation.usage.max };
   const cached = reservation.reused && reservation.run.status === 'done' ? (reservation.run.result as { key?: string } | null)?.key : null;
   if (cached) return { key: cached };
   try {
-    const out = await deps.model.generateImage({ prompt, aspect: RATIO, labels: { tenant: t.tenantId, step: 'visual', brief: brief.id } });
+    const out = await deps.model.generateImage({ prompt, aspect: brief.ratio, labels: { tenant: t.tenantId, step: 'visual', brief: brief.id } });
     const key = `images/${randomUUID()}.png`;
     await store.put(key, out.png, 'image/png');
     await completeRun(t, reservation.run.id, { result: { key, prompt }, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, images: 1, costUsd: out.costUsd, durationMs: out.durationMs });
@@ -168,7 +174,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const brand = brandFromProfile(profile);
     const spec: DesignSpec = {
       kind,
-      ratio: RATIO,
+      ratio: brief.ratio,
       layout: defaultLayout(kind, copy.texts),
       texts: copy.texts,
       brand,
@@ -186,7 +192,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
 
     const allIssues = [...issues, ...rendered.issues];
     const design = await t
-      .insert('post_designs', { brief_id: brief.id, kind, ratio: RATIO, layout: spec.layout, design: storedDesignOf(spec), visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
+      .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: storedDesignOf(spec), visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
       .select('id')
       .single();
     if (design.error) throw new Error(`post_designs: ${design.error.message}`);
@@ -199,7 +205,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       post_design_id: design.data!.id,
       post_kind: kind,
       generation: {
-        pillar: kind,
+        pillar: brief.goal ?? kind,
+        goal: brief.goal,
+        ratio: brief.ratio,
         angle: copy.angle || null,
         variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: 'single' }],
         model: deps.model.config.textModel,
@@ -208,7 +216,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       },
       top_id: 1,
       images: [{ id: 1, url: mediaUrl(pngKey, deps.mediaBaseUrl), path: pngKey }],
-      seed: { brief_id: brief.id, mother_channel: 'instagram', kind, idea: brief.idea, layout: spec.layout, review: allIssues },
+      seed: { brief_id: brief.id, mother_channel: 'instagram', kind, goal: brief.goal, ratio: brief.ratio, idea: brief.idea, layout: spec.layout, review: allIssues },
       status: 'awaiting_decision',
     });
     if (pending.error) throw new Error(`pendências: ${pending.error.message}`);

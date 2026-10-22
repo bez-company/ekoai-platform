@@ -128,7 +128,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <div>
-          <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio="4:5" />
+          <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio={pending.seed?.ratio === '1:1' ? '1:1' : '4:5'} />
         </div>
 
         <div className="space-y-4">
