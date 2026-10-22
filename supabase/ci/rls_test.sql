@@ -693,7 +693,7 @@ do $$
 begin
   begin
     insert into pending_approvals (tenant_id, pending_id, channel, generation, post_design_id)
-      select 'acme', 'rls-cross', 'instagram', '{"variations":[]}', id from post_designs where tenant_id = 'exemplo';
+      select 'acme', 'rls-cross', 'instagram', '{"variations":[]}', id from post_designs where tenant_id = 'exemplo' limit 1;
     raise exception 'pendência da acme apontou para design da exemplo';
   exception when foreign_key_violation then null;
   end;
@@ -740,9 +740,10 @@ begin
     raise exception 'A gravou fato na acme';
   exception when insufficient_privilege then null;
   end;
-  select count(*) into n from post_designs;
+  select count(*) into n from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 1 then raise exception 'A deveria ver 1 design, viu %', n; end if;
-  select count(*) into n from generation_runs;
+  if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'A viu design de outra conta'; end if;
+  select count(*) into n from generation_runs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 2 then raise exception 'A deveria ver as 2 chamadas da exemplo, viu %', n; end if;
   begin
     insert into post_designs (tenant_id, brief_id, kind, layout, design)
@@ -778,7 +779,7 @@ do $$
 declare n int;
 begin
   if exists (select 1 from company_facts) then raise exception 'viewer V leu fatos'; end if;
-  select count(*) into n from post_designs;
+  select count(*) into n from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 1 then raise exception 'V deveria ver 1 design, viu %', n; end if;
   if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'V viu design de outra conta'; end if;
 end $$;
