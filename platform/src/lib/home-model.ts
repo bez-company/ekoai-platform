@@ -77,7 +77,7 @@ export function nextStep(f: HomeFacts, can: HomeCan): NextStep | null {
       id: 'no_slots',
       title: 'Agenda sem horário',
       detail: 'Escolha os dias e a hora em que os posts aprovados saem.',
-      action: { label: 'Escolher horários', href: '/settings' },
+      action: { label: 'Escolher horários', href: '/calendar?edit=slots' },
     },
     can.publishing && f.hasSlots && f.queued > 0 && {
       id: 'queued',
@@ -100,4 +100,32 @@ export function daysUntil(expiresAt: string | null, nowMs: number): number | nul
   if (!expiresAt) return null;
   const t = Date.parse(expiresAt);
   return Number.isFinite(t) ? Math.floor((t - nowMs) / 86_400_000) : null;
+}
+
+const SHORT_DAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+const list = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`);
+const hhmm = (h: number, m: number) => (m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`);
+
+// "ter, qui e sáb às 18h" (atalho Horários do Início). Horas diferentes saem por dia: "ter 9h e qui 18h".
+export function slotsSummary(slots: readonly { weekday: number; hour: number; minute: number }[]): string {
+  if (!slots.length) return 'Nenhum horário ainda';
+  const sorted = [...slots].sort((a, b) => a.weekday - b.weekday || a.hour - b.hour || a.minute - b.minute);
+  const times = new Set(sorted.map((s) => hhmm(s.hour, s.minute)));
+  if (times.size === 1) return `${list([...new Set(sorted.map((s) => SHORT_DAYS[s.weekday]))])} às ${[...times][0]}`;
+  return list(sorted.map((s) => `${SHORT_DAYS[s.weekday]} ${hhmm(s.hour, s.minute)}`));
+}
+
+// "Quinta, 22 de outubro", no fuso editorial.
+export function todayLine(nowMs: number, tzHours: number): string {
+  const d = new Date(nowMs + tzHours * 3_600_000);
+  return `${DAYS[d.getUTCDay()]}, ${d.getUTCDate()} de ${MONTHS[d.getUTCMonth()]}`;
+}
+
+// Data curta de um horário para as listas do Início: { day: '24', weekday: 'sáb', time: '18:00' }.
+export function slotParts(iso: string, tzHours: number): { day: string; weekday: string; time: string } {
+  const d = new Date(Date.parse(iso) + tzHours * 3_600_000);
+  return { day: String(d.getUTCDate()), weekday: SHORT_DAYS[d.getUTCDay()], time: `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}` };
 }

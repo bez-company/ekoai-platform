@@ -197,19 +197,19 @@ export function buildGuide(input: GuideInput): Guide | null {
   const approvers = 'Quem aprova os posts da conta faz este passo.';
 
   const steps: GuideStep[] = [
-    step('profile', 'Completar o perfil da empresa', 'Nicho, o que vende e para quem.', input.profileComplete, input.can.brand,
+    step('profile', 'Perfil da empresa', 'Nicho, o que vende e para quem.', input.profileComplete, input.can.brand,
       { kind: 'link', label: input.hasProfile ? 'Completar perfil' : 'Preencher perfil', href: input.hasProfile ? '/settings/company' : '/onboarding' }, admins),
     step('instagram', 'Conectar o Instagram', 'Conta profissional da marca.', input.instagramConnected, input.can.channels,
       { kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }, admins),
-    step('post', 'Criar o primeiro post', 'Diga o tema em uma frase; a Ekoai escreve e desenha.', input.postCreated || input.postApproved || input.published, input.can.create,
+    step('post', 'Criar o primeiro post', 'Descreva o que quer e a Ekoai faz.', input.postCreated || input.postApproved || input.published, input.can.create,
       { kind: 'link', label: 'Criar post', href: '/create' }, 'Quem cria os posts da conta faz este passo.'),
-    step('approve', 'Aprovar o primeiro post', 'Revise a legenda e a imagem em Aprovar.', input.postApproved || input.published, input.can.approve,
-      { kind: 'link', label: 'Ver posts para aprovar', href: '/inbox' }, approvers),
-    step('slots', 'Escolher os horários de publicação', 'Os posts aprovados saem nesses horários.', input.hasSlots, input.can.publishing,
-      { kind: 'link', label: 'Escolher horários', href: '/settings' }, admins),
-    step('publishing', 'Ligar a publicação', 'A conta nasce com a publicação pausada até estar pronta.', !input.paused, input.can.publishing,
+    step('approve', 'Aprovar o post', 'Revise a legenda e a imagem.', input.postApproved || input.published, input.can.approve,
+      { kind: 'link', label: 'Revisar o post', href: '/inbox' }, approvers),
+    step('slots', 'Horários de publicação', 'Quando a Ekoai publica.', input.hasSlots, input.can.publishing,
+      { kind: 'link', label: 'Escolher horários', href: '/calendar?edit=slots' }, admins),
+    step('publishing', 'Ligar a publicação', 'A conta nasce pausada: nada sai até você ligar.', !input.paused, input.can.publishing,
       { kind: 'resume', label: 'Ligar a publicação' }, admins),
-    step('publish', 'Primeira publicação', 'O post aprovado sai no próximo horário, ou na hora com "Publicar agora".', input.published, input.can.approve,
+    step('publish', 'Primeira publicação', 'Sai no primeiro horário depois de aprovar.', input.published, input.can.approve,
       { kind: 'link', label: 'Ver a agenda', href: '/calendar' }, approvers),
   ];
 
@@ -231,6 +231,13 @@ export function buildGuide(input: GuideInput): Guide | null {
   const resolved = steps.filter((s) => s.status !== 'todo').length;
   const current = steps.find((s) => !s.optional && s.status === 'todo')?.id ?? null;
   return { steps, resolved, total: steps.length, complete: resolved === steps.length, current, hidden: input.published };
+}
+
+// Subtítulo do Início enquanto o guia aparece: quantos passos obrigatórios faltam.
+export function guideSummary(guide: Guide): string {
+  const left = guide.steps.filter((s) => !s.optional && s.status === 'todo').length;
+  if (left === 1 && guide.current === 'publish') return 'Falta só a primeira publicação.';
+  return left === 1 ? 'Você está a 1 passo da primeira publicação automática.' : `Você está a ${left} passos da primeira publicação automática.`;
 }
 
 // Posts que se perdem em Aprovar (decisão 12): mais de 3 dias gera aviso; mais de 14, a Ekoai
