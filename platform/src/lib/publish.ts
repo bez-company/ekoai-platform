@@ -30,7 +30,9 @@ async function persistPublishedPost(t: TenantDb, s: ScheduledPost, result: Recor
 
   const { data: post, error } = await t
     .insert('posts', {
-      pillar: s.pillar,
+      // posts.pillar é obrigatório: agendado sem pilar (pendência antiga ou caminho novo que esqueceu)
+      // perderia o histórico e as métricas de um post que já está no ar.
+      pillar: s.pillar || 'post',
       angle: s.angle ?? null,
       channel: s.channel,
       context: (s.seed?.context as string) ?? null,
