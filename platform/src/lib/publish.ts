@@ -15,6 +15,8 @@ import { LINK_POLICY, linkCommentText } from './utm';
 import { canAutoPublish, notPublishableReason } from './capabilities';
 import { getPauseState } from './pause';
 import { UserError } from './errors';
+import { markMediaAssetUsed } from './media-assets';
+import { log } from './log';
 import type { ScheduledPost, Generation, Variation } from './types';
 
 const MAX_ATTEMPTS = 3;
@@ -233,6 +235,12 @@ async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {
   await t
     .update('scheduled_posts', { status: 'published', published_at: new Date().toISOString(), post_id: postId, last_error: persistError })
     .eq('id', s.id);
+  // Foto do banco de imagens: marca como usada. Falha aqui não desfaz a publicação, só vai para o log.
+  if (s.media_asset_id) {
+    await markMediaAssetUsed(t, s.media_asset_id, postId).catch((e) =>
+      log('error', 'publish', 'não marcou a foto do banco como usada', { scheduled: s.id, asset: s.media_asset_id, error: e instanceof Error ? e.message : String(e) }),
+    );
+  }
   const hook = (s.variation?.hook || '').slice(0, 80);
   await notify(t, persistError
     ? {

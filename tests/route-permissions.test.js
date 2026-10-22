@@ -54,6 +54,9 @@ const EXPECTED = {
   'social-accounts/[id]': ['channels.manage'],
   facts: ['profile.view', 'brand.manage'],
   'facts/[id]': ['brand.manage', 'brand.manage'],
+  'media-assets': ['content.view', 'content.create'],
+  'media-assets/[id]': ['content.view', 'content.edit', 'content.edit'],
+  'media-assets/[id]/file': ['content.view'],
 };
 
 function routes(dir) {
