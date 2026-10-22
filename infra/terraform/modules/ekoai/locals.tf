@@ -61,6 +61,8 @@ locals {
   # Segredos que o Terraform gera. O resto (redes, Gemini) o dono preenche depois.
   generated_secrets = ["auth-secret", "cron-secret", "platform-password"]
 
+  # `ig-access-token` e `ig-business-account-id` são legado (token manual de uma conta só): a plataforma
+  # não os lê mais e o job de métricas é o único consumidor. Saem do módulo quando produção migrar.
   integration_secrets = [
     "gemini-api-key",
     "ig-access-token",

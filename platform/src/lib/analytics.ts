@@ -24,6 +24,7 @@ export type ProductEvent =
   | 'engagement_published'
   | 'instagram_connected'
   | 'instagram_disconnected'
+  | 'instagram_reauth_required'
   | 'data_exported'
   | 'account_deleted';
 

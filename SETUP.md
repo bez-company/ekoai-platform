@@ -6,6 +6,10 @@ Tempo estimado: 1h30 a 2h. Pode fazer em paralelo durante o dia.
 
 ## 1. Instagram Business + Página Facebook
 
+> **Legado.** Este caminho (token manual de uma conta, com Página do Facebook) só serve ao job de métricas,
+> que ainda lê o token do ambiente. A plataforma conecta o Instagram de cada conta pela tela de Redes, com
+> Instagram Login e sem Página: veja a seção 7.
+
 **Tempo:** 20min
 
 ### Por quê
@@ -119,7 +123,7 @@ mais usados: o repositório só roda o CI.
 Variáveis que os jobs leem:
 
 - `TENANT_ID` (a conta do job; sem ele o job não sobe)
-- `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`, `META_APP_ID`, `META_APP_SECRET`
+- `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` (legado, só o job de métricas; a plataforma não os lê)
 - `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_AUTHOR_URN`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`
 - `DATABASE_URL`, `STATE_BACKEND=postgres`, `STORAGE_BUCKET`, `MEDIA_BASE_URL`
 
@@ -161,10 +165,16 @@ printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-id --data-file=
 printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-secret --data-file=- --project=<projeto>
 ```
 
-   O Cloud Run lê `latest` ao subir uma revisão: depois de gravar, faça um novo deploy (ou force uma
-   revisão com `gcloud run services update <serviço> --update-env-vars=SECRETS_AT=<data>`) para a
-   plataforma enxergar o valor.
+   O Cloud Run lê `latest` ao subir uma revisão: depois de gravar, force uma revisão nova com
+   `gcloud run services update ekoai-platform --update-labels secrets-refresh=$(date +%s)` para a
+   plataforma enxergar o valor (refazer o deploy do mesmo commit falha: BEZ-216).
    Sem os dois segredos a tela de Redes diz que a conexão ainda não está ativa.
+
+O token dura 60 dias. A plataforma renova sozinha, todo dia às 09:00 UTC (Cloud Scheduler
+`ekoai-refresh-instagram`, rota `/api/cron/refresh-instagram`): renova quem vence em até 15 dias e tem
+mais de 24 horas. Token recusado pela Meta ou vencido muda a conta para "precisa reconectar" e avisa os
+administradores uma vez. No staging os agendamentos ficam pausados; para rodar na hora:
+`gcloud scheduler jobs run ekoai-refresh-instagram --location=southamerica-east1 --project=ekoai-staging`.
 
 Para trocar de app da Meta (por exemplo, para o da empresa dona do produto), grave os dois segredos
 do app novo e registre a URL no app novo. Quem já conectou reconecta uma vez: o token é do app.

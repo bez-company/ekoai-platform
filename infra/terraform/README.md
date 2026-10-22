@@ -92,11 +92,11 @@ Os demais (Gemini, Instagram, LinkedIn, X) nascem com um valor em branco para o 
 montá-los; grave o valor real como versão nova:
 
 ```bash
-printf '%s' "$VALOR" | gcloud secrets versions add ig-access-token --data-file=- --project=ekoai-prod
+printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-secret --data-file=- --project=ekoai-prod
 ```
 
 `terraform output secrets_to_fill` lista os nomes. O job `refresh-tokens` grava os tokens
-renovados sozinho (a conta do app tem `secretVersionAdder` só nesses três).
+renovados sozinho (a conta do app tem `secretVersionAdder` só nos do LinkedIn; o token de Instagram de cada conta fica cifrado no banco e a plataforma o renova).
 
 ## Deploy pelo GitHub Actions
 

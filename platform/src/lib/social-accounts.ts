@@ -9,7 +9,7 @@ import { log } from './log';
 import { auditTenant } from './audit';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { kmsBox, socialTokenContext, type SecretBox } from './secret-box';
-import { ConnectError } from './instagram-oauth-model';
+import { ConnectError, REFRESH_WINDOW_DAYS } from './instagram-oauth-model';
 import type { ConnectedInstagram } from './instagram-oauth';
 import type { InstagramCredentials } from './channels/instagram';
 
@@ -145,9 +145,96 @@ export async function instagramCredentials(t: TenantDb, box?: SecretBox, nowMs: 
   const expires = iso(data.expires_at);
   if (expires && new Date(expires).getTime() <= nowMs) throw new UserError('A conexão do Instagram venceu. Reconecte em Configurações, Redes.');
 
-  const secret = await system().from('social_account_secrets').select('access_token_ciphertext').eq('social_account_id', String(data.id)).maybeSingle();
+  const token = await openToken(String(data.id), box);
+  return { accountId: String(data.external_id), token };
+}
+
+// Decifra o token de uma conta. Quem chama já escolheu a conta; aqui só falta o segredo.
+async function openToken(accountId: string, box?: SecretBox): Promise<string> {
+  const secret = await system().from('social_account_secrets').select('access_token_ciphertext').eq('social_account_id', accountId).maybeSingle();
   if (secret.error) throw new Error(`social_account_secrets: ${secret.error.message}`);
   if (!secret.data) throw new UserError('O acesso ao Instagram não foi encontrado. Reconecte em Configurações, Redes.');
-  const token = await (box ?? kmsBox()).open({ ciphertext: String(secret.data.access_token_ciphertext) }, socialTokenContext(String(data.id)));
-  return { accountId: String(data.external_id), token };
+  return (box ?? kmsBox()).open({ ciphertext: String(secret.data.access_token_ciphertext) }, socialTokenContext(accountId));
+}
+
+// ── Renovação (SPEC 011 R5.3): job de sistema, atravessa as contas de propósito ──────────────
+
+export type RefreshTarget = {
+  id: string;
+  tenantId: string;
+  handle: string | null;
+  status: SocialAccountStatus;
+  expiresAt: string | null;
+  refreshedAt: string | null;
+  connectedAt: string | null;
+};
+
+const REFRESH_BATCH = 200;
+
+// Contas de Instagram ativas que vencem dentro da janela (ou já venceram e seguem marcadas como ativas).
+export async function listRefreshTargets(nowMs: number = Date.now()): Promise<RefreshTarget[]> {
+  const horizon = new Date(nowMs + REFRESH_WINDOW_DAYS * 86_400_000).toISOString();
+  const { data, error } = await system()
+    .from('social_accounts')
+    .select('id,tenant_id,handle,status,expires_at,refreshed_at,connected_at')
+    .eq('channel', 'instagram')
+    .eq('status', 'active')
+    .lte('expires_at', horizon)
+    .order('expires_at', { ascending: true })
+    .limit(REFRESH_BATCH);
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    tenantId: String(r.tenant_id),
+    handle: (r.handle as string | null) ?? null,
+    status: r.status as SocialAccountStatus,
+    expiresAt: iso(r.expires_at),
+    refreshedAt: iso(r.refreshed_at),
+    connectedAt: iso(r.connected_at),
+  }));
+}
+
+export async function openAccountToken(accountId: string, box?: SecretBox): Promise<string> {
+  return openToken(accountId, box);
+}
+
+// Grava o token renovado e o novo prazo, numa transação só. Só mexe em conta ainda ativa: uma conta
+// desconectada no meio da renovação não volta a ter token. Devolve false quando não havia o que atualizar.
+export async function saveRefreshedToken(
+  target: Pick<RefreshTarget, 'id' | 'tenantId'>,
+  fresh: { accessToken: string; expiresAt: Date },
+  box: SecretBox = kmsBox(),
+): Promise<boolean> {
+  const sealed = await box.seal(fresh.accessToken, socialTokenContext(target.id));
+  const client = system();
+  if (!client.transaction) throw new Error('banco sem suporte a transação');
+  return client.transaction(async (tx) => {
+    const updated = await tenantDb(target.tenantId, tx)
+      .update('social_accounts', { expires_at: fresh.expiresAt.toISOString(), refreshed_at: new Date().toISOString() })
+      .eq('id', target.id)
+      .eq('status', 'active')
+      .select('id')
+      .maybeSingle();
+    if (updated.error) throw new Error(`social_accounts: ${updated.error.message}`);
+    if (!updated.data) return false;
+    const secret = await tx
+      .from('social_account_secrets')
+      .upsert({ social_account_id: target.id, access_token_ciphertext: sealed.ciphertext, refresh_token_ciphertext: null, key_version: sealed.keyVersion }, { onConflict: 'social_account_id' });
+    if (secret.error) throw new Error(`social_account_secrets: ${secret.error.message}`);
+    return true;
+  });
+}
+
+// A conta precisa ser reconectada. Não passa por `revoked` (que apaga o token): a pessoa reconecta
+// com um clique e o token novo entra na mesma linha. Devolve true só na troca de ativo para reconectar,
+// para o aviso sair uma vez.
+export async function markReauthRequired(target: Pick<RefreshTarget, 'id' | 'tenantId'>, reason: string): Promise<boolean> {
+  const { data, error } = await tenantDb(target.tenantId)
+    .update('social_accounts', { status: 'reauth_required', status_reason: reason.slice(0, 200) })
+    .eq('id', target.id)
+    .eq('status', 'active')
+    .select('id')
+    .maybeSingle();
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  return Boolean(data);
 }

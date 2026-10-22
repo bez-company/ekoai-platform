@@ -180,32 +180,8 @@ export async function getInsights(mediaId) {
   return out;
 }
 
-export async function refreshToken() {
-  const current = token();
-  const url = new URL('https://graph.instagram.com/refresh_access_token');
-  url.searchParams.set('grant_type', 'ig_refresh_token');
-  url.searchParams.set('access_token', current);
-  const res = await fetch(url);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`IG refresh ${res.status}: ${text}`);
-  }
-  const json = await res.json();
-  const daysLeft = json.expires_in ? Math.round(json.expires_in / 86400) : null;
-  return { ...json, daysLeft };
-}
-
-export async function checkTokenHealth() {
-  const url = new URL(`${API_BASE}/me`);
-  url.searchParams.set('fields', 'id,username,account_type');
-  url.searchParams.set('access_token', token());
-  const res = await fetch(url);
-  if (!res.ok) {
-    return { valid: false, error: await res.text() };
-  }
-  const json = await res.json();
-  return { valid: true, raw: json };
-}
+// A renovação do token e a checagem de saúde agora são da plataforma, por conta conectada
+// (platform/src/lib/instagram-refresh.ts, SPEC 011 R5.3). Este módulo só lê métricas com o token do ambiente.
 
 // TODO: upload de imagem local pra storage temporário público (S3, imgur, etc).
 // Por enquanto consumidor precisa subir e passar URL pública.

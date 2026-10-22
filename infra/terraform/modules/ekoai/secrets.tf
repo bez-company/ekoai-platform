@@ -58,9 +58,10 @@ resource "google_secret_manager_secret_iam_member" "app_reads" {
   member    = "serviceAccount:${google_service_account.app.email}"
 }
 
-# O job refresh-tokens grava o token renovado como versão nova.
+# O job refresh-tokens grava o token renovado do LinkedIn como versão nova. O do Instagram saiu: cada
+# conta conectada é renovada pela plataforma e o token fica cifrado no banco, não no Secret Manager.
 resource "google_secret_manager_secret_iam_member" "app_writes_tokens" {
-  for_each  = toset(["ig-access-token", "linkedin-access-token", "linkedin-refresh-token"])
+  for_each  = toset(["linkedin-access-token", "linkedin-refresh-token"])
   project   = var.project_id
   secret_id = google_secret_manager_secret.s[each.value].secret_id
   role      = "roles/secretmanager.secretVersionAdder"
