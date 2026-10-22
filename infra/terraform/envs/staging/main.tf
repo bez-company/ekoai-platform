@@ -63,6 +63,10 @@ module "ekoai" {
   # Sem segundo fator obrigatório por enquanto (decisão de 21/10/2026, BEZ-169). Produção segue em `required`.
   mfa_mode = "optional"
 
+  # Imagem: Flash Lite aprovou 100% das fotos do torneio de 22/10/2026 por metade do preço (BEZ-220).
+  # A produção segue no 3.1 Flash até a rodada com briefs reais.
+  vertex_image_model = "gemini-3.1-flash-lite-image"
+
   sql_tier               = "db-f1-micro"
   sql_availability       = "ZONAL"
   protect_data           = false

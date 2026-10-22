@@ -73,6 +73,9 @@ describe('cliente do Vertex', () => {
     expect(cleanLabels({ 'Brief Id': 'A-B.c', x: '' })).toEqual({ brief_id: 'a-b_c', x: '' });
     expect(textCost(1_000_000, 1_000_000)).toBeCloseTo(2.8, 6);
     expect(imageCost(0, 1120)).toBeCloseTo(0.0672, 6);
+    expect(imageCost(0, 1120, 'gemini-3.1-flash-image')).toBeCloseTo(0.0672, 6);
+    expect(imageCost(0, 1120, 'gemini-3.1-flash-lite-image')).toBeCloseTo(0.0336, 6);
+    expect(imageCost(0, 1120, 'modelo-desconhecido')).toBeCloseTo(0.0672, 6);
     expect(vertexConfig({ VERTEX_PROJECT_ID: 'p' })).toEqual({ project: 'p', location: 'global', textModel: 'gemini-2.5-flash', imageModel: 'gemini-3.1-flash-image' });
     expect(vertexConfig({ GOOGLE_CLOUD_PROJECT: 'g', VERTEX_LOCATION: 'us-central1' }).location).toBe('us-central1');
     expect(() => vertexConfig({})).toThrow(/VERTEX_PROJECT_ID/);

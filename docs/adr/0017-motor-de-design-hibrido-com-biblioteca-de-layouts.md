@@ -41,6 +41,10 @@ marca nova foi uma só. Alguns defeitos visuais ainda foram corrigidos à mão.
 
 - Custo de imagem só no visual novo (gemini-3.1-flash-image, cerca de US$ 0,067 por imagem); texto
   e re-render custam centavos ou nada.
+- **Modelo de imagem (BEZ-220, 22/10/2026):** num torneio de 5 prompts e 8 modelos, 65 imagens, com notas do
+  Matheus, o `gemini-3.1-flash-lite-image` aprovou 100% das fotos por cerca de US$ 0,034 por imagem (metade do
+  3.1 Flash) e em 4 s contra 11 s. A staging usa o Flash Lite; a produção segue no 3.1 Flash até uma rodada com 20 briefs
+  reais. Claude (SVG) não serve para foto. Limites: 2 amostras por célula e um avaliador.
 - Texto sempre com acento e fonte certos, e editável por slot (base para o "Pedir ajuste", BEZ-193).
 - A biblioteca é trabalho de manutenção: família nova exige teste de render nos formatos e nos tamanhos
   de texto extremos.
