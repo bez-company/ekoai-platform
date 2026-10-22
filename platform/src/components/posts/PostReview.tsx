@@ -2,7 +2,8 @@
 
 // PostReview.tsx: o detalhe do post criado pela Ekoai (SPEC 012, tela Aprovar). O post na moldura do
 // feed; a legenda editável; os atalhos de ajuste (uma chamada curta ao modelo) e "outra direção"
-// (gera de novo e conta no limite); os fatos usados; recusar por aspecto; aprovar e agendar.
+// (gera de novo e conta no limite); os fatos usados; recusar por aspecto; aprovar (no próximo
+// horário livre, ou na fila quando a agenda não tem horário) e publicar agora.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -43,6 +44,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [error, setError] = useState('');
   const [rejecting, setRejecting] = useState(false);
   const [directionAsked, setDirectionAsked] = useState(false);
+  const [publishAsked, setPublishAsked] = useState(false);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -88,12 +90,13 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     }
   }
 
-  async function approve() {
-    setBusy('approve');
+  async function approve(publishNow = false) {
+    setBusy(publishNow ? 'publish' : 'approve');
     setError('');
     try {
-      await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption }) });
-      router.push('/calendar');
+      const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow }) });
+      // Publicado vai para o Histórico; agendado, na fila ou com falha na publicação, para a Agenda.
+      router.push(publishNow && j.published ? '/history' : '/calendar');
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -129,13 +132,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
         </div>
 
         <div className="space-y-4">
-          {warning ? (
+          {warning && (
             <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
               <strong>O revisor tem um aviso.</strong> {warning} Edite a legenda abaixo ou aprove assim.
-            </div>
-          ) : (
-            <div className="rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-              <strong>Conferido pelo revisor.</strong> Contraste, tamanho do texto, acentos, palavras proibidas e fatos da base.
             </div>
           )}
 
@@ -249,11 +248,41 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   <button type="button" className="btn-danger" disabled={!!busy || rejecting} onClick={() => setRejecting(true)}>
                     Recusar post
                   </button>
-                  <button type="button" className="btn-primary" disabled={!!busy || !nextSlot} onClick={approve}>
-                    {busy === 'approve' ? 'Agendando…' : warning ? 'Aprovar mesmo assim' : 'Aprovar e agendar'}
+                  <button type="button" className="btn-ghost" disabled={!!busy || rejecting} onClick={() => setPublishAsked(true)}>
+                    Publicar agora
+                  </button>
+                  <button type="button" className="btn-primary" disabled={!!busy || rejecting} onClick={() => approve()}>
+                    {busy === 'approve' ? 'Aprovando…' : warning ? 'Aprovar mesmo assim' : nextSlot ? 'Aprovar e agendar' : 'Aprovar'}
                   </button>
                 </div>
-                <p className="text-right text-sm text-muted">{nextSlot ? `Entra no próximo horário livre: ${fmtDateTime(nextSlot)}.` : 'Sem horário livre na grade. Adicione horários em Configurações.'}</p>
+                {publishAsked && (
+                  <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+                    <p>
+                      <strong>Publicar agora no Instagram?</strong> O post vai ao ar em seguida, fora da agenda.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" className="btn-ghost" disabled={!!busy} onClick={() => setPublishAsked(false)}>
+                        Cancelar
+                      </button>
+                      <button type="button" className="btn-primary" disabled={!!busy} onClick={() => approve(true)}>
+                        {busy === 'publish' ? <Spinner /> : null}
+                        {busy === 'publish' ? 'Publicando…' : 'Publicar agora'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-right text-sm text-muted">
+                  {nextSlot ? (
+                    `Entra no próximo horário livre: ${fmtDateTime(nextSlot)}.`
+                  ) : (
+                    <>
+                      A agenda não tem horário livre: o post fica na fila e entra no primeiro horário que você criar.{' '}
+                      <Link href="/settings#horarios" className="link">
+                        Criar horários
+                      </Link>
+                    </>
+                  )}
+                </p>
               </>
             ) : (
               <p className="text-sm text-muted">Só administradores aprovam nesta conta. Dê o seu parecer em "O que achou" ou peça a quem administra.</p>

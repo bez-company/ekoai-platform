@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { track } from '@/lib/analytics';
 import { approvePending } from '@/lib/scheduling';
+import { publishNow } from '@/lib/publish';
 import { requirePermission } from '@/lib/session';
 import { parseApprove } from '@/lib/route-input';
 import { apiError, badRequest } from '@/lib/api';
+
+// Publicar agora espera a rede aceitar o post (o Instagram processa a imagem antes de publicar).
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +16,10 @@ export async function POST(req: Request) {
     if (!parsed.ok) return badRequest(parsed.error);
     const result = await approvePending(t, parsed.value);
     await track(t.tenantId, 'post_approved');
-    return NextResponse.json({ ok: true, ...result });
+    if (!parsed.value.publishNow) return NextResponse.json({ ok: true, ...result });
+    // Aprovado já está: se a publicação falhar, o post fica na Agenda como falhou, com o erro.
+    const published = await publishNow(t, result.id);
+    return NextResponse.json({ ok: true, ...result, published: published.ok, error: published.error });
   } catch (e) {
     return apiError(e, 'api/approve');
   }

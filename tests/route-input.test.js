@@ -23,6 +23,9 @@ describe('route-input', () => {
     const ok = parseApprove({ pendingId: 'p1', captionId: 1, artId: 1, scheduledFor: '2026-11-03T18:00:00-03:00' });
     expect(ok.value.scheduledFor).toBe('2026-11-03T21:00:00.000Z');
     expect(parseApprove(null).ok).toBe(false);
+    expect(parseApprove({ pendingId: 'p1', captionId: 1, artId: 1 }).value.publishNow).toBe(false);
+    expect(parseApprove({ pendingId: 'p1', captionId: 1, artId: 1, publishNow: true }).value.publishNow).toBe(true);
+    expect(parseApprove({ pendingId: 'p1', captionId: 1, artId: 1, publishNow: 'sim' }).value.publishNow).toBe(false);
   });
 
   it('ação em agendado: id uuid, ação conhecida, data para reagendar', () => {
@@ -31,6 +34,7 @@ describe('route-input', () => {
     expect(parseScheduledAction({ id: ID, action: 'apagar' }).ok).toBe(false);
     expect(parseScheduledAction({ id: ID, action: 'reschedule' }).ok).toBe(false);
     expect(parseScheduledAction({ id: ID, action: 'reschedule', scheduledFor: '2026-11-03T21:00:00Z' }).ok).toBe(true);
+    expect(parseScheduledAction({ id: ID, action: 'publish_now' })).toEqual({ ok: true, value: { id: ID, action: 'publish_now' } });
   });
 
   it('slot: rede conhecida, dia 0-6, hora 0-23, minuto 0-59', () => {

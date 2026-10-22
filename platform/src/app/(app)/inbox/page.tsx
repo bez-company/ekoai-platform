@@ -42,11 +42,11 @@ export default async function InboxPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Aprovar</h1>
-          <p className="text-sm text-muted">Posts prontos para você revisar, ajustar e aprovar.</p>
+          <p className="text-sm text-muted">Só os posts que esperam a sua aprovação. O aprovado vai para a Agenda; o publicado, para o Histórico.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted">
-            {pendings.length} {pendings.length === 1 ? 'post' : 'posts'}
+            {pendings.length} para aprovar
           </span>
           {canCreate && (
             <Link href="/create" className="btn-primary">

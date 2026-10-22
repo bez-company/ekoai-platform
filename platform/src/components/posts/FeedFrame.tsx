@@ -1,5 +1,10 @@
+'use client';
+
 // FeedFrame.tsx: a moldura do feed do Instagram em volta do post (SPEC 012, tela Aprovar). É assim que
-// o post vai ser visto. A imagem é da empresa (marca dela); a moldura em volta é da Ekoai.
+// o post vai ser visto. A imagem é da empresa (marca dela); a moldura em volta é da Ekoai. Como no
+// feed, a legenda mostra o primeiro parágrafo e "mais" abre o resto (hashtags incluídas).
+
+import { useState } from 'react';
 
 function Icon({ d }: { d: string }) {
   return (
@@ -18,9 +23,10 @@ const ICONS = {
 
 export default function FeedFrame({ handle, accountName, imageUrl, caption, ratio = '4:5', busy = false }: { handle: string; accountName: string; imageUrl: string | null; caption: string; ratio?: '1:1' | '4:5'; busy?: boolean }) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
+  const [expanded, setExpanded] = useState(false);
   const [body, ...rest] = caption.split(/\n\n/);
   return (
-    <div className="w-full max-w-[420px] overflow-hidden rounded-xl border border-line bg-raised text-fg" role="img" aria-label="Prévia do post no feed do Instagram">
+    <figure className="w-full max-w-[420px] overflow-hidden rounded-xl border border-line bg-raised text-fg" aria-label="Prévia do post no feed do Instagram">
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-paper" aria-hidden="true">{initials}</span>
         <div className="min-w-0 leading-tight">
@@ -44,9 +50,13 @@ export default function FeedFrame({ handle, accountName, imageUrl, caption, rati
       </div>
       <div className="px-3 pb-3 text-sm">
         <strong className="mr-1">{handle}</strong>
-        <span className="whitespace-pre-line">{body}</span>
-        {rest.length > 0 && <span className="text-muted"> … ver mais</span>}
+        <span className="whitespace-pre-line">{expanded ? caption : body}</span>
+        {rest.length > 0 && (
+          <button type="button" className="ml-1 text-muted hover:text-fg" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'ver menos' : '… mais'}
+          </button>
+        )}
       </div>
-    </div>
+    </figure>
   );
 }

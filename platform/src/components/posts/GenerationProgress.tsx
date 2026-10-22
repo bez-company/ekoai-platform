@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Spinner } from '@/components/auth/ui';
 import type { PostProgress } from '@/lib/post-requests';
 
@@ -51,7 +50,6 @@ function Mark({ state }: { state: StepState }) {
 }
 
 export default function GenerationProgress({ initial }: { initial: PostProgress }) {
-  const router = useRouter();
   const [progress, setProgress] = useState(initial);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
@@ -130,14 +128,6 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
           </li>
         ))}
       </ol>
-      <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-        <Link href="/inbox" className="btn-ghost">
-          Ir para Aprovar
-        </Link>
-        <button type="button" className="btn-ghost" onClick={() => router.push('/create')}>
-          Criar outro post
-        </button>
-      </div>
     </div>
   );
 }

@@ -64,7 +64,8 @@ export type Campaign = {
   status: string;
 };
 
-export type ScheduledStatus = 'scheduled' | 'publishing' | 'published' | 'failed';
+// queued: aprovado sem horário livre na agenda; ganha horário quando a conta cria um (scheduleQueued).
+export type ScheduledStatus = 'queued' | 'scheduled' | 'publishing' | 'published' | 'failed';
 
 export type ScheduledPost = {
   id: string;
@@ -80,7 +81,7 @@ export type ScheduledPost = {
   generation?: Generation | null;
   seed?: Record<string, unknown> | null;
   status: ScheduledStatus;
-  scheduled_for: string;
+  scheduled_for: string | null; // null enquanto está na fila (queued)
   published_at?: string | null;
   post_id?: string | null;
   attempts: number;

@@ -38,6 +38,7 @@ export type ApproveBody = {
   noImage: boolean;
   captionText?: string;
   scheduledFor?: string;
+  publishNow: boolean;
 };
 
 export function parseApprove(body: unknown): Parsed<ApproveBody> {
@@ -60,19 +61,20 @@ export function parseApprove(body: unknown): Parsed<ApproveBody> {
       noImage: b.noImage === true,
       captionText: typeof b.captionText === 'string' ? b.captionText.slice(0, 5000) : undefined,
       scheduledFor,
+      publishNow: b.publishNow === true,
     },
   };
 }
 
 export type ScheduledAction =
   | { id: string; action: 'reschedule'; scheduledFor: string }
-  | { id: string; action: 'cancel' | 'retry' };
+  | { id: string; action: 'cancel' | 'retry' | 'publish_now' };
 
 export function parseScheduledAction(body: unknown): Parsed<ScheduledAction> {
   const b = obj(body);
   if (!isUuid(b.id)) return { ok: false, error: 'Post agendado não encontrado. Recarregue a página.' };
-  if (b.action === 'cancel' || b.action === 'retry') return { ok: true, value: { id: b.id, action: b.action } };
-  if (b.action !== 'reschedule') return { ok: false, error: 'Ação desconhecida. Use reagendar, cancelar ou tentar de novo.' };
+  if (b.action === 'cancel' || b.action === 'retry' || b.action === 'publish_now') return { ok: true, value: { id: b.id, action: b.action } };
+  if (b.action !== 'reschedule') return { ok: false, error: 'Ação desconhecida. Use reagendar, cancelar, tentar de novo ou publicar agora.' };
   const scheduledFor = isoDate(b.scheduledFor);
   if (!scheduledFor) return { ok: false, error: 'Escolha a nova data e hora.' };
   return { ok: true, value: { id: b.id, action: 'reschedule', scheduledFor } };
