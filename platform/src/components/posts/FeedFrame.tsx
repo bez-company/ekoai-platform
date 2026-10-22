@@ -3,6 +3,7 @@
 // FeedFrame.tsx: a moldura do feed do Instagram em volta do post (SPEC 012, tela Aprovar). É assim que
 // o post vai ser visto. A imagem é da empresa (marca dela); a moldura em volta é da Ekoai. Como no
 // feed, a legenda mostra o primeiro parágrafo e "mais" abre o resto (hashtags incluídas).
+// 1.91:1 (paisagem) só vem do Publicar foto; `imagePosition` mostra o corte escolhido na prévia.
 
 import { useState } from 'react';
 
@@ -21,7 +22,27 @@ const ICONS = {
   bookmark: 'M6 4h12v17l-6-4-6 4z',
 };
 
-export default function FeedFrame({ handle, accountName, imageUrl, caption, ratio = '4:5', busy = false }: { handle: string; accountName: string; imageUrl: string | null; caption: string; ratio?: '1:1' | '4:5'; busy?: boolean }) {
+export type FeedRatio = '1:1' | '4:5' | '1.91:1';
+
+const ASPECT: Record<FeedRatio, string> = { '1:1': 'aspect-square', '4:5': 'aspect-[4/5]', '1.91:1': 'aspect-[1.91/1]' };
+
+export default function FeedFrame({
+  handle,
+  accountName,
+  imageUrl,
+  caption,
+  ratio = '4:5',
+  busy = false,
+  imagePosition,
+}: {
+  handle: string;
+  accountName: string;
+  imageUrl: string | null;
+  caption: string;
+  ratio?: FeedRatio;
+  busy?: boolean;
+  imagePosition?: string;
+}) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const [expanded, setExpanded] = useState(false);
   const [body, ...rest] = caption.split(/\n\n/);
@@ -36,10 +57,10 @@ export default function FeedFrame({ handle, accountName, imageUrl, caption, rati
         <span className="ml-auto text-muted" aria-hidden="true">···</span>
       </div>
       {busy || !imageUrl ? (
-        <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ratio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'}`}>{busy ? 'Desenhando o post…' : 'Sem imagem'}</div>
+        <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ASPECT[ratio]}`}>{busy ? 'Desenhando o post…' : 'Sem imagem'}</div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ratio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'}`} />
+        <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
       )}
       <div className="flex items-center gap-3 px-3 py-2 text-fg">
         <Icon d={ICONS.heart} />

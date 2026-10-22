@@ -2,7 +2,7 @@
 // autorização de uso de imagem, DELETE apaga (post já publicado continua com a cópia dele).
 
 import { NextResponse } from 'next/server';
-import { requirePermission, requireUserPermission } from '@/lib/session';
+import { requirePermission, requireSession } from '@/lib/session';
 import { apiError } from '@/lib/api';
 import { isUuid } from '@/lib/route-input';
 import { parseMediaPatch } from '@/lib/media-asset-model';
@@ -26,7 +26,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { t, user } = await requireUserPermission('content.edit');
+    const t = await requirePermission('content.edit');
+    const { user } = await requireSession();
     const { id } = await params;
     if (!isUuid(id)) return notFound();
     const parsed = parseMediaPatch(await req.json().catch(() => null));
@@ -39,7 +40,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { t, user } = await requireUserPermission('content.edit');
+    const t = await requirePermission('content.edit');
+    const { user } = await requireSession();
     const { id } = await params;
     if (!isUuid(id)) return notFound();
     await deleteMediaAsset(t, user, id);
