@@ -193,3 +193,23 @@ proteção ligada.
 - **Exceção aceita:** sobram 7 avisos do `npm audit` na plataforma (`braces`, `micromatch`, `chokidar`, `fast-glob`,
   `postcss-nested`, `postcss-selector-parser`, `tailwindcss`), todos da cadeia do Tailwind 3, só em build e fora do
   que roda em produção. Saem com a migração para o Tailwind 4, que é mudança maior e entra à parte.
+
+## Geração de posts (SPEC 012, ADR 0018)
+
+- O pedido (`POST /api/posts`) só grava o brief e acorda o worker (`/api/cron/generate`, `Bearer
+  CRON_SECRET`); o Cloud Scheduler `ekoai-generate` chama a cada 2 minutos como reserva (pausado na
+  staging, como os outros). Brief preso em `generating` por mais de 15 minutos volta sozinho à fila.
+- O Vertex AI roda no projeto do ambiente, pelo endpoint global, com a conta de serviço do app
+  (`roles/aiplatform.user`). Variáveis: `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_TEXT_MODEL`,
+  `VERTEX_IMAGE_MODEL` (Terraform). Toda chamada leva os labels `tenant`, `step` e `brief`; filtrar por
+  eles no relatório de faturamento.
+- Custo e limite: cada chamada fica em `generation_runs` (tokens, custo estimado, tempo); o limite
+  mensal do plano vale na reserva do visual (gatilho `app.check_post_limit`). Para ver o uso de uma
+  conta no mês: `select count(*) from generation_runs where tenant_id = '<conta>' and step = 'visual'
+  and status in ('reserved','done') and created_at >= date_trunc('month', now())`.
+- Pedido que falhou: a tela oferece "Tentar de novo" (`POST /api/posts/<id>/retry`); as etapas que
+  deram certo são reaproveitadas. Erro do Vertex (429, 503) tenta de novo 2 vezes com espera e depois
+  falha com a mensagem do provedor no brief.
+- Desenvolvimento local: `gcloud auth application-default login` (conta da BEZ) e as quatro variáveis
+  no `.env.local`; `LOCAL_BLOB_DIR` guarda os PNGs numa pasta.
+

@@ -23,7 +23,9 @@ resource "google_cloud_run_v2_service" "platform" {
   template {
     service_account                  = google_service_account.app.email
     max_instance_request_concurrency = 40
-    timeout                          = "60s"
+    # O worker da geração (/api/cron/generate) roda até 3 pedidos por chamada, cada um com uma chamada
+    # de imagem que leva de 10 a 120 s (ADR 0018). O resto das rotas responde em segundos.
+    timeout = "300s"
 
     scaling {
       min_instance_count = var.platform_min_instances
@@ -131,6 +133,23 @@ resource "google_cloud_run_v2_service" "platform" {
       env {
         name  = "CRON_OIDC_EMAIL"
         value = google_service_account.scheduler.email
+      }
+      # Vertex AI (SPEC 012): o projeto do ambiente, pelo endpoint global, com os modelos da prova.
+      env {
+        name  = "VERTEX_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "VERTEX_LOCATION"
+        value = local.vertex.location
+      }
+      env {
+        name  = "VERTEX_TEXT_MODEL"
+        value = local.vertex.text_model
+      }
+      env {
+        name  = "VERTEX_IMAGE_MODEL"
+        value = local.vertex.image_model
       }
 
       dynamic "env" {

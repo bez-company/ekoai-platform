@@ -36,6 +36,14 @@ resource "google_project_iam_member" "app_metrics" {
 # O servidor confere o ID token do Identity Platform com checagem de revogação (SPEC 009), e isso
 # consulta o usuário no Identity Toolkit pela conta do app. Só leitura: a sessão e o "sair de todos
 # os dispositivos" são nossos, não revogam nada no Firebase. Sem este papel todo login volta 401.
+# A geração de posts chama o Vertex AI (texto e imagem) com a credencial do serviço (SPEC 012,
+# decisão 6): nada de chave no repositório nem no navegador. Só o papel de usuário do Vertex.
+resource "google_project_iam_member" "app_vertex_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.app.email}"
+}
+
 resource "google_project_iam_member" "app_auth_viewer" {
   project = var.project_id
   role    = "roles/firebaseauth.viewer"

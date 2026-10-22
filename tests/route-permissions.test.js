@@ -10,7 +10,7 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 // leva UUID e só o formato de lib/media.ts passa (tests/media.test.js).
 // `invitations/accept` e `account` (criar conta) também: quem chama ainda não tem sessão; a prova é o ID token, a rota
 // responde 404 fora de SIGNUP_MODE=open e o middleware a libera só pelo caminho exato.
-const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
+const PUBLIC = new Set(['login', 'logout', 'health', 'cron/publish-due', 'cron/generate', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
 const EXPECTED = {
   approve: ['content.approve'],
@@ -41,6 +41,9 @@ const EXPECTED = {
   'brand/logo': ['profile.view', 'brand.manage', 'brand.manage'],
   'account/delete': ['account.delete'],
   'notifications/read': ['content.view'],
+  posts: ['content.create'],
+  'posts/[id]': ['content.view'],
+  'posts/[id]/retry': ['content.create'],
 };
 
 function routes(dir) {
