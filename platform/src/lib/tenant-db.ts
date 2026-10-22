@@ -34,7 +34,7 @@ export function tenantDb(tenantId: string, client?: DbClient) {
       options?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean },
     ) => from(table).select(columns, options).eq('tenant_id', tenantId),
     insert: (table: string, rows: Row | Row[]) => from(table).insert(stamp(rows, tenantId)),
-    upsert: (table: string, rows: Row | Row[], options?: { onConflict?: string }) =>
+    upsert: (table: string, rows: Row | Row[], options?: { onConflict?: string; ignoreDuplicates?: boolean }) =>
       from(table).upsert(stamp(rows, tenantId), options),
     update: (table: string, values: Row) => from(table).update(withoutTenant(values)).eq('tenant_id', tenantId),
     delete: (table: string) => from(table).delete().eq('tenant_id', tenantId),

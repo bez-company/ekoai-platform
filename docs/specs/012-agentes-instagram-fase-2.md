@@ -141,7 +141,12 @@ como a geração garante o limite e não paga duas vezes pela mesma coisa.
 Post aprovado cai no próximo slot livre da conta (a grade que já existe). Sem Instagram conectado
 ele fica agendado e a tela diz que a publicação espera a conexão.
 
-## Dados novos (a detalhar na implementação)
+## Dados novos (migration 0023, entrega 3)
+
+O motor ficou decidido na [ADR 0017](../adr/0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md)
+(híbrido, com biblioteca de famílias de layout). O que conta no limite mensal é cada **visual** gerado
+pelo modelo de imagem: o primeiro de um post e cada "outra direção"; texto, render e revisão não
+contam, e visual que falhou libera a vaga. O mês é o do calendário em UTC.
 
 | Tabela | Para quê |
 | --- | --- |
