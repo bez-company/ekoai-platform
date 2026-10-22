@@ -14,6 +14,7 @@ export type ProductEvent =
   | 'invitation_sent'
   | 'invitation_accepted'
   | 'onboarding_item_updated'
+  | 'onboarding_answered'
   | 'idea_approved'
   | 'idea_rejected'
   | 'idea_rework_requested'
