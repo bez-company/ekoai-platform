@@ -6,6 +6,7 @@ import type { PendingApproval } from '@/lib/types';
 import { can, pageTenant } from '@/lib/session';
 import { pageError } from '@/lib/api';
 import CoachMark from '@/components/onboarding/CoachMark';
+import { GOALS, isPostGoal } from '@/lib/post-goals';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,9 @@ function DbHint({ message }: { message: string }) {
   );
 }
 
-const KIND_LABEL = { informativo: 'Informativo', atmosfera: 'Atmosfera' } as const;
+// O objetivo do post (SPEC 017 decisão 6) e o formato, gravados na semente da pendência.
+const goalLabel = (seed: Record<string, unknown> | undefined) => (isPostGoal(seed?.goal) && seed?.goal !== 'auto' ? GOALS[seed.goal].label : null);
+const ratioLabel = (seed: Record<string, unknown> | undefined) => (seed?.ratio === '1:1' ? 'Quadrado 1:1' : 'Retrato 4:5');
 
 export default async function InboxPage() {
   const t = await pageTenant();
@@ -93,8 +96,8 @@ export default async function InboxPage() {
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  {lead.post_kind && <span className="chip">{KIND_LABEL[lead.post_kind]}</span>}
-                  {lead.post_kind && <span className="chip">Retrato 4:5</span>}
+                  {lead.post_kind && goalLabel(lead.seed) && <span className="chip">{goalLabel(lead.seed)}</span>}
+                  {lead.post_kind && <span className="chip">{ratioLabel(lead.seed)}</span>}
                   {!lead.post_kind && idea.pendings.map((p) => (
                     <span key={p.pending_id} className="chip uppercase" title={roleOf(p)}>
                       {p.channel}
