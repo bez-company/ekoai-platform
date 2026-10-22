@@ -23,7 +23,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
-const tables = ['pending_approvals', 'scheduled_posts', 'publish_slots', 'posts'];
+const tables = ['pending_approvals', 'scheduled_posts', 'publish_slots', 'posts', 'company_facts', 'generation_runs', 'post_designs'];
 
 const { host, port, pathname } = new URL(process.env.DATABASE_URL);
 console.log(`Banco: ${host || 'socket'}${port ? `:${port}` : ''}${pathname}`);

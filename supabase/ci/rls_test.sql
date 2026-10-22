@@ -669,6 +669,131 @@ begin
   end;
 end $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Fase 2 (SPEC 012, migration 0023): fatos da empresa, chamadas de modelo e designs.
+-- ─────────────────────────────────────────────────────────────────────────────
+reset role;
+select set_config('app.user_id', '', false);
+
+insert into company_facts (tenant_id, kind, text, source) values
+  ('exemplo', 'fact', 'rls-fato-exemplo', 'site'),
+  ('acme',    'fact', 'rls-fato-acme',    'owner');
+insert into briefs (id, tenant_id, pillar, idea, status, source, post_kind) values
+  ('30000000-0000-0000-0000-000000000001', 'exemplo', 'dica', 'rls-brief-exemplo', 'generating', 'platform', 'informativo'),
+  ('30000000-0000-0000-0000-000000000002', 'acme',    'dica', 'rls-brief-acme',    'generating', 'platform', 'atmosfera');
+insert into post_designs (tenant_id, brief_id, kind, layout, design) values
+  ('exemplo', '30000000-0000-0000-0000-000000000001', 'informativo', 'lista-numerada', '{"texts":{"title":"rls-exemplo"}}'),
+  ('acme',    '30000000-0000-0000-0000-000000000002', 'atmosfera',   'foto-titulo',    '{"texts":{"title":"rls-acme"}}');
+insert into generation_runs (tenant_id, brief_id, step, input_hash, status) values
+  ('exemplo', '30000000-0000-0000-0000-000000000001', 'writer', repeat('1', 64), 'done'),
+  ('acme',    '30000000-0000-0000-0000-000000000002', 'writer', repeat('2', 64), 'done');
+
+-- o design de uma conta não pode apontar para a pendência de outra (FK composta)
+do $$
+begin
+  begin
+    insert into pending_approvals (tenant_id, pending_id, channel, generation, post_design_id)
+      select 'acme', 'rls-cross', 'instagram', '{"variations":[]}', id from post_designs where tenant_id = 'exemplo';
+    raise exception 'pendência da acme apontou para design da exemplo';
+  exception when foreign_key_violation then null;
+  end;
+end $$;
+
+-- o limite mensal do plano (20 no inicial) vale na reserva do visual, e só nela
+do $$
+declare i int;
+begin
+  for i in 1..20 loop
+    insert into generation_runs (tenant_id, brief_id, step, input_hash, status)
+      values ('acme', '30000000-0000-0000-0000-000000000002', 'visual', lpad(to_hex(i), 64, '0'), case when i = 1 then 'done' else 'reserved' end);
+  end loop;
+  begin
+    insert into generation_runs (tenant_id, brief_id, step, input_hash)
+      values ('acme', '30000000-0000-0000-0000-000000000002', 'visual', repeat('f', 64));
+    raise exception 'a 21ª reserva de visual passou do limite do plano';
+  exception when check_violation then null;
+  end;
+  -- texto não conta; visual que falhou não conta
+  insert into generation_runs (tenant_id, brief_id, step, input_hash, status)
+    values ('acme', '30000000-0000-0000-0000-000000000002', 'writer', repeat('e', 64), 'reserved');
+  insert into generation_runs (tenant_id, brief_id, step, input_hash, status)
+    values ('acme', '30000000-0000-0000-0000-000000000002', 'visual', repeat('d', 64), 'failed');
+  -- a outra conta não é afetada
+  insert into generation_runs (tenant_id, brief_id, step, input_hash)
+    values ('exemplo', '30000000-0000-0000-0000-000000000001', 'visual', repeat('c', 64));
+end $$;
+
+-- A: admin da exemplo lê e escreve fatos; não grava chamada nem design (só o servidor)
+set role authenticated;
+select set_config('app.user_id', '00000000-0000-0000-0000-00000000000a', false);
+do $$
+declare n int;
+begin
+  select count(*) into n from company_facts where text like 'rls-fato-%';
+  if n <> 1 then raise exception 'A deveria ver 1 fato, viu %', n; end if;
+  if exists (select 1 from company_facts where tenant_id <> 'exemplo') then raise exception 'A viu fato de outra conta'; end if;
+  insert into company_facts (tenant_id, kind, text) values ('exemplo', 'never', 'rls-a-nunca');
+  update company_facts set active = false where text = 'rls-a-nunca';
+  delete from company_facts where text = 'rls-a-nunca';
+  begin
+    insert into company_facts (tenant_id, kind, text) values ('acme', 'fact', 'rls-a-invade');
+    raise exception 'A gravou fato na acme';
+  exception when insufficient_privilege then null;
+  end;
+  select count(*) into n from post_designs;
+  if n <> 1 then raise exception 'A deveria ver 1 design, viu %', n; end if;
+  select count(*) into n from generation_runs;
+  if n <> 2 then raise exception 'A deveria ver as 2 chamadas da exemplo, viu %', n; end if;
+  begin
+    insert into post_designs (tenant_id, brief_id, kind, layout, design)
+      values ('exemplo', '30000000-0000-0000-0000-000000000001', 'informativo', 'lista-numerada', '{}');
+    raise exception 'A gravou design (só o servidor grava)';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into generation_runs (tenant_id, brief_id, step, input_hash)
+      values ('exemplo', '30000000-0000-0000-0000-000000000001', 'writer', repeat('9', 64));
+    raise exception 'A gravou chamada de modelo (só o servidor grava)';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- B: criador lê os fatos, não escreve
+select set_config('app.user_id', '00000000-0000-0000-0000-00000000000b', false);
+do $$
+declare n int;
+begin
+  select count(*) into n from company_facts where text like 'rls-fato-%';
+  if n <> 1 then raise exception 'B deveria ver 1 fato, viu %', n; end if;
+  begin
+    insert into company_facts (tenant_id, kind, text) values ('exemplo', 'fact', 'rls-b-fato');
+    raise exception 'creator B gravou fato';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- V: leitor não vê os fatos (são do perfil), mas vê o design e as chamadas da conta
+select set_config('app.user_id', '00000000-0000-0000-0000-00000000000f', false);
+do $$
+declare n int;
+begin
+  if exists (select 1 from company_facts) then raise exception 'viewer V leu fatos'; end if;
+  select count(*) into n from post_designs;
+  if n <> 1 then raise exception 'V deveria ver 1 design, viu %', n; end if;
+  if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'V viu design de outra conta'; end if;
+end $$;
+
+-- D: leitor da acme vê só o da acme
+select set_config('app.user_id', '', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d"}', false);
+do $$
+begin
+  if exists (select 1 from post_designs where tenant_id <> 'acme') then raise exception 'D viu design de outra conta'; end if;
+  if exists (select 1 from generation_runs where tenant_id <> 'acme') then raise exception 'D viu chamada de outra conta'; end if;
+end $$;
+select set_config('request.jwt.claims', '', false);
+reset role;
+
 -- ── Pelo menos um administrador ──────────────────────────────────────────────
 reset role;
 select set_config('app.user_id', '', false);
