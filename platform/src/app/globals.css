@@ -2,8 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design system 06 da Ekoai: ameixa e pêssego (ADR 0011). Valores em canais RGB, com contraste
-   AA calculado nos dois temas. Escuro por data-theme="dark" (a barra lateral usa sempre). */
+/* Design system 06 da Ekoai: ameixa e pêssego (ADR 0011). Valores em canais RGB. Todo token de texto
+   (fg, muted, accent-text e os de estado) passa AA (4,5:1) sobre os quatro fundos (page, surface, raised,
+   inset) nos dois temas: tests/design-contrast.test.js confere. Escuro por data-theme="dark" (a barra
+   lateral usa sempre). */
 :root,
 [data-theme='light'] {
   color-scheme: light;
@@ -12,17 +14,17 @@
   --c-raised: 254 252 252;
   --c-inset: 238 232 231;
   --c-fg: 34 18 43;
-  --c-muted: 123 112 125;
+  --c-muted: 111 101 113;
   --c-line: 221 214 215;
   --c-line-strong: 189 181 186;
   --c-accent: 255 138 101;
   --c-accent-hover: 220 119 92;
-  --c-accent-text: 173 94 69;
+  --c-accent-text: 157 85 63;
   --c-on-accent: 34 18 43;
   --c-success: 23 117 72;
   --c-warning: 138 90 15;
   --c-danger: 192 38 75;
-  --c-info: 47 111 176;
+  --c-info: 45 105 167;
   --c-on-danger: 255 255 255;
   --c-ink: 34 18 43;
   --c-paper: 247 241 239;
