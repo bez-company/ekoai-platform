@@ -12,7 +12,7 @@ process.env.PUBLISH_TZ_OFFSET = '-3';
 const admin = new pg.Pool({ connectionString: url, max: 2 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
 const { getAgenda } = await import('../../platform/src/lib/agenda.ts');
-const { addSlot, updateSlot, getActiveSlots } = await import('../../platform/src/lib/slots.ts');
+const { addSlot, updateSlot, getActiveSlots, replaceSlots } = await import('../../platform/src/lib/slots.ts');
 const { scheduleQueued } = await import('../../platform/src/lib/scheduling.ts');
 
 const A = 'it-agenda-a';
@@ -75,5 +75,19 @@ describe('agenda por período', () => {
     expect(sabado.cells[0]).toMatchObject({ time: '10:00', post: null, suggestion: { idea: 'Como a massa é feita', goal: 'bastidores', goalLabel: 'Bastidores' } });
     const linkedinOnly = await getAgenda(t, { view: 'week', date: '2026-10-22' }, { nowMs: Date.parse('2026-10-22T15:00:00Z'), channel: 'linkedin' });
     expect(linkedinOnly.days.flatMap((d) => d.cells)).toEqual([]);
+  });
+
+  it('salvar a grade inteira apaga o que saiu, cria o que entrou e leva a fila para os horários novos', async () => {
+    await admin.query('delete from publish_slots where tenant_id = $1', [A]);
+    await scheduled(A, '55555555-5555-4555-8555-555555555555', null, 'queued');
+    await addSlot(t, { channel: 'instagram', weekday: 1, hour: 9, minute: 0 });
+    await addSlot(t, { channel: 'linkedin', weekday: 1, hour: 9, minute: 0 });
+    const out = await replaceSlots(t, 'instagram', [{ weekday: 2, hour: 18, minute: 0 }, { weekday: 4, hour: 18, minute: 0 }]);
+    expect(out).toEqual({ added: 2, removed: 1 });
+    expect((await getActiveSlots(t, 'instagram')).map((s) => [s.weekday, s.hour])).toEqual([[2, 18], [4, 18]]);
+    expect(await getActiveSlots(t, 'linkedin')).toHaveLength(1); // outra rede fica como está
+    expect(await replaceSlots(t, 'instagram', [{ weekday: 2, hour: 18, minute: 0 }, { weekday: 4, hour: 18, minute: 0 }])).toEqual({ added: 0, removed: 0 });
+    expect(await scheduleQueued(t, 'instagram')).toBe(1);
+    expect((await admin.query("select status from scheduled_posts where id = '55555555-5555-4555-8555-555555555555'")).rows[0].status).toBe('scheduled');
   });
 });

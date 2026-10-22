@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { addSlot, removeSlot, updateSlot } from '@/lib/slots';
+import { addSlot, removeSlot, replaceSlots, updateSlot } from '@/lib/slots';
 import { scheduleQueued } from '@/lib/scheduling';
 import { requirePermission } from '@/lib/session';
-import { isUuid, parseSlot } from '@/lib/route-input';
+import { isUuid, parseSlot, parseSlotList } from '@/lib/route-input';
 import { apiError, badRequest } from '@/lib/api';
 
 export async function POST(req: Request) {
@@ -14,6 +14,20 @@ export async function POST(req: Request) {
     // Os aprovados que esperavam horário entram no horário novo.
     const scheduled = await scheduleQueued(t, parsed.value.channel);
     return NextResponse.json({ ok: true, scheduled });
+  } catch (e) {
+    return apiError(e, 'api/slots');
+  }
+}
+
+// Salvar a grade inteira de uma rede (Agenda › Horários e os atalhos de ritmo).
+export async function PUT(req: Request) {
+  try {
+    const t = await requirePermission('publishing.manage');
+    const parsed = parseSlotList(await req.json().catch(() => null));
+    if (!parsed.ok) return badRequest(parsed.error);
+    const changed = await replaceSlots(t, parsed.value.channel, parsed.value.slots);
+    const scheduled = await scheduleQueued(t, parsed.value.channel);
+    return NextResponse.json({ ok: true, ...changed, scheduled });
   } catch (e) {
     return apiError(e, 'api/slots');
   }

@@ -94,6 +94,29 @@ export function parseSlot(body: unknown): Parsed<SlotBody> {
   return { ok: true, value: { channel: b.channel as Channel, weekday, hour, minute } };
 }
 
+// A grade inteira de uma rede, salva de uma vez (Agenda › Horários, SPEC 017 decisão 13). Sem repetir
+// horário; no máximo 4 por dia.
+export const MAX_SLOTS_PER_CHANNEL = 28;
+
+export function parseSlotList(body: unknown): Parsed<{ channel: Channel; slots: { weekday: number; hour: number; minute: number }[] }> {
+  const b = obj(body);
+  if (!CHANNELS.includes(b.channel as Channel)) return { ok: false, error: `Escolha a rede: ${CHANNELS.join(', ')}.` };
+  if (!Array.isArray(b.slots)) return { ok: false, error: 'Mande a lista de horários.' };
+  if (b.slots.length > MAX_SLOTS_PER_CHANNEL) return { ok: false, error: `Use até ${MAX_SLOTS_PER_CHANNEL} horários por semana.` };
+  const seen = new Set<string>();
+  const slots: { weekday: number; hour: number; minute: number }[] = [];
+  for (const raw of b.slots) {
+    const one = parseSlot({ ...obj(raw), channel: b.channel });
+    if (!one.ok) return { ok: false, error: one.error };
+    const key = `${one.value.weekday}-${one.value.hour}-${one.value.minute}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    slots.push({ weekday: one.value.weekday, hour: one.value.hour, minute: one.value.minute });
+  }
+  for (let d = 0; d < 7; d += 1) if (slots.filter((s) => s.weekday === d).length > 4) return { ok: false, error: 'Use até 4 horários por dia.' };
+  return { ok: true, value: { channel: b.channel as Channel, slots } };
+}
+
 export function parsePause(body: unknown): Parsed<{ paused: boolean; reason: string | null }> {
   const b = obj(body);
   if (typeof b.paused !== 'boolean') return { ok: false, error: 'Diga se é para pausar ou retomar.' };

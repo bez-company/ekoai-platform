@@ -89,3 +89,17 @@ describe('sugestões do coordenador na agenda', () => {
     expect(a.days.flatMap((d) => d.cells).filter((c) => c.suggestion).map((c) => c.suggestion.id)).toEqual(['g-sex']);
   });
 });
+
+describe('títulos e contagem da agenda', () => {
+  it('título da semana e do mês, com virada de mês e de ano', async () => {
+    const { agendaTitle, agendaCounts } = await import('../platform/src/lib/agenda-model.ts');
+    expect(agendaTitle({ view: 'week', from: '2026-10-19', to: '2026-10-25', days: [] })).toBe('19 a 25 de outubro');
+    expect(agendaTitle({ view: 'week', from: '2026-09-28', to: '2026-10-04', days: [] })).toBe('28 de setembro a 4 de outubro');
+    expect(agendaTitle({ view: 'week', from: '2026-12-28', to: '2027-01-03', days: [] })).toBe('28 de dezembro de 2026 a 3 de janeiro de 2027');
+    const month = buildAgenda({ query: { view: 'month', date: '2026-10-05' }, slots: [], posts: [], nowMs: NOW, tzHours: TZ });
+    expect(agendaTitle(month)).toBe('outubro de 2026');
+    const week = buildAgenda({ query: { view: 'week', date: '2026-10-22' }, slots: [slot('a', 4, 18), slot('b', 6, 10)], posts: [post('p', '2026-10-22T21:00:00Z')], nowMs: NOW, tzHours: TZ });
+    expect(agendaCounts(week)).toEqual({ posts: 1, slots: 2, free: 1 });
+    expect(week.days.filter((d) => d.today).map((d) => d.date)).toEqual(['2026-10-22']);
+  });
+});

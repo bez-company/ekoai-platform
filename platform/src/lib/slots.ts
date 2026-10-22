@@ -77,6 +77,26 @@ export async function updateSlot(t: TenantDb, id: string, slot: { channel: Chann
   if (!data?.length) throw new UserError('Slot não encontrado. Recarregue a página.');
 }
 
+// Salva a grade inteira de uma rede (Agenda › Horários): apaga o que saiu e cria o que entrou. Posts já
+// agendados ficam onde estão; a rota leva a fila para os horários novos.
+export async function replaceSlots(t: TenantDb, channel: Channel, wanted: { weekday: number; hour: number; minute: number }[]): Promise<{ added: number; removed: number }> {
+  const current = await getActiveSlots(t, channel);
+  const key = (s: { weekday: number; hour: number; minute: number }) => `${s.weekday}-${s.hour}-${s.minute}`;
+  const want = new Set(wanted.map(key));
+  const have = new Set(current.map(key));
+  const gone = current.filter((s) => !want.has(key(s)));
+  const fresh = wanted.filter((s) => !have.has(key(s)));
+  if (gone.length) {
+    const { error } = await t.delete('publish_slots').in('id', gone.map((s) => s.id));
+    if (error) throw new Error(`Falha ao remover horários: ${error.message}`);
+  }
+  if (fresh.length) {
+    const { error } = await t.insert('publish_slots', fresh.map((s) => ({ ...s, channel, active: true })));
+    if (error) throw new Error(`Falha ao criar horários: ${error.message}`);
+  }
+  return { added: fresh.length, removed: gone.length };
+}
+
 export async function removeSlot(t: TenantDb, id: string): Promise<void> {
   const { data, error } = await t.delete('publish_slots').eq('id', id).select('id');
   if (error) throw new Error(`Falha ao remover slot: ${error.message}`);

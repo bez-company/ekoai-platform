@@ -75,3 +75,19 @@ describe('erro e log', () => {
     });
   });
 });
+
+describe('grade de horários inteira (Agenda › Horários, BEZ-247)', () => {
+  it('valida cada horário, tira repetidos e limita por dia e por semana', async () => {
+    const { parseSlotList } = await import('../platform/src/lib/route-input.ts');
+    expect(parseSlotList({ channel: 'instagram', slots: [{ weekday: 2, hour: 18 }, { weekday: 2, hour: 18, minute: 0 }, { weekday: 4, hour: 9, minute: 30 }] })).toEqual({
+      ok: true,
+      value: { channel: 'instagram', slots: [{ weekday: 2, hour: 18, minute: 0 }, { weekday: 4, hour: 9, minute: 30 }] },
+    });
+    expect(parseSlotList({ channel: 'instagram', slots: [] })).toEqual({ ok: true, value: { channel: 'instagram', slots: [] } });
+    expect(parseSlotList({ channel: 'tiktok', slots: [] })).toMatchObject({ ok: false });
+    expect(parseSlotList({ channel: 'instagram' })).toMatchObject({ ok: false });
+    expect(parseSlotList({ channel: 'instagram', slots: [{ weekday: 9, hour: 18 }] })).toMatchObject({ ok: false });
+    expect(parseSlotList({ channel: 'instagram', slots: [8, 9, 10, 11, 12].map((hour) => ({ weekday: 1, hour })) })).toMatchObject({ ok: false, error: 'Use até 4 horários por dia.' });
+    expect(parseSlotList({ channel: 'instagram', slots: Array.from({ length: 29 }, (_, i) => ({ weekday: i % 7, hour: i })) })).toMatchObject({ ok: false });
+  });
+});
