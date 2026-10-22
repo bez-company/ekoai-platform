@@ -59,7 +59,10 @@ export function buildChecklist(input: ChecklistInput): Checklist | null {
     status: input.instagramConnected ? 'done' : 'todo',
     actions: [],
   };
-  if (instagram.status === 'todo') instagram.note = admin ? 'A conexão chega em breve.' : adminOnly;
+  if (instagram.status === 'todo') {
+    if (admin) instagram.actions = [{ kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }];
+    else instagram.note = adminOnly;
+  }
 
   const items: ChecklistItem[] = [profile, instagram];
 

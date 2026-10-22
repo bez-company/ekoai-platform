@@ -33,10 +33,10 @@
 | 2 | Business Verification do portfólio, com CNPJ, contrato social ou cartão CNPJ, site e domínio da BEZ | Matheus | domínio e e-mail (BEZ-28), site da BEZ no ar | a fazer, é o item mais lento e o que mais reprova por divergência de nome ou endereço |
 | 3 | Criar o app (tipo empresa) com o produto "Instagram" e login Instagram | Matheus | 1 | a fazer |
 | 4 | Política de privacidade e termos publicados em URL pública | Matheus e advogada | BEZ-32 | bloqueia o envio |
-| 5 | Instruções de exclusão de dados: URL com o passo a passo e, melhor, o callback da Meta | Código (R5.4) | R5 | falta a rota pública do callback |
+| 5 | Instruções de exclusão de dados e callback de desautorização (a tela do app na Meta pede os dois URLs antes do envio) | Código (R5.4) | R5 | falta: duas rotas públicas com `signed_request` verificado (HMAC com o segredo do app) |
 | 6 | Ícone 1024x1024 (gotas da Ekoai), categoria do app, e-mail comercial | Matheus | 3 | a fazer |
 | 7 | Conta de teste: perfil profissional de Instagram da BEZ adicionado como tester no app | Matheus | 3 | a fazer |
-| 8 | Fluxo R5 funcionando em staging: login, token cifrado, status da conexão, desconectar | Código | Cloud KMS em staging (SPEC 010, fase 3) | a construir |
+| 8 | Fluxo R5 funcionando em staging: login, token cifrado, status da conexão, desconectar | Código | Cloud KMS em staging (SPEC 010, fase 3) | construído em 22/10/2026 (BEZ-212), falta exercitar no staging com um testador |
 | 9 | Publicar um post de verdade pelo fluxo (a chamada de API bem-sucedida que a Meta exige) | Código e Matheus | 7 e 8 | depende da fase 2 ou de um botão de teste |
 | 10 | Vídeo por permissão: login completo, escolha da conta, e criação do post com legenda e hashtags até a publicação | Matheus | 8 e 9 | a gravar |
 | 11 | Texto para o revisor: passo a passo, quando cada permissão é usada, credenciais de teste | Claude escreve, Matheus revisa | 8 | rascunho abaixo |

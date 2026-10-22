@@ -65,6 +65,8 @@ locals {
     "gemini-api-key",
     "ig-access-token",
     "ig-business-account-id",
+    "instagram-app-id",
+    "instagram-app-secret",
     "linkedin-access-token",
     "linkedin-refresh-token",
     "linkedin-author-urn",
@@ -96,11 +98,14 @@ locals {
     POSTHOG_KEY            = "posthog-key"
   }
 
+  # Só a plataforma conecta contas de Instagram (OAuth): o app da Meta (id e segredo) não vai para os jobs.
   platform_secret_env = merge(local.integration_env, {
-    DATABASE_URL      = "database-url"
-    AUTH_SECRET       = "auth-secret"
-    CRON_SECRET       = "cron-secret"
-    PLATFORM_PASSWORD = "platform-password" # gitleaks:allow (nome do segredo, não o valor)
+    DATABASE_URL         = "database-url"
+    AUTH_SECRET          = "auth-secret"
+    CRON_SECRET          = "cron-secret"
+    PLATFORM_PASSWORD    = "platform-password" # gitleaks:allow (nome do segredo, não o valor)
+    INSTAGRAM_APP_ID     = "instagram-app-id"
+    INSTAGRAM_APP_SECRET = "instagram-app-secret" # gitleaks:allow (nome do segredo, não o valor)
   })
 
   # Modelos da geração de posts (SPEC 012, decisão 6; números da prova de conceito, BEZ-74).

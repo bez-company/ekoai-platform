@@ -46,6 +46,9 @@ const EXPECTED = {
   'posts/[id]/retry': ['content.create'],
   'posts/[id]/direction': ['content.edit'],
   'posts/[id]/caption': ['content.edit'],
+  'instagram/connect': ['channels.manage'],
+  'instagram/callback': ['channels.manage'],
+  'social-accounts/[id]': ['channels.manage'],
   facts: ['profile.view', 'brand.manage'],
   'facts/[id]': ['brand.manage', 'brand.manage'],
 };
