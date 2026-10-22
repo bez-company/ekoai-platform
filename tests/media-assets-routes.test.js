@@ -27,9 +27,13 @@ vi.mock('@/lib/media-assets', () => ({
   readMediaAssetBytes: async () => lib.file,
 }));
 
+const thumbs = { bytes: null };
+vi.mock('@/lib/media-thumbs', () => ({ readThumb: async () => thumbs.bytes }));
+
 const list = await import('../platform/src/app/api/media-assets/route.ts');
 const one = await import('../platform/src/app/api/media-assets/[id]/route.ts');
 const file = await import('../platform/src/app/api/media-assets/[id]/file/route.ts');
+const thumb = await import('../platform/src/app/api/media-assets/[id]/thumb/route.ts');
 const { ForbiddenError } = await import('@/lib/session');
 
 const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
@@ -108,5 +112,19 @@ describe('/api/media-assets/[id]', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('cache-control')).toMatch(/^private/);
     expect(sessionMock.calls).toEqual(['content.view', 'content.view']);
+  });
+});
+
+describe('/api/media-assets/[id]/thumb', () => {
+  it('miniatura em JPEG com sessão e cache privado; sem foto é 404', async () => {
+    thumbs.bytes = null;
+    expect((await thumb.GET(new Request('http://x'), ctx())).status).toBe(404);
+    expect((await thumb.GET(new Request('http://x'), ctx('nao-e-id'))).status).toBe(404);
+    thumbs.bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const res = await thumb.GET(new Request('http://x'), ctx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/jpeg');
+    expect(res.headers.get('cache-control')).toMatch(/^private/);
+    expect(sessionMock.calls.every((c) => c === 'content.view')).toBe(true);
   });
 });

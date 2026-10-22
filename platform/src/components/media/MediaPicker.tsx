@@ -86,7 +86,7 @@ export default function MediaPicker({ selectedId, onSelect, allowUpload = true }
                     } disabled:cursor-not-allowed`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={picked.url} alt="" loading="lazy" className={`h-full w-full object-cover ${blocked ? 'opacity-40' : ''}`} />
+                    <img src={picked.thumbUrl} alt="" loading="lazy" className={`h-full w-full object-cover ${blocked ? 'opacity-40' : ''}`} />
                     {a.usedAt && <span className="absolute left-1 top-1 rounded-full bg-ink/70 px-1.5 py-0.5 text-[10px] font-semibold text-paper">{usedLabel(a.usedAt)}</span>}
                   </button>
                 </li>

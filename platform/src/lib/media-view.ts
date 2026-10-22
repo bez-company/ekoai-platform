@@ -12,7 +12,8 @@ export const UPLOAD_MAX_FILES = 10;
 
 export type PickedPhoto = {
   id: string;
-  url: string;
+  url: string; // a original, para a prévia grande
+  thumbUrl: string; // a miniatura (BEZ-253), para grade, seletor e corte
   width: number;
   height: number;
   description: string | null;
@@ -23,9 +24,10 @@ export type PickedPhoto = {
 };
 
 export const photoUrl = (id: string) => `/api/media-assets/${id}/file`;
+export const thumbUrl = (id: string) => `/api/media-assets/${id}/thumb`;
 
 export function toPicked(a: MediaAsset): PickedPhoto {
-  return { id: a.id, url: photoUrl(a.id), width: a.width, height: a.height, description: a.description, originalName: a.originalName, usedAt: a.usedAt, hasPeople: a.hasPeople, peopleConsent: a.peopleConsent };
+  return { id: a.id, url: photoUrl(a.id), thumbUrl: thumbUrl(a.id), width: a.width, height: a.height, description: a.description, originalName: a.originalName, usedAt: a.usedAt, hasPeople: a.hasPeople, peopleConsent: a.peopleConsent };
 }
 
 export function usedLabel(usedAt: string | null): string {

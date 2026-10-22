@@ -130,7 +130,7 @@ export default function AttachPhoto({ idea, value, onChange, disabled, initialAs
         <div className="space-y-3">
           <div className="flex items-center gap-3 rounded-lg border border-line p-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.url} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
+            <img src={photo.thumbUrl} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
             <div className="min-w-0 flex-1 text-sm">
               <strong className="block truncate">{photoTitle(photo)}</strong>
               <span className="text-muted">Do banco de imagens · {photo.usedAt ? 'já usada' : 'não usada'}</span>

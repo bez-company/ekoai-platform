@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Modal from '@/components/Modal';
 import { ErrorLine } from '@/components/auth/ui';
 import { DESCRIPTION_MAX, type MediaAsset } from '@/lib/media-asset-model';
-import { blockedReason, countsOf, filterAssets, photoUrl, toPicked, usedLabel, type MediaFilter } from '@/lib/media-view';
+import { blockedReason, countsOf, filterAssets, thumbUrl, toPicked, usedLabel, type MediaFilter } from '@/lib/media-view';
 import { DropZone, UploadIcon, UploadList } from './UploadParts';
 import { useUploadPhotos } from './useUploadPhotos';
 
@@ -51,7 +51,7 @@ function MediaCard({ asset, canEdit, onChange, onDelete }: { asset: MediaAsset; 
     <li className="overflow-hidden rounded-xl border border-line bg-raised shadow-sm">
       <div className="relative aspect-square bg-inset">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl(asset.id)} alt={asset.description ?? 'Foto do banco de imagens'} loading="lazy" className="h-full w-full object-cover" />
+        <img src={thumbUrl(asset.id)} alt={asset.description ?? 'Foto do banco de imagens'} loading="lazy" className="h-full w-full object-cover" />
       </div>
       <div className="space-y-2 p-3 text-sm">
         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${asset.usedAt ? 'bg-inset text-muted' : 'bg-success/15 text-success'}`}>{usedLabel(asset.usedAt)}</span>

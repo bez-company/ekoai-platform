@@ -61,6 +61,7 @@ const EXPECTED = {
   'media-assets': ['content.view', 'content.create'],
   'media-assets/[id]': ['content.view', 'content.edit', 'content.edit'],
   'media-assets/[id]/file': ['content.view'],
+  'media-assets/[id]/thumb': ['content.view'],
   'photo-posts': ['content.create'],
   'photo-posts/caption': ['content.create'],
   suggestions: ['content.view'],

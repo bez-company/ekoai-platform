@@ -14,6 +14,8 @@ const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
 const media = await import('../../platform/src/lib/media-assets.ts');
 const model = await import('../../platform/src/lib/media-asset-model.ts');
 const { UserError } = await import('../../platform/src/lib/errors.ts');
+const { readThumb } = await import('../../platform/src/lib/media-thumbs.ts');
+const { Resvg } = (await import('node:module')).createRequire(new URL('../../platform/package.json', import.meta.url))('@resvg/resvg-js');
 
 const A = 'it-media-a';
 const B = 'it-media-b';
@@ -136,6 +138,24 @@ describe('banco de imagens', () => {
     await media.deleteMediaAsset(ta, ANA, first.id, store);
     expect(objects.has(`tenants/${A}/media/${first.id}.png`)).toBe(false);
     expect((await one('select media_asset_id, tenant_id from scheduled_posts where id = $1', [sched.id]))).toEqual({ media_asset_id: null, tenant_id: A });
+  });
+
+  it('miniatura: nasce na primeira leitura, fica guardada, e a outra conta não lê', async () => {
+    const real = new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><rect width="1200" height="900" fill="#C08040"/></svg>').render().asPng();
+    const r = model.inspectPhoto(new Uint8Array(real));
+    const [asset] = await media.saveMediaAssets(ta, ANA, [{ photo: r, name: 'mesa.png' }], { store, models: null });
+    const key = `tenants/${A}/media/thumbs/${asset.id}.jpg`;
+    expect(objects.has(key)).toBe(false);
+    const first = await readThumb(ta, asset.id, store);
+    expect(first[0]).toBe(0xff);
+    expect(objects.has(key)).toBe(true);
+    const puts = objects.size;
+    expect(await readThumb(ta, asset.id, store)).toEqual(first);
+    expect(objects.size).toBe(puts);
+    expect(await readThumb(tb, asset.id, store)).toBeNull();
+    await media.deleteMediaAsset(ta, ANA, asset.id, store);
+    expect(objects.has(key)).toBe(false);
+    expect(await readThumb(ta, asset.id, store)).toBeNull();
   });
 
   it('o limite da conta vale antes de subir qualquer arquivo', async () => {

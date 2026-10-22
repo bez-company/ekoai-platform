@@ -207,6 +207,11 @@ export function mediaAssetKey(tenantId: string, id: string, ext: 'jpg' | 'png'):
   return `tenants/${tenantId}/media/${id}.${ext}`;
 }
 
+// Miniatura da foto (BEZ-253): ao lado da original, debaixo da pasta da conta (sai junto na exclusão).
+export function mediaThumbKey(tenantId: string, id: string): string {
+  return `tenants/${tenantId}/media/thumbs/${id}.jpg`;
+}
+
 // O nome que a pessoa deu ao arquivo, só para mostrar: sem pasta, sem controle, até 200 caracteres.
 export function cleanFileName(name: unknown): string | null {
   if (typeof name !== 'string') return null;
