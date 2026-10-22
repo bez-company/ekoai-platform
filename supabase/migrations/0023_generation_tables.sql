@@ -153,7 +153,15 @@ alter table briefs add column if not exists requested_by uuid references users(i
 alter table briefs add column if not exists error text check (error is null or length(error) <= 500);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. RLS e grants
+-- 5. Vários posts pendentes por conta
+-- ─────────────────────────────────────────────────────────────────────────────
+-- O índice único por (conta, canal) era da época de uma ideia por rodada (0003): a fila de Aprovar
+-- agora tem quantos posts a conta pedir. Fica um índice comum para a listagem.
+drop index if exists pending_tenant_channel_idx;
+create index if not exists pending_approvals_tenant_saved_idx on pending_approvals (tenant_id, channel, saved_at desc);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 6. RLS e grants
 -- ─────────────────────────────────────────────────────────────────────────────
 alter table company_facts   enable row level security;
 alter table generation_runs enable row level security;
