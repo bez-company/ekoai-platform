@@ -151,7 +151,7 @@ describe('jornada da conta nova (SPEC 017, critério 1)', () => {
     expect(s.next).toBeNull();
   });
 
-  it('7. o coordenador sugere nos horários livres, nunca no ocupado, e a agenda mostra o horário ocupado', async () => {
+  it('7. o coordenador sugere nos horários livres, nunca no ocupado, e a agenda mostra a sugestão na célula vazia', async () => {
     const saved = await planForTenant(t, { models: null });
     expect(saved.length).toBeGreaterThan(0);
     const open = await listSuggestions(t);
@@ -160,8 +160,17 @@ describe('jornada da conta nova (SPEC 017, critério 1)', () => {
 
     const agenda = await getAgenda(t, { view: 'week', date: localDate(Date.parse(slotAt), tzOffsetHours()) });
     const cells = agenda.days.flatMap((d) => d.cells);
-    expect(cells.find((c) => c.at === slotAt)?.post?.id).toBe(scheduledId);
+    const taken = cells.find((c) => c.at === slotAt);
+    expect(taken?.post?.id).toBe(scheduledId);
+    expect(taken?.suggestion).toBeNull();
     expect(agenda.slots).toBe(3);
+
+    // Cada sugestão aberta aparece na célula vazia do horário dela, na semana dela.
+    for (const sug of open) {
+      const week = await getAgenda(t, { view: 'week', date: localDate(Date.parse(sug.slotAt), tzOffsetHours()) });
+      const cell = week.days.flatMap((d) => d.cells).find((c) => c.at === sug.slotAt);
+      expect(cell).toMatchObject({ kind: 'slot', post: null, suggestion: { id: sug.id, reason: sug.reason } });
+    }
   });
 
   it('8. o cron publica na hora do horário: o guia some e o Início mostra o último publicado', async () => {
