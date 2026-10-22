@@ -3,15 +3,18 @@
 // PostReview.tsx: o detalhe do post criado pela Ekoai (SPEC 012, tela Aprovar). O post na moldura do
 // feed; a legenda editável; os atalhos de ajuste (uma chamada curta ao modelo) e "outra direção"
 // (gera de novo e conta no limite); os fatos usados; recusar por aspecto; aprovar (no próximo
-// horário livre, ou na fila quando a agenda não tem horário) e publicar agora.
+// horário livre, ou na fila quando a agenda não tem horário) e publicar agora. A foto do banco mandada
+// para Aprovar por quem não aprova (Publicar foto, BEZ-254) abre aqui também: no formato dela (até
+// 1.91:1), com os atalhos da legenda pela rota do post de foto e sem "outra direção" (não houve geração).
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import FeedFrame from './FeedFrame';
+import FeedFrame, { type FeedRatio } from './FeedFrame';
 import FeedbackForm from '@/components/FeedbackForm';
 import { Spinner } from '@/components/auth/ui';
 import { fmtDateTime } from '@/lib/format';
+import { ratioOf } from '@/lib/media-view';
 import type { PendingApproval } from '@/lib/types';
 import type { RewriteMode } from '@/lib/agents';
 
@@ -31,6 +34,8 @@ function splitCaption(text: string): { body: string; hashtags: string[] } {
   if (tags && last.replace(/#[\p{L}\p{N}_]+/gu, '').trim() === '') return { body: lines.slice(0, -1).join('\n').trim(), hashtags: tags.map((t) => t.slice(1)) };
   return { body: text.trim(), hashtags: [] };
 }
+
+const RATIO_LABEL: Record<FeedRatio, string> = { '4:5': 'Retrato 4:5', '1:1': 'Quadrado 1:1', '1.91:1': 'Paisagem 1.91:1' };
 
 const joinCaption = (body: string, hashtags: string[]) => (hashtags.length ? `${body.trim()}\n\n${hashtags.map((h) => `#${h}`).join(' ')}` : body.trim());
 
@@ -52,6 +57,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const flags = pending.generation?.guardrail_flags ?? [];
   const warning = flags.length ? pending.generation?.judge_reason : null;
   const briefId = pending.brief_id ?? null;
+  const photoAssetId = pending.seed?.source === 'photo' && typeof pending.seed?.media_asset_id === 'string' ? pending.seed.media_asset_id : null;
+  const ratio = ratioOf(pending.seed?.ratio);
   const caption = joinCaption(body, hashtags);
   const edited = caption !== suggested.trim();
 
@@ -63,11 +70,13 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   }
 
   async function shortcut(mode: RewriteMode) {
-    if (!briefId) return;
+    if (!briefId && !photoAssetId) return;
     setBusy(mode);
     setError('');
     try {
-      const j = await call(`/api/posts/${briefId}/caption`, { body: JSON.stringify({ mode, caption: body, hashtags }) });
+      const j = photoAssetId
+        ? await call('/api/photo-posts/rewrite', { body: JSON.stringify({ assetId: photoAssetId, mode, caption: body, hashtags }) })
+        : await call(`/api/posts/${briefId}/caption`, { body: JSON.stringify({ mode, caption: body, hashtags }) });
       setBody(j.caption);
       if (Array.isArray(j.hashtags) && j.hashtags.length) setHashtags(j.hashtags);
     } catch (e) {
@@ -120,15 +129,15 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
       <div>
         <h1 className="text-xl font-semibold">{title || 'Post'}</h1>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span className="chip">{kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'}</span>
-          <span className="chip">Retrato 4:5</span>
+          <span className="chip">{photoAssetId ? 'Foto do banco' : kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'}</span>
+          <span className="chip">{RATIO_LABEL[ratio]}</span>
           <span>recebido {fmtDateTime(pending.saved_at)}</span>
         </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <div>
-          <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio={pending.seed?.ratio === '1:1' ? '1:1' : '4:5'} />
+          <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio={ratio} />
         </div>
 
         <div className="space-y-4">
@@ -175,7 +184,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             </div>
           </section>
 
-          {canEdit && briefId && (
+          {canEdit && (briefId || photoAssetId) && (
             <section className="card space-y-3">
               <h2 className="text-base font-semibold">Ajustes rápidos</h2>
               <div className="flex flex-wrap gap-2">
@@ -185,9 +194,11 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                     {s.label}
                   </button>
                 ))}
-                <button type="button" className="btn-ghost" disabled={!!busy} onClick={() => setDirectionAsked(true)}>
-                  Outra direção
-                </button>
+                {briefId && (
+                  <button type="button" className="btn-ghost" disabled={!!busy} onClick={() => setDirectionAsked(true)}>
+                    Outra direção
+                  </button>
+                )}
               </div>
               {directionAsked ? (
                 <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
@@ -204,7 +215,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted">Os atalhos mudam só a legenda, sem gastar do limite. Outra direção gera um post novo e conta 1.</p>
+                <p className="text-sm text-muted">{briefId ? 'Os atalhos mudam só a legenda, sem gastar do limite. Outra direção gera um post novo e conta 1.' : 'Os atalhos mudam só a legenda, sem gastar do limite. A foto fica como está.'}</p>
               )}
             </section>
           )}

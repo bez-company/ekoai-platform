@@ -12,10 +12,18 @@ import FeedFrame from '@/components/posts/FeedFrame';
 import MediaPicker from '@/components/media/MediaPicker';
 import CropEditor from './CropEditor';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
+import { isoToLocalInput, localInputToIso } from '@/lib/format';
 import { CAPTION_MAX, RATIOS, cropBox, objectPositionFor, parseHashtagInput, photoTitle, whenLabel, type Focus, type PhotoRatio, type PickedPhoto } from '@/lib/media-view';
 
 type CaptionMode = 'own' | 'ai';
-type When = 'schedule' | 'now';
+type When = 'schedule' | 'at' | 'now';
+
+const SHORTCUTS: { mode: 'shorter' | 'casual' | 'formal' | 'cta'; label: string }[] = [
+  { mode: 'shorter', label: 'Encurtar' },
+  { mode: 'casual', label: 'Mais descontraído' },
+  { mode: 'formal', label: 'Mais formal' },
+  { mode: 'cta', label: 'Outro CTA' },
+];
 type Done = { status: 'scheduled' | 'queued' | 'published'; scheduledFor?: string | null } | null;
 
 function Seg<T extends string>({ label, value, options, onChange, mobileCols = 1 }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; mobileCols?: 1 | 3 }) {
@@ -64,6 +72,8 @@ export default function PhotoPostForm({
   const [captionError, setCaptionError] = useState('');
   const [aiWrote, setAiWrote] = useState(false);
   const [when, setWhen] = useState<When>('schedule');
+  const [at, setAt] = useState(() => isoToLocalInput(nextSlot ?? new Date(Date.now() + 86_400_000).toISOString()));
+  const [shortcutBusy, setShortcutBusy] = useState('');
   const [confirmNow, setConfirmNow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +100,23 @@ export default function PhotoPostForm({
     [initialIdea],
   );
 
+  async function shortcut(mode: (typeof SHORTCUTS)[number]['mode']) {
+    if (!photo) return;
+    setShortcutBusy(mode);
+    setCaptionError('');
+    try {
+      const res = await fetch('/api/photo-posts/rewrite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId: photo.id, mode, caption, hashtags: parseHashtagInput(tags) }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error);
+      setCaption(j.caption ?? caption);
+      if (Array.isArray(j.hashtags) && j.hashtags.length) setTags(j.hashtags.map((h: string) => `#${h}`).join(' '));
+    } catch (e) {
+      setCaptionError(e instanceof Error && e.message ? e.message : 'A Ekoai não conseguiu ajustar a legenda agora. Tente de novo ou edite à mão.');
+    } finally {
+      setShortcutBusy('');
+    }
+  }
+
   useEffect(() => {
     if (initialPhoto) void askCaption(initialPhoto);
   }, [initialPhoto, askCaption]);
@@ -112,7 +139,7 @@ export default function PhotoPostForm({
       const res = await fetch('/api/photo-posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetId: photo.id, ratio, focus, caption, hashtags: parseHashtagInput(tags), when: chosen }),
+        body: JSON.stringify({ assetId: photo.id, ratio, focus, caption, hashtags: parseHashtagInput(tags), when: chosen, ...(chosen === 'at' ? { scheduledFor: localInputToIso(at) } : {}) }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -264,10 +291,21 @@ export default function PhotoPostForm({
                 </p>
               )}
               {captionError && <ErrorLine>{captionError}</ErrorLine>}
-              {mode === 'ai' && !captionBusy && (
-                <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={() => void askCaption(photo)}>
-                  {caption ? 'Escrever de novo' : 'A Ekoai escreve olhando a foto'}
-                </button>
+              {!captionBusy && (
+                <div className="flex flex-wrap gap-1.5">
+                  {caption.trim() &&
+                    SHORTCUTS.map((sc) => (
+                      <button key={sc.mode} type="button" className="btn-ghost min-h-9 px-3 text-xs" disabled={!!shortcutBusy} onClick={() => void shortcut(sc.mode)}>
+                        {shortcutBusy === sc.mode && <Spinner />}
+                        {sc.label}
+                      </button>
+                    ))}
+                  {mode === 'ai' && (
+                    <button type="button" className="btn-ghost min-h-9 px-3 text-xs" disabled={!!shortcutBusy} onClick={() => void askCaption(photo)}>
+                      {caption ? 'Escrever de novo' : 'A Ekoai escreve olhando a foto'}
+                    </button>
+                  )}
+                </div>
               )}
               <div className="space-y-1.5">
                 <label htmlFor="photo-tags" className="text-sm font-semibold">
@@ -284,6 +322,7 @@ export default function PhotoPostForm({
                   {(
                     [
                       ['schedule', nextSlot ? 'Próximo horário livre' : 'Agendar', whenLabel(nextSlot)],
+                      ['at', 'Escolher dia e hora', 'Fora dos horários da agenda, se precisar'],
                       ['now', 'Publicar agora', 'Vai ao ar em seguida'],
                     ] as const
                   ).map(([value, title, help]) => (
@@ -295,6 +334,14 @@ export default function PhotoPostForm({
                       </span>
                     </label>
                   ))}
+                  {when === 'at' && (
+                    <div className="space-y-1.5 pl-1">
+                      <label htmlFor="photo-at" className="text-sm font-semibold">
+                        Dia e hora <span className="font-normal text-muted">(horário de Brasília)</span>
+                      </label>
+                      <input id="photo-at" type="datetime-local" className="input w-auto" value={at} onChange={(e) => setAt(e.target.value)} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted">Nesta conta quem aprova é um administrador. O post vai para Aprovar e sai depois da aprovação.</p>
@@ -318,7 +365,7 @@ export default function PhotoPostForm({
                   onClick={() => (canApprove && when === 'now' ? setConfirmNow(true) : void submit(canApprove ? when : 'schedule'))}
                 >
                   {busy && <Spinner />}
-                  {busy ? (when === 'now' ? 'Publicando' : 'Salvando') : !canApprove ? 'Mandar para aprovar' : when === 'now' ? 'Publicar agora' : error ? 'Tentar de novo' : 'Agendar'}
+                  {busy ? (when === 'now' ? 'Publicando' : 'Salvando') : !canApprove ? 'Mandar para aprovar' : when === 'now' ? 'Publicar agora' : error ? 'Tentar de novo' : when === 'at' ? 'Agendar neste horário' : 'Agendar'}
                 </button>
               </div>
             </section>

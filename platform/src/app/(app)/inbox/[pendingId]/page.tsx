@@ -22,8 +22,9 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
 
   const nextSlot = await nextFreeSlot(t, p.channel).catch(() => null);
 
-  // Post feito pela Ekoai (SPEC 012): a tela da moldura do feed, com os atalhos e os fatos usados.
-  if (p.post_design_id) {
+  // Post feito pela Ekoai (SPEC 012) ou foto do banco (Publicar foto, BEZ-254): a tela da moldura do
+  // feed, com os atalhos e os fatos usados.
+  if (p.post_design_id || p.seed?.source === 'photo') {
     const [account, profile, facts, canApprove, canEdit] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), can('content.approve'), can('content.edit')]);
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);

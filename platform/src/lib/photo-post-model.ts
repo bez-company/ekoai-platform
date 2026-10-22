@@ -4,13 +4,15 @@
 // geração de imagem conta).
 
 import type { CompanyProfile } from './company-profile-model';
-import { LIMITS } from './agents';
+import { LIMITS, isRewriteMode, type RewriteMode } from './agents';
 import { isPhotoRatio, type Focus, type PhotoRatio } from './design/photo';
 
 export const PHOTO_IDEA_MAX = 300;
 
 // `now`: publica na hora. `schedule`: entra no próximo horário livre (ou na fila, sem horário).
-export const PHOTO_WHEN = ['now', 'schedule'] as const;
+// `at`: no dia e hora que a pessoa escolheu (`scheduledFor`, BEZ-254).
+export const PHOTO_WHEN = ['now', 'schedule', 'at'] as const;
+export const SCHEDULE_MAX_DAYS = 90;
 export type PhotoWhen = (typeof PHOTO_WHEN)[number];
 
 export type PhotoPostInput = {
@@ -20,6 +22,7 @@ export type PhotoPostInput = {
   caption: string;
   hashtags: string[];
   when: PhotoWhen;
+  scheduledFor?: string;
 };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
@@ -43,7 +46,7 @@ function focusOf(value: unknown): Focus | null {
   return { x, y };
 }
 
-export function parsePhotoPost(body: unknown): Parsed<PhotoPostInput> {
+export function parsePhotoPost(body: unknown, nowMs = Date.now()): Parsed<PhotoPostInput> {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
   if (typeof b.assetId !== 'string' || !UUID.test(b.assetId)) return { ok: false, error: 'Escolha uma foto do banco de imagens.', field: 'assetId' };
   const ratio = b.ratio == null || b.ratio === '' ? '4:5' : b.ratio;
@@ -54,7 +57,33 @@ export function parsePhotoPost(body: unknown): Parsed<PhotoPostInput> {
   if (!caption) return { ok: false, error: 'Escreva a legenda ou peça para a Ekoai escrever.', field: 'caption' };
   if (caption.length > LIMITS.caption) return { ok: false, error: `A legenda passa de ${LIMITS.caption} caracteres, o limite do Instagram.`, field: 'caption' };
   if (!(PHOTO_WHEN as readonly unknown[]).includes(b.when)) return { ok: false, error: 'Escolha publicar agora ou agendar.', field: 'when' };
-  return { ok: true, value: { assetId: b.assetId.toLowerCase(), ratio, focus, caption, hashtags: cleanHashtags(b.hashtags), when: b.when as PhotoWhen } };
+  const value: PhotoPostInput = { assetId: b.assetId.toLowerCase(), ratio, focus, caption, hashtags: cleanHashtags(b.hashtags), when: b.when as PhotoWhen };
+  if (value.when === 'at') {
+    const at = parseScheduledFor(b.scheduledFor, nowMs);
+    if (!at.ok) return at;
+    value.scheduledFor = at.value;
+  }
+  return { ok: true, value };
+}
+
+// Dia e hora escolhidos: data válida, pelo menos 5 minutos à frente e até 90 dias.
+export function parseScheduledFor(raw: unknown, nowMs = Date.now()): Parsed<string> {
+  const ms = typeof raw === 'string' ? Date.parse(raw) : NaN;
+  if (!Number.isFinite(ms)) return { ok: false, error: 'Escolha o dia e a hora da publicação.', field: 'scheduledFor' };
+  if (ms < nowMs + 5 * 60_000) return { ok: false, error: 'Escolha um horário daqui a pelo menos 5 minutos, ou publique agora.', field: 'scheduledFor' };
+  if (ms > nowMs + SCHEDULE_MAX_DAYS * 86_400_000) return { ok: false, error: `Agende para no máximo ${SCHEDULE_MAX_DAYS} dias à frente.`, field: 'scheduledFor' };
+  return { ok: true, value: new Date(ms).toISOString() };
+}
+
+// Atalho da legenda do post de foto (BEZ-254): a foto, o atalho e a legenda de agora.
+export function parsePhotoRewrite(body: unknown): Parsed<{ assetId: string; mode: RewriteMode; caption: string; hashtags: string[] }> {
+  const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
+  if (typeof b.assetId !== 'string' || !UUID.test(b.assetId)) return { ok: false, error: 'Escolha uma foto do banco de imagens.', field: 'assetId' };
+  if (!isRewriteMode(b.mode)) return { ok: false, error: 'Escolha um dos atalhos da legenda.', field: 'mode' };
+  const caption = typeof b.caption === 'string' ? b.caption.trim() : '';
+  if (!caption) return { ok: false, error: 'Escreva a legenda antes de pedir o ajuste.', field: 'caption' };
+  if (caption.length > LIMITS.caption) return { ok: false, error: `A legenda passa de ${LIMITS.caption} caracteres, o limite do Instagram.`, field: 'caption' };
+  return { ok: true, value: { assetId: b.assetId.toLowerCase(), mode: b.mode, caption, hashtags: cleanHashtags(b.hashtags) } };
 }
 
 // Pedido da legenda: a foto (por id) e, opcional, o que a pessoa quer dizer.
