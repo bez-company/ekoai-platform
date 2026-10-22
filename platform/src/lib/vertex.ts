@@ -106,18 +106,27 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
 
   return {
     config,
-    async generateJson({ prompt, labels, maxOutputTokens = 2048, temperature = 0.7 }) {
+    async generateJson({ prompt, labels, maxOutputTokens = 4096, temperature = 0.7 }) {
       const started = Date.now();
       const data = await call(config.textModel, {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens, temperature },
+        // thinkingBudget 0: no 2.5 Flash o raciocínio sai do mesmo teto de tokens e corta o JSON no meio.
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens, temperature, thinkingConfig: { thinkingBudget: 0 } },
         labels: cleanLabels(labels),
       });
       const raw: string = data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
       if (!raw) throw new Error(`O modelo de texto não devolveu conteúdo (${data.candidates?.[0]?.finishReason ?? 'sem candidato'}).`);
       const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? 0);
       const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
-      return { json: parseModelJson(raw), raw, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCost(inputTokens, outputTokens) };
+      const finishReason = data.candidates?.[0]?.finishReason;
+      let json: unknown;
+      try {
+        json = parseModelJson(raw);
+      } catch (e) {
+        if (finishReason === 'MAX_TOKENS') throw new Error('A resposta do modelo veio cortada (limite de tokens).');
+        throw e;
+      }
+      return { json, raw, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCost(inputTokens, outputTokens) };
     },
     async generateImage({ prompt, aspect, labels }) {
       const started = Date.now();
