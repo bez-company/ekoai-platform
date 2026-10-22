@@ -1,65 +1,117 @@
-import { getPublishedHistory } from '@/lib/queries';
-import { fmtDateTime } from '@/lib/format';
-import FeedbackForm from '@/components/FeedbackForm';
-import type { PublishedPost } from '@/lib/types';
-import { pageTenant } from '@/lib/session';
+import Link from 'next/link';
+import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
+import { getProfile } from '@/lib/company-profile';
+import { fmtDateTime } from '@/lib/format';
+import { averageEngagement, fmtCount, fmtRate, listPublished, type PublishedItem } from '@/lib/published-feed';
+import { pageTenant } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
+const HEART = 'M12 20s-7-4.4-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.6-9 9-9 9z';
+const COMMENT = 'M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.6A8 8 0 1 1 21 12z';
+
+function Glyph({ d }: { d: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
+
+function Tile({ p }: { p: PublishedItem }) {
+  const label = `${p.title}${p.publishedAt ? `, publicado ${fmtDateTime(p.publishedAt)}` : ''}${p.metrics ? `, ${fmtCount(p.metrics.likes)} curtidas` : ''}`;
+  return (
+    <Link href={`/history/${p.id}`} aria-label={label} className="group relative block aspect-[4/5] overflow-hidden bg-inset">
+      {p.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.imageUrl} alt="" className="h-full w-full object-cover transition group-hover:opacity-90" />
+      ) : (
+        <span className="flex h-full items-center justify-center p-3 text-center text-sm text-muted">{p.title}</span>
+      )}
+      {p.metrics && (
+        <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex justify-center gap-3 bg-ink/60 px-2 py-1.5 text-xs font-bold text-paper">
+          <span className="flex items-center gap-1">
+            <Glyph d={HEART} />
+            {fmtCount(p.metrics.likes)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Glyph d={COMMENT} />
+            {fmtCount(p.metrics.comments)}
+          </span>
+        </span>
+      )}
+    </Link>
+  );
+}
+
+// Publicados (SPEC 017, decisão 14): a grade como o perfil do Instagram. Cada post abre o detalhe,
+// com a legenda inteira, as métricas e o feedback.
 export default async function HistoryPage() {
   const t = await pageTenant();
-  let posts: PublishedPost[] = [];
+  let posts: PublishedItem[] = [];
+  let account = '';
+  let handle: string | null = null;
   let err = '';
   try {
-    posts = await getPublishedHistory(t, 60);
+    const [items, acct, profile] = await Promise.all([listPublished(t, 60), accountOf(t.tenantId), getProfile(t)]);
+    posts = items;
+    account = acct?.name ?? '';
+    handle = profile?.instagramHandle ?? null;
   } catch (e) {
     err = pageError(e, 'page/history');
   }
+  const avg = averageEngagement(posts);
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Histórico</h1>
-      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
-      {!err && posts.length === 0 && <div className="card text-sm text-muted">Nada publicado ainda.</div>}
-
-      <div className="grid gap-2">
-        {posts.map((p) => (
-          <div key={p.id} className="card space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="chip uppercase">{p.channel}</span>
-                  {p.pillar && <span className="chip">{p.pillar}</span>}
-                  {p.angle && <span className="chip">{p.angle}</span>}
-                  <span className="chip">{p.format || 'single'}</span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-sm">{p.hook || p.body?.slice(0, 100) || '(sem hook)'}</p>
-                <p className="mt-1 text-xs text-muted">{p.published_at ? fmtDateTime(p.published_at) : 'sem data'}</p>
-                {p.funnel && p.funnel.cadastros > 0 && (
-                  <p className="mt-1 text-xs text-success">
-                    {p.funnel.cadastros} {p.funnel.cadastros === 1 ? 'cadastro' : 'cadastros'} · {p.funnel.ativados}{' '}
-                    {p.funnel.ativados === 1 ? 'ativado' : 'ativados'} · {p.funnel.pagantes}{' '}
-                    {p.funnel.pagantes === 1 ? 'pagante' : 'pagantes'}
-                  </p>
-                )}
-              </div>
-              {p.engagement_score != null && (
-                <div className="shrink-0 text-right">
-                  <div className="text-lg font-semibold text-success">{Number(p.engagement_score).toFixed(2)}</div>
-                  <div className="label">engajamento</div>
-                </div>
-              )}
-            </div>
-            <details>
-              <summary className="cursor-pointer text-xs text-muted hover:text-fg">Dar feedback sobre este post</summary>
-              <div className="pt-3">
-                <FeedbackForm channel={p.channel} postId={p.id} excerpt={p.hook || p.body?.slice(0, 100)} />
-              </div>
-            </details>
-          </div>
-        ))}
+      <div>
+        <h1 className="text-xl font-semibold">Publicados</h1>
+        <p className="text-sm text-muted">O que já saiu no Instagram e como foi. Abra um post para ver os números e dizer o que achou.</p>
       </div>
+
+      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
+
+      {!err && posts.length === 0 && (
+        <div className="card space-y-3 py-8 text-center">
+          <h2 className="text-lg font-semibold">Nada publicado ainda</h2>
+          <p className="mx-auto max-w-md text-sm text-muted">Quando um post sair no Instagram, ele aparece aqui como no seu perfil, com curtidas, comentários e alcance.</p>
+          <Link href="/calendar" className="btn-primary">
+            Ver a agenda
+          </Link>
+        </div>
+      )}
+
+      {posts.length > 0 && (
+        <section className="card space-y-4">
+          <div className="flex items-center gap-4">
+            <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-lg font-bold text-on-accent">
+              {initials(account)}
+            </span>
+            <div className="min-w-0">
+              <strong className="block truncate">{handle ? `@${handle}` : account}</strong>
+              {handle && <span className="block truncate text-sm text-muted">{account}</span>}
+              <p className="mt-1 flex flex-wrap gap-x-4 text-sm">
+                <span>
+                  <b>{posts.length}</b> {posts.length === 1 ? 'post publicado' : 'posts publicados'}
+                </span>
+                {avg !== null && (
+                  <span>
+                    <b>{fmtRate(avg)}</b> de engajamento médio
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-0.5 overflow-hidden rounded-lg">
+            {posts.map((p) => (
+              <Tile key={p.id} p={p} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
