@@ -81,3 +81,13 @@ describe('cliente do Vertex', () => {
     expect(() => vertexConfig({})).toThrow(/VERTEX_PROJECT_ID/);
   });
 });
+
+describe('visão no modelo de texto', () => {
+  it('manda a foto como inlineData junto do pedido', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: { candidates: [{ content: { parts: [{ text: '{"description":"bolo"}' }] } }], usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 20 } } }]);
+    const client = vertexClient({ config: cfg, fetchImpl: impl, token: async () => 'tok' });
+    const out = await client.generateJson({ prompt: 'descreva', labels: { step: 'media_describe' }, image: { bytes: new Uint8Array([1, 2, 3]), mimeType: 'image/jpeg' } });
+    expect(out.json).toEqual({ description: 'bolo' });
+    expect(calls[0].body.contents[0].parts).toEqual([{ text: 'descreva' }, { inlineData: { mimeType: 'image/jpeg', data: 'AQID' } }]);
+  });
+});

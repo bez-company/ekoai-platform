@@ -15,6 +15,7 @@ export const TENANT_TABLES = [
   'funnel_daily',
   'generation_runs',
   'invitations',
+  'media_assets',
   'metrics_snapshots',
   'notifications',
   'onboarding_answers',

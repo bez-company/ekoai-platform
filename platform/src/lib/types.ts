@@ -89,6 +89,8 @@ export type ScheduledPost = {
   source_pending_id?: string | null;
   // distribuição (ADR 0001): vínculos com campanha/brief/ativo e o UTM do link
   asset_id?: string | null;
+  // foto do banco de imagens (BEZ-198): marcada como usada quando o post sai
+  media_asset_id?: string | null;
   brief_id?: string | null;
   campaign_id?: string | null;
   media_kind?: MediaKind | null;

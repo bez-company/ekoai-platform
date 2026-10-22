@@ -14,7 +14,8 @@ export type Labels = Record<string, string>;
 
 export interface ModelClient {
   readonly config: VertexConfig;
-  generateJson(input: { prompt: string; labels: Labels; maxOutputTokens?: number; temperature?: number }): Promise<TextResult>;
+  // `image`: foto que o modelo de texto olha junto do pedido (visão), como no banco de imagens.
+  generateJson(input: { prompt: string; labels: Labels; maxOutputTokens?: number; temperature?: number; image?: { bytes: Uint8Array; mimeType: string } }): Promise<TextResult>;
   generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels }): Promise<ImageResult>;
 }
 
@@ -117,10 +118,12 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
 
   return {
     config,
-    async generateJson({ prompt, labels, maxOutputTokens = 4096, temperature = 0.7 }) {
+    async generateJson({ prompt, labels, maxOutputTokens = 4096, temperature = 0.7, image }) {
       const started = Date.now();
+      const parts: Record<string, unknown>[] = [{ text: prompt }];
+      if (image) parts.push({ inlineData: { mimeType: image.mimeType, data: Buffer.from(image.bytes).toString('base64') } });
       const data = await call(config.textModel, {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts }],
         // thinkingBudget 0: no 2.5 Flash o raciocínio sai do mesmo teto de tokens e corta o JSON no meio.
         generationConfig: { responseMimeType: 'application/json', maxOutputTokens, temperature, thinkingConfig: { thinkingBudget: 0 } },
         labels: cleanLabels(labels),
