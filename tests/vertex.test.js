@@ -91,3 +91,13 @@ describe('visão no modelo de texto', () => {
     expect(calls[0].body.contents[0].parts).toEqual([{ text: 'descreva' }, { inlineData: { mimeType: 'image/jpeg', data: 'AQID' } }]);
   });
 });
+
+describe('imagem com foto de referência', () => {
+  it('manda a foto junto do pedido de imagem', async () => {
+    const png = Buffer.from('png').toString('base64');
+    const { impl, calls } = fakeFetch([{ status: 200, body: { candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png } }] } }], usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 1120 } } }]);
+    const client = vertexClient({ config: cfg, fetchImpl: impl, token: async () => 'tok' });
+    await client.generateImage({ prompt: 'a cake', aspect: '1:1', labels: {}, reference: { bytes: new Uint8Array([1, 2, 3]), mimeType: 'image/png' } });
+    expect(calls[0].body.contents[0].parts).toEqual([{ text: 'a cake' }, { inlineData: { mimeType: 'image/png', data: 'AQID' } }]);
+  });
+});

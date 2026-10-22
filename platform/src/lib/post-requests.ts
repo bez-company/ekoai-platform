@@ -9,10 +9,14 @@ import { DEFAULT_RATIO, isPostGoal, isPostKind, isRatio, kindForGoal, type PostG
 import { runsOfBrief } from './generation-db';
 import { log } from './log';
 import { IDEA_MAX } from './post-limits';
+import { parsePhotoChoice, type PhotoUsage } from './photo-question-model';
+import { getMediaAsset } from './media-assets';
+import { canUseInPost } from './media-asset-model';
 
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
-export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio };
+// photo: foto do banco anexada e como usá-la (SPEC 017 decisão 7, BEZ-237).
+export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; photo?: { assetId: string; usage: PhotoUsage } | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -26,17 +30,39 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   if (b.kind != null && b.kind !== '' && !isPostKind(b.kind)) return { ok: false, error: 'Escolha informativo ou atmosfera, ou deixe a Ekoai decidir.', field: 'kind' };
   if (b.goal != null && b.goal !== '' && !isPostGoal(b.goal)) return { ok: false, error: 'Escolha um dos objetivos da lista, ou deixe a Ekoai escolher.', field: 'goal' };
   if (b.ratio != null && b.ratio !== '' && !isRatio(b.ratio)) return { ok: false, error: 'Escolha o formato retrato (4:5) ou quadrado (1:1).', field: 'ratio' };
+  const photo = parsePhotoChoice(b);
+  if (!photo.ok) return photo;
   const goal = isPostGoal(b.goal) ? b.goal : null;
-  const kind = kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
-  return { ok: true, value: { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO } };
+  // Com a foto à mostra, a imagem manda: o post é de atmosfera (foto com título, ou a foto como está).
+  const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
+  const value: PostRequestInput = { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO };
+  if (photo.value) value.photo = photo.value;
+  return { ok: true, value };
 }
 
 export const BRIEF_STATUS = ['queued', 'generating', 'ready', 'failed'] as const;
 export type BriefStatus = (typeof BRIEF_STATUS)[number];
 
 export async function createPostRequest(t: TenantDb, actor: SessionUser | null, input: Pick<PostRequestInput, 'idea' | 'kind'> & Partial<PostRequestInput>): Promise<{ id: string }> {
+  const photo = input.photo ?? null;
+  if (photo) {
+    const asset = await getMediaAsset(t, photo.assetId);
+    if (!asset) throw new UserError('Esta foto não está mais no banco de imagens. Escolha outra.');
+    if (!canUseInPost(asset)) throw new UserError('A foto mostra pessoas. Marque que há autorização de uso de imagem antes de usar no post.');
+  }
   const { data, error } = await t
-    .insert('briefs', { idea: input.idea, pillar: input.goal ?? input.kind ?? 'post', post_kind: input.kind, goal: input.goal ?? null, ratio: input.ratio ?? DEFAULT_RATIO, status: 'queued', source: 'platform', requested_by: actor?.id ?? null })
+    .insert('briefs', {
+      idea: input.idea,
+      pillar: input.goal ?? input.kind ?? 'post',
+      post_kind: input.kind,
+      goal: input.goal ?? null,
+      ratio: input.ratio ?? DEFAULT_RATIO,
+      asset_id: photo?.assetId ?? null,
+      photo_usage: photo?.usage ?? null,
+      status: 'queued',
+      source: 'platform',
+      requested_by: actor?.id ?? null,
+    })
     .select('id')
     .single();
   if (error) throw new Error(`briefs: ${error.message}`);

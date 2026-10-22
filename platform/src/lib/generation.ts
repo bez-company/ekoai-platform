@@ -25,6 +25,11 @@ import { notify } from './notifications';
 import { UserError } from './errors';
 import { log } from './log';
 import type { ModelClient } from './vertex';
+import { getMediaAsset, readMediaAssetBytes } from './media-assets';
+import { canUseInPost, type MediaAsset } from './media-asset-model';
+import { isPhotoUsage, usageShowsPhoto, type PhotoUsage } from './photo-question-model';
+import { renderPhoto } from './design/photo';
+import { photoSource } from './photo-post';
 
 export type GenerationDeps = { model: ModelClient; store?: BlobStore; fontDir?: string; mediaBaseUrl?: string };
 
@@ -34,10 +39,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -48,7 +53,41 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     ratio: isRatio(data.ratio) ? data.ratio : DEFAULT_RATIO,
     status: String(data.status),
     direction: Number(data.direction ?? 1),
+    assetId: (data.asset_id as string | null) ?? null,
+    photoUsage: isPhotoUsage(data.photo_usage) ? data.photo_usage : null,
   };
+}
+
+// A foto do banco anexada ao pedido (BEZ-237), já com os bytes. Sumiu do banco ou perdeu a
+// autorização de uso de imagem: o pedido falha com o próximo passo, sem gerar nada.
+type BriefPhoto = { asset: MediaAsset; bytes: Uint8Array; usage: PhotoUsage };
+
+async function photoOf(t: TenantDb, brief: Brief, store: BlobStore): Promise<BriefPhoto | null> {
+  if (!brief.photoUsage) return null;
+  const asset = brief.assetId ? await getMediaAsset(t, brief.assetId) : null;
+  const file = asset ? await readMediaAssetBytes(t, asset.id, store) : null;
+  if (!asset || !file) throw new UserError('A foto do pedido saiu do banco de imagens. Peça o post de novo com outra foto.');
+  if (!canUseInPost(asset)) throw new UserError('A foto mostra pessoas e está sem autorização de uso de imagem. Marque a autorização e peça de novo.');
+  return { asset, bytes: file.bytes, usage: brief.photoUsage };
+}
+
+// A foto cortada no formato do post (PNG de 1080 de largura), com as medidas cruas do arquivo e a
+// orientação (photoSource, o mesmo corte do "Publicar foto").
+function croppedPhoto(photo: BriefPhoto, ratio: Ratio): Buffer {
+  return renderPhoto({ bytes: photo.bytes, contentType: photo.asset.contentType, ...photoSource(photo.asset, photo.bytes), ratio }).png;
+}
+
+// O pedido que o redator lê: a ideia mais o que a foto mostra.
+function ideaWithPhoto(brief: Brief, photo: BriefPhoto | null): string {
+  if (!photo) return brief.idea;
+  const what = photo.asset.description ? `: ${photo.asset.description}` : '';
+  const how: Record<PhotoUsage, string> = {
+    as_is: 'A foto da empresa vai no post como está, sem texto por cima; o título serve só de gancho da legenda',
+    background: 'A foto da empresa vai de fundo, com o título por cima',
+    layout: 'A foto da empresa entra no layout da marca, com o título',
+    inspiration: 'Uma foto da empresa serve de inspiração para a imagem nova; descreva a cena no visual_prompt a partir dela',
+  };
+  return `${brief.idea}. ${how[photo.usage]}${what}.`;
 }
 
 async function setBrief(t: TenantDb, briefId: string, values: Record<string, unknown>): Promise<void> {
@@ -82,12 +121,12 @@ export function logoDimensions(bytes: Uint8Array, contentType: string): { width:
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
-async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: { facts: string[]; never: string[] }, rules: string[], planMax: number): Promise<{ copy: Copy; issues: Issue[] }> {
+async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: { facts: string[]; never: string[] }, rules: string[], planMax: number, photo: BriefPhoto | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -122,16 +161,21 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
 }
 
 // O visual gerado, em cache por hash do pedido (prompt, modelo, formato). Só aqui o limite mensal vale.
-async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy: Copy, planMax: number, store: BlobStore): Promise<{ key: string } | { limit: number }> {
+async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy: Copy, planMax: number, store: BlobStore, reference: BriefPhoto | null = null): Promise<{ key: string } | { limit: number }> {
   const prompt = visualPromptFor(copy);
   const model = deps.model.config.imageModel;
-  const hash = inputHash('visual', model, { prompt, aspect: brief.ratio });
+  const hash = inputHash('visual', model, { prompt, aspect: brief.ratio, ...(reference ? { reference: reference.asset.id } : {}) });
   const reservation = await reserveRun(t, { briefId: brief.id, step: 'visual', inputHash: hash, model }, planMax);
   if (!reservation.ok) return { limit: reservation.usage.max };
   const cached = reservation.reused && reservation.run.status === 'done' ? (reservation.run.result as { key?: string } | null)?.key : null;
   if (cached) return { key: cached };
   try {
-    const out = await deps.model.generateImage({ prompt, aspect: brief.ratio, labels: { tenant: t.tenantId, step: 'visual', brief: brief.id } });
+    const out = await deps.model.generateImage({
+      prompt,
+      aspect: brief.ratio,
+      labels: { tenant: t.tenantId, step: 'visual', brief: brief.id },
+      ...(reference ? { reference: { bytes: reference.bytes, mimeType: reference.asset.contentType } } : {}),
+    });
     const key = `images/${randomUUID()}.png`;
     await store.put(key, out.png, 'image/png');
     await completeRun(t, reservation.run.id, { result: { key, prompt }, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, images: 1, costUsd: out.costUsd, durationMs: out.durationMs });
@@ -157,13 +201,22 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const facts = factsForPrompt(factRows);
     const rules = ruleRows.filter((r) => r.active).map((r) => r.rule);
 
-    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax);
-    const kind = copy.kind;
+    const photo = await photoOf(t, brief, store);
+    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo);
+    // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.
+    const kind: PostKind = photo ? 'atmosfera' : copy.kind;
     if (brief.kind !== kind) await setBrief(t, brief.id, { post_kind: kind });
 
+    // A foto da pessoa no lugar do visual por IA ("como está", "de fundo", "no layout"): não chama o
+    // modelo de imagem, então não conta no limite do plano. "Inspiração" gera, com a foto de referência.
     let visualKey: string | null = null;
-    if (kind === 'atmosfera') {
-      const visual = await makeVisual(t, deps, brief, copy, planMax, store);
+    let photoPng: Buffer | null = null;
+    if (photo && usageShowsPhoto(photo.usage)) {
+      photoPng = croppedPhoto(photo, brief.ratio);
+      visualKey = `images/${randomUUID()}.png`;
+      await store.put(visualKey, photoPng, 'image/png');
+    } else if (kind === 'atmosfera') {
+      const visual = await makeVisual(t, deps, brief, copy, planMax, store, photo);
       if ('limit' in visual) {
         await setBrief(t, brief.id, { status: 'failed', error: `limite do plano: ${visual.limit} posts por mês` });
         return { status: 'limit', briefId, max: visual.limit };
@@ -181,18 +234,25 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       logo,
       visual: visualKey ? { dataUri: `data:image/png;base64,${Buffer.from(await store.get(visualKey)).toString('base64')}` } : null,
     };
-    let rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
-    // Texto que não coube: tira o subtítulo e tenta uma vez; se ainda não couber, o aviso vai para a tela.
-    if (blocking(rendered.issues).length && spec.texts.sub) {
-      spec.texts = { ...spec.texts, sub: undefined };
+    // "Como está": a foto cortada é a imagem do post, sem texto, logo nem véu por cima.
+    let rendered: { png: Buffer; issues: Issue[] };
+    if (photo?.usage === 'as_is' && photoPng) {
+      rendered = { png: photoPng, issues: [] };
+    } else {
       rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
+      // Texto que não coube: tira o subtítulo e tenta uma vez; se ainda não couber, o aviso vai para a tela.
+      if (blocking(rendered.issues).length && spec.texts.sub) {
+        spec.texts = { ...spec.texts, sub: undefined };
+        rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
+      }
     }
     const pngKey = `images/${randomUUID()}.png`;
     await store.put(pngKey, rendered.png, 'image/png');
 
     const allIssues = [...issues, ...rendered.issues];
+    const stored = photo ? { ...storedDesignOf(spec), photo: { assetId: photo.asset.id, usage: photo.usage } } : storedDesignOf(spec);
     const design = await t
-      .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: storedDesignOf(spec), visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
+      .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: stored, visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
       .select('id')
       .single();
     if (design.error) throw new Error(`post_designs: ${design.error.message}`);
@@ -216,7 +276,18 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       },
       top_id: 1,
       images: [{ id: 1, url: mediaUrl(pngKey, deps.mediaBaseUrl), path: pngKey }],
-      seed: { brief_id: brief.id, mother_channel: 'instagram', kind, goal: brief.goal, ratio: brief.ratio, idea: brief.idea, layout: spec.layout, review: allIssues },
+      seed: {
+        brief_id: brief.id,
+        mother_channel: 'instagram',
+        kind,
+        goal: brief.goal,
+        ratio: brief.ratio,
+        idea: brief.idea,
+        layout: spec.layout,
+        review: allIssues,
+        // Foto do banco à mostra: ao aprovar, o agendado leva a foto e o publish a marca como usada.
+        ...(photo ? { photo_usage: photo.usage, ...(usageShowsPhoto(photo.usage) ? { media_asset_id: photo.asset.id } : {}) } : {}),
+      },
       status: 'awaiting_decision',
     });
     if (pending.error) throw new Error(`pendências: ${pending.error.message}`);
