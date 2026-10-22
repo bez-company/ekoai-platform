@@ -151,6 +151,8 @@ alter table briefs add column if not exists source text not null default 'job'
   check (source in ('job', 'platform'));
 alter table briefs add column if not exists requested_by uuid references users(id) on delete set null;
 alter table briefs add column if not exists error text check (error is null or length(error) <= 500);
+-- "Outra direção": o mesmo pedido, com outro ângulo e outro visual (entra no hash e conta no limite).
+alter table briefs add column if not exists direction smallint not null default 1 check (direction between 1 and 20);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 5. Vários posts pendentes por conta
