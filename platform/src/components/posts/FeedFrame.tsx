@@ -34,6 +34,7 @@ export default function FeedFrame({
   ratio = '4:5',
   busy = false,
   imagePosition,
+  emptyLabel = 'Sem imagem',
 }: {
   handle: string;
   accountName: string;
@@ -42,6 +43,7 @@ export default function FeedFrame({
   ratio?: FeedRatio;
   busy?: boolean;
   imagePosition?: string;
+  emptyLabel?: string;
 }) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const [expanded, setExpanded] = useState(false);
@@ -57,7 +59,7 @@ export default function FeedFrame({
         <span className="ml-auto text-muted" aria-hidden="true">···</span>
       </div>
       {busy || !imageUrl ? (
-        <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ASPECT[ratio]}`}>{busy ? 'Desenhando o post…' : 'Sem imagem'}</div>
+        <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ASPECT[ratio]}`}>{busy ? 'Desenhando o post…' : emptyLabel}</div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />

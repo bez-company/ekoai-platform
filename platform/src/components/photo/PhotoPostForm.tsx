@@ -328,7 +328,7 @@ export default function PhotoPostForm({
 
       <aside className="card space-y-3 md:sticky md:top-20">
         <span className="label">Prévia no feed</span>
-        <FeedFrame handle={handle} accountName={accountName} imageUrl={photo?.url ?? null} caption={fullCaption || (photo ? 'A legenda aparece aqui.' : 'Escolha uma foto.')} ratio={ratio} imagePosition={position} />
+        <FeedFrame handle={handle} accountName={accountName} imageUrl={photo?.url ?? null} caption={fullCaption || 'A legenda aparece aqui.'} ratio={ratio} imagePosition={position} emptyLabel="Escolha uma foto" />
       </aside>
 
       {confirmNow && (
