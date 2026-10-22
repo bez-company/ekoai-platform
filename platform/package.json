@@ -19,7 +19,7 @@
     "firebase-admin": "^14.5.0",
     "google-auth-library": "^10.9.1",
     "jpeg-js": "^0.4.4",
-    "next": "^15.1.6",
+    "next": "^16.4.2",
     "pg": "^8.23.1",
     "posthog-node": "^5.56.4",
     "qrcode": "^1.5.4",
