@@ -39,9 +39,9 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             platform/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit
       # os testes da raiz importam módulos da plataforma (Next, firebase-admin)
-      - run: npm ci
+      - run: npm ci --no-audit
         working-directory: platform
       - run: npm test
       - name: Typecheck da plataforma
@@ -63,8 +63,8 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             platform/package-lock.json
-      - run: npm ci
-      - run: npm ci
+      - run: npm ci --no-audit
+      - run: npm ci --no-audit
         working-directory: platform
       # O runner já traz o Java 21 que o emulador precisa; projeto `demo-`, sem conta Google.
       - name: ID token do emulador do Firebase Auth (SPEC 009)
@@ -196,14 +196,16 @@ jobs:
           fi
           ./gitleaks git . --no-banner --redact --log-opts="$range"
 
+      # O npm 10 (Node 22) fica 5 min esperando o endpoint de audit antigo do registry e termina em
+      # 400, então o audit roda com o npm 11 e os `npm ci` usam --no-audit (o gate é este job).
       # As duas bloqueiam a partir de "alta" nas dependências de produção. O PostCSS que o Next 15
       # fixa foi trocado por um corrigido (override em platform/package.json); se um dia o Next
       # voltar a fixar uma versão vulnerável, o gate reprova aqui.
       - name: Dependências da raiz
-        run: npm audit --omit=dev --audit-level=high
+        run: npx --yes npm@11.17.0 audit --omit=dev --audit-level=high
       - name: Dependências da plataforma
         working-directory: platform
-        run: npm audit --omit=dev --audit-level=high
+        run: npx --yes npm@11.17.0 audit --omit=dev --audit-level=high
 
   data-layer:
     name: Camada de dados no Postgres
@@ -234,8 +236,8 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             platform/package-lock.json
-      - run: npm ci
-      - run: npm ci
+      - run: npm ci --no-audit
+      - run: npm ci --no-audit
         working-directory: platform
       # O mesmo executor que o job `migrate` do Cloud Run usa em produção.
       - name: Migrations pelo executor

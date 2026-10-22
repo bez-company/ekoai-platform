@@ -7,7 +7,7 @@ WORKDIR /app
 # O pacote local entra antes: `npm ci` da plataforma o liga por link (file:../packages/db).
 COPY packages/db packages/db
 COPY platform/package.json platform/package-lock.json platform/
-RUN cd platform && npm ci
+RUN cd platform && npm ci --no-audit
 COPY platform platform
 RUN cd platform && npm run build
 
