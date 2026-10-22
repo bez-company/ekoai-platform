@@ -11,7 +11,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY packages/db packages/db
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --no-audit
 COPY src src
 COPY scripts scripts
 COPY supabase/migrations supabase/migrations
