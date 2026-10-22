@@ -124,6 +124,31 @@ resource "google_cloud_scheduler_job" "collect_metrics" {
   }
 }
 
+# plan-content: o coordenador de conteúdo propõe um post por horário livre dos próximos 7 dias (SPEC 017
+# decisão 8, BEZ-239). Todo dia às 10:00 UTC (07:00 em Brasília), antes de a pessoa abrir o Início; na
+# segunda, avisa a equipe das sugestões da semana. Nada é gerado sem a pessoa pedir.
+resource "google_cloud_scheduler_job" "plan_content" {
+  count            = var.deploy_workloads ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-plan-content"
+  description      = "Sugere os posts da semana por conta"
+  schedule         = "0 10 * * *"
+  time_zone        = "Etc/UTC"
+  paused           = var.schedules_paused
+  attempt_deadline = "320s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/plan-content"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}
+
 resource "google_cloud_run_v2_job_iam_member" "scheduler_runs" {
   for_each = { for k, v in local.jobs : k => v if var.deploy_workloads && v.cron != "" }
   project  = var.project_id

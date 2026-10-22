@@ -21,6 +21,7 @@ const RAW_DB_ALLOWED = {
   'lib/tenant-db.ts': Infinity,
   'lib/publish.ts': 2, // varredura dos vencidos de todos os tenants e a checagem de agendados pendentes (sleep-if-idle)
   'lib/generation-worker.ts': 2, // a fila de pedidos de post de todas as contas (ADR 0018)
+  'lib/content-coordinator.ts': 1, // o job diário do coordenador: as contas com horário de Instagram (BEZ-239)
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)
   'lib/account-deletion.ts': 1, // excluir a conta: atravessa as tabelas da conta de propósito (SPEC 011 R8)
   'lib/social-accounts.ts': 1, // tokens das redes: tabela sem tenant_id de propósito (SPEC 011 R5, migration 0018)
