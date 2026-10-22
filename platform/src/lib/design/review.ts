@@ -1,0 +1,94 @@
+// review.ts: o revisor por regra (SPEC 012, decisão 4). Sem modelo. Confere o texto (palavra
+// proibida, acento, número fora dos fatos, promessa, travessão) e o layout (fonte mínima, margem
+// do feed, sobreposição, contraste). Cada achado tem a regra, o detalhe e a frase que a tela mostra.
+
+import { contrast, fmtContrast, type Hex } from './color';
+import { MARGIN, WIDTH } from './model';
+
+export type Issue = { rule: string; detail: string; message: string; where: 'image' | 'caption' };
+
+export type TextBox = { id: string; x: number; y: number; w: number; h: number; size: number; color: Hex; bg: Hex; bold?: boolean };
+
+// Palavras comuns que perdem o acento quando o modelo erra. Curta de propósito: pega o erro típico.
+const SEM_ACENTO = ['nao', 'voce', 'tambem', 'solucao', 'solucoes', 'ate', 'ja', 'so', 'servico', 'servicos', 'producao', 'tecnologico', 'codigo', 'saude', 'familia', 'proximo', 'proxima', 'mes', 'horario'];
+
+const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22 };
+const EMOJI = /\p{Extended_Pictographic}/u;
+
+export type TextReviewInput = {
+  imageTexts: string[];
+  caption: string;
+  hashtags: string[];
+  facts: string[];
+  never: string[];
+  banned: string[];
+};
+
+function numbersIn(text: string): string[] {
+  // "1)" e "1." de lista não são claim; "R$ 36", "36%", "6 a 14" são.
+  const cleaned = text.replace(/(^|\s)\d+[.)](?=\s)/g, ' ');
+  return cleaned.match(/\d+(?:[.,]\d+)*/g) ?? [];
+}
+
+export function reviewText(input: TextReviewInput): Issue[] {
+  const issues: Issue[] = [];
+  const image = input.imageTexts.join(' \n ');
+  const all = `${image} \n ${input.caption}`.toLowerCase();
+  const allowed = `${input.facts.join(' ')} ${input.caption.match(/#\S+/g)?.join(' ') ?? ''}`;
+
+  for (const word of input.banned) {
+    const w = word.trim().toLowerCase();
+    if (w && new RegExp(`(^|[^\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'u').test(all)) {
+      issues.push({ rule: 'banned_word', detail: w, message: `A palavra "${w}" está na lista do que a marca nunca usa.`, where: image.toLowerCase().includes(w) ? 'image' : 'caption' });
+    }
+  }
+  for (const w of SEM_ACENTO) {
+    if (new RegExp(`(^|[^a-zà-ú])${w}([^a-zà-ú]|$)`).test(all)) issues.push({ rule: 'accent', detail: w, message: `"${w}" parece estar sem acento.`, where: image.toLowerCase().includes(w) ? 'image' : 'caption' });
+  }
+  for (const n of numbersIn(`${image} ${input.caption}`)) {
+    if (!allowed.includes(n)) issues.push({ rule: 'number_not_in_facts', detail: n, message: `O número ${n} não está na base de fatos da empresa.`, where: image.includes(n) ? 'image' : 'caption' });
+  }
+  if (/garant(a|e|ia|ir|ido|imos)/.test(all)) issues.push({ rule: 'never_claim', detail: 'garantia', message: 'Promessa de garantia: o post não pode prometer resultado.', where: /garant/.test(image.toLowerCase()) ? 'image' : 'caption' });
+  for (const claim of input.never) {
+    const c = claim.trim().toLowerCase();
+    if (c && all.includes(c)) issues.push({ rule: 'never_claim', detail: c, message: `"${c}" está na lista do que a empresa nunca afirma.`, where: image.toLowerCase().includes(c) ? 'image' : 'caption' });
+  }
+  if (/[—–]/.test(`${image}${input.caption}`)) issues.push({ rule: 'dash', detail: '—', message: 'Travessão no texto: use vírgula, ponto ou dois-pontos.', where: /[—–]/.test(image) ? 'image' : 'caption' });
+  if (EMOJI.test(image)) issues.push({ rule: 'emoji_in_image', detail: 'emoji', message: 'Emoji no texto da imagem não renderiza igual em todo lugar.', where: 'image' });
+  if (input.caption.length > 2200) issues.push({ rule: 'caption_too_long', detail: String(input.caption.length), message: 'A legenda passa de 2.200 caracteres, o máximo do Instagram.', where: 'caption' });
+  if (input.hashtags.length > 30) issues.push({ rule: 'too_many_hashtags', detail: String(input.hashtags.length), message: 'Mais de 30 hashtags: o Instagram não publica.', where: 'caption' });
+  return issues;
+}
+
+export function reviewLayout(boxes: TextBox[], height: number, overflow: string[] = []): Issue[] {
+  const issues: Issue[] = [];
+  for (const b of boxes) {
+    const kind = b.id.replace(/\d+$/, '');
+    const min = MIN_SIZE[kind] ?? 22;
+    if (b.size < min) issues.push({ rule: 'font_size', detail: `${b.id} ${b.size}px`, message: `O texto "${b.id}" ficou pequeno demais para o feed (${b.size}px, mínimo ${min}px).`, where: 'image' });
+    if (b.x < MARGIN || b.y < MARGIN || b.x + b.w > WIDTH - MARGIN || b.y + b.h > height - MARGIN) {
+      issues.push({ rule: 'safe_margin', detail: b.id, message: `O texto "${b.id}" passa da margem de segurança do feed.`, where: 'image' });
+    }
+    const min_contrast = b.size >= 56 && b.bold ? 3 : 4.5;
+    const ratio = contrast(b.color, b.bg);
+    if (ratio < min_contrast) issues.push({ rule: 'contrast', detail: `${b.id} ${fmtContrast(ratio)}`, message: `O texto "${b.id}" quase não aparece sobre o fundo (contraste ${fmtContrast(ratio)}).`, where: 'image' });
+  }
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const a = boxes[i];
+      const b = boxes[j];
+      if (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y) {
+        issues.push({ rule: 'overlap', detail: `${a.id} x ${b.id}`, message: `Os textos "${a.id}" e "${b.id}" estão um em cima do outro.`, where: 'image' });
+      }
+    }
+  }
+  for (const id of overflow) issues.push({ rule: 'text_too_long', detail: id, message: `O texto "${id}" é longo demais para caber na imagem. Encurte.`, where: 'image' });
+  return issues;
+}
+
+// O que trava a aprovação automática (o resto é aviso que a pessoa decide).
+export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
+
+export function blocking(issues: Issue[]): Issue[] {
+  return issues.filter((i) => BLOCKING.has(i.rule));
+}

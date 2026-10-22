@@ -1,0 +1,224 @@
+// families.ts: a biblioteca de famílias de layout (ADR 0017). Cada família recebe o DesignSpec e
+// devolve o SVG (em pixels, 1080 de largura) e as caixas de texto que o revisor confere. Três
+// famílias na fase 1: lista numerada e título em destaque (informativo), foto com título (atmosfera).
+
+import { FONTS } from './fonts';
+import { contrast, mix, over, untilContrast, type Hex } from './color';
+import { HEIGHT, MARGIN, WIDTH, paletteFor, type DesignSpec, type Logo, type LogoCorner } from './model';
+import { escapeXml, fitText, textWidth, type Fit } from './text';
+import type { TextBox } from './review';
+
+export type Composed = { svg: string; boxes: TextBox[]; overflow: string[]; width: number; height: number };
+
+const LOGO_H = 72;
+const SCRIM = 0.86;
+
+function fontFace(family: string, bold: boolean): string {
+  return `font-family="${escapeXml(family)}" font-weight="${bold ? 700 : 400}"`;
+}
+
+function textLines(fit: Fit, x: number, y: number, size: number, color: Hex, family: string, bold: boolean, extra = ''): string {
+  return fit.lines
+    .map((line, i) => `<text x="${x}" y="${Math.round(y + size + i * fit.lineHeight)}" font-size="${size}" fill="${color}" ${fontFace(family, bold)} ${extra}>${escapeXml(line)}</text>`)
+    .join('');
+}
+
+function logoAt(logo: Logo | null | undefined, corner: LogoCorner, height: number, badge: Hex | null): { svg: string; box: { x: number; y: number; w: number; h: number } | null } {
+  if (!logo) return { svg: '', box: null };
+  const w = Math.round((LOGO_H * logo.width) / Math.max(1, logo.height));
+  const x = corner === 'tl' || corner === 'bl' ? MARGIN : WIDTH - MARGIN - w;
+  const y = corner === 'tl' || corner === 'tr' ? MARGIN : height - MARGIN - LOGO_H;
+  const pad = 14;
+  const plate = badge ? `<rect x="${x - pad}" y="${y - pad}" width="${w + pad * 2}" height="${LOGO_H + pad * 2}" rx="18" fill="${badge}" opacity="0.96"/>` : '';
+  return { svg: `${plate}<image href="${logo.dataUri}" x="${x}" y="${y}" width="${w}" height="${LOGO_H}" preserveAspectRatio="xMidYMid meet"/>`, box: { x: x - pad, y: y - pad, w: w + pad * 2, h: LOGO_H + pad * 2 } };
+}
+
+function handleText(handle: string | null, x: number, y: number, color: Hex, family: string, anchor: 'start' | 'end'): { svg: string; box: TextBox | null } {
+  if (!handle) return { svg: '', box: null };
+  const size = 24;
+  const text = `@${handle}`;
+  const w = textWidth(text, family as never, size, 1.05);
+  return {
+    svg: `<text x="${x}" y="${y + size}" font-size="${size}" fill="${color}" ${fontFace(family, true)} letter-spacing="1.5" text-anchor="${anchor}">${escapeXml(text)}</text>`,
+    box: { id: 'handle', x: anchor === 'end' ? x - w : x, y, w, h: size * 1.2, size, color, bg: '#000000' },
+  };
+}
+
+function listaNumerada(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const heading = b.fontHeading;
+  const body = b.fontBody;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const inner = WIDTH - MARGIN * 2;
+  let y = MARGIN + 36;
+  const parts: string[] = [];
+
+  // Grafismo: círculo da marca no canto superior direito, atrás do texto.
+  parts.push(`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`);
+  parts.push(`<circle cx="${WIDTH - 60}" cy="90" r="300" fill="${mix(b.primary, P.bg, 0.78)}"/><circle cx="${WIDTH - 60}" cy="90" r="190" fill="${mix(b.primary, P.bg, 0.12)}"/><circle cx="${WIDTH - 60}" cy="90" r="80" fill="${P.bg}"/>`);
+
+  const kicker = spec.texts.kicker?.trim();
+  if (kicker) {
+    const size = 26;
+    const text = kicker.toUpperCase();
+    parts.push(`<text x="${MARGIN}" y="${y + size}" font-size="${size}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
+    boxes.push({ id: 'kicker', x: MARGIN, y, w: Math.min(inner, textWidth(text, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: P.bg, bold: true });
+    y += size + 36;
+  } else y += 40;
+
+  const title = fitText(spec.texts.title, { family: heading, maxWidth: 760, maxLines: 3, start: 100, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+  if (title.overflow) overflow.push('title');
+  parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
+  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
+  y += title.height + 28;
+
+  const sub = spec.texts.sub?.trim();
+  if (sub) {
+    const fit = fitText(sub, { family: body, maxWidth: 820, maxLines: 2, start: 34, min: 26, step: 2, lineHeight: 1.3 });
+    if (fit.overflow) overflow.push('sub');
+    parts.push(textLines(fit, MARGIN, y, fit.size, P.sub, body, false));
+    boxes.push({ id: 'sub', x: MARGIN, y, w: fit.width, h: fit.height, size: fit.size, color: P.sub, bg: P.bg });
+    y += fit.height + 24;
+  }
+
+  const items = (spec.texts.items ?? []).slice(0, 4);
+  const reserved = MARGIN + LOGO_H + 48; // zona do logo e do @
+  const available = H - reserved - y;
+  const slot = Math.min(150, Math.floor(available / Math.max(1, items.length)));
+  y += spec.ratio === '4:5' ? 48 : 24;
+  items.forEach((item, i) => {
+    const size = slot >= 130 ? 40 : slot >= 100 ? 36 : slot >= 84 ? 32 : 28;
+    const badge = 46;
+    const cy = y + badge / 2;
+    parts.push(`<circle cx="${MARGIN + badge / 2}" cy="${cy}" r="${badge / 2}" fill="${P.kicker}"/><text x="${MARGIN + badge / 2}" y="${cy + 10}" font-size="26" text-anchor="middle" fill="${contrast(P.kicker, '#FFFFFF') >= 3 ? '#FFFFFF' : P.bg}" ${fontFace(body, true)}>${i + 1}</text>`);
+    const fit = fitText(item, { family: body, maxWidth: inner - badge - 28, maxLines: 2, start: size, min: 26, step: 2, lineHeight: 1.25 });
+    if (fit.overflow) overflow.push(`item${i + 1}`);
+    const ty = fit.lines.length > 1 ? y - 6 : cy - fit.size * 0.62;
+    parts.push(textLines(fit, MARGIN + badge + 28, ty, fit.size, P.items, body, false));
+    boxes.push({ id: `item${i + 1}`, x: MARGIN + badge + 28, y: ty, w: fit.width, h: fit.height, size: fit.size, color: P.items, bg: P.bg });
+    y += Math.max(slot, fit.height + 20);
+  });
+
+  const corner = spec.logoCorner ?? 'bl';
+  const logo = logoAt(spec.logo, corner, H, null);
+  parts.push(logo.svg);
+  const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
+  const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
+  parts.push(handle.svg);
+  if (handle.box) boxes.push({ ...handle.box, bg: P.bg });
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
+function tituloDestaque(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const heading = b.fontHeading;
+  const body = b.fontBody;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
+  // Grafismo: faixa de destaque e um aro no canto, na cor de detalhe.
+  parts.push(`<circle cx="${WIDTH - 40}" cy="${H - 40}" r="260" fill="none" stroke="${b.accent}" stroke-width="28" opacity="0.35"/>`);
+
+  const kicker = spec.texts.kicker?.trim();
+  let y = MARGIN + 36;
+  if (kicker) {
+    const size = 26;
+    const text = kicker.toUpperCase();
+    parts.push(`<text x="${MARGIN}" y="${y + size}" font-size="${size}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
+    boxes.push({ id: 'kicker', x: MARGIN, y, w: Math.min(WIDTH - MARGIN * 2, textWidth(text, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: P.bg, bold: true });
+    y += size + 40;
+  }
+
+  const title = fitText(spec.texts.title, { family: heading, maxWidth: WIDTH - MARGIN * 2 - 40, maxLines: 4, start: 120, min: 64, step: 4, lineHeight: 1.05, weightFactor: 1.08 });
+  if (title.overflow) overflow.push('title');
+  // Título centrado na vertical entre o selo e a zona do logo.
+  const zoneTop = y;
+  const zoneBottom = H - MARGIN - LOGO_H - 48;
+  const sub = spec.texts.sub?.trim();
+  const subFit = sub ? fitText(sub, { family: body, maxWidth: 800, maxLines: 3, start: 36, min: 26, step: 2, lineHeight: 1.3 }) : null;
+  if (subFit?.overflow) overflow.push('sub');
+  const block = title.height + (subFit ? 36 + subFit.height : 0) + 44;
+  let ty = Math.max(zoneTop, Math.round(zoneTop + (zoneBottom - zoneTop - block) / 2));
+  parts.push(`<rect x="${MARGIN}" y="${ty}" width="120" height="12" rx="6" fill="${b.accent}"/>`);
+  ty += 44;
+  parts.push(textLines(title, MARGIN, ty, title.size, P.title, heading, true, 'letter-spacing="-2"'));
+  boxes.push({ id: 'title', x: MARGIN, y: ty, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
+  ty += title.height + 36;
+  if (subFit) {
+    parts.push(textLines(subFit, MARGIN, ty, subFit.size, P.sub, body, false));
+    boxes.push({ id: 'sub', x: MARGIN, y: ty, w: subFit.width, h: subFit.height, size: subFit.size, color: P.sub, bg: P.bg });
+  }
+
+  const corner = spec.logoCorner ?? 'bl';
+  const logo = logoAt(spec.logo, corner, H, '#FFFFFF');
+  parts.push(logo.svg);
+  const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
+  const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
+  parts.push(handle.svg);
+  if (handle.box) boxes.push({ ...handle.box, bg: P.bg });
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
+function fotoTitulo(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const heading = b.fontHeading;
+  const body = b.fontBody;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${b.deep}"/>`];
+  if (spec.visual?.dataUri) parts.push(`<image href="${spec.visual.dataUri}" x="0" y="0" width="${WIDTH}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  // Véu de baixo para cima num tom fundo da marca: o texto lê sobre qualquer foto. Da metade para
+  // baixo o véu já está cheio, que é onde o selo, o título e o @ ficam.
+  const scrim = untilContrast(mix(b.deep, '#000000', 0.3), '#FFFFFF', 7);
+  parts.push(`<defs><linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${scrim}" stop-opacity="0"/><stop offset="0.3" stop-color="${scrim}" stop-opacity="0.55"/><stop offset="0.5" stop-color="${scrim}" stop-opacity="${SCRIM}"/><stop offset="1" stop-color="${scrim}" stop-opacity="${SCRIM}"/></linearGradient></defs>`);
+  parts.push(`<rect x="0" y="${Math.round(H * 0.3)}" width="${WIDTH}" height="${Math.round(H * 0.7)}" fill="url(#scrim)"/>`);
+  // Pior caso para o contraste: a foto é branca debaixo do véu.
+  const textBg = over('#FFFFFF', scrim, SCRIM);
+
+  const title = fitText(spec.texts.title, { family: heading, maxWidth: 820, maxLines: 3, start: 88, min: 56, step: 6, lineHeight: 1.08, weightFactor: 1.08 });
+  if (title.overflow) overflow.push('title');
+  const kicker = spec.texts.kicker?.trim();
+  const kSize = 26;
+  const bottom = H - MARGIN - LOGO_H - 44;
+  let y = bottom - title.height;
+  parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
+  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: textBg, bold: true });
+  if (kicker) {
+    const text = kicker.toUpperCase();
+    const ky = y - kSize - 24;
+    parts.push(`<text x="${MARGIN}" y="${ky + kSize}" font-size="${kSize}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
+    boxes.push({ id: 'kicker', x: MARGIN, y: ky, w: Math.min(820, textWidth(text, body, kSize, 1.2)), h: kSize * 1.3, size: kSize, color: P.kicker, bg: textBg, bold: true });
+    y = ky;
+  }
+
+  const corner = spec.logoCorner ?? 'br';
+  const logo = logoAt(spec.logo, corner, H, '#FFFFFF');
+  parts.push(logo.svg);
+  const handleCorner: LogoCorner = corner === 'br' ? 'bl' : 'br';
+  const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
+  parts.push(handle.svg);
+  if (handle.box) boxes.push({ ...handle.box, bg: textBg });
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
+function wrap(parts: string[], H: number): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${H}" viewBox="0 0 ${WIDTH} ${H}">${parts.join('')}</svg>`;
+}
+
+export function compose(spec: DesignSpec): Composed {
+  if (spec.layout === 'lista-numerada') return listaNumerada(spec);
+  if (spec.layout === 'titulo-destaque') return tituloDestaque(spec);
+  return fotoTitulo(spec);
+}
+
+// As famílias que servem a cada tipo de post (a tela de "trocar layout" da fase 2 lê daqui).
+export const FAMILIES_BY_KIND = { informativo: ['lista-numerada', 'titulo-destaque'], atmosfera: ['foto-titulo'] } as const;
+
+export { FONTS };
