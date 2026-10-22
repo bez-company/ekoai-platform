@@ -176,6 +176,12 @@ mais de 24 horas. Token recusado pela Meta ou vencido muda a conta para "precisa
 administradores uma vez. No staging os agendamentos ficam pausados; para rodar na hora:
 `gcloud scheduler jobs run ekoai-refresh-instagram --location=southamerica-east1 --project=ekoai-staging`.
 
+As métricas dos posts publicados (curtidas e comentários; alcance, salvos, compartilhamentos,
+visualizações e interações só quando a conta concedeu `instagram_business_manage_insights`) são coletadas
+a cada 6 horas (Cloud Scheduler `ekoai-collect-metrics`, rota `/api/cron/collect-metrics`) e gravadas em
+`metrics_snapshots`. Para rodar na hora no staging:
+`gcloud scheduler jobs run ekoai-collect-metrics --location=southamerica-east1 --project=ekoai-staging`.
+
 Para trocar de app da Meta (por exemplo, para o da empresa dona do produto), grave os dois segredos
 do app novo e registre a URL no app novo. Quem já conectou reconecta uma vez: o token é do app.
 
