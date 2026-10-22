@@ -277,7 +277,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   ) : (
                     <>
                       A agenda não tem horário livre: o post fica na fila e entra no primeiro horário que você criar.{' '}
-                      <Link href="/settings#horarios" className="link">
+                      <Link href="/calendar?edit=slots" className="link">
                         Criar horários
                       </Link>
                     </>

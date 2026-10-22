@@ -21,7 +21,7 @@ export type AgendaCell =
   | { kind: 'slot'; at: string; time: string; channel: Channel; slotId: string; post: AgendaPost | null; suggestion: AgendaSuggestion | null }
   | { kind: 'extra'; at: string; time: string; channel: Channel; post: AgendaPost };
 
-export type AgendaDay = { date: string; weekday: number; inRange: boolean; past: boolean; cells: AgendaCell[] };
+export type AgendaDay = { date: string; weekday: number; inRange: boolean; past: boolean; today: boolean; cells: AgendaCell[] };
 
 export type Agenda = { view: AgendaView; from: string; to: string; prev: string; next: string; days: AgendaDay[]; queue: AgendaPost[]; slots: number };
 
@@ -116,7 +116,7 @@ export function buildAgenda(input: { query: AgendaQuery; slots: PublishSlot[]; p
     }
     cells.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
     const inRange = range.monthStart ? date >= range.monthStart && date <= range.monthEnd! : true;
-    days.push({ date, weekday, inRange, past: date < today, cells });
+    days.push({ date, weekday, inRange, past: date < today, today: date === today, cells });
   }
   return { view: query.view, from: range.first, to: range.last, prev: range.prev, next: range.next, days, queue, slots: slots.length };
 }
@@ -125,4 +125,38 @@ export function buildAgenda(input: { query: AgendaQuery; slots: PublishSlot[]; p
 export function agendaWindow(query: AgendaQuery, tzHours: number): { fromIso: string; toIso: string } {
   const range = agendaRange(query);
   return { fromIso: new Date(localMidnight(range.first, tzHours)).toISOString(), toIso: new Date(localMidnight(addDays(range.last, 1), tzHours)).toISOString() };
+}
+
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+export const WEEKDAY_SHORT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+const parts = (date: string) => {
+  const [y, m, d] = date.split('-').map(Number);
+  return { y, m, d };
+};
+
+// O título do período: "19 a 25 de outubro", "28 de setembro a 4 de outubro", "outubro de 2026".
+export function agendaTitle(a: Pick<Agenda, 'view' | 'from' | 'to' | 'days'>): string {
+  if (a.view === 'month') {
+    const mid = a.days.find((d) => d.inRange)?.date ?? a.from;
+    const p = parts(mid);
+    return `${MONTHS[p.m - 1]} de ${p.y}`;
+  }
+  const f = parts(a.from);
+  const t = parts(a.to);
+  if (f.y !== t.y) return `${f.d} de ${MONTHS[f.m - 1]} de ${f.y} a ${t.d} de ${MONTHS[t.m - 1]} de ${t.y}`;
+  if (f.m !== t.m) return `${f.d} de ${MONTHS[f.m - 1]} a ${t.d} de ${MONTHS[t.m - 1]}`;
+  return `${f.d} a ${t.d} de ${MONTHS[t.m - 1]}`;
+}
+
+export const dayOfMonth = (date: string) => parts(date).d;
+
+// Quantos posts e horários o período tem, para a linha de resumo.
+export function agendaCounts(a: Pick<Agenda, 'days'>): { posts: number; slots: number; free: number } {
+  const cells = a.days.filter((d) => ('inRange' in d ? d.inRange : true)).flatMap((d) => d.cells);
+  return {
+    posts: cells.filter((c) => c.post).length,
+    slots: cells.filter((c) => c.kind === 'slot').length,
+    free: cells.filter((c) => c.kind === 'slot' && !c.post).length,
+  };
 }

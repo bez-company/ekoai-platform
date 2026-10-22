@@ -1,10 +1,10 @@
-import { getSlots, getActiveCampaign } from '@/lib/queries';
+import Link from 'next/link';
+import { getActiveCampaign } from '@/lib/queries';
 import { bioLink } from '@/lib/utm';
-import SlotEditor from '@/components/SlotEditor';
 import PauseControl from '@/components/PauseControl';
 import CapabilityTable from '@/components/CapabilityTable';
 import { getPauseState, countOverdue, type PauseState } from '@/lib/pause';
-import type { PublishSlot, Campaign } from '@/lib/types';
+import type { Campaign } from '@/lib/types';
 import { pageTenant } from '@/lib/session';
 import { pageError } from '@/lib/api';
 
@@ -12,14 +12,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const t = await pageTenant();
-  let slots: PublishSlot[] = [];
   let campaign: Campaign | null = null;
   let pause: PauseState = { paused: false, reason: null, pausedAt: null };
   let overdue = 0;
   let err = '';
   try {
-    [slots, campaign, pause, overdue] = await Promise.all([
-      getSlots(t),
+    [campaign, pause, overdue] = await Promise.all([
       getActiveCampaign(t),
       getPauseState(t),
       countOverdue(t),
@@ -31,19 +29,21 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Os horários de publicação foram para a Agenda (SPEC 017 decisão 13); aqui fica a pausa. */}
+      <div id="horarios" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm">
+        <p>
+          <strong>Os horários agora ficam na Agenda.</strong> Aqui você pausa e retoma a publicação.
+        </p>
+        <Link href="/calendar?edit=slots" className="btn-ghost min-h-9">
+          Abrir horários
+        </Link>
+      </div>
+      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
+
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Publicação</h2>
         <PauseControl state={pause} overdue={overdue} />
       </div>
-
-      <div id="horarios" className="scroll-mt-4">
-        <h2 className="text-lg font-semibold">Horários de publicação</h2>
-        <p className="text-sm text-muted">
-          Os horários da semana em que a Ekoai publica, por rede. O post aprovado entra no próximo horário livre; sem horário, espera na fila e entra no primeiro que você criar. Horário de Brasília.
-        </p>
-      </div>
-      {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
-      <SlotEditor initial={slots} />
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Link da bio do Instagram</h2>

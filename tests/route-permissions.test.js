@@ -28,7 +28,7 @@ const EXPECTED = {
   'engage/targets': ['content.edit', 'content.edit'],
   feedback: ['content.feedback', 'content.edit'],
   rules: ['brand.manage', 'brand.manage'],
-  slots: ['publishing.manage', 'publishing.manage', 'publishing.manage'],
+  slots: ['publishing.manage', 'publishing.manage', 'publishing.manage', 'publishing.manage'],
   agenda: ['content.view'],
   pause: ['publishing.manage'],
   export: ['account.export'],

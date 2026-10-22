@@ -1,7 +1,7 @@
 // queries.ts: leituras (lado read) usadas pelos Server Components, sempre do tenant da sessão.
 
 import type { TenantDb } from './tenant-db';
-import type { PendingApproval, ScheduledPost, PublishedPost, PublishSlot, Campaign } from './types';
+import type { PendingApproval, ScheduledPost, PublishedPost, Campaign } from './types';
 
 export async function getPendings(t: TenantDb): Promise<PendingApproval[]> {
   const { data, error } = await t
@@ -76,12 +76,6 @@ export async function getActiveCampaign(
     .limit(1);
   if (error) throw new Error(`Falha ao ler campanha ativa: ${error.message}`);
   return (data?.[0] as Campaign) ?? null;
-}
-
-export async function getSlots(t: TenantDb): Promise<PublishSlot[]> {
-  const { data, error } = await t.select('publish_slots').order('channel').order('weekday').order('hour');
-  if (error) throw new Error(`Falha ao ler slots: ${error.message}`);
-  return (data || []) as PublishSlot[];
 }
 
 export async function countByStatus(t: TenantDb): Promise<{ pendings: number; scheduled: number; failed: number }> {

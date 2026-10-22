@@ -23,7 +23,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 const CHANNEL_LABEL: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
 
-export default function ScheduledCard({ post, time }: { post: ScheduledPost; time: string }) {
+// O mínimo que o cartão usa: serve ao post completo da fila e à célula da Agenda (BEZ-247).
+export type ScheduledLike = Pick<ScheduledPost, 'id' | 'channel' | 'status' | 'scheduled_for' | 'caption_final' | 'image_url' | 'last_error'> & Partial<Pick<ScheduledPost, 'variation' | 'pillar'>>;
+
+export default function ScheduledCard({ post, time }: { post: ScheduledLike; time: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
