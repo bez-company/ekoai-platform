@@ -60,6 +60,13 @@ describe('cliente do Vertex', () => {
     await expect(vertexClient({ config: cfg, fetchImpl: noImg.impl, token: async () => 'tok' }).generateImage({ prompt: 'p', aspect: '1:1', labels: {} })).rejects.toThrow(/IMAGE_SAFETY/);
   });
 
+  it('texto: desliga o raciocínio e diz quando a resposta veio cortada pelo limite de tokens', async () => {
+    const cut = fakeFetch([{ status: 200, body: { candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{"caption":"Oi, tudo' }] } }] } }]);
+    await expect(vertexClient({ config: cfg, fetchImpl: cut.impl, token: async () => 'tok' }).generateJson({ prompt: 'p', labels: {} })).rejects.toThrow(/cortada/);
+    expect(cut.calls[0].body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+    expect(cut.calls[0].body.generationConfig.maxOutputTokens).toBe(4096);
+  });
+
   it('helpers: JSON com texto em volta, labels, preços e configuração', () => {
     expect(parseModelJson('Aqui está: {"x":1} obrigado')).toEqual({ x: 1 });
     expect(() => parseModelJson('nada')).toThrow(/não é JSON/);
