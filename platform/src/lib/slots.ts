@@ -69,6 +69,14 @@ export async function addSlot(t: TenantDb, slot: { channel: Channel; weekday: nu
   if (error) throw new Error(`Falha ao criar slot: ${error.message}`);
 }
 
+// Mudar o horário na própria Agenda (SPEC 017 decisão 13): dia, hora e minuto do mesmo slot. Os posts
+// já agendados no horário antigo ficam onde estão; a fila entra no horário novo (a rota chama).
+export async function updateSlot(t: TenantDb, id: string, slot: { channel: Channel; weekday: number; hour: number; minute: number }): Promise<void> {
+  const { data, error } = await t.update('publish_slots', { channel: slot.channel, weekday: slot.weekday, hour: slot.hour, minute: slot.minute }).eq('id', id).select('id');
+  if (error) throw new Error(`Falha ao mudar slot: ${error.message}`);
+  if (!data?.length) throw new UserError('Slot não encontrado. Recarregue a página.');
+}
+
 export async function removeSlot(t: TenantDb, id: string): Promise<void> {
   const { data, error } = await t.delete('publish_slots').eq('id', id).select('id');
   if (error) throw new Error(`Falha ao remover slot: ${error.message}`);
