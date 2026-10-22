@@ -17,6 +17,7 @@ const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambien
 const EXPECTED = {
   approve: ['content.approve'],
   reject: ['content.approve'],
+  archive: ['content.approve'],
   scheduled: ['content.approve'],
   'ideas/approve': ['content.approve'],
   'ideas/reject': ['content.approve'],

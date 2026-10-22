@@ -6,8 +6,16 @@ import type { PendingApproval, ScheduledPost, PublishedPost, PublishSlot, Campai
 export async function getPendings(t: TenantDb): Promise<PendingApproval[]> {
   const { data, error } = await t
     .select('pending_approvals')
+    .is('archived_at', null)
     .order('saved_at', { ascending: false });
   if (error) throw new Error(`Falha ao ler pendências: ${error.message}`);
+  return (data || []) as PendingApproval[];
+}
+
+// Os arquivados (SPEC 017, decisão 12): fora de Aprovar, mas dá para ver e desfazer.
+export async function getArchivedPendings(t: TenantDb): Promise<PendingApproval[]> {
+  const { data, error } = await t.select('pending_approvals').not('archived_at', 'is', null).order('archived_at', { ascending: false });
+  if (error) throw new Error(`Falha ao ler arquivados: ${error.message}`);
   return (data || []) as PendingApproval[];
 }
 
@@ -79,7 +87,7 @@ export async function getSlots(t: TenantDb): Promise<PublishSlot[]> {
 export async function countByStatus(t: TenantDb): Promise<{ pendings: number; scheduled: number; failed: number }> {
   const count = (table: string) => t.select(table, 'id', { count: 'exact', head: true });
   const [p, s, f] = await Promise.all([
-    count('pending_approvals'),
+    count('pending_approvals').is('archived_at', null),
     count('scheduled_posts').eq('status', 'scheduled'),
     count('scheduled_posts').eq('status', 'failed'),
   ]);

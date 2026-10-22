@@ -71,7 +71,7 @@ export async function guideFacts(t: TenantDb): Promise<GuideFacts> {
   const [instagramConnected, platformBrief, pending, postApproved, hasSlots, published, pause] = await Promise.all([
     exists(one('social_accounts').eq('status', 'active'), 'social_accounts'),
     exists(one('briefs').eq('source', 'platform'), 'briefs'),
-    t.select('pending_approvals', 'saved_at').then(({ data, error }) => {
+    t.select('pending_approvals', 'saved_at').is('archived_at', null).then(({ data, error }) => {
       if (error) throw new Error(`pending_approvals: ${error.message}`);
       return (data ?? []).map((r) => String((r as { saved_at: string }).saved_at));
     }),

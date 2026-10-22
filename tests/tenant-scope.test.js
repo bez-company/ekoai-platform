@@ -24,6 +24,7 @@ const RAW_DB_ALLOWED = {
   'lib/content-coordinator.ts': 1, // o job diário do coordenador: as contas com horário de Instagram (BEZ-239)
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)
   'lib/account-deletion.ts': 1, // excluir a conta: atravessa as tabelas da conta de propósito (SPEC 011 R8)
+  'lib/stale-approvals.ts': 1, // posts esquecidos em Aprovar de todas as contas (SPEC 017, decisão 12)
   'lib/social-accounts.ts': 1, // tokens das redes: tabela sem tenant_id de propósito (SPEC 011 R5, migration 0018)
   'app/api/health/route.ts': 1, // ping do banco, sem dado de tenant
 };
