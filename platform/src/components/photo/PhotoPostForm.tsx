@@ -187,7 +187,7 @@ export default function PhotoPostForm({
             <>
               <div className="flex items-center gap-3 rounded-lg border border-line p-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                <img src={photo.thumbUrl} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
                 <div className="min-w-0 flex-1 text-sm">
                   <strong className="block truncate">{photoTitle(photo)}</strong>
                   <span className="text-muted">
@@ -203,7 +203,7 @@ export default function PhotoPostForm({
                 <div>
                   <Seg label="Corte" value={ratio} options={RATIOS.map((r) => ({ value: r.value, label: r.label }))} onChange={setRatio} mobileCols={3} />
                 </div>
-                <CropEditor url={photo.url} size={photo} ratio={ratio} focus={focus} onFocus={setFocus} />
+                <CropEditor url={photo.thumbUrl} size={photo} ratio={ratio} focus={focus} onFocus={setFocus} />
               </div>
             </>
           ) : (

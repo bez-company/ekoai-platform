@@ -20,6 +20,7 @@ import { withVisionBudget } from './vision-calls';
 import {
   MEDIA_MAX_PER_ACCOUNT,
   mediaAssetKey,
+  mediaThumbKey,
   parseVisionResult,
   toMediaAsset,
   visionPrompt,
@@ -164,6 +165,7 @@ export async function deleteMediaAsset(t: TenantDb, actor: SessionUser | null, i
   const del = await t.delete('media_assets').eq('id', id);
   if (del.error) throw new Error(`banco de imagens: ${del.error.message}`);
   await store.remove(String(r.storage_path)).catch((e) => log('error', 'media-assets', 'não apagou o arquivo da foto', { object: r.storage_path, error: e instanceof Error ? e.message : String(e) }));
+  await store.remove(mediaThumbKey(t.tenantId, id)).catch(() => undefined);
   await auditTenant(t, { actorUserId: actor?.id ?? null, action: 'media.deleted', targetType: 'media_asset', targetId: id });
 }
 
