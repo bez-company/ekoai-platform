@@ -238,3 +238,29 @@ export async function markReauthRequired(target: Pick<RefreshTarget, 'id' | 'ten
   if (error) throw new Error(`social_accounts: ${error.message}`);
   return Boolean(data);
 }
+
+// ── Métricas (BEZ-183): job de sistema, atravessa as contas de propósito ─────────────────────
+
+export type MetricsAccount = { id: string; tenantId: string; scopes: string[] };
+
+// Contas de Instagram ativas, com as permissões que a pessoa concedeu (a de insights é opcional).
+export async function listMetricsAccounts(): Promise<MetricsAccount[]> {
+  const { data, error } = await system()
+    .from('social_accounts')
+    .select('id,tenant_id,scopes')
+    .eq('channel', 'instagram')
+    .eq('status', 'active')
+    .order('connected_at', { ascending: false })
+    .limit(REFRESH_BATCH);
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  // Uma conta da Ekoai com duas conexões ativas usa a mais recente, como a publicação.
+  const seen = new Set<string>();
+  const out: MetricsAccount[] = [];
+  for (const r of data ?? []) {
+    const tenantId = String(r.tenant_id);
+    if (seen.has(tenantId)) continue;
+    seen.add(tenantId);
+    out.push({ id: String(r.id), tenantId, scopes: Array.isArray(r.scopes) ? (r.scopes as unknown[]).map(String) : [] });
+  }
+  return out;
+}

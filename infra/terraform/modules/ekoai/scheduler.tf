@@ -99,6 +99,31 @@ resource "google_cloud_scheduler_job" "refresh_instagram" {
   }
 }
 
+# collect-metrics: lê curtidas e comentários (e os insights, quando a conta concedeu a permissão) dos posts
+# publicados no Instagram nos últimos 30 dias (BEZ-183). A cada 6 horas; a rota decide quais posts já
+# estão na hora (a cada 5 h nos 2 primeiros dias, depois uma vez por dia).
+resource "google_cloud_scheduler_job" "collect_metrics" {
+  count            = var.deploy_workloads ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-collect-metrics"
+  description      = "Coleta as métricas do Instagram dos posts publicados"
+  schedule         = "15 */6 * * *"
+  time_zone        = "Etc/UTC"
+  paused           = var.schedules_paused
+  attempt_deadline = "320s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/collect-metrics"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}
+
 resource "google_cloud_run_v2_job_iam_member" "scheduler_runs" {
   for_each = { for k, v in local.jobs : k => v if var.deploy_workloads && v.cron != "" }
   project  = var.project_id
