@@ -111,3 +111,31 @@ describe('pedido de publicar foto', () => {
     expect(prompt).toContain('chamar no WhatsApp');
   });
 });
+
+describe('medidas da foto do banco para o corte', () => {
+  // JPEG mínimo: SOI + APP1 com Exif e a orientação pedida (o corte só lê os metadados).
+  const jpegWithOrientation = (o) => {
+    const tiff = [0x4d, 0x4d, 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0];
+    const app1 = [0x45, 0x78, 0x69, 0x66, 0, 0, ...tiff];
+    return new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0, app1.length + 2, ...app1, 0xff, 0xda, 0, 2]);
+  };
+
+  it('desfaz a troca do banco: foto em pé (orientação 6) guardada 3000x4000 volta a 4000x3000 crua', async () => {
+    const { photoSource, jpegOrientation } = await import('../platform/src/lib/photo-post.ts');
+    expect(jpegOrientation(jpegWithOrientation(6))).toBe(6);
+    expect(photoSource({ contentType: 'image/jpeg', width: 3000, height: 4000 }, jpegWithOrientation(6))).toEqual({ width: 4000, height: 3000, orientation: 6 });
+    expect(photoSource({ contentType: 'image/jpeg', width: 4000, height: 3000 }, jpegWithOrientation(3))).toEqual({ width: 4000, height: 3000, orientation: 3 });
+    expect(photoSource({ contentType: 'image/png', width: 640, height: 400 }, new Uint8Array([0x89]))).toEqual({ width: 640, height: 400, orientation: 1 });
+  });
+
+  it('de ponta a ponta: medidas do banco (em pé) + orientação 6 dão o corte certo, topo vermelho', async () => {
+    const { photoSource } = await import('../platform/src/lib/photo-post.ts');
+    // halves() é 400x200 cru; o banco guardaria 200x400 (em pé)
+    const src = photoSource({ contentType: 'image/jpeg', width: 200, height: 400 }, jpegWithOrientation(6));
+    const out = renderPhoto({ bytes: halves(), contentType: 'image/png', ...src, ratio: '4:5' });
+    expect(pngSize(out.png)).toEqual({ width: 1080, height: 1350 });
+    expect(out.box.w).toBe(200);
+    expect(near(pixel(out.png, 1080, 1350, 540, 100), RED)).toBe(true);
+    expect(near(pixel(out.png, 1080, 1350, 540, 1250), BLUE)).toBe(true);
+  });
+});
