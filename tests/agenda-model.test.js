@@ -34,7 +34,7 @@ describe('montagem da agenda', () => {
     expect(a.days.map((d) => d.date)).toEqual(['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25']);
     expect(a.slots).toBe(3); // o inativo não conta
     const terca = a.days[1];
-    expect(terca.cells).toEqual([{ kind: 'slot', at: '2026-10-20T21:00:00.000Z', time: '18:00', channel: 'instagram', slotId: 's-ter', post: null }]);
+    expect(terca.cells).toEqual([{ kind: 'slot', at: '2026-10-20T21:00:00.000Z', time: '18:00', channel: 'instagram', slotId: 's-ter', post: null, suggestion: null }]);
     expect(terca.past).toBe(true);
     const quinta = a.days[3];
     expect(quinta.cells[0]).toMatchObject({ kind: 'slot', slotId: 's-qui', post: { id: 'p-qui' } });
@@ -64,5 +64,28 @@ describe('montagem da agenda', () => {
     expect(a.days[0]).toMatchObject({ date: '2026-09-28', inRange: false });
     expect(a.days[3]).toMatchObject({ date: '2026-10-01', inRange: true });
     expect(a.days.flatMap((d) => d.cells).every((c) => c.channel === 'instagram')).toBe(true);
+  });
+});
+
+describe('sugestões do coordenador na agenda', () => {
+  const slots = [slot('s-qui', 4, 18), slot('s-sex', 5, 18), slot('s-li', 5, 18, 0, 'linkedin'), slot('s-ter', 2, 18)];
+  const sug = (id, slotAt) => ({ id, slotAt, goal: 'bastidores', goalLabel: 'Bastidores', assetId: null, idea: 'Como a massa é feita', reason: 'Os dois últimos foram dicas.' });
+
+  it('a sugestão aparece no horário vazio do Instagram, não no ocupado, no de outra rede nem no passado', () => {
+    const a = buildAgenda({
+      query: { view: 'week', date: '2026-10-22' },
+      slots,
+      posts: [post('p-qui', '2026-10-22T21:00:00Z')],
+      nowMs: NOW,
+      tzHours: TZ,
+      suggestions: [sug('g-qui', '2026-10-22T21:00:00.000Z'), sug('g-sex', '2026-10-23T21:00:00.000Z'), sug('g-ter', '2026-10-20T21:00:00.000Z'), sug('g-solta', '2026-10-24T15:00:00.000Z')],
+    });
+    const byDay = Object.fromEntries(a.days.map((d) => [d.date, d.cells]));
+    expect(byDay['2026-10-22'][0]).toMatchObject({ post: { id: 'p-qui' }, suggestion: null });
+    const sexta = byDay['2026-10-23'];
+    expect(sexta.find((c) => c.channel === 'instagram')).toMatchObject({ post: null, suggestion: { id: 'g-sex', reason: 'Os dois últimos foram dicas.' } });
+    expect(sexta.find((c) => c.channel === 'linkedin').suggestion).toBeNull();
+    expect(byDay['2026-10-20'][0].suggestion).toBeNull(); // terça já passou
+    expect(a.days.flatMap((d) => d.cells).filter((c) => c.suggestion).map((c) => c.suggestion.id)).toEqual(['g-sex']);
   });
 });

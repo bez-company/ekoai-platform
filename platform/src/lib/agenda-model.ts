@@ -1,6 +1,7 @@
 // agenda-model.ts: a Agenda com os horários dentro dela (SPEC 017 decisão 13, BEZ-233). Puro, sem I/O.
 // O período (semana ou mês) é recortado no fuso editorial; cada horário de publicação vira um espaço
 // do dia: vazio (onde entra a sugestão do coordenador, BEZ-239) ou ocupado pelo post daquele horário.
+// O horário vazio mostra a sugestão do coordenador (BEZ-239) daquele horário, quando houver.
 // Post agendado fora de um horário (publicar agora, horário escolhido à mão) aparece como avulso. A
 // fila sem horário fica ao lado, fora da grade.
 
@@ -13,8 +14,11 @@ export type AgendaQuery = { view: AgendaView; date: string }; // date = dia loca
 
 export type AgendaPost = Pick<ScheduledPost, 'id' | 'channel' | 'status' | 'scheduled_for' | 'caption_final' | 'image_url' | 'last_error'>;
 
+// A sugestão do coordenador (content_suggestions), só o que a Agenda mostra.
+export type AgendaSuggestion = { id: string; slotAt: string; goal: string; goalLabel: string; assetId: string | null; idea: string; reason: string };
+
 export type AgendaCell =
-  | { kind: 'slot'; at: string; time: string; channel: Channel; slotId: string; post: AgendaPost | null }
+  | { kind: 'slot'; at: string; time: string; channel: Channel; slotId: string; post: AgendaPost | null; suggestion: AgendaSuggestion | null }
   | { kind: 'extra'; at: string; time: string; channel: Channel; post: AgendaPost };
 
 export type AgendaDay = { date: string; weekday: number; inRange: boolean; past: boolean; cells: AgendaCell[] };
@@ -79,11 +83,13 @@ export function agendaRange(q: AgendaQuery): { first: string; last: string; mont
   return { first, last, monthStart, monthEnd, prev: addDays(monthStart, -1).slice(0, 8) + '01', next: addDays(monthEnd, 1) };
 }
 
-export function buildAgenda(input: { query: AgendaQuery; slots: PublishSlot[]; posts: AgendaPost[]; nowMs: number; tzHours: number; channel?: Channel }): Agenda {
+export function buildAgenda(input: { query: AgendaQuery; slots: PublishSlot[]; posts: AgendaPost[]; nowMs: number; tzHours: number; channel?: Channel; suggestions?: AgendaSuggestion[] }): Agenda {
   const { query, tzHours } = input;
   const range = agendaRange(query);
   const slots = input.slots.filter((s) => s.active && (!input.channel || s.channel === input.channel));
   const today = localDate(input.nowMs, tzHours);
+  // O coordenador só sugere para o Instagram; a chave é o instante do horário.
+  const suggestionAt = new Map((input.suggestions ?? []).map((s) => [new Date(s.slotAt).getTime(), s]));
   const queue = input.posts.filter((p) => !p.scheduled_for && p.status === 'queued');
   const timed = input.posts.filter((p) => p.scheduled_for);
   const days: AgendaDay[] = [];
@@ -100,7 +106,8 @@ export function buildAgenda(input: { query: AgendaQuery; slots: PublishSlot[]; p
       const ms = start + (s.hour * 60 + s.minute) * 60_000;
       const post = own.find((p) => !used.has(p.id) && p.channel === s.channel && new Date(p.scheduled_for!).getTime() === ms) ?? null;
       if (post) used.add(post.id);
-      cells.push({ kind: 'slot', at: new Date(ms).toISOString(), time: localTime(ms, tzHours), channel: s.channel, slotId: s.id, post });
+      const suggestion = !post && s.channel === 'instagram' && ms > input.nowMs ? (suggestionAt.get(ms) ?? null) : null;
+      cells.push({ kind: 'slot', at: new Date(ms).toISOString(), time: localTime(ms, tzHours), channel: s.channel, slotId: s.id, post, suggestion });
     }
     for (const p of own) {
       if (used.has(p.id)) continue;
