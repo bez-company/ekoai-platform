@@ -46,7 +46,7 @@ describe('POST /api/posts', () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ id: ID });
     expect(sessionMock.calls).toEqual(['content.create']);
-    expect(dataMock.created).toEqual([{ user: 'u1', input: { idea: 'bolo pronto', kind: 'informativo' } }]);
+    expect(dataMock.created).toEqual([{ user: 'u1', input: { idea: 'bolo pronto', kind: 'informativo', goal: null, ratio: '4:5' } }]);
     expect(dataMock.woke).toBe(1);
   });
 
