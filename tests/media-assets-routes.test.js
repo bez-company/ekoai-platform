@@ -14,7 +14,7 @@ vi.mock('@/lib/session', () => {
     UnauthorizedError,
     ForbiddenError,
     requirePermission: async (permission) => (await gate(permission), { tenantId: 'acme' }),
-    requireUserPermission: async (permission) => (await gate(permission), { t: { tenantId: 'acme' }, user: { id: 'u1' } }),
+    requireSession: async () => ({ t: { tenantId: 'acme' }, role: 'admin', user: { id: 'u1' } }),
   };
 });
 const lib = { saved: [], listed: [], patched: [], deleted: [], file: null, asset: null };

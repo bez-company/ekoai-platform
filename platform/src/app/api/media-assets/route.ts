@@ -3,7 +3,7 @@
 // tipo vem dos bytes e os metadados (GPS, EXIF) saem antes de guardar.
 
 import { NextResponse } from 'next/server';
-import { requirePermission, requireUserPermission } from '@/lib/session';
+import { requirePermission, requireSession } from '@/lib/session';
 import { apiError, badRequest } from '@/lib/api';
 import { MEDIA_MAX_BYTES, MEDIA_MAX_PER_UPLOAD, cleanFileName, inspectPhoto, parseListQuery } from '@/lib/media-asset-model';
 import { listMediaAssets, saveMediaAssets, type UploadedPhoto } from '@/lib/media-assets';
@@ -25,7 +25,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { t, user } = await requireUserPermission('content.create');
+    const t = await requirePermission('content.create');
+    const { user } = await requireSession();
     if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return badRequest('O envio passa de 30 MB. Mande menos fotos de cada vez.');
     const form = await req.formData().catch(() => null);
     const files = (form?.getAll('files') ?? []).filter((f): f is File => f instanceof File);
