@@ -54,7 +54,7 @@ export type ApproveInput = {
   publishNow?: boolean; // agenda para agora; a rota publica em seguida
 };
 
-export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string | null; id: string }> {
+export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string | null; id: string; requestedMissed: boolean }> {
   const p = await loadPending(t, input.pendingId);
   if (!p) throw new UserError('Pendência não encontrada (já resolvida?).');
 
@@ -69,8 +69,14 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
 
   const captionFinal = (input.captionText && input.captionText.trim()) || composeCaption(variation);
 
+  // Horário pedido por quem mandou para Aprovar (Publicar foto, BEZ-256): vale quando quem aprova não
+  // escolhe outro. Se já passou, cai no próximo horário livre e o aviso diz isso.
+  const requested = requestedTime(p.seed);
+  const requestedMissed = !input.publishNow && !input.scheduledFor && requested !== null && Date.parse(requested) <= Date.now();
   // Sem horário livre o post não trava: fica na fila e entra no primeiro horário criado.
-  const scheduledFor = input.publishNow ? new Date().toISOString() : input.scheduledFor || (await nextFreeSlot(t, p.channel));
+  const scheduledFor = input.publishNow
+    ? new Date().toISOString()
+    : input.scheduledFor || (requested && !requestedMissed ? requested : null) || (await nextFreeSlot(t, p.channel));
 
   // O id nasce aqui pra entrar no utm_content antes do insert.
   const id = crypto.randomUUID();
@@ -117,11 +123,21 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       title: scheduledFor
         ? `Agendado no ${channelName(p.channel)} para ${fmtLocal(scheduledFor)}`
         : `Aprovado para o ${channelName(p.channel)}: na fila até ter horário na agenda`,
-      body: (variation.hook || '').slice(0, 80) || undefined,
+      body: requestedMissed
+        ? `O horário pedido (${fmtLocal(requested!)}) já tinha passado. ${scheduledFor ? 'Entrou no próximo horário livre.' : 'Ficou na fila.'}`
+        : (variation.hook || '').slice(0, 80) || undefined,
       link: '/calendar',
     });
   }
-  return { scheduledFor, id: data!.id as string };
+  return { scheduledFor, id: data!.id as string, requestedMissed };
+}
+
+// O horário que quem mandou para Aprovar pediu (seed.requested_for), se for uma data válida.
+export function requestedTime(seed: Record<string, unknown> | null | undefined): string | null {
+  const raw = seed?.requested_for;
+  if (typeof raw !== 'string') return null;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
 export async function rejectPending(t: TenantDb, pendingId: string, reason?: string): Promise<void> {

@@ -159,4 +159,32 @@ describe('publicar foto sem IA', () => {
     await expect(photoPost.photoRewrite(t, { assetId: asset.id, mode: 'casual', caption: 'x', hashtags: [] }, { model: model({ caption: 'Uma oferta imperdível', hashtags: [] }) })).rejects.toThrow(/revisor/);
     await expect(photoPost.photoRewrite(t, { assetId: '3f8b2c1e-1d2a-4b5c-9e8f-0a1b2c3d4e5f', mode: 'cta', caption: 'x', hashtags: [] }, { model: model({}) })).rejects.toThrow(/não está mais no banco/);
   });
+  it('quem não aprova escolhe dia e hora: o horário vai para Aprovar e vale ao aprovar (BEZ-256)', async () => {
+    const asset = await upload();
+    const at = new Date(Date.now() + 4 * 86_400_000).toISOString();
+    const out = await photoPost.createPhotoPost(t, ANA, input(asset.id, { when: 'at', scheduledFor: at, canApprove: false }), { store });
+    expect(out.status).toBe('pending');
+    const pending = await one('select seed from pending_approvals where pending_id = $1', [out.pendingId]);
+    expect(pending.seed.requested_for).toBe(at);
+    const approved = await scheduling.approvePending(t, { pendingId: out.pendingId, captionId: 1, artId: 1 });
+    expect(approved).toMatchObject({ scheduledFor: at, requestedMissed: false });
+    expect(new Date((await one('select scheduled_for from scheduled_posts where id = $1', [approved.id])).scheduled_for).toISOString()).toBe(at);
+  });
+
+  it('quem aprova escolhe outro horário: vale o de quem aprova; horário pedido que já passou cai no próximo livre e avisa', async () => {
+    const asset = await upload();
+    const at = new Date(Date.now() + 4 * 86_400_000).toISOString();
+    const other = new Date(Date.now() + 6 * 86_400_000).toISOString();
+    const a = await photoPost.createPhotoPost(t, ANA, input(asset.id, { when: 'at', scheduledFor: at, canApprove: false }), { store });
+    expect((await scheduling.approvePending(t, { pendingId: a.pendingId, captionId: 1, artId: 1, scheduledFor: other })).scheduledFor).toBe(other);
+
+    const b = await photoPost.createPhotoPost(t, ANA, input(asset.id, { when: 'at', scheduledFor: at, canApprove: false }), { store });
+    const past = new Date(Date.now() - 3_600_000).toISOString();
+    await admin.query("update pending_approvals set seed = jsonb_set(seed, '{requested_for}', to_jsonb($2::text)) where pending_id = $1", [b.pendingId, past]);
+    const missed = await scheduling.approvePending(t, { pendingId: b.pendingId, captionId: 1, artId: 1 });
+    expect(missed.requestedMissed).toBe(true);
+    expect(missed.scheduledFor).not.toBe(past);
+    const notice = await one("select body from notifications where tenant_id = $1 and kind = 'schedule.created' order by created_at desc limit 1", [A]);
+    expect(notice.body).toMatch(/já tinha passado/);
+  });
 });

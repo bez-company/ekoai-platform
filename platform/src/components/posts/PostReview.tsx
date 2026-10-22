@@ -59,6 +59,10 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const briefId = pending.brief_id ?? null;
   const photoAssetId = pending.seed?.source === 'photo' && typeof pending.seed?.media_asset_id === 'string' ? pending.seed.media_asset_id : null;
   const ratio = ratioOf(pending.seed?.ratio);
+  // Horário pedido por quem mandou a foto para Aprovar (BEZ-256). Já passou: aprovar cai no próximo livre.
+  const requestedRaw = typeof pending.seed?.requested_for === 'string' ? pending.seed.requested_for : null;
+  const requested = requestedRaw && Number.isFinite(Date.parse(requestedRaw)) ? requestedRaw : null;
+  const requestedPast = requested !== null && Date.parse(requested) <= Date.now();
   const caption = joinCaption(body, hashtags);
   const edited = caption !== suggested.trim();
 
@@ -131,6 +135,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
           <span className="chip">{photoAssetId ? 'Foto do banco' : kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'}</span>
           <span className="chip">{RATIO_LABEL[ratio]}</span>
+          {requested && <span className="chip">Pedido para {fmtDateTime(requested)}</span>}
           <span>recebido {fmtDateTime(pending.saved_at)}</span>
         </p>
       </div>
@@ -263,7 +268,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                     Publicar agora
                   </button>
                   <button type="button" className="btn-primary" disabled={!!busy || rejecting} onClick={() => approve()}>
-                    {busy === 'approve' ? 'Aprovando…' : warning ? 'Aprovar mesmo assim' : nextSlot ? 'Aprovar e agendar' : 'Aprovar'}
+                    {busy === 'approve' ? 'Aprovando…' : warning ? 'Aprovar mesmo assim' : (requested && !requestedPast) || nextSlot ? 'Aprovar e agendar' : 'Aprovar'}
                   </button>
                 </div>
                 {publishAsked && (
@@ -283,7 +288,11 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   </div>
                 )}
                 <p className="text-right text-sm text-muted">
-                  {nextSlot ? (
+                  {requested && !requestedPast ? (
+                    `Entra no horário pedido: ${fmtDateTime(requested)}.`
+                  ) : requested && requestedPast ? (
+                    `O horário pedido (${fmtDateTime(requested)}) já passou. ${nextSlot ? `Entra no próximo horário livre: ${fmtDateTime(nextSlot)}.` : 'O post fica na fila até ter horário na agenda.'}`
+                  ) : nextSlot ? (
                     `Entra no próximo horário livre: ${fmtDateTime(nextSlot)}.`
                   ) : (
                     <>

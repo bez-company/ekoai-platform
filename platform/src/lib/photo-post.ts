@@ -93,7 +93,9 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
 
   const generation = photoGeneration(input.caption, input.hashtags);
   const variation = generation.variations[0] as Variation;
-  const seed = { source: 'photo', media_asset_id: asset.id, ratio: input.ratio, focus: input.focus, crop: cropped.box };
+  const seed: Record<string, unknown> = { source: 'photo', media_asset_id: asset.id, ratio: input.ratio, focus: input.focus, crop: cropped.box };
+  // Quem não aprova e escolheu dia e hora: o horário vai junto para Aprovar (BEZ-256).
+  if (!input.canApprove && input.when === 'at' && input.scheduledFor) seed.requested_for = input.scheduledFor;
 
   if (!input.canApprove) {
     const pendingId = `foto-${randomUUID()}`;
