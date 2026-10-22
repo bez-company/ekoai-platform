@@ -182,6 +182,12 @@ a cada 6 horas (Cloud Scheduler `ekoai-collect-metrics`, rota `/api/cron/collect
 `metrics_snapshots`. Para rodar na hora no staging:
 `gcloud scheduler jobs run ekoai-collect-metrics --location=southamerica-east1 --project=ekoai-staging`.
 
+No app da Meta (Instagram, Business Login settings), registre também os dois callbacks da SPEC 011 R5.4:
+desautorização em `<APP_BASE_URL>/api/instagram/deauthorize` e exclusão de dados em
+`<APP_BASE_URL>/api/instagram/data-deletion`. A Meta assina o pedido com o segredo do app
+(`INSTAGRAM_APP_SECRET`); a plataforma revoga a conexão, avisa os administradores e, na exclusão, responde
+com o código de confirmação e a página pública `/instagram/exclusao/<código>`.
+
 Para trocar de app da Meta (por exemplo, para o da empresa dona do produto), grave os dois segredos
 do app novo e registre a URL no app novo. Quem já conectou reconecta uma vez: o token é do app.
 

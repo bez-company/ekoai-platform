@@ -12,7 +12,8 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 // responde 404 fora de SIGNUP_MODE=open e o middleware a libera só pelo caminho exato.
 // `live`, `ambiente` e `ambiente/ligar` são do staging sob demanda (SPEC 016): com o banco parado ninguém tem sessão; só
 // devolvem o estado ou ligam o banco, e respondem 404 fora do staging (WAKE_ENABLED). `cron/sleep-if-idle` é do Scheduler.
-const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/collect-metrics', 'cron/sleep-if-idle', 'cron/plan-content', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
+// `instagram/deauthorize` e `instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é o signed_request.
+const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/collect-metrics', 'cron/sleep-if-idle', 'cron/plan-content', 'instagram/deauthorize', 'instagram/data-deletion', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
 const EXPECTED = {
   approve: ['content.approve'],

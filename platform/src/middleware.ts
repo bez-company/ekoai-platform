@@ -6,12 +6,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
 
-const PUBLIC_PREFIXES = ['/login', '/convite', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/'];
+// `/instagram/exclusao/` é a página de status do pedido de exclusão que a Meta mostra para a pessoa: só lê pelo
+// código aleatório e não mostra conta nem perfil.
+const PUBLIC_PREFIXES = ['/login', '/convite', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/', '/instagram/exclusao/'];
 // Caminhos públicos exatos: quem chama ainda não tem sessão (a prova é o ID token). Prefixo não,
 // para uma rota futura debaixo deles continuar exigindo sessão.
 // `/api/live`, `/api/ambiente` e `/api/ambiente/ligar` são do staging sob demanda (SPEC 016): com o banco
 // parado ninguém tem sessão, e as rotas só devolvem o estado ou ligam o banco (que o corte por ociosidade desliga).
-const PUBLIC_EXACT = ['/api/account', '/api/invitations/accept', '/api/live', '/api/ambiente', '/api/ambiente/ligar'];
+// `/api/instagram/deauthorize` e `/api/instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é
+// o signed_request assinado com o segredo do app.
+const PUBLIC_EXACT = ['/api/account', '/api/invitations/accept', '/api/live', '/api/ambiente', '/api/ambiente/ligar', '/api/instagram/deauthorize', '/api/instagram/data-deletion'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
