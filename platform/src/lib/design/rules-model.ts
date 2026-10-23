@@ -58,7 +58,7 @@ function candidateOf(e: DiffEntry, kind: PostKind): Candidate | null {
 export type EditedPost = { designId: string; initial: StoredDesign; current: StoredDesign; ctx: DiffContext; lastEditAt: string; revisionIds: string[] };
 export type Proposal = { field: RuleField; scope: RuleScope; value: RuleValue; ruleKey: string; posts: number; firstAt: string; lastAt: string; revisionIds: string[]; explanation: string };
 
-const LAYOUT_NAME: Record<Layout, string> = { 'lista-numerada': 'lista numerada', 'titulo-destaque': 'título em destaque', 'foto-titulo': 'foto com título', 'foto-janela': 'foto na janela', 'foto-arco': 'foto no arco' };
+const LAYOUT_NAME: Record<Layout, string> = { 'lista-numerada': 'lista numerada', 'titulo-destaque': 'título em destaque', 'foto-titulo': 'foto com título', 'foto-janela': 'foto na janela', 'foto-arco': 'foto no arco', marca: 'cartão de marca' };
 const CORNER_NAME: Record<LogoCorner, string> = { tl: 'superior esquerdo', tr: 'superior direito', bl: 'inferior esquerdo', br: 'inferior direito' };
 const KIND_PLURAL: Record<PostKind, string> = { informativo: 'informativos', atmosfera: 'de atmosfera' };
 
@@ -141,6 +141,8 @@ export type ApplyContext = { kind: PostKind; hasVisual: boolean };
 // A regra sobre um design; nulo quando não se aplica a este post (outro tipo, layout que não serve, nada a mudar).
 export function applyRule(design: StoredDesign, rule: Pick<DesignRule, 'field' | 'scope' | 'value'>, ctx: ApplyContext): StoredDesign | null {
   if (rule.scope !== 'any' && rule.scope !== ctx.kind) return null;
+  // Cartão de marca nasce de instrução do pedido, que vale mais que a regra da marca (SPEC 020, decisão 3).
+  if (design.layout === 'marca') return null;
   switch (rule.field) {
     case 'layout': {
       if (design.layout === rule.value) return null;
