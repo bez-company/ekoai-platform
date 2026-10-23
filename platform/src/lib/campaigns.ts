@@ -3,7 +3,10 @@
 // a ação, nunca o texto. Só a campanha ativa, confirmada e dentro do prazo influencia o coordenador.
 
 import { randomBytes } from 'node:crypto';
-import type { TenantDb } from './tenant-db';
+import { db } from './db';
+import { log } from './log';
+import { notify } from './notifications';
+import { tenantDb, type TenantDb } from './tenant-db';
 import type { SessionUser } from './accounts';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { auditTenant } from './audit';
@@ -187,4 +190,45 @@ async function engagementOf(t: TenantDb, campaignScheduledIds: string[], now: Da
   } catch {
     return empty;
   }
+}
+
+export type EndedSummary = { ended: number; failed: number };
+
+const pct = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`;
+
+// O texto do aviso de encerramento: posts, cadência e engajamento. Nunca venda.
+export function endedNoticeBody(p: CampaignProgress): string {
+  const posts = p.published === 1 ? '1 post publicado' : `${p.published} posts publicados`;
+  const e = p.engagement;
+  if (e.campaign === null) return `${posts}. O coordenador voltou à rotação.`;
+  const value = (v: number | null) => (v === null ? null : e.unit === 'rate' ? pct(v) : `${Math.round(v)} curtidas e comentários por post`);
+  const mine = value(e.campaign);
+  const account = value(e.account);
+  return `${posts}, com engajamento de ${mine}${account ? ` (média da conta: ${account})` : ''}. O coordenador voltou à rotação.`;
+}
+
+// Job diário: campanha ativa ou pausada cujo prazo passou vira encerrada, e o administrador recebe o resumo.
+// Uma conta que falha não para as outras.
+export async function endExpiredCampaigns(now: Date = new Date()): Promise<EndedSummary> {
+  const today = todayLocal(now);
+  // sistema: leitura entre tenants, só o que passou do prazo
+  const { data, error } = await db().from('campaigns').select('id,tenant_id,name').in('status', ['active', 'paused']).lt('end_date', today).limit(2000);
+  if (error) throw new Error(`campanhas vencidas: ${error.message}`);
+  const summary: EndedSummary = { ended: 0, failed: 0 };
+  for (const row of data ?? []) {
+    const t = tenantDb(String(row.tenant_id));
+    try {
+      const res = await t.update('campaigns', { status: 'ended' }).eq('id', String(row.id)).in('status', ['active', 'paused']).select('id').maybeSingle();
+      if (res.error) throw new Error(res.error.message);
+      if (!res.data) continue; // outra rodada encerrou primeiro
+      await auditTenant(t, { actorUserId: null, actorKind: 'system', action: 'campaign.ended', targetType: 'campaign', targetId: String(row.id), metadata: { from: 'expired', to: 'ended' } });
+      const progress = await campaignProgress(t, String(row.id), now);
+      await notify(t, { kind: 'campaign.ended', title: `Campanha encerrada: ${String(row.name).slice(0, 80)}`, body: endedNoticeBody(progress), link: '/campaigns', audience: 'admin' });
+      summary.ended += 1;
+    } catch (e) {
+      summary.failed += 1;
+      log('error', 'campaigns', 'não encerrou a campanha vencida', { tenant: String(row.tenant_id), error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return summary;
 }

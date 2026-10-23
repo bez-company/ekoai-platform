@@ -12,6 +12,8 @@ import { accountOf } from './accounts';
 import { getProfile } from './company-profile';
 import { profileFromRow, type CompanyProfile } from './company-profile-model';
 import { listFacts } from './company-facts';
+import { getCampaign } from './campaigns';
+import type { Campaign } from './campaign-model';
 import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
@@ -22,7 +24,7 @@ import { brandFromProfile, brandPhotoLayout, defaultLayout, storedDesignOf, type
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
-import { UserError } from './errors';
+import { NotFoundError, UserError } from './errors';
 import { log } from './log';
 import type { ModelClient } from './vertex';
 import { getMediaAsset, readMediaAssetBytes } from './media-assets';
@@ -39,10 +41,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -55,6 +57,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     direction: Number(data.direction ?? 1),
     assetId: (data.asset_id as string | null) ?? null,
     photoUsage: isPhotoUsage(data.photo_usage) ? data.photo_usage : null,
+    campaignId: (data.campaign_id as string | null) ?? null,
   };
 }
 
@@ -118,15 +121,28 @@ export function logoDimensions(bytes: Uint8Array, contentType: string): { width:
   return { width: 3, height: 1 };
 }
 
+// A campanha do pedido, se ainda existir. Sumiu (apagada): o post sai como um post normal.
+async function campaignOf(t: TenantDb, id: string | null): Promise<Campaign | null> {
+  if (!id) return null;
+  try {
+    return await getCampaign(t, id);
+  } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+
+const copyCampaign = (c: Campaign | null) => (c ? { name: c.name, objective: c.objective, offering: c.offering, audience: c.audience, cta: c.cta, restrictions: c.restrictions } : null);
+
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
-async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
+async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null, campaign: Campaign | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: facts.never, rules, feedback, previous, direction: brief.direction });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -149,7 +165,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       continue;
     }
     const copy = parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords });
+    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [] });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) return { copy, issues };
@@ -206,7 +222,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const rules = ruleRows.filter((r) => r.active).map((r) => r.rule);
 
     const photo = await photoOf(t, brief, store);
-    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo);
+    const campaign = await campaignOf(t, brief.campaignId);
+    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign);
     // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.
     const kind: PostKind = photo ? 'atmosfera' : copy.kind;
     if (brief.kind !== kind) await setBrief(t, brief.id, { post_kind: kind });

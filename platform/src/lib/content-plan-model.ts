@@ -11,8 +11,16 @@
 // 4. ao menos 1 foto real por semana quando o banco tem foto;
 // 5. entre os objetivos que sobram, vai o que está há mais tempo sem sair. Com métrica, o
 //    engajamento pesa junto, e o coordenador puxa para o objetivo que mais engaja na conta.
+//
+// Campanha (SPEC 018): com uma campanha ativa, confirmada e dentro do prazo, parte dos horários livres da
+// semana é dela (campaignSlotQuota), espalhados entre os horários e nunca no lugar de uma data comemorativa.
+// O tipo da campanha diz de quais objetivos o horário sai; as travas valem do mesmo jeito (sem repetir o
+// objetivo anterior, promoção a cada 4 posts, foto real que casa com o tipo). Quem escolhe horário, objetivo
+// e foto é esta regra, nunca o modelo. O motivo de cada sugestão sai de um template, não do modelo.
 
 import { GOALS, type PostGoal } from './generation-model';
+import { reviewText } from './design/review';
+import type { InactiveFact } from './company-facts-model';
 import type { MediaTag } from './media-asset-model';
 
 export const PLAN_DAYS = 7;
@@ -39,7 +47,14 @@ const PHOTO_GOAL: Record<MediaTag, PostGoal> = {
 export type PlanHistoryItem = { at: string; goal: PostGoal | null; withPhoto: boolean };
 export type PlanPhoto = { id: string; description: string | null; tags: MediaTag[] };
 export type CommemorativeDate = { key: string; name: string; date: string }; // date = AAAA-MM-DD, dia local
-export type PlannedSuggestion = { slotAt: string; goal: PostGoal; assetId: string | null; dateKey: string | null; reason: string };
+export type PlanRule = 'date' | 'photo' | 'rotation' | 'campaign';
+export type PlannedSuggestion = { slotAt: string; goal: PostGoal; assetId: string | null; dateKey: string | null; reason: string; rule: PlanRule; campaignId: string | null };
+
+// A campanha em vigor, como o planejador a vê: o tipo já virou lista de objetivos de post. `remaining` é
+// quantos horários desta rodada ainda são dela; `plannedTotal` é quantos posts de campanha a semana já tem
+// (sugestões abertas, pedidos e agendados), só para o motivo dizer "2 de 3 posts da semana".
+// `existingSlots` (ISO) diz quando caem esses posts, para o motivo numerar na ordem do calendário; sem ele, vale a contagem.
+export type PlanCampaign = { id: string; name: string; goals: readonly PostGoal[]; remaining: number; plannedTotal: number; offering?: string | null; existingSlots?: readonly string[] };
 
 export type PlanInput = {
   now: Date;
@@ -51,6 +66,9 @@ export type PlanInput = {
   avoid?: Record<string, PostGoal[]>; // por horário (ISO): objetivos que a pessoa trocou ou pulou
   usedDateKeys?: string[]; // datas comemorativas já aproveitadas (sugestão aberta ou post)
   tzOffsetHours?: number;
+  campaign?: PlanCampaign | null;
+  // Trocar um horário: a sugestão nova segue no mesmo grupo da trocada (de campanha ou de rotação).
+  slotRules?: Record<string, 'campaign' | 'free'>;
 };
 
 const DAY = 86_400_000;
@@ -82,6 +100,17 @@ function normalizedEngagement(engagement: PlanInput['engagement']): Map<PostGoal
   return new Map(entries.map(([g, v]) => [g, max === min ? 0.5 : (v - min) / (max - min)]));
 }
 
+const shortName = (name: string) => (name.length > 30 ? `${name.slice(0, 27).trimEnd()}...` : name);
+
+// Escolhe `count` posições espalhadas de ponta a ponta (3 horários e 2 de campanha: o primeiro e o último;
+// 5 e 3: o primeiro, o do meio e o último), para a campanha alternar com a rotação em vez de vir em bloco.
+function spread<T>(list: readonly T[], count: number): T[] {
+  if (count <= 0 || !list.length) return [];
+  if (count >= list.length) return [...list];
+  if (count === 1) return [list[0]];
+  return Array.from({ length: count }, (_, i) => list[Math.round((i * (list.length - 1)) / (count - 1))]);
+}
+
 export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
   const offset = input.tzOffsetHours ?? -3;
   const nowMs = input.now.getTime();
@@ -94,7 +123,38 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
   const engagement = normalizedEngagement(input.engagement);
   const usedDates = new Set(input.usedDateKeys ?? []);
   const usedPhotos = new Set<string>();
+  const campaign = input.campaign ?? null;
   const out: PlannedSuggestion[] = [];
+
+  // 1. Quais horários uma data comemorativa leva (ela ganha da campanha e da rotação).
+  const dateBySlot = new Map<number, CommemorativeDate>();
+  const claimed = new Set(usedDates);
+  for (const slotMs of slots) {
+    const avoid = new Set(input.slotRules?.[new Date(slotMs).toISOString()] === 'free' ? [] : input.avoid?.[new Date(slotMs).toISOString()] ?? []);
+    if (avoid.has('data_comemorativa')) continue;
+    const slotDay = localDay(slotMs, offset);
+    const limitDay = localDay(slotMs + DATE_LEAD_DAYS * DAY, offset);
+    const date = (input.dates ?? []).find((d) => d.date >= slotDay && d.date <= limitDay && !claimed.has(d.key));
+    if (date) {
+      dateBySlot.set(slotMs, date);
+      claimed.add(date.key);
+    }
+  }
+
+  // 2. Quais horários são da campanha: os que a troca manteve, mais os espalhados entre os que sobram.
+  const campaignSlots: number[] = [];
+  if (campaign) {
+    const open = slots.filter((ms) => !dateBySlot.has(ms));
+    const rule = (ms: number) => input.slotRules?.[new Date(ms).toISOString()];
+    const forced = open.filter((ms) => rule(ms) === 'campaign');
+    const pickable = open.filter((ms) => rule(ms) === undefined);
+    campaignSlots.push(...forced, ...spread(pickable, Math.min(Math.max(campaign.remaining - forced.length, 0), pickable.length)));
+    campaignSlots.sort((a, b) => a - b);
+  }
+  const campaignSet = new Set(campaignSlots);
+  const existingMs = (campaign?.existingSlots ?? []).map((iso) => new Date(iso).getTime());
+  const weekTotal = (campaign?.existingSlots ? existingMs.length : campaign?.plannedTotal ?? 0) + campaignSlots.length;
+  const campaignOrder = [...existingMs, ...campaignSlots].sort((a, b) => a - b);
 
   for (const slotMs of slots) {
     const slotIso = new Date(slotMs).toISOString();
@@ -103,28 +163,37 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
     const last = before.at(-1)?.goal ?? null;
     const lastTwo = before.slice(-2).map((h) => h.goal);
     const recent = before.slice(-(PROMO_WINDOW - 1)).map((h) => h.goal);
+    const inCampaign = campaign !== null && campaignSet.has(slotMs);
 
     let goal: PostGoal | null = null;
     let assetId: string | null = null;
     let dateKey: string | null = null;
     let reason = '';
+    let rule: PlanRule = 'rotation';
+    let photoDesc: string | null = null;
+    let photoSince = '';
 
     // 1. Data comemorativa logo à frente.
     const slotDay = localDay(slotMs, offset);
-    const limitDay = localDay(slotMs + DATE_LEAD_DAYS * DAY, offset);
-    const date = (input.dates ?? []).find((d) => d.date >= slotDay && d.date <= limitDay && !usedDates.has(d.key));
+    const date = dateBySlot.get(slotMs);
     if (date && !avoid.has('data_comemorativa')) {
       goal = 'data_comemorativa';
       dateKey = date.key;
       usedDates.add(date.key);
+      rule = 'date';
       const [y, m, d] = date.date.split('-').map(Number);
       const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
       reason = date.date === slotDay ? `Hoje é ${date.name}.` : `${date.name} é ${weekday} (${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}).`;
     }
 
-    // 2 e 3. Objetivos permitidos neste horário.
+    // 2 e 3. Objetivos permitidos neste horário (e, no horário da campanha, só os do tipo dela).
     const allowed = SEQUENCE_GOALS.filter((g) => g !== last && !avoid.has(g) && !(g === 'promocao' && recent.includes('promocao')));
-    const pool = allowed.length ? allowed : SEQUENCE_GOALS.filter((g) => g !== last);
+    const basePool = allowed.length ? allowed : SEQUENCE_GOALS.filter((g) => g !== last);
+    let pool: readonly PostGoal[] = basePool;
+    if (inCampaign) {
+      const own = campaign.goals.filter((g) => (basePool as readonly PostGoal[]).includes(g));
+      pool = own.length ? own : campaign.goals.filter((g) => g !== last).length ? campaign.goals.filter((g) => g !== last) : campaign.goals;
+    }
 
     // 4. Foto real: o banco tem foto e faz uma semana (contando as sugestões desta rodada) sem foto.
     const lastPhotoMs = [...before].reverse().find((h) => h.withPhoto)?.ms ?? null;
@@ -132,15 +201,16 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
     if (needsPhoto) {
       const free = input.photos.filter((p) => !usedPhotos.has(p.id));
       const pick =
-        free.find((p) => p.tags.some((t) => (pool as readonly PostGoal[]).includes(PHOTO_GOAL[t]))) ??
-        free.find(() => (pool as readonly PostGoal[]).includes('produto'));
+        free.find((p) => p.tags.some((t) => pool.includes(PHOTO_GOAL[t]))) ??
+        free.find(() => pool.includes('produto'));
       if (pick) {
         assetId = pick.id;
         usedPhotos.add(pick.id);
-        goal = pick.tags.map((t) => PHOTO_GOAL[t]).find((g) => (pool as readonly PostGoal[]).includes(g)) ?? 'produto';
-        const desc = shortDescription(pick.description);
-        const since = lastPhotoMs === null ? 'Ainda não saiu foto real da empresa.' : `Faz ${Math.round((slotMs - lastPhotoMs) / DAY)} dias que não sai foto real.`;
-        reason = `${GOALS[goal].label} com a foto ${desc ? `"${desc}"` : 'do banco'}. ${since}`;
+        goal = pick.tags.map((t) => PHOTO_GOAL[t]).find((g) => pool.includes(g)) ?? 'produto';
+        photoDesc = shortDescription(pick.description);
+        photoSince = lastPhotoMs === null ? 'Ainda não saiu foto real da empresa.' : `Faz ${Math.round((slotMs - lastPhotoMs) / DAY)} dias que não sai foto real.`;
+        rule = 'photo';
+        reason = `${GOALS[goal].label} com a foto ${photoDesc ? `"${photoDesc}"` : 'do banco'}. ${photoSince}`;
       }
     }
 
@@ -152,7 +222,7 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
         const recency = idx === -1 ? 1 : Math.min(idx / SEQUENCE_GOALS.length, 1);
         return recency + (engagement.get(g) ?? 0);
       };
-      goal = [...pool].sort((a, b) => score(b) - score(a) || SEQUENCE_GOALS.indexOf(a) - SEQUENCE_GOALS.indexOf(b))[0];
+      goal = [...pool].sort((a, b) => score(b) - score(a) || (SEQUENCE_GOALS as readonly PostGoal[]).indexOf(a) - (SEQUENCE_GOALS as readonly PostGoal[]).indexOf(b))[0];
       const top = [...engagement.entries()].sort((a, b) => b[1] - a[1])[0];
       if (top && top[0] === goal) reason = `${GOALS[goal].label} é o que mais engaja na sua conta.`;
       else if (!before.length) reason = `Primeiro post da sequência: ${lower(goal)} apresenta a empresa.`;
@@ -161,7 +231,15 @@ export function planSuggestions(input: PlanInput): PlannedSuggestion[] {
       else reason = `${GOALS[goal].label} varia a sequência.`;
     }
 
-    out.push({ slotAt: slotIso, goal, assetId, dateKey, reason: cut(reason) });
+    // O horário da campanha diz isso primeiro, e depois o que decidiu o objetivo (template, sem modelo).
+    if (inCampaign && rule !== 'date') {
+      rule = 'campaign';
+      const k = campaign.existingSlots ? campaignOrder.indexOf(slotMs) + 1 : campaign.plannedTotal + campaignSlots.indexOf(slotMs) + 1;
+      const photo = assetId ? ` com a foto ${photoDesc ? `"${photoDesc}"` : 'do banco'}` : '';
+      reason = `Campanha ${shortName(campaign.name)}: ${k} de ${weekTotal} posts da semana. ${GOALS[goal].label}${photo}${last ? `; o último foi ${lower(last)}` : ''}.`;
+    }
+
+    out.push({ slotAt: slotIso, goal, assetId, dateKey, reason: cut(reason), rule, campaignId: inCampaign && rule === 'campaign' ? campaign.id : null });
     timeline.push({ ms: slotMs, goal, withPhoto: assetId !== null });
     timeline.sort((a, b) => a.ms - b.ms);
   }
@@ -228,15 +306,27 @@ export function commemorativeDates(year: number): CommemorativeDate[] {
 }
 
 // A ideia de cada sugestão (o que vai no campo "Descreva o que você quer no post") é escrita pelo
-// modelo de texto, numa chamada por rodada. Se o modelo falhar, a ideia sai do próprio objetivo.
-export function ideasPrompt(input: { niche: string | null; offering: string | null; items: { i: number; goal: PostGoal; photo: string | null; date: string | null }[] }): string {
+// modelo de texto, numa chamada por rodada. Ele só escreve a frase: horário, objetivo e foto já vieram da
+// regra. Entram na chamada só os fatos confirmados e dentro da validade e, nos itens da campanha, o que a
+// campanha diz. Se o modelo falhar, passar do teto de custo ou escrever número fora dos fatos, a ideia sai
+// do próprio objetivo (fallbackIdea): a sequência, o motivo e os horários são os mesmos com ou sem modelo.
+export type IdeaCampaign = { name: string; objective: string | null; offering: string | null; audience: string | null; restrictions: readonly string[] };
+export type IdeaItem = { i: number; goal: PostGoal; photo: string | null; date: string | null; campaign?: boolean };
+
+export function ideasPrompt(input: { niche: string | null; offering: string | null; items: IdeaItem[]; campaign?: IdeaCampaign | null; facts?: readonly string[]; never?: readonly string[] }): string {
+  const camp = input.campaign ?? null;
+  const facts = input.facts ?? [];
+  const never = [...(input.never ?? []), ...(camp?.restrictions ?? [])];
   return [
     'Você é o coordenador de conteúdo do Instagram de uma empresa brasileira.',
     input.niche ? `Ramo: ${input.niche}.` : '',
     input.offering ? `O que vende: ${input.offering}.` : '',
-    `Para cada item, escreva a ideia de um post em uma frase curta (até ${IDEA_MAX} caracteres), em português do Brasil, concreta e sem inventar preço, prazo, depoimento nem nome de cliente.`,
+    camp ? `Campanha ativa: ${camp.name}.${camp.objective ? ` Resultado que a empresa quer: ${camp.objective}.` : ''}${camp.offering ? ` O que entra nos posts: ${camp.offering}.` : ''}${camp.audience ? ` Para quem: ${camp.audience}.` : ''} Os itens marcados com "campanha: sim" servem a ela; os outros seguem a rotação normal.` : '',
+    facts.length ? `Fatos que a empresa pode afirmar (número, preço e prazo só valem se estiverem aqui${camp?.offering ? ' ou na oferta da campanha' : ''}):\n${facts.map((f) => `- ${f}`).join('\n')}` : 'Não há fatos cadastrados: não use número, preço nem prazo.',
+    never.length ? `Nunca diga:\n${never.map((f) => `- ${f}`).join('\n')}` : '',
+    `Para cada item, escreva a ideia de um post em uma frase curta (até ${IDEA_MAX} caracteres), em português do Brasil, concreta e sem inventar preço, prazo, desconto, meta, depoimento nem nome de cliente. Nada de travessão.`,
     'Itens:',
-    ...input.items.map((it) => `${it.i}. objetivo: ${GOALS[it.goal].hint || GOALS[it.goal].label}${it.date ? `; data: ${it.date}` : ''}${it.photo ? `; foto: ${it.photo}` : ''}`),
+    ...input.items.map((it) => `${it.i}. objetivo: ${GOALS[it.goal].hint || GOALS[it.goal].label}${it.date ? `; data: ${it.date}` : ''}${it.photo ? `; foto: ${it.photo}` : ''}${it.campaign ? '; campanha: sim' : ''}`),
     'Responda só com JSON: {"ideas": [{"i": number, "idea": string}]}.',
   ].filter(Boolean).join('\n');
 }
@@ -254,8 +344,19 @@ export function parseIdeas(json: unknown, count: number): (string | null)[] {
   return out;
 }
 
-export function fallbackIdea(goal: PostGoal, photo: string | null, date: string | null): string {
+// A ideia passa pelo mesmo revisor do post: número fora dos fatos (ou só em fato vencido), "nunca afirmar",
+// palavra proibida e travessão a barram. `allowed` é o que a campanha escreveu na oferta, só para os itens dela.
+const IDEA_RULES = new Set(['number_not_in_facts', 'fact_not_valid', 'never_claim', 'banned_word', 'dash']);
+
+export function ideaProblems(idea: string, ctx: { facts: string[]; never: string[]; banned: string[]; inactive?: InactiveFact[]; allowed?: string[] }): string[] {
+  return reviewText({ imageTexts: [], caption: idea, hashtags: [], facts: ctx.facts, never: ctx.never, banned: ctx.banned, inactive: ctx.inactive, allowed: ctx.allowed })
+    .filter((i) => IDEA_RULES.has(i.rule))
+    .map((i) => i.rule);
+}
+
+export function fallbackIdea(goal: PostGoal, photo: string | null, date: string | null, offering: string | null = null): string {
   if (date) return `${date}: um post ligando a data ao que a empresa faz`;
+  if (offering) return `${GOALS[goal].label}: ${offering}`.slice(0, IDEA_MAX);
   if (photo) return `${GOALS[goal].label}: ${photo}`.slice(0, IDEA_MAX);
   return `${GOALS[goal].label}, como "${GOALS[goal].example}"`;
 }

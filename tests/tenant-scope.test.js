@@ -22,6 +22,7 @@ const RAW_DB_ALLOWED = {
   'lib/publish.ts': 3, // vencidos de todos os tenants, posts presos em publishing (BEZ-258) e a checagem de agendados pendentes (sleep-if-idle)
   'lib/generation-worker.ts': 2, // a fila de pedidos de post de todas as contas (ADR 0018)
   'lib/content-coordinator.ts': 1, // o job diário do coordenador: as contas com horário de Instagram (BEZ-239)
+  'lib/campaigns.ts': 1, // campanhas vencidas de todas as contas: o encerramento do job diário (SPEC 018)
   'lib/fact-expiry.ts': 1, // fatos a vencer de todas as contas: o aviso de vencimento do job diário (SPEC 018)
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)
   'lib/account-deletion.ts': 1, // excluir a conta: atravessa as tabelas da conta de propósito (SPEC 011 R8)
