@@ -166,7 +166,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       continue;
     }
     const copy = parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: profile.bannedWords, allowed: [brief.idea, ...(campaign?.offering ? [campaign.offering] : [])] });
+    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) return { copy, issues };
