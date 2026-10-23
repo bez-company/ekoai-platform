@@ -114,6 +114,22 @@ criar conta e excluir conta; `optional` não exige em lugar nenhum. Staging est�
 21/10/2026 (BEZ-169); produção em `required`. Para mudar, edite `mfa_mode` no `envs/<ambiente>/main.tf`
 e aplique o Terraform. Quem já ativou o app continua com o desafio no login nos dois modos.
 
+## Modo ensaio de publicação
+
+`PUBLISH_MODE` (Terraform `publish_mode`): `live` (padrão) publica de verdade; `rehearsal` cria o container
+na Meta, espera ele ficar pronto e **não chama `media_publish`**, então nada vai ao ar. O staging fica em
+`rehearsal` desde 23/10/2026, porque o Instagram conectado lá é o perfil oficial da marca. Produção é sempre
+`live`; valor desconhecido faz a publicação falhar, em vez de postar sem querer.
+
+- No ensaio, o post agendado vira `published` na Agenda e a pessoa recebe o aviso "Ensaio: o Instagram aceitou o
+  post, mas ele não foi publicado". O post fica gravado com `is_dry_run`, então não aparece em Publicados nem
+  entra em métrica ou aprendizado. A foto do banco de imagens não é marcada como usada.
+- O ensaio valida imagem, legenda, token e permissão. Não prova que o post apareceu no perfil.
+- LinkedIn e X não têm container: no ensaio nem chamam a rede.
+- A reconciliação de post preso nunca publica o container em ensaio.
+- Para um teste de ponta a ponta com post de verdade: conecte uma conta de teste, troque `publish_mode` para
+  `"live"` no `envs/staging/main.tf`, aplique, rode o teste e volte para `"rehearsal"`.
+
 ## Criar um tenant (piloto ou cliente)
 
 ```bash
