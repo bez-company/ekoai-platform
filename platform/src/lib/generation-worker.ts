@@ -24,6 +24,7 @@ export async function claimQueued(limit = WORKER_BATCH, query: (text: string, pa
     `with picked as (
        select id from briefs
        where source = 'platform'
+         and not exists (select 1 from tenants t where t.id = briefs.tenant_id and t.status = 'suspended')
          and (status = 'queued' or (status = 'generating' and updated_at < now() - make_interval(mins => $2)))
        order by created_at
        limit $1
