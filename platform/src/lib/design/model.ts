@@ -33,6 +33,12 @@ export type Texts = { kicker?: string; title: string; sub?: string; items?: stri
 
 export type Logo = { dataUri: string; width: number; height: number };
 
+// Cor do texto escolhida no ajuste rápido (SPEC 019). A marca e as cores de fundo vêm do perfil; só o
+// texto de cada slot pode ter cor própria, e o revisor mede o contraste sobre o fundo do layout.
+export const TEXT_COLOR_KEYS = ['title', 'sub', 'kicker', 'items'] as const;
+export type TextColorKey = (typeof TEXT_COLOR_KEYS)[number];
+export type TextColors = Partial<Record<TextColorKey, Hex>>;
+
 export type DesignSpec = {
   kind: PostKind;
   ratio: Ratio;
@@ -42,6 +48,8 @@ export type DesignSpec = {
   logo?: Logo | null;
   visual?: { dataUri: string } | null; // foto ou ilustração gerada: foto-titulo, foto-janela e foto-arco
   logoCorner?: LogoCorner;
+  logoHidden?: boolean; // esconder o logo neste post (ajuste rápido)
+  colors?: TextColors; // cor própria do texto de cada slot (ajuste rápido)
 };
 
 export type ProfileLike = {
@@ -90,10 +98,28 @@ export function isLayout(value: unknown): value is Layout {
 
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner };
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
-  return { layout: spec.layout, texts: spec.texts, ...(spec.logoCorner ? { logoCorner: spec.logoCorner } : {}) };
+  return {
+    layout: spec.layout,
+    texts: spec.texts,
+    ...(spec.logoCorner ? { logoCorner: spec.logoCorner } : {}),
+    ...(spec.logoHidden ? { logoHidden: true } : {}),
+    ...(spec.colors && Object.keys(spec.colors).length ? { colors: spec.colors } : {}),
+  };
+}
+
+// Canto do logo quando o design não escolheu (o mesmo padrão das famílias em families.ts).
+export function defaultCorner(layout: Layout): LogoCorner {
+  return layout === 'foto-titulo' ? 'br' : 'bl';
+}
+
+// Famílias que servem ao tipo do post e que o conteúdo atual aguenta: lista numerada pede 2 ou mais
+// itens; as de foto pedem visual. A troca de layout do ajuste rápido (BEZ-202) lê daqui.
+export function compatibleLayouts(kind: PostKind, texts: Texts, hasVisual: boolean): Layout[] {
+  if (kind === 'informativo') return texts.items && texts.items.length >= 2 ? ['lista-numerada', 'titulo-destaque'] : ['titulo-destaque'];
+  return hasVisual ? ['foto-titulo', 'foto-janela', 'foto-arco'] : [];
 }
 
 // Garante que a marca lê bem onde o layout a usa; devolve as cores de texto de cada layout.
@@ -107,6 +133,14 @@ function softened(text: Hex, bg: Hex): Hex {
 }
 
 export function paletteFor(spec: DesignSpec) {
+  const base = basePalette(spec);
+  const own = spec.colors;
+  if (!own) return base;
+  // A cor de cada texto sobrescreve a do layout; o fundo nunca muda.
+  return { ...base, ...Object.fromEntries(TEXT_COLOR_KEYS.filter((k) => isHex(own[k])).map((k) => [k, own[k]!.toUpperCase()])) };
+}
+
+function basePalette(spec: DesignSpec) {
   const b = spec.brand;
   if (spec.layout === 'titulo-destaque') {
     const kicker = contrast(b.accent, b.deep) >= 4.5 ? b.accent : softened('#FFFFFF', b.deep);
