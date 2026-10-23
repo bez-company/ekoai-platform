@@ -1,0 +1,21 @@
+{
+  "name": "ekoai-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Testes de ponta a ponta (Playwright) da plataforma Ekoai: jornada por papel contra o app, o Postgres e o emulador de login.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "db:prepare": "node scripts/prepare-db.mjs",
+    "emulator:test": "npx -y firebase-tools@15.34.0 emulators:exec --only auth --project demo-post-automation \"npx playwright test\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
+    "typescript": "^5.7.0"
+  }
+}
