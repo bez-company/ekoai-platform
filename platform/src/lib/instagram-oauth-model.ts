@@ -11,8 +11,11 @@ export const TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 export const GRAPH_URL = `https://graph.instagram.com/${GRAPH_VERSION}`;
 export const EXCHANGE_URL = 'https://graph.instagram.com/access_token';
 
-// Só o que o app usa (a Meta reprova pedido a mais no App Review).
-export const SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'] as const;
+// Só o que o app usa (a Meta reprova pedido a mais no App Review). As obrigatórias publicam o post;
+// a de insights (alcance, salvamentos, BEZ-264) é opcional: quem negar conecta, só sem esses números.
+export const REQUIRED_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'] as const;
+export const OPTIONAL_SCOPES = ['instagram_business_manage_insights'] as const;
+export const SCOPES = [...REQUIRED_SCOPES, ...OPTIONAL_SCOPES] as const;
 
 export const STATE_COOKIE = 'ig_oauth_state';
 export const STATE_TTL_SECONDS = 10 * 60;
@@ -143,8 +146,9 @@ export function isProfessional(profile: InstagramProfile): boolean {
 }
 
 // Falta alguma permissão que o app precisa? A pessoa pode desmarcar uma na tela da Meta.
+// Só as obrigatórias barram a conexão.
 export function missingScopes(granted: readonly string[]): string[] {
-  return SCOPES.filter((s) => !granted.includes(s));
+  return REQUIRED_SCOPES.filter((s) => !granted.includes(s));
 }
 
 export function expiresAtFrom(nowMs: number, expiresInSeconds: number): Date {

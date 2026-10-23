@@ -5,7 +5,7 @@
 // Duas fontes, com permissões diferentes da Meta:
 //  - campos do post (`like_count`, `comments_count`): vêm com instagram_business_basic, que o app já pede;
 //  - insights (alcance, salvos, compartilhamentos, visualizações, interações): exigem
-//    instagram_business_manage_insights, que o pedido de revisão atual não inclui. Sem ela, esses ficam nulos.
+//    instagram_business_manage_insights, que o login pede como opcional (BEZ-264). Sem ela, esses ficam nulos.
 
 export const INSIGHTS_SCOPE = 'instagram_business_manage_insights';
 export const INSIGHT_METRICS = ['reach', 'saved', 'shares', 'views', 'total_interactions'] as const;
