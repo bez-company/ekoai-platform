@@ -137,6 +137,9 @@ function specOf(target: Target, inputs: Inputs, design: StoredDesign): DesignSpe
     ...(design.logoCorner ? { logoCorner: design.logoCorner } : {}),
     ...(design.logoHidden ? { logoHidden: true } : {}),
     ...(design.colors ? { colors: design.colors } : {}),
+    ...(design.background ? { background: design.background } : {}),
+    ...(design.placements ? { placements: design.placements } : {}),
+    ...(design.brandName ? { brandName: design.brandName } : {}),
   };
 }
 
@@ -238,7 +241,7 @@ export async function previewEdit(t: TenantDb, briefId: string, input: { baseVer
   const { target, store } = await prepare(t, briefId, deps, true);
   if (target.version !== input.baseVersion) throw await conflict(t, target);
   const inputs = await loadInputs(t, target, store);
-  const checked = checkLayout(input.edit, target.kind, !!inputs.visual);
+  const checked = checkLayout(input.edit, target.kind, !!inputs.visual, target.design.layout);
   if (!checked.ok) throw new UserError(checked.error);
   const next = applyEditable(target.design, input.edit);
   const { png, issues, contrasts } = renderAndReview(target, inputs, next, deps, PREVIEW_WIDTH);
@@ -295,7 +298,7 @@ export async function saveEdit(t: TenantDb, briefId: string, input: { baseVersio
   const { target, store } = await prepare(t, briefId, deps, true);
   if (target.version !== input.baseVersion) throw await conflict(t, target);
   const inputs = await loadInputs(t, target, store);
-  const checked = checkLayout(input.edit, target.kind, !!inputs.visual);
+  const checked = checkLayout(input.edit, target.kind, !!inputs.visual, target.design.layout);
   if (!checked.ok) throw new UserError(checked.error);
   const next = applyEditable(target.design, input.edit);
   const source: RevisionSource = next.layout !== target.design.layout && same({ ...next, layout: 0 }, { ...target.design, layout: 0 }) ? 'layout' : 'edit';
@@ -328,7 +331,7 @@ export async function designState(t: TenantDb, briefId: string, deps: Deps = {})
     ? rows.map((r) => ({ version: r.version, parentVersion: r.parent_version, source: r.source, author: r.author_id ? (people.get(r.author_id)?.name ?? null) : null, summary: r.summary, diff: r.diff, createdAt: r.created_at }))
     : [{ version: 1, parentVersion: null, source: 'initial', author: null, summary: 'Como a Ekoai gerou', diff: [], createdAt: '' }];
   const visual = !!target.visualKey && (await store.get(target.visualKey).then(() => true).catch(() => false));
-  return { version: target.version, editable: editableOf(target.design), layouts: compatibleLayouts(target.kind, target.design.texts, visual), decided: target.decided || target.photoAsIs, revisions: list };
+  return { version: target.version, editable: editableOf(target.design), layouts: compatibleLayouts(target.kind, target.design.texts, visual, target.design.layout), decided: target.decided || target.photoAsIs, revisions: list };
 }
 
 // O PNG de uma versão, desenhado na hora (a revisão guarda parâmetros, não pixels).

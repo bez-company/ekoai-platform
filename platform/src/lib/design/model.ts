@@ -4,10 +4,13 @@
 
 import { DEFAULT_BODY, DEFAULT_HEADING, fontOrDefault, type FontFamily } from './fonts';
 import { contrast, isHex, mix, untilContrast, type Hex } from './color';
+import type { Background, Element, Place } from '../directives';
 
 // foto-janela e foto-arco (BEZ-251): a foto da pessoa encaixada no layout da marca, com o texto
 // sempre sobre a cor da marca (uso "Dentro do layout da marca" da foto anexada).
-export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo', 'foto-janela', 'foto-arco'] as const;
+// marca (SPEC 020): o cartão de marca, fundo liso com logo, nome, @ e uma frase onde o pedido mandar (grade 3x3).
+// Só nasce de instrução do pedido; não entra na lista de trocas do ajuste rápido de quem não é dele.
+export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo', 'foto-janela', 'foto-arco', 'marca'] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
 export type PostKind = 'informativo' | 'atmosfera';
@@ -60,7 +63,14 @@ export type DesignSpec = {
   logoCorner?: LogoCorner;
   logoHidden?: boolean; // esconder o logo neste post (ajuste rápido)
   colors?: TextColors; // cor própria do texto de cada slot (ajuste rápido)
+  // Instruções do pedido (SPEC 020), lidas pela família `marca`: fundo liso pela paleta da marca, onde fica cada
+  // elemento na grade 3x3 ('off' = tirar) e o nome da empresa a escrever.
+  background?: Background;
+  placements?: Placements;
+  brandName?: string | null;
 };
+
+export type Placements = Partial<Record<Element, Place | 'off'>>;
 
 export type ProfileLike = {
   colorPrimary: string | null;
@@ -109,7 +119,7 @@ export function isLayout(value: unknown): value is Layout {
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
 // `rules`: os ids das regras de marca aplicadas quando o post nasceu (SPEC 019); só para medir e explicar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[] };
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
   return {
@@ -118,6 +128,9 @@ export function storedDesignOf(spec: DesignSpec): StoredDesign {
     ...(spec.logoCorner ? { logoCorner: spec.logoCorner } : {}),
     ...(spec.logoHidden ? { logoHidden: true } : {}),
     ...(spec.colors && Object.keys(spec.colors).length ? { colors: spec.colors } : {}),
+    ...(spec.background ? { background: spec.background } : {}),
+    ...(spec.placements && Object.keys(spec.placements).length ? { placements: spec.placements } : {}),
+    ...(spec.brandName ? { brandName: spec.brandName } : {}),
   };
 }
 
@@ -126,11 +139,20 @@ export function defaultCorner(layout: Layout): LogoCorner {
   return layout === 'foto-titulo' ? 'br' : 'bl';
 }
 
+// O fundo liso do cartão de marca, só pela paleta da marca (nunca hex livre): o contraste sai da mesma conta de
+// sempre. dark = o tom mais escuro da marca, brand = a cor profunda, light = o papel.
+export function markBackground(b: Brand, background: Background | undefined): Hex {
+  if (background === 'light') return b.paper;
+  if (background === 'brand') return b.deep;
+  return untilContrast(mix(b.deep, '#000000', 0.45), '#FFFFFF', 7);
+}
+
 // Famílias que servem ao tipo do post e que o conteúdo atual aguenta: lista numerada pede 2 ou mais
 // itens; as de foto pedem visual. A troca de layout do ajuste rápido (BEZ-202) lê daqui.
-export function compatibleLayouts(kind: PostKind, texts: Texts, hasVisual: boolean): Layout[] {
-  if (kind === 'informativo') return texts.items && texts.items.length >= 2 ? ['lista-numerada', 'titulo-destaque'] : ['titulo-destaque'];
-  return hasVisual ? ['foto-titulo', 'foto-janela', 'foto-arco'] : [];
+export function compatibleLayouts(kind: PostKind, texts: Texts, hasVisual: boolean, current?: Layout): Layout[] {
+  const base: Layout[] = kind === 'informativo' ? (texts.items && texts.items.length >= 2 ? ['lista-numerada', 'titulo-destaque'] : ['titulo-destaque']) : hasVisual ? ['foto-titulo', 'foto-janela', 'foto-arco'] : [];
+  // O cartão de marca nasce do pedido: quem já está nele continua nele, mas ele não é opção para os outros posts.
+  return current === 'marca' ? [...base, 'marca'] : base;
 }
 
 // Garante que a marca lê bem onde o layout a usa; devolve as cores de texto de cada layout.
@@ -153,6 +175,12 @@ export function paletteFor(spec: DesignSpec) {
 
 function basePalette(spec: DesignSpec) {
   const b = spec.brand;
+  if (spec.layout === 'marca') {
+    const bg = markBackground(b, spec.background);
+    const light = spec.background === 'light';
+    const text = light ? b.ink : '#FFFFFF';
+    return { bg, title: text, sub: softened(text, bg), kicker: text, items: text };
+  }
   if (spec.layout === 'titulo-destaque') {
     const kicker = contrast(b.accent, b.deep) >= 4.5 ? b.accent : softened('#FFFFFF', b.deep);
     return { bg: b.deep, title: '#FFFFFF', sub: softened('#FFFFFF', b.deep), kicker, items: '#FFFFFF' };

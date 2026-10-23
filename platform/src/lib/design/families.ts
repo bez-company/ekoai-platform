@@ -8,6 +8,7 @@ import { contrast, mix, over, untilContrast, type Hex } from './color';
 import { HEIGHT, MARGIN, WIDTH, paletteFor, type DesignSpec, type Logo, type LogoCorner } from './model';
 import { escapeXml, fitText, textWidth, type Fit } from './text';
 import type { TextBox } from './review';
+import type { Element, Place } from '../directives';
 
 export type Composed = { svg: string; boxes: TextBox[]; overflow: string[]; width: number; height: number };
 
@@ -34,14 +35,14 @@ function logoAt(logo: Logo | null | undefined, corner: LogoCorner, height: numbe
   return { svg: `${plate}<image href="${logo.dataUri}" x="${x}" y="${y}" width="${w}" height="${LOGO_H}" preserveAspectRatio="xMidYMid meet"/>`, box: { x: x - pad, y: y - pad, w: w + pad * 2, h: LOGO_H + pad * 2 } };
 }
 
-function handleText(handle: string | null, x: number, y: number, color: Hex, family: string, anchor: 'start' | 'end'): { svg: string; box: TextBox | null } {
+function handleText(handle: string | null, x: number, y: number, color: Hex, family: string, anchor: 'start' | 'middle' | 'end'): { svg: string; box: TextBox | null } {
   if (!handle) return { svg: '', box: null };
   const size = 24;
   const text = `@${handle}`;
   const w = textWidth(text, family as never, size, 1.05);
   return {
     svg: `<text x="${x}" y="${y + size}" font-size="${size}" fill="${color}" ${fontFace(family, true)} letter-spacing="1.5" text-anchor="${anchor}">${escapeXml(text)}</text>`,
-    box: { id: 'handle', x: anchor === 'end' ? x - w : x, y, w, h: size * 1.2, size, color, bg: '#000000' },
+    box: { id: 'handle', x: anchor === 'end' ? x - w : anchor === 'middle' ? x - w / 2 : x, y, w, h: size * 1.2, size, color, bg: '#000000' },
   };
 }
 
@@ -282,6 +283,135 @@ function fotoArco(spec: DesignSpec): Composed {
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 
+// Cartão de marca (SPEC 020): fundo liso pela paleta da marca e, em cada célula da grade 3x3, uma pilha com o
+// que o pedido mandar pôr ali (logo, nome da empresa, frase, @). Sem instrução, o padrão é a assinatura das
+// outras famílias: logo pequeno embaixo à esquerda e @ embaixo à direita; nome e frase só aparecem se existirem.
+// Logo no centro sai grande. Dois elementos na mesma célula empilham (o nome vai logo abaixo do logo).
+const PLACE_COL: Record<Place, 'l' | 'c' | 'r'> = { tl: 'l', ml: 'l', bl: 'l', tc: 'c', c: 'c', bc: 'c', tr: 'r', mr: 'r', br: 'r' };
+const PLACE_ROW: Record<Place, 't' | 'm' | 'b'> = { tl: 't', tc: 't', tr: 't', ml: 'm', c: 'm', mr: 'm', bl: 'b', bc: 'b', br: 'b' };
+const STACK_ORDER: Element[] = ['logo', 'name', 'title', 'handle'];
+const STACK_GAP = 36;
+const PLATE_PAD = 14;
+
+// Onde fica cada elemento depois de somar o pedido, o padrão e o que existe (sem logo, não há logo para pôr).
+export function markPlacements(spec: DesignSpec): Partial<Record<Element, Place>> {
+  const pl = spec.placements ?? {};
+  const out: Partial<Record<Element, Place>> = {};
+  const logo: Place | null = pl.logo === 'off' || !spec.logo ? null : pl.logo ?? spec.logoCorner ?? 'bl';
+  if (logo) out.logo = logo;
+  const handle: Place | null = pl.handle === 'off' || !spec.brand.handle ? null : pl.handle ?? (logo === 'br' ? 'bl' : 'br');
+  if (handle) out.handle = handle;
+  if (pl.name !== 'off' && spec.brandName) {
+    // "O nome embaixo do logo" com o logo no centro é a mesma pilha: nome e logo na mesma célula.
+    const name = pl.name === 'bc' && logo === 'c' ? 'c' : pl.name ?? logo ?? 'c';
+    out.name = name;
+  }
+  if (pl.title !== 'off' && spec.texts.title.trim()) out.title = pl.title ?? 'c';
+  return out;
+}
+
+function marca(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const heading = b.fontHeading;
+  const body = b.fontBody;
+  const where = markPlacements(spec);
+  const inner = WIDTH - MARGIN * 2;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
+  const light = spec.background === 'light';
+  const plate = light ? null : '#FFFFFF';
+
+  type Item = { id: Element; h: number; draw: (x: number, y: number, col: 'l' | 'c' | 'r') => void };
+  const items: Item[] = [];
+  const anchorOf = (col: 'l' | 'c' | 'r') => (col === 'l' ? 'start' : col === 'c' ? 'middle' : 'end');
+  const left = (col: 'l' | 'c' | 'r', x: number, w: number) => (col === 'l' ? x : col === 'c' ? x - w / 2 : x - w);
+
+  if (where.logo && spec.logo) {
+    const large = where.logo === 'c';
+    const logo = spec.logo;
+    const h = large ? Math.round(H * 0.3) : LOGO_H;
+    const w = Math.min(inner, Math.round((h * logo.width) / Math.max(1, logo.height)));
+    const pad = large ? 0 : PLATE_PAD;
+    items.push({
+      id: 'logo',
+      h: h + pad * 2,
+      draw: (x, y, col) => {
+        const lx = left(col, x, w + pad * 2);
+        if (pad && plate) parts.push(`<rect x="${lx}" y="${y}" width="${w + pad * 2}" height="${h + pad * 2}" rx="18" fill="${plate}" opacity="0.96"/>`);
+        parts.push(`<image href="${logo.dataUri}" x="${lx + pad}" y="${y + pad}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`);
+      },
+    });
+  }
+  if (where.name && spec.brandName) {
+    const fit = fitText(spec.brandName, { family: heading, maxWidth: inner, maxLines: 2, start: where.logo === where.name && where.name === 'c' ? 72 : 76, min: 40, step: 4, lineHeight: 1.1, weightFactor: 1.08 });
+    if (fit.overflow) overflow.push('name');
+    items.push({
+      id: 'name',
+      h: fit.height,
+      draw: (x, y, col) => {
+        parts.push(textLines(fit, x, y, fit.size, P.title, heading, true, `text-anchor="${anchorOf(col)}" letter-spacing="-1"`));
+        boxes.push({ id: 'name', x: left(col, x, fit.width), y, w: fit.width, h: fit.height, size: fit.size, color: P.title, bg: P.bg, bold: true });
+      },
+    });
+  }
+  if (where.title) {
+    const text = spec.texts.title.trim();
+    let start = text.length <= 14 ? 200 : text.length <= 30 ? 130 : 100;
+    // A frase divide a célula com o que já está nela (logo, nome): cabe no que sobra da altura, sem invadir o @.
+    const sharing = items.filter((i) => where[i.id] === where.title);
+    const reservedBottom = where.handle && where.handle !== where.title && PLACE_ROW[where.handle] === 'b' ? 24 * 1.2 + STACK_GAP : 0;
+    const budget = H - MARGIN * 2 - reservedBottom - sharing.reduce((sum, i) => sum + i.h + STACK_GAP, 0);
+    let fit = fitText(text, { family: heading, maxWidth: inner, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+    while (fit.height > budget && start > 56) {
+      start = Math.max(56, start - 8);
+      fit = fitText(text, { family: heading, maxWidth: inner, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+    }
+    if (fit.overflow) overflow.push('title');
+    items.push({
+      id: 'title',
+      h: fit.height,
+      draw: (x, y, col) => {
+        parts.push(textLines(fit, x, y, fit.size, P.title, heading, true, `text-anchor="${anchorOf(col)}" letter-spacing="-2"`));
+        boxes.push({ id: 'title', x: left(col, x, fit.width), y, w: fit.width, h: fit.height, size: fit.size, color: P.title, bg: P.bg, bold: true });
+      },
+    });
+  }
+  if (where.handle) {
+    items.push({
+      id: 'handle',
+      h: 24 * 1.2,
+      draw: (x, y, col) => {
+        const h = handleText(b.handle, x, y, P.sub, body, anchorOf(col));
+        parts.push(h.svg);
+        if (h.box) boxes.push({ ...h.box, bg: P.bg });
+      },
+    });
+  }
+
+  // Uma pilha por célula, na ordem logo, nome, frase, @. A linha da célula decide de onde a pilha parte.
+  const cells = new Map<Place, Item[]>();
+  for (const el of STACK_ORDER) {
+    const item = items.find((i) => i.id === el);
+    const place = where[el];
+    if (item && place) cells.set(place, [...(cells.get(place) ?? []), item]);
+  }
+  for (const [place, stack] of cells) {
+    const total = stack.reduce((sum, i) => sum + i.h, 0) + STACK_GAP * (stack.length - 1);
+    const row = PLACE_ROW[place];
+    let y = row === 't' ? MARGIN : row === 'm' ? Math.round((H - total) / 2) : H - MARGIN - total;
+    const col = PLACE_COL[place];
+    const x = col === 'l' ? MARGIN : col === 'c' ? WIDTH / 2 : WIDTH - MARGIN;
+    for (const item of stack) {
+      item.draw(x, Math.round(y), col);
+      y += item.h + STACK_GAP;
+    }
+  }
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
 function wrap(parts: string[], H: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${H}" viewBox="0 0 ${WIDTH} ${H}">${parts.join('')}</svg>`;
 }
@@ -291,6 +421,7 @@ export function compose(spec: DesignSpec): Composed {
   if (spec.layout === 'titulo-destaque') return tituloDestaque(spec);
   if (spec.layout === 'foto-janela') return fotoJanela(spec);
   if (spec.layout === 'foto-arco') return fotoArco(spec);
+  if (spec.layout === 'marca') return marca(spec);
   return fotoTitulo(spec);
 }
 

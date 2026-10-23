@@ -14,6 +14,7 @@ export const LAYOUT_LABEL: Record<string, { name: string; hint: string }> = {
   'foto-titulo': { name: 'Foto com título', hint: 'A foto de fundo e o título por cima' },
   'foto-janela': { name: 'Foto na janela', hint: 'A foto numa janela, texto na cor da marca' },
   'foto-arco': { name: 'Foto no arco', hint: 'A foto num arco, texto na cor da marca' },
+  marca: { name: 'Cartão de marca', hint: 'Fundo liso, logo, nome e frase onde você pediu' },
 };
 
 // O canto padrão de cada família (o mesmo de design/model.ts: um teste confere os dois).
