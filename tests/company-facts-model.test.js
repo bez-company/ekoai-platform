@@ -4,6 +4,9 @@ import {
   parseFactPatch,
   parseAgentFactInput,
   parseConfirmMany,
+  parseConfirm,
+  pendingExpiryNotice,
+  expiryNoticeText,
   factFromRow,
   factsForPrompt,
   factStanding,
@@ -162,5 +165,40 @@ describe('fatos da empresa: entrada de agente e confirmação em lote', () => {
     expect(parseConfirmMany({ ids: [a, 'nope'] })).toMatchObject({ ok: false, field: 'ids' });
     expect(parseConfirmMany({ ids: Array.from({ length: CONFIRM_MANY_MAX + 1 }, () => a) })).toMatchObject({ ok: false, field: 'ids' });
     expect(parseConfirmMany({ all: true })).toMatchObject({ ok: false });
+  });
+});
+
+describe('fatos da empresa: confirmar e avisar o vencimento', () => {
+  it('confirmar: prazo ausente mantém, vazio tira, data passada recusa', () => {
+    expect(parseConfirm({}, TODAY)).toEqual({ ok: true, value: { validUntil: undefined } });
+    expect(parseConfirm(null, TODAY)).toEqual({ ok: true, value: { validUntil: undefined } });
+    expect(parseConfirm({ valid_until: null }, TODAY)).toEqual({ ok: true, value: { validUntil: null } });
+    expect(parseConfirm({ valid_until: '2026-12-01' }, TODAY)).toEqual({ ok: true, value: { validUntil: '2026-12-01' } });
+    expect(parseConfirm({ valid_until: '2026-10-01' }, TODAY)).toMatchObject({ ok: false, field: 'valid_until' });
+  });
+
+  it('o aviso sai uma vez em 7 dias e uma vez no vencimento; confirmar de novo depois do prazo novo reabre', () => {
+    const f = (over = {}) => ({ kind: 'fact', status: 'confirmed', active: true, validUntil: '2026-10-29', expiryNotice: null, ...over });
+    expect(pendingExpiryNotice(f({ validUntil: '2026-10-30' }), TODAY)).toBeNull(); // 8 dias: cedo
+    expect(pendingExpiryNotice(f(), TODAY)).toBe('soon'); // 7 dias
+    expect(pendingExpiryNotice(f({ validUntil: TODAY }), TODAY)).toBe('soon'); // vence hoje ainda vale
+    expect(pendingExpiryNotice(f({ expiryNotice: 'soon' }), TODAY)).toBeNull(); // já avisado
+    expect(pendingExpiryNotice(f({ validUntil: '2026-10-21' }), TODAY)).toBe('expired');
+    expect(pendingExpiryNotice(f({ validUntil: '2026-10-21', expiryNotice: 'soon' }), TODAY)).toBe('expired'); // avisado em 7 dias, agora venceu
+    expect(pendingExpiryNotice(f({ validUntil: '2026-10-21', expiryNotice: 'expired' }), TODAY)).toBeNull();
+  });
+
+  it('não avisa o que não vale: pendente, recusado, desligado, "nunca afirmar" e sem prazo', () => {
+    const f = (over = {}) => ({ kind: 'fact', status: 'confirmed', active: true, validUntil: '2026-10-25', expiryNotice: null, ...over });
+    for (const over of [{ status: 'pending' }, { status: 'rejected' }, { active: false }, { kind: 'never' }, { validUntil: null }]) {
+      expect(pendingExpiryNotice(f(over), TODAY)).toBeNull();
+    }
+  });
+
+  it('o texto do aviso leva só a categoria, nunca o fato', () => {
+    expect(expiryNoticeText('soon', ['oferta_preco'])).toEqual({ title: '1 fato da empresa vence em 7 dias', body: 'Oferta e preço. Atualize a validade para os posts continuarem usando.' });
+    const many = expiryNoticeText('expired', ['oferta_preco', 'oferta_preco', 'prazo_horario']);
+    expect(many.title).toBe('3 fatos da empresa venceram');
+    expect(many.body).toBe('Oferta e preço, Prazo e horário. Fato vencido não entra nos posts. Atualize a validade para voltar a usar.');
   });
 });
