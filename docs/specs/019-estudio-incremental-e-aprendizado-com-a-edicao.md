@@ -171,8 +171,9 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
       `texts.kicker`, `colors.title` e `colors.sub` (valor hex exato). Texto livre não é elegível.
     - **Contagem por post, pela mudança líquida:** compara o valor da v1 com o da versão em uso. Se a
       pessoa moveu o logo e depois devolveu, não conta. Mover duas vezes para o mesmo canto no mesmo post
-      conta uma vez. Só entram posts `awaiting_decision`, aprovados, agendados ou publicados (recusado e
-      arquivado não valem: a edição pode ter sido de um post ruim).
+      conta uma vez. Só entram posts que seguiram: esperando decisão (`awaiting_decision`) ou aprovados
+      (marcados em `post_designs.approved_at` na aprovação, porque a pendência some ao aprovar). Recusado, arquivado
+      e trocado por "outra direção" não valem: a edição pode ter sido de um post ruim.
     - **Gatilho:** **3 posts distintos em 30 dias** com a mesma mudança líquida (`N = 3` e `30` são
       constantes, não configuração por conta). **(Matheus)** confirmar o 3.
     - **Proposta:** linha em `design_rules` com `status = proposed`, a explicação montada por template
@@ -187,7 +188,8 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
     - Estados: `proposed`, `active`, `off`, `dismissed`. **Aceitar** leva a `active`; **Desligar** leva a
       `off` (religa a qualquer momento); **Dispensar** leva a `dismissed`.
     - **Desfazer** é o aviso de dez segundos depois de aceitar ("Regra ativa. Desfazer"), que devolve a
-      `proposed`, e o botão Desligar sempre disponível em Aprendizado.
+      `proposed`. O servidor aceita desfazer por até 5 minutos depois do aceite; passado o prazo, vale só Desligar,
+      sempre disponível em Aprendizado.
     - **Uma regra ativa por campo e escopo** (índice único parcial). Aceitar `logoCorner = br` com outra
       regra de canto ativa desliga a outra e diz isso na confirmação.
 
@@ -317,8 +319,9 @@ servidor grava, como `post_designs`.
 
 Índice único parcial `(tenant_id, scope, field) where status = 'active'` (uma ativa por campo e escopo).
 
-Aditivo e reaplicável (o CI aplica duas vezes); nada é apagado, sem `-- allow-destructive`. As duas
-tabelas entram em `TENANT_TABLES`, com policy de leitura por `content.view` (revisões) e
+Aditivo e reaplicável (o CI aplica duas vezes); nada é apagado, sem `-- allow-destructive`. `post_designs`
+ganha `approved_at` (preenchido na aprovação), que separa o post que seguiu do recusado e do trocado por "outra
+direção". As duas tabelas entram em `TENANT_TABLES`, com policy de leitura por `content.view` (revisões) e
 `profile.view` (regras), `rls_test.sql` e `tests/tenant-scope.test.js`.
 
 ## Rotas
@@ -331,7 +334,7 @@ tabelas entram em `TENANT_TABLES`, com policy de leitura por `content.view` (rev
 | `GET /api/posts/[id]/design/revisions/[version]/png` | `content.view` | | 200 `image/png` privado; 404 |
 | `POST /api/posts/[id]/design/revisions/[version]/restore` | `content.edit` | `baseVersion` | 201 versão nova; 404; 409 |
 | `POST /api/approve` (existente) | `content.approve` | ganha `designVersion` opcional | 409 se a versão em uso mudou |
-| `GET /api/design-rules` | `content.view` | | 200 lista da conta |
+| `GET /api/design-rules` | `profile.view` | | 200 lista da conta |
 | `POST /api/design-rules/[id]/accept`, `/disable`, `/enable`, `/dismiss`, `/undo` | `brand.manage` | | 200; 404; 409 estado inválido |
 
 `[id]` é o id do pedido (`brief_id`), como em `/api/posts/[id]/caption`. Toda rota declara a permissão

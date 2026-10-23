@@ -45,7 +45,11 @@ export type ProductEvent =
   | 'design_revision_saved'
   | 'design_revision_restored'
   | 'design_edit_discarded'
-  | 'design_edit_wish';
+  | 'design_edit_wish'
+  | 'design_rule_proposed'
+  | 'design_rule_accepted'
+  | 'design_rule_dismissed'
+  | 'design_rule_disabled';
 
 // `published_success` (channel, attempts, recorded, latency_ms) e `published_failure` (channel, attempts, reason:
 // classe do erro, nunca a mensagem) saem de publish.ts desde o BEZ-258. Substituem `post_published` e

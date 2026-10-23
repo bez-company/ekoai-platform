@@ -340,7 +340,7 @@ export async function revisionPng(t: TenantDb, briefId: string, version: number,
 
 // Aprovar leva a versão que a pessoa estava vendo: se a versão em uso mudou, a aprovação para (409).
 // Sem `designVersion` segue como antes. A versão aprovada fica em seed.design_version.
-export async function assertDesignVersion(t: TenantDb, pendingId: string, designVersion: number | undefined): Promise<{ briefId: string | null; version: number } | null> {
+export async function assertDesignVersion(t: TenantDb, pendingId: string, designVersion: number | undefined): Promise<{ briefId: string | null; designId: string; version: number } | null> {
   const pend = await t.select('pending_approvals', 'post_design_id,brief_id,seed').eq('pending_id', pendingId).maybeSingle();
   if (pend.error) throw new Error(`pendências: ${pend.error.message}`);
   const designId = pend.data?.post_design_id as string | null | undefined;
@@ -353,5 +353,12 @@ export async function assertDesignVersion(t: TenantDb, pendingId: string, design
   const seed = (pend.data?.seed as Record<string, unknown> | null) ?? {};
   const up = await t.update('pending_approvals', { seed: { ...seed, design_version: inUse } }).eq('pending_id', pendingId);
   if (up.error) throw new Error(`pendências: ${up.error.message}`);
-  return { briefId: (pend.data?.brief_id as string | null | undefined) ?? null, version: inUse };
+  return { briefId: (pend.data?.brief_id as string | null | undefined) ?? null, designId, version: inUse };
+}
+
+// Aprovado: o design segue para a agenda. É o que separa a edição de um post que seguiu da de um post recusado
+// ou trocado por "outra direção", que não conta para a regra de marca (SPEC 019, decisão 11).
+export async function markDesignApproved(t: TenantDb, designId: string): Promise<void> {
+  const { error } = await t.update('post_designs', { approved_at: new Date().toISOString() }).eq('id', designId);
+  if (error) log('warn', 'design-revisions', 'não marcou o design como aprovado', { error: error.message });
 }
