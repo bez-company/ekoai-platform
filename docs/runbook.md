@@ -339,6 +339,124 @@ proteção ligada.
   no `.env.local`; `LOCAL_BLOB_DIR` guarda os PNGs numa pasta.
 
 
+## Testes E2E no navegador (Playwright, BEZ-259)
+
+Os testes de `e2e/` abrem um navegador de verdade contra o app de verdade (Next em modo dev), um Postgres com
+as migrations e o emulador do Firebase Auth. Vertex, Cloud KMS e Meta são simulados; nada fala com a internet.
+Quem quiser a visão do que roda só por teste de banco está em `tests/db/` (BEZ-248): os dois se completam.
+
+| Spec | O que garante |
+| --- | --- |
+| `login` | sem sessão vai ao login e volta ao destino; senha errada mostra o erro; entrar e sair |
+| `onboarding` | perfil em passos, passo obrigatório barra, chega às perguntas rápidas |
+| `journey-admin-ai` | conectar Instagram, retomar publicação, ritmo, pedir post, worker gera, editar, aprovar, cron publica, Publicados |
+| `journey-admin-photo` | subir foto, legenda pela foto, corte quadrado, agendar, a Meta recebe PNG 1080x1080, banco marca como usada |
+| `roles` | administrador, criador e leitor: o que a tela mostra e o que a API recusa (403 com a mesma mensagem) |
+| `errors` | 401, cookie adulterado, 404, 429 por IP, geração que falha e "Tentar de novo" |
+
+Tudo roda em desktop (1280x800) e em celular (Pixel 7).
+
+### Rodar na sua máquina
+
+Precisa de Node 22, Postgres local, Java 21 (o emulador do Firebase) e o Chromium do Playwright.
+
+```bash
+cd e2e
+npm ci
+npx playwright install chromium
+E2E_ADMIN_DATABASE_URL=postgresql://localhost:5432/postgres npm run db:prepare   # cria o banco ekoai_e2e e aplica as migrations
+E2E_DATABASE_URL=postgresql://localhost:5432/ekoai_e2e npm run emulator:test     # sobe o emulador e roda tudo
+```
+
+- Rode `db:prepare` de novo depois de atualizar a branch: migration nova que falta no banco local quebra a
+  tela de um jeito que parece bug do app (já aconteceu com `company_facts` e `scheduled_posts`).
+- Um spec só: `npm run emulator:test -- tests/roles.spec.ts`. Para ver o navegador, `--headed`.
+- O seed apaga as tabelas de conta inteiras e só roda em banco cujo nome contém `e2e`.
+- O servidor fica de pé entre as rodadas (`reuseExistingServer` fora do CI). Se mudar `playwright.config.ts`,
+  mate o `next dev` da porta 3100 antes.
+
+### No CI
+
+O job `E2E no navegador` faz parte do `CI ok`. Cada execução anexa o artefato `e2e-resultados`: um screenshot por
+teste, o relatório HTML e o trace dos que falharam. Para abrir um trace:
+`npx playwright show-trace test-results/<pasta>/trace.zip` (ou arraste o zip em trace.playwright.dev). Tente uma vez de novo antes de
+suspeitar de flake: o CI já repete cada falha uma vez.
+
+### Como o app fala com o mundo simulado
+
+- `e2e/support/app-preload.mjs` entra no servidor por `NODE_OPTIONS=--import`. Reescreve o `fetch` para Vertex, KMS
+  e Meta e **recusa qualquer outro host externo**: uma chamada nova no app quebra o teste em vez de sair para a internet.
+- `e2e/support/fakes.ts` é o servidor simulado. Responde por etapa (o app manda `step` nos labels do Vertex), registra
+  as chamadas (`fakeCalls`) e aceita falha programada (`failFake`). O KMS simulado não cifra de verdade.
+- O navegador só alcança o app: `e2e/support/test.ts` corta os outros hosts e troca a autorização do Instagram pelo
+  retorno ao callback do app.
+- Imagens vão para `LOCAL_BLOB_DIR` (`e2e/.tmp/blobs`), não para o Cloud Storage. `CLOUDSDK_CONFIG` aponta para uma
+  pasta vazia, para o Google Auth nunca usar o login do gcloud da máquina.
+- A única escrita direta no banco durante um teste é fazer o horário do post agendado chegar
+  (`makeScheduledPostsDue`). Todo o resto passa pela tela ou pela API.
+
+### Escrever um spec novo
+
+1. Importe `test` e `expect` de `../support/test` (não de `@playwright/test`), para o corte de rede valer.
+2. Se o spec muda o estado da conta, chame `resetAccount()` num `beforeAll` e use `test.describe.serial`: o banco é um só.
+3. Para chegar a uma conta pronta para publicar use `readyToPublish(page)` (`support/flows.ts`).
+4. Procure pelo papel e pelo nome (`getByRole`), como a pessoa lê a tela. Se faltar nome acessível, é falha de
+   acessibilidade: corrija o componente em vez de pôr `data-testid`.
+5. Cada spec roda nos dois tamanhos de tela. O menu do celular fica atrás de "Mais" (`logout()` já trata).
+
+### Limites conhecidos
+
+- O app roda em modo dev porque só aceita o emulador fora de produção e o CSP de produção bloqueia `127.0.0.1`.
+  Então o E2E não prova o build de produção; quem prova é o job `containers` e o smoke abaixo.
+- `DB_POOL_MAX=2`: o modo dev cria um pool por rota recompilada e o Postgres do teste ficava sem conexão.
+- `test.fixme` em `errors.spec.ts`: `/create/<id inexistente>` responde 200 com um cartão de erro (BEZ-273).
+- Segundo fator (TOTP), criar conta com `SIGNUP_MODE=open` e a conexão real com Meta e Vertex ficam fora: são do smoke.
+
+## Smoke real no staging (à mão)
+
+O E2E prova que a jornada funciona contra serviços simulados. O smoke prova o que ele não alcança: o Identity Platform,
+o Vertex, a Meta e o Cloud Run de verdade. Rode antes de uma release e depois de mexer em login, geração ou publicação.
+É o roteiro do aceite do BEZ-161.
+
+**Antes de começar**
+
+- Use só a conta de teste autorizada da BEZ e uma marca de exemplo com dado fictício. O repositório é público:
+  nada de cliente real, e nada de token, senha ou código do app autenticador em print, log ou chat.
+- Ligue o banco: `CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging up` (cerca de 15 minutos) ou o botão
+  **Ligar o ambiente** da tela. Confirme com `GET /api/health` (200).
+- Instagram: só a conta de teste conectada como tester do app (modo desenvolvimento). Publicar de verdade nela é
+  uma decisão sua a cada rodada; a Meta não tem como desfazer o que foi publicado.
+- Navegador no perfil Bez Company. Registre a data, o commit do staging e quem rodou no card do Linear.
+
+**Roteiro** (marque cada passo; falhou, anote o passo, a tela e o horário, e abra um card)
+
+1. **Entrar.** Abra a URL do staging com a pessoa de teste. Criar acesso (se `SIGNUP_MODE=open`) ou entrar com e-mail e
+   senha. Esperado: o Início com o guia. Com `MFA_MODE=optional` não pede app autenticador; se a pessoa o ativou, pede.
+2. **Perfil.** Completar o cadastro em passos: Negócio obrigatório, os outros dois podem pular. Esperado: cair nas
+   perguntas rápidas.
+3. **Perguntas rápidas e horários.** Responder e confirmar que a Agenda ganhou horários, sem abrir Configurações.
+4. **Instagram.** Redes › Conectar Instagram (ou Reconectar). Esperado: volta com "Instagram conectado" e o @ da conta de teste.
+5. **Post por IA.** Criar post com uma ideia curta. Esperado: acompanhar as etapas, post pronto em cerca de 1 minuto, aparece
+   em Aprovar. Confira no log (`scope` `generation`) que não houve erro e, no Vertex, a chamada com os labels `tenant`, `step`, `brief`.
+6. **Revisar.** Abrir o post, editar a legenda e uma hashtag, abrir a imagem pelo endereço `/api/media/images/...`
+   (deve carregar em janela anônima: a Meta busca por ele). Aprovar e agendar. Esperado: aparece na Agenda no próximo horário.
+7. **Publicar (opcional).** Na tela de revisão, **Publicar agora**, ou esperar o horário. Esperado: o post vai ao Instagram de teste,
+   a Agenda marca "Publicado" e o histórico mostra o post.
+8. **Foto sem IA.** Banco de imagens: subir uma foto fictícia e ver a descrição. Publicar foto: cortar, usar a legenda da
+   Ekoai e agendar. Esperado: "Agendado para ..." e a foto marcada como usada depois de publicada.
+9. **Papéis.** Convidar um criador e um leitor pela Equipe e aceitar os convites em janelas separadas. Esperado: o criador
+   cria e não vê Equipe; o leitor só acompanha. O que o teste automático cobre aqui é a matriz de permissões, não o e-mail do convite.
+10. **Limite do plano.** Se der, criar posts até o teto do mês. Esperado: a tela diz o limite e o que fazer, e o uso em
+    `generation_runs` (consulta na seção "Geração de posts") bate com o que você pediu.
+11. **Falha controlada.** Desconectar o Instagram e tentar publicar. Esperado: o post aprovado fica agendado e espera (a tela de Redes diz isso); reconectar e
+    ver o post sair.
+
+**Depois**
+
+- Conta de teste volta ao estado de antes (posts de teste arquivados, Instagram desconectado se não for ficar).
+- Se o staging não for usado nas próximas horas, `staging down` (ou deixe o corte por ociosidade cuidar).
+- O que o smoke achar e o E2E não pegou vira spec novo em `e2e/tests`: a ideia é cada falha real ficar travada.
+
 ## Observabilidade (BEZ-127, BEZ-260)
 
 | O quê | Onde | Liga com |
