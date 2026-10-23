@@ -59,11 +59,14 @@ async function resolveUser(id: Identity): Promise<SessionUser> {
 }
 
 export async function membershipsOf(userId: string): Promise<Membership[]> {
-  const { data, error } = await db().from('tenant_members').select('tenant_id,role,created_at').eq('user_id', userId);
-  if (error) throw new Error(`memberships: ${error.message}`);
-  return (data ?? [])
+  const res = await db().query(
+    `select m.tenant_id, m.role, m.created_at, (t.status = 'suspended') as suspended
+     from tenant_members m join tenants t on t.id = m.tenant_id where m.user_id = $1`,
+    [userId],
+  );
+  return res.rows
     .filter((r) => isRole(r.role))
-    .map((r) => ({ tenantId: String(r.tenant_id), role: r.role as Role, createdAt: String(r.created_at) }));
+    .map((r) => ({ tenantId: String(r.tenant_id), role: r.role as Role, createdAt: String(r.created_at), suspended: r.suspended === true }));
 }
 
 export async function sessionUser(userId: string): Promise<SessionUser | null> {
@@ -72,15 +75,15 @@ export async function sessionUser(userId: string): Promise<SessionUser | null> {
   return data ? toUser(data) : null;
 }
 
+// Conta suspensa não tem papel: ninguém entra nela, mesmo com sessão válida (console, BEZ-303).
 export async function roleIn(userId: string, tenantId: string): Promise<Role | null> {
-  const { data, error } = await db()
-    .from('tenant_members')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
-  if (error) throw new Error(`membership: ${error.message}`);
-  return data && isRole(data.role) ? data.role : null;
+  const res = await db().query(
+    `select m.role from tenant_members m join tenants t on t.id = m.tenant_id
+     where m.user_id = $1 and m.tenant_id = $2 and t.status <> 'suspended'`,
+    [userId, tenantId],
+  );
+  const role = res.rows[0]?.role;
+  return isRole(role) ? role : null;
 }
 
 export async function hasPermission(role: Role, tenantId: string, permission: Permission): Promise<boolean> {

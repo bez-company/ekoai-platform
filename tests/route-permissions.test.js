@@ -15,6 +15,10 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 // `instagram/deauthorize` e `instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é o signed_request.
 const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/collect-metrics', 'cron/sleep-if-idle', 'cron/plan-content', 'instagram/deauthorize', 'instagram/data-deletion', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
+// As rotas do console do administrador da plataforma (BEZ-303) não usam a matriz de papéis das contas: cada
+// uma passa por requirePlatformAdmin(), o portão de uma pessoa só (docs/arquitetura/ultra-admin.md).
+const CONSOLE = new Set(['console/accounts', 'console/accounts/[id]/suspend', 'console/accounts/[id]/reactivate']);
+
 const EXPECTED = {
   approve: ['content.approve'],
   reject: ['content.approve'],
@@ -108,7 +112,7 @@ describe('permissão por rota', () => {
   );
 
   it('cada método protegido declara a permissão da tabela', () => {
-    const protectedRoutes = Object.fromEntries(Object.entries(found).filter(([k]) => !PUBLIC.has(k)).map(([k, v]) => [k, v.perms]));
+    const protectedRoutes = Object.fromEntries(Object.entries(found).filter(([k]) => !PUBLIC.has(k) && !CONSOLE.has(k)).map(([k, v]) => [k, v.perms]));
     expect(protectedRoutes).toEqual(EXPECTED);
   });
 
@@ -117,6 +121,18 @@ describe('permissão por rota', () => {
   });
 
   it('as rotas públicas são só as conhecidas', () => {
-    expect(Object.keys(found).filter((k) => !(k in EXPECTED)).sort()).toEqual([...PUBLIC].sort());
+    expect(Object.keys(found).filter((k) => !(k in EXPECTED) && !CONSOLE.has(k)).sort()).toEqual([...PUBLIC].sort());
+  });
+
+  it('toda rota do console chama o portão do administrador da plataforma antes de qualquer coisa', () => {
+    expect(Object.keys(found).filter((k) => k.startsWith('console/')).sort()).toEqual([...CONSOLE].sort());
+    for (const key of CONSOLE) {
+      const src = found[key].src;
+      const gate = src.indexOf('await requirePlatformAdmin()');
+      expect(gate, key).toBeGreaterThan(-1);
+      // o portão vem antes de ler o corpo ou de tocar no banco
+      if (src.includes('req.json')) expect(src.indexOf('req.json'), key).toBeGreaterThan(gate);
+      expect(src.indexOf('Account('), key).toBeGreaterThan(gate);
+    }
   });
 });

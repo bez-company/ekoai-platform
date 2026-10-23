@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { membershipsOf } from '@/lib/accounts';
+import { activeMemberships } from '@/lib/login-policy';
 import { requirePermission, requireSession } from '@/lib/session';
 import { apiError } from '@/lib/api';
 
@@ -8,7 +9,7 @@ export async function GET() {
   try {
     await requirePermission('content.view');
     const { t, role, user } = await requireSession();
-    const memberships = user ? await membershipsOf(user.id) : [];
+    const memberships = user ? activeMemberships(await membershipsOf(user.id)) : [];
     return NextResponse.json({
       tenantId: t.tenantId,
       role,
