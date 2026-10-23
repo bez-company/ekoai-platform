@@ -14,7 +14,9 @@ resource "google_firebase_hosting_site" "app" {
   site_id  = local.app_hosting_site
 }
 
-# Toda rota vai para o Cloud Run. A configuração é imutável: mudar o rewrite cria uma versão nova.
+# Toda rota vai para o Cloud Run. A configuração é imutável: mudar o rewrite cria uma versão nova. Sem
+# depends_on no serviço de propósito: ele já existe (app_domain exige deploy_workloads) e a dependência
+# arrastaria o serviço para um `-target` do Hosting.
 resource "google_firebase_hosting_version" "app" {
   count    = var.app_domain == "" ? 0 : 1
   provider = google-beta
@@ -29,8 +31,6 @@ resource "google_firebase_hosting_version" "app" {
       }
     }
   }
-
-  depends_on = [google_cloud_run_v2_service.platform]
 }
 
 resource "google_firebase_hosting_release" "app" {
