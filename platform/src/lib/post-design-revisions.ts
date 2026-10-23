@@ -239,14 +239,16 @@ export async function previewEdit(t: TenantDb, briefId: string, input: { baseVer
   return { version: target.version, image: `data:image/png;base64,${png.toString('base64')}`, issues, blocking: editBlocking(issues) };
 }
 
-export type SavedRevision = { version: number; summary: string; diff: DiffEntry[]; issues: Issue[]; source: RevisionSource };
+export type SavedRevision = { version: number; summary: string; diff: DiffEntry[]; issues: Issue[]; source: RevisionSource; renderMs: number };
 
 // Grava a versão base + 1: o Confirmar e o Restaurar passam por aqui.
 async function commit(t: TenantDb, target: Target, store: BlobStore, next: StoredDesign, o: { source: RevisionSource; baseVersion: number; userId: string | null; summary?: string }, deps: Deps): Promise<SavedRevision> {
   if (target.version !== o.baseVersion) throw await conflict(t, target);
   if (same(target.design, next)) throw new UserError('Nada mudou. Faça um ajuste antes de confirmar.');
   const inputs = await loadInputs(t, target, store);
+  const started = Date.now();
   const { png, issues } = renderAndReview(target, inputs, next, deps);
+  const renderMs = Date.now() - started;
   const blocked = editBlocking(issues);
   if (blocked.length) throw new RevisionBlocked(blocked[0].message, blocked);
 
@@ -268,7 +270,7 @@ async function commit(t: TenantDb, target: Target, store: BlobStore, next: Store
   await swapPending(t, target, pngKey, { issues }, next.layout, deps.mediaBaseUrl);
   if (target.pngKey && target.pngKey !== pngKey) await store.remove(target.pngKey).catch((e) => log('warn', 'design-revisions', 'não apagou o PNG antigo', { error: e instanceof Error ? e.message : String(e) }));
   await prune(t, target.designId, version);
-  return { version, summary, diff, issues, source: o.source };
+  return { version, summary, diff, issues, source: o.source, renderMs };
 }
 
 // No máximo 20 revisões por post: apaga a mais antiga que não seja a v1 nem a versão em uso.
@@ -338,17 +340,18 @@ export async function revisionPng(t: TenantDb, briefId: string, version: number,
 
 // Aprovar leva a versão que a pessoa estava vendo: se a versão em uso mudou, a aprovação para (409).
 // Sem `designVersion` segue como antes. A versão aprovada fica em seed.design_version.
-export async function assertDesignVersion(t: TenantDb, pendingId: string, designVersion: number | undefined): Promise<void> {
-  const pend = await t.select('pending_approvals', 'post_design_id,seed').eq('pending_id', pendingId).maybeSingle();
+export async function assertDesignVersion(t: TenantDb, pendingId: string, designVersion: number | undefined): Promise<{ briefId: string | null; version: number } | null> {
+  const pend = await t.select('pending_approvals', 'post_design_id,brief_id,seed').eq('pending_id', pendingId).maybeSingle();
   if (pend.error) throw new Error(`pendências: ${pend.error.message}`);
   const designId = pend.data?.post_design_id as string | null | undefined;
-  if (!designId) return;
+  if (!designId) return null;
   const d = await t.select('post_designs', 'version').eq('id', designId).maybeSingle();
   if (d.error) throw new Error(`post_designs: ${d.error.message}`);
-  if (!d.data) return;
+  if (!d.data) return null;
   const inUse = Number(d.data.version);
   if (designVersion !== undefined && designVersion !== inUse) throw new ConflictError('O post mudou enquanto você olhava. Veja a versão atual antes de aprovar.');
   const seed = (pend.data?.seed as Record<string, unknown> | null) ?? {};
   const up = await t.update('pending_approvals', { seed: { ...seed, design_version: inUse } }).eq('pending_id', pendingId);
   if (up.error) throw new Error(`pendências: ${up.error.message}`);
+  return { briefId: (pend.data?.brief_id as string | null | undefined) ?? null, version: inUse };
 }

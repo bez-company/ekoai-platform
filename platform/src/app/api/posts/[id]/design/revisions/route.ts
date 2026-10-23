@@ -9,6 +9,8 @@ import { designEditError } from '@/lib/design-edit-api';
 import { isUuid } from '@/lib/route-input';
 import { parseEditBody } from '@/lib/design/edit-model';
 import { designState, saveEdit } from '@/lib/post-design-revisions';
+import { track } from '@/lib/analytics';
+import { revisionSavedProps } from '@/lib/design-edit-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +34,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!parsed.ok) return NextResponse.json({ error: parsed.error, field: parsed.field }, { status: 400 });
     const userId = (await requireSession()).user?.id ?? null;
     const saved = await saveEdit(t, id, { baseVersion: parsed.value.baseVersion, edit: parsed.value.edit, userId });
+    await track(t.tenantId, 'design_revision_saved', revisionSavedProps({ briefId: id, version: saved.version, source: saved.source, diff: saved.diff, renderMs: saved.renderMs, editMs: parsed.value.editMs }));
     return NextResponse.json(saved, { status: 201 });
   } catch (e) {
     return designEditError(e, 'api/posts/[id]/design/revisions');
