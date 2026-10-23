@@ -209,6 +209,12 @@ proteção ligada.
   `GET /api/ambiente` (`state`, `elapsedS`, `message`).
 - **Medido em 22/10/2026:** ligar leva 888 s (14,8 min); desligar, cerca de 46 s. O `state=RUNNABLE` do `gcloud` aparece em
   segundos e engana: o `scripts/sql-power.sh` espera o estado e o fim das operações, e `GET /api/health` confirma que a plataforma responde.
+- **Deploy com o banco desligado ou ligando (BEZ-120):** o deploy não pede para ligar de novo se já há operação no banco
+  (o `patch` voltava 409), espera `RUNNABLE` **sem operação pendente**, e o migrate tenta conectar por cerca de 2 minutos
+  antes de desistir (`connect ETIMEDOUT` era o banco ainda fechado para a VPC). O health check confere primeiro
+  `/api/live` (o processo; falha é imagem quebrada) e depois `/api/health` por até 3 minutos (o app alcançando o banco).
+- **Probes:** staging em `/api/live`, para a instância subir com o banco parado e mostrar a tela; produção em `/api/health`,
+  para um deploy com banco quebrado falhar no rollout (decisão do BEZ-120, SPEC 016 D8).
 
 ## Geração de posts (SPEC 012, ADR 0018)
 

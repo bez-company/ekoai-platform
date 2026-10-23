@@ -18,6 +18,36 @@ import pg from 'pg';
 
 const LOCK_KEY = 7_294_015; // qualquer inteiro fixo: só precisa ser o mesmo em todas as execuções
 
+// Staging sob demanda (SPEC 016, BEZ-120): o Cloud SQL fica RUNNABLE antes de aceitar conexão pela VPC,
+// e o job do migrate morria com "connect ETIMEDOUT". Erro de rede ou "o banco ainda está subindo" tenta
+// de novo com espera crescente (cerca de 2 minutos no total); erro de SQL ou de senha falha na hora.
+const RETRY_WAITS_MS = [5_000, 10_000, 20_000, 30_000, 40_000];
+const CONNECT_TIMEOUT_MS = 10_000;
+const TRANSIENT_CODES = new Set(['ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH', 'EAI_AGAIN', '57P03']);
+
+export function isTransientConnectError(err) {
+  if (!err) return false;
+  if (TRANSIENT_CODES.has(err.code)) return true;
+  return /timeout expired|Connection terminated unexpectedly|the database system is starting up/i.test(String(err.message));
+}
+
+// Abre a conexão com novas tentativas. `makeClient` cria um cliente novo a cada tentativa (o pg não
+// reaproveita cliente que falhou ao conectar).
+export async function connectWithRetry(makeClient, { waits = RETRY_WAITS_MS, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), log = console.log } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    const client = makeClient();
+    try {
+      await client.connect();
+      return client;
+    } catch (err) {
+      await client.end().catch(() => {});
+      if (!isTransientConnectError(err) || attempt >= waits.length) throw err;
+      log(`[migrate] banco ainda não aceita conexão (${err.code ?? err.message}); nova tentativa em ${waits[attempt] / 1000} s`);
+      await sleep(waits[attempt]);
+    }
+  }
+}
+
 export const checksum = sql => createHash('sha256').update(sql).digest('hex');
 
 export async function listMigrations(dir) {
@@ -43,9 +73,9 @@ export async function migrate({
   bootstrap = 'supabase/ci/bootstrap.sql',
   dryRun = false,
   log = console.log,
+  retry = {},
 }) {
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
+  const client = await connectWithRetry(() => new pg.Client({ connectionString: url, connectionTimeoutMillis: CONNECT_TIMEOUT_MS }), { log, ...retry });
   try {
     await client.query('select pg_advisory_lock($1)', [LOCK_KEY]);
     await client.query(`
