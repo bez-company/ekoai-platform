@@ -177,7 +177,7 @@ export async function photoCaption(t: TenantDb, input: { assetId: string; idea: 
   log('info', 'photo-post', 'legenda pela foto', { tenant: t.tenantId, asset: asset.id, costUsd: out.costUsd, inputTokens: out.inputTokens, outputTokens: out.outputTokens });
   const parsed = parseRewrite(out.json);
   if (!parsed.ok) throw new UserError('A Ekoai não conseguiu escrever a legenda agora. Tente de novo ou escreva você.');
-  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
+  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords }));
   if (issues.length) throw new UserError(`A legenda sugerida não passou no revisor: ${issues[0].message} Peça de novo ou escreva você.`);
   return { caption: parsed.caption, hashtags: parsed.hashtags };
 }
@@ -202,7 +202,7 @@ export async function photoRewrite(
   if (!out) throw new UserError(CAPTION_CAP_MESSAGE);
   const parsed = parseRewrite(out.json);
   if (!parsed.ok) throw new UserError('A Ekoai não conseguiu ajustar a legenda agora. Tente de novo ou edite à mão.');
-  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
+  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords }));
   if (issues.length) throw new UserError(`A nova legenda não passou no revisor: ${issues[0].message} Tente outro atalho ou edite à mão.`);
   log('info', 'photo-post', 'atalho da legenda', { tenant: t.tenantId, asset: asset.id, mode: input.mode, costUsd: out.costUsd });
   return { caption: parsed.caption, hashtags: parsed.hashtags };

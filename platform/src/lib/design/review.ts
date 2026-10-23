@@ -4,6 +4,7 @@
 
 import { contrast, fmtContrast, type Hex } from './color';
 import { MARGIN, WIDTH } from './model';
+import type { InactiveFact } from '../company-facts-model';
 
 export type Issue = { rule: string; detail: string; message: string; where: 'image' | 'caption' };
 
@@ -22,6 +23,10 @@ export type TextReviewInput = {
   facts: string[];
   never: string[];
   banned: string[];
+  // Fatos que não valem hoje (vencido, para revisar, recusado): número que só existe neles reprova.
+  inactive?: InactiveFact[];
+  // Número digitado na oferta da campanha do post: vale como afirmado só para ele (SPEC 018).
+  allowed?: string[];
 };
 
 function numbersIn(text: string): string[] {
@@ -30,11 +35,18 @@ function numbersIn(text: string): string[] {
   return cleaned.match(/\d+(?:[.,]\d+)*/g) ?? [];
 }
 
+const STALE_LABEL = { expired: 'vencido', pending: 'ainda não confirmado', rejected: 'recusado' } as const;
+
+function staleMessage(n: string, f: InactiveFact): string {
+  const since = f.reason === 'expired' && f.validUntil ? ` em ${f.validUntil.slice(8, 10)}/${f.validUntil.slice(5, 7)}` : '';
+  return `O número ${n} vem de um fato ${STALE_LABEL[f.reason]}${since}: "${f.text}". ${f.reason === 'rejected' ? 'Tire o número do post.' : 'Confirme ou atualize o fato para usá-lo.'}`;
+}
+
 export function reviewText(input: TextReviewInput): Issue[] {
   const issues: Issue[] = [];
   const image = input.imageTexts.join(' \n ');
   const all = `${image} \n ${input.caption}`.toLowerCase();
-  const allowed = `${input.facts.join(' ')} ${input.caption.match(/#\S+/g)?.join(' ') ?? ''}`;
+  const allowed = `${input.facts.join(' ')} ${(input.allowed ?? []).join(' ')} ${input.caption.match(/#\S+/g)?.join(' ') ?? ''}`;
 
   for (const word of input.banned) {
     const w = word.trim().toLowerCase();
@@ -46,7 +58,11 @@ export function reviewText(input: TextReviewInput): Issue[] {
     if (new RegExp(`(^|[^a-zà-ú])${w}([^a-zà-ú]|$)`).test(all)) issues.push({ rule: 'accent', detail: w, message: `"${w}" parece estar sem acento.`, where: image.toLowerCase().includes(w) ? 'image' : 'caption' });
   }
   for (const n of numbersIn(`${image} ${input.caption}`)) {
-    if (!allowed.includes(n)) issues.push({ rule: 'number_not_in_facts', detail: n, message: `O número ${n} não está na base de fatos da empresa.`, where: image.includes(n) ? 'image' : 'caption' });
+    if (allowed.includes(n)) continue;
+    const where = image.includes(n) ? 'image' : 'caption';
+    const stale = (input.inactive ?? []).find((f) => f.text.includes(n));
+    if (stale) issues.push({ rule: 'fact_not_valid', detail: n, message: staleMessage(n, stale), where });
+    else issues.push({ rule: 'number_not_in_facts', detail: n, message: `O número ${n} não está na base de fatos da empresa.`, where });
   }
   if (/garant(a|e|ia|ir|ido|imos)/.test(all)) issues.push({ rule: 'never_claim', detail: 'garantia', message: 'Promessa de garantia: o post não pode prometer resultado.', where: /garant/.test(image.toLowerCase()) ? 'image' : 'caption' });
   for (const claim of input.never) {
@@ -87,7 +103,7 @@ export function reviewLayout(boxes: TextBox[], height: number, overflow: string[
 }
 
 // O que trava a aprovação automática (o resto é aviso que a pessoa decide).
-export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
+export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
 
 export function blocking(issues: Issue[]): Issue[] {
   return issues.filter((i) => BLOCKING.has(i.rule));

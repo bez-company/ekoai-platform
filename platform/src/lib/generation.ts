@@ -121,7 +121,7 @@ export function logoDimensions(bytes: Uint8Array, contentType: string): { width:
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
-async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: { facts: string[]; never: string[] }, rules: string[], planMax: number, photo: BriefPhoto | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
+async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
@@ -149,7 +149,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       continue;
     }
     const copy = parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords });
+    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) return { copy, issues };
@@ -334,7 +334,7 @@ export async function rewriteCaption(t: TenantDb, deps: Pick<GenerationDeps, 'mo
   }
   const parsed = parseRewrite(json);
   if (!parsed.ok) throw new UserError('A Ekoai não conseguiu reescrever agora. Tente de novo.');
-  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, banned: profile.bannedWords }));
+  const issues = blocking(reviewText({ imageTexts: [], caption: parsed.caption, hashtags: parsed.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords }));
   if (issues.length) throw new UserError(`A nova legenda não passou no revisor: ${issues[0].message} Tente outro atalho ou edite à mão.`);
   return { caption: parsed.caption, hashtags: parsed.hashtags };
 }
