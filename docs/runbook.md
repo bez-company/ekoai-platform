@@ -266,3 +266,42 @@ proteção ligada.
 - Desenvolvimento local: `gcloud auth application-default login` (conta da BEZ) e as quatro variáveis
   no `.env.local`; `LOCAL_BLOB_DIR` guarda os PNGs numa pasta.
 
+
+## Observabilidade (BEZ-127, BEZ-260)
+
+| O quê | Onde | Liga com |
+|---|---|---|
+| Erro do servidor | Sentry, org `bez-company`, projeto `ekoai` | segredo `sentry-dsn` (já ativo no staging) |
+| Evento de produto, por conta | PostHog, projeto Ekoai (674036), painel "Scorecard do produto (BEZ-260)" | segredo `posthog-key` (em branco = no-op) |
+| Cron do Scheduler que falhou | alerta "Cron do Scheduler falhou" (Cloud Monitoring) | `deploy_workloads = true` |
+| Job do Cloud Run que falhou | alerta "Job do Cloud Run falhou" | `deploy_workloads = true` |
+
+**Eventos de produto** (ADR 0017): saem do servidor, depois que a ação deu certo, com `distinct_id = tenant:<id>`.
+Cada evento leva `environment`; os tiles do painel abrem por ambiente. `track()` remove da propriedade
+qualquer texto que pareça e-mail, token ou texto de post (`sanitizeProps`), e `tests/analytics.test.js` varre o
+código atrás de propriedade com nome de dado pessoal.
+
+| Evento | Quando | Propriedades |
+|---|---|---|
+| `account_created` | conta criada | `kind` |
+| `post_requested` | pedido de post gravado (tela ou sugestão) | `source`, `brief_id`, `goal`, `kind`, `ratio`, `with_photo` |
+| `post_ready` | worker terminou o post | `brief_id`, `direction`, `regenerated`, `kind`, `goal`, `ratio`, `latency_ms`, `cost_usd` |
+| `post_generation_failed` | worker falhou ou bateu no limite do plano | as de `post_ready` mais `outcome` |
+| `cost_by_step` | um por etapa do pedido (`writer`, `visual`...) e um por chamada de visão (`vision_photo_caption`, `vision_media_describe`) | `step`, `calls`, `failed_calls`, `cost_usd`, `duration_ms`, tokens, `images` |
+| `rework` | "outra direção" pedida | `kind`, `brief_id` |
+| `suggestion_viewed` | lista de sugestões aberta (só com sugestão) | `count`, `with_photo` |
+| `suggestion_accepted` / `_replaced` / `_skipped` | ação sobre a sugestão | `via` (aceita), `had_next` (trocada) |
+
+Limites conhecidos: `latency_ms` mede o tempo do worker, não a espera na fila. `post_approved` não leva o
+`brief_id`, então "aprovação de primeira" é lida por conta e janela (funil `post_ready` para `post_approved`), não por
+post. `suggestion_viewed` dispara a cada carga da lista. Engajamento do Instagram (`collect-metrics`) fica no banco;
+resultado de venda não é medido em lugar nenhum ainda.
+
+**`published_success` e `published_failure`** estão reservados em `RESERVED_EVENTS` (`platform/src/lib/analytics.ts`) e
+**não são emitidos**: dependem da PR de confiabilidade da publicação (BEZ-258, `publish.ts`). Quando ela entrar na
+staging, a mesma PR junta os dois nomes ao tipo `ProductEvent` e emite `published_success` (`channel`, `attempts`,
+`latency_ms`) e `published_failure` (`channel`, `attempts`, `reason` com a classe do erro, nunca a mensagem). Até lá valem
+`post_published` e `post_publish_failed`.
+
+**Teste de ponta a ponta (depois de aplicar `posthog-key`):** aprovar um post no staging e conferir no PostHog que
+`post_approved` chegou com `environment = staging`; forçar um erro e conferir o issue no Sentry (`environment = staging`).

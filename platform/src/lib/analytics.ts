@@ -29,9 +29,50 @@ export type ProductEvent =
   | 'instagram_disconnected'
   | 'instagram_reauth_required'
   | 'data_exported'
-  | 'account_deleted';
+  | 'account_deleted'
+  // Scorecard (BEZ-260): ativação, qualidade e custo do post.
+  | 'account_created'
+  | 'post_requested'
+  | 'post_ready'
+  | 'post_generation_failed'
+  | 'suggestion_viewed'
+  | 'suggestion_accepted'
+  | 'suggestion_replaced'
+  | 'suggestion_skipped'
+  | 'rework'
+  | 'cost_by_step';
+
+// Reservados, NÃO emitidos ainda: dependem do trabalho de confiabilidade da publicação (BEZ-258,
+// publish.ts). Quando essa PR entrar na staging, a mesma PR junta os dois nomes ao tipo acima e emite
+// `published_success` (channel, attempts, latency_ms) e `published_failure` (channel, attempts,
+// reason: classe do erro, nunca a mensagem). Até lá `post_published` e `post_publish_failed` valem.
+export const RESERVED_EVENTS = ['published_success', 'published_failure'] as const;
 
 type Props = Record<string, string | number | boolean | null | undefined>;
+
+// Última barreira contra dado pessoal: texto que parece e-mail, token ou post sai do evento, mesmo que
+// algum chamador mande por engano. Número e booleano passam; só string é filtrada.
+const FORBIDDEN_KEY = /e-?mail|token|secret|password|senha|caption|legenda|text|idea|ideia|name|nome|body|hashtag|phone|telefone|cpf|cnpj/i;
+const MAX_STRING = 60;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // id de pedido não é segredo
+const LOOKS_LIKE_SECRET = /[A-Za-z0-9_-]{32,}/;
+
+export function sanitizeProps(props: Props): { safe: Props; dropped: string[] } {
+  const safe: Props = {};
+  const dropped: string[] = [];
+  for (const [key, value] of Object.entries(props)) {
+    if (typeof value === 'string' && (FORBIDDEN_KEY.test(key) || value.length > MAX_STRING || value.includes('@') || (!UUID.test(value) && LOOKS_LIKE_SECRET.test(value)))) {
+      dropped.push(key);
+      continue;
+    }
+    safe[key] = value;
+  }
+  return { safe, dropped };
+}
+
+export function analyticsEnabled(): boolean {
+  return posthog() !== null;
+}
 
 let client: PostHog | null | undefined;
 
@@ -57,12 +98,14 @@ function posthog(): PostHog | null {
 export async function track(tenantId: string, event: ProductEvent, props: Props = {}): Promise<void> {
   const ph = posthog();
   if (!ph) return;
+  const { safe, dropped } = sanitizeProps(props);
+  if (dropped.length) log('warn', 'analytics', 'propriedade removida do evento', { event, keys: dropped.join(',') });
   try {
     await ph.captureImmediate({
       distinctId: `tenant:${tenantId}`,
       event,
       properties: {
-        ...props,
+        ...safe,
         tenant_id: tenantId,
         environment: process.env.SENTRY_ENVIRONMENT || 'local',
         $process_person_profile: true,

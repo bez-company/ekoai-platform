@@ -59,6 +59,36 @@ resource "google_monitoring_alert_policy" "job_failed" {
   depends_on = [google_project_service.api]
 }
 
+# Cron HTTP que falhou (BEZ-127): os jobs do Cloud Run já têm o alerta acima; os crons que o Scheduler
+# chama na plataforma (generate, publish-due, plan-content e os demais) falham sem criar execução de job.
+# O Scheduler registra `AttemptFinished` com severidade ERROR quando a tentativa volta com erro.
+resource "google_monitoring_alert_policy" "scheduler_failed" {
+  count                 = var.deploy_workloads ? 1 : 0
+  project               = var.project_id
+  display_name          = "Cron do Scheduler falhou (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Tentativa do Scheduler com erro"
+    condition_matched_log {
+      filter = "resource.type=\"cloud_scheduler_job\" AND resource.labels.job_id=~\"^${local.name}-\" AND severity>=ERROR AND jsonPayload.\"@type\"=\"type.googleapis.com/google.cloud.scheduler.logging.AttemptFinished\""
+    }
+  }
+
+  alert_strategy {
+    notification_rate_limit {
+      period = "3600s"
+    }
+  }
+
+  documentation {
+    content   = "Um cron do Cloud Scheduler voltou com erro. Veja o job em Cloud Scheduler e os logs da plataforma na mesma hora (docs/runbook.md, Observabilidade)."
+    mime_type = "text/markdown"
+  }
+  depends_on = [google_project_service.api]
+}
+
 resource "google_monitoring_alert_policy" "sql_disk" {
   project               = var.project_id
   display_name          = "Disco do Cloud SQL acima de 80% (${var.env})"
