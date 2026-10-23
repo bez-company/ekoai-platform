@@ -27,13 +27,15 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
 ## Pull request
 
 - Título e corpo em inglês; commit em Conventional Commits, em inglês. `gh pr create --assignee @me`.
-  O título leva o ID do card do ClickUp como prefixo: `[CU-<id>] feat(scope): ...` (o `<id>` é o
-  código do card, o mesmo do link `app.clickup.com/t/<id>`; o ClickUp reconhece `CU-<id>` e liga a PR
-  ao card). Os cards migrados do Linear mantêm `BEZ-NN` no título do card e valem como referência
-  histórica. O card fica no Space Bez Company, na pasta Ekoai (lista Platform, ou Website se for o
-  site); sem card, crie antes. Ao abrir a PR, mova o card para In Review e cole o link da PR nele.
-  O merge na `staging` leva o card para **Staging**; a release (`scripts/release.sh`) leva de
-  Staging para **Done**.
+  O título leva o número do card do ClickUp como prefixo: `[BEZ-<n>] feat(scope): ...`, e cada commit
+  leva o mesmo número depois do escopo: `feat(scope): [BEZ-<n>] ...`. O `BEZ-<n>` é o prefixo do nome
+  do card (`[BEZ-296] Rotas das telas em português`), sequencial no workspace inteiro; o `/task` numera
+  o card novo (maior número + 1). Não usamos o `CU-<id>` do ClickUp. O card fica no Space Bez Company,
+  na pasta Ekoai (lista Platform, ou Website se for o site); sem card, crie antes. Quem liga a PR ao
+  card é `.github/workflows/clickup-sync.yml` (`scripts/clickup-pr-sync.js`, secret
+  `CLICKUP_API_TOKEN`): comenta o link da PR no card, leva para **In Review** ao abrir e para
+  **Staging** ao mergear. A release (`scripts/release.sh`) leva de Staging para **Done**. Sem o
+  secret, a Action só avisa e o card se move à mão.
 - O corpo segue `.github/pull_request_template.md`. Apague a seção que não se aplica; não deixe
   seção vazia nem comentário do modelo.
 - **Mudança visual: prints no corpo da PR, sempre.** Antes e depois quando muda uma tela que já

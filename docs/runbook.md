@@ -192,10 +192,13 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
    > `prod`). Sem aprovação, nada muda em produção.
 4. **Conferir:** `/api/health` de produção mostra a revisão (`sha-<7 primeiros>`).
 
-**Cards do ClickUp:** o merge da PR na `staging` leva o card para **Staging**. O `scripts/release.sh`
-lista os cards (`CU-<id>` e, nos migrados do Linear, `BEZ-NN`) dos commits que sobem e, depois do push na
-`main`, passa de Staging para **Done** os que estão em Staging (`scripts/clickup-release.sh`, com
-`CLICKUP_API_TOKEN` no ambiente; sem o token, só lista e o movimento é à mão). Done = em produção.
+**Cards do ClickUp:** a PR com `[BEZ-N]` no título liga ao card sozinha: a Action `ClickUp sync`
+(`scripts/clickup-pr-sync.js`) comenta o link, leva o card para **In Review** ao abrir a PR e para
+**Staging** ao mergear na `staging`. O `scripts/release.sh` lista os cards (`BEZ-N` nos commits que
+sobem) e, depois do push na `main`, passa de Staging para **Done** os que estão em Staging
+(`scripts/clickup-release.sh`, com `CLICKUP_API_TOKEN` no ambiente; sem o token, só lista e o
+movimento é à mão). Done = em produção. A Action usa o secret `CLICKUP_API_TOKEN` do repositório
+(Settings > Secrets and variables > Actions); sem ele, só avisa.
 
 **Desfazer:** `gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100
 --region southamerica-east1` (migrations são aditivas, então o código antigo continua funcionando).
