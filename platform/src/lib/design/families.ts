@@ -184,20 +184,24 @@ function fotoTitulo(spec: DesignSpec): Composed {
   // Pior caso para o contraste: a foto é branca debaixo do véu.
   const textBg = over('#FFFFFF', scrim, SCRIM);
 
-  const title = fitText(spec.texts.title, { family: heading, maxWidth: 820, maxLines: 3, start: 88, min: 56, step: 6, lineHeight: 1.08, weightFactor: 1.08 });
-  if (title.overflow) overflow.push('title');
-  const kicker = spec.texts.kicker?.trim();
-  const kSize = 26;
-  const bottom = H - MARGIN - LOGO_H - 44;
-  let y = bottom - title.height;
-  parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
-  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: textBg, bold: true });
-  if (kicker) {
-    const text = kicker.toUpperCase();
-    const ky = y - kSize - 24;
-    parts.push(`<text x="${MARGIN}" y="${ky + kSize}" font-size="${kSize}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
-    boxes.push({ id: 'kicker', x: MARGIN, y: ky, w: Math.min(820, textWidth(text, body, kSize, 1.2)), h: kSize * 1.3, size: kSize, color: P.kicker, bg: textBg, bold: true });
-    y = ky;
+  // Sem título nem selo (o pedido mandou "sem texto na imagem"): só a foto, com o véu para o @ ler.
+  if (spec.texts.title.trim() || spec.texts.kicker?.trim()) {
+    const title = fitText(spec.texts.title, { family: heading, maxWidth: 820, maxLines: 3, start: 88, min: 56, step: 6, lineHeight: 1.08, weightFactor: 1.08 });
+    if (title.overflow) overflow.push('title');
+    const kicker = spec.texts.kicker?.trim();
+    const kSize = 26;
+    const bottom = H - MARGIN - LOGO_H - 44;
+    let y = bottom - title.height;
+    parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
+    boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: textBg, bold: true });
+    if (kicker) {
+      const text = kicker.toUpperCase();
+      const ky = y - kSize - 24;
+      parts.push(`<text x="${MARGIN}" y="${ky + kSize}" font-size="${kSize}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
+      boxes.push({ id: 'kicker', x: MARGIN, y: ky, w: Math.min(820, textWidth(text, body, kSize, 1.2)), h: kSize * 1.3, size: kSize, color: P.kicker, bg: textBg, bold: true });
+      y = ky;
+    }
+
   }
 
   const corner = spec.logoCorner ?? 'br';

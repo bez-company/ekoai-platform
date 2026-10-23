@@ -66,7 +66,7 @@ describe.skipIf(!live)('eval da geração de post', () => {
           write(join(dir, 'post.png'), made.png);
           if (made.visualPng) write(join(dir, 'visual.png'), made.visualPng);
           write(join(dir, 'made.json'), { imageTexts: made.imageTexts, costUsd: made.costUsd });
-          write(join(dir, 'trace.json'), { idea: brief.idea, directives: made.directives, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
+          write(join(dir, 'trace.json'), { idea: brief.idea, directives: made.directives, applied: made.applied, notApplied: made.notApplied, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
 
           const requirements = [...brief.requirements.map((r) => ({ ...r, group: 'pedido' })), ...CRAFT.map((r) => ({ ...r, group: 'oficio' }))];
           const prompt = buildJudgePrompt({ idea: brief.idea, requirements, caption: made.copy.caption, company });

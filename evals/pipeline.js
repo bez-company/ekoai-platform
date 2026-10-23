@@ -3,7 +3,9 @@
 // revisor (reviewText), mesmo visual (visualPromptFor), mesma grade (defaultLayout e renderPng). Se o
 // generatePost mudar a ordem ou a escolha de layout, este arquivo muda junto.
 
-import { buildDirectivesPrompt, parseDirectives } from '../platform/src/lib/directives.ts';
+import { buildDirectivesPrompt, hasDirectives, parseDirectives } from '../platform/src/lib/directives.ts';
+import { composeDesign, planDirectives, reviewComposed, reviewCount, writerHints } from '../platform/src/lib/directives-apply.ts';
+import { markPlacements } from '../platform/src/lib/design/families.ts';
 import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy, visualPromptFor } from '../platform/src/lib/agents.ts';
 import { brandFromProfile, defaultLayout, imageDataUri } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
@@ -13,22 +15,22 @@ import { COMPANIES } from './cases.js';
 const MAX_COPY_ROUNDS = 3;
 
 // Texto: até 3 rodadas, o revisor por regra devolvendo o motivo ao modelo (igual ao writeCopy).
-async function writeCopy({ model, brief, company }) {
+async function writeCopy({ model, brief, company, plan }) {
   let previous = null;
   let feedback = [];
   let best = null;
   const trace = [];
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, goal: null, profile: company.profile, facts: company.facts, never: company.never, rules: [], feedback, previous, direction: 1, campaign: null });
+    const prompt = buildCopyPrompt({ idea: brief.idea, kind: plan?.kind ?? brief.kind, directives: plan ? writerHints(plan) : null, goal: null, profile: company.profile, facts: company.facts, never: company.never, rules: [], feedback, previous, direction: 1, campaign: null });
     const out = await model.generateJson({ prompt, labels: { step: 'eval-writer', case: brief.id } });
     trace.push({ round, prompt, raw: out.raw, costUsd: out.costUsd });
-    const parsed = parseCopy(out.json, brief.kind);
+    const parsed = parseCopy(out.json, plan?.kind ?? brief.kind);
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
     }
     const copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: company.profile.bannedWords, request: brief.idea });
+    const issues = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: [...company.profile.bannedWords, ...(plan?.avoid ?? [])], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) break;
@@ -55,29 +57,53 @@ async function readDirectives({ model, brief, company }) {
   return { directives: {}, dropped: [], status: 'failed', costUsd: 0 };
 }
 
-// Todo texto que o render desenha: os do post mais o @ da marca, que a grade põe sempre num canto.
-const drawnTexts = (spec) => [...imageTextsOf({ texts: spec.texts }), ...(spec.brand.handle ? [`@${spec.brand.handle}`] : [])];
+// Todo texto que o render desenha: os do post, o nome da empresa e o @ da marca. Nas outras famílias o @ vem sempre
+// num canto; no cartão de marca só se a pessoa não o tirou.
+function drawnTexts(spec) {
+  if (spec.layout === 'marca') {
+    const where = markPlacements(spec);
+    return [where.title ? spec.texts.title : null, where.name ? spec.brandName : null, where.handle ? `@${spec.brand.handle}` : null].filter(Boolean);
+  }
+  return [...imageTextsOf({ texts: spec.texts }), ...(spec.brand.handle ? [`@${spec.brand.handle}`] : [])];
+}
 
 export async function produce({ model, brief, fontDir }) {
   const company = COMPANIES[brief.company];
   const read = await readDirectives({ model, brief, company });
-  const { copy, issues, trace } = await writeCopy({ model, brief, company });
+  const situation = { kind: brief.kind, hasLogo: true, hasHandle: true, brandName: company.name };
+  const plan = read.status === 'ok' && hasDirectives(read.directives) ? planDirectives(read.directives, situation) : null;
+  const { copy, issues, trace } = await writeCopy({ model, brief, company, plan });
+  const pieces = plan ? composeDesign(read.directives, plan, copy, situation) : null;
   const kind = copy.kind;
   let visual = null;
   let visualPrompt = null;
   let imageCostUsd = 0;
-  if (kind === 'atmosfera') {
+  if (kind === 'atmosfera' && !plan?.skipVisual) {
     visualPrompt = visualPromptFor(copy);
     const img = await model.generateImage({ prompt: visualPrompt, aspect: brief.ratio, labels: { step: 'eval-visual', case: brief.id } });
     visual = { dataUri: imageDataUri(img.png), png: img.png };
     imageCostUsd = img.costUsd;
   }
-  const spec = { kind, ratio: brief.ratio, layout: defaultLayout(kind, copy.texts), texts: copy.texts, brand: brandFromProfile(company.profile), logo: company.logo, visual: visual ? { dataUri: visual.dataUri } : null };
+  const spec = {
+    kind,
+    ratio: brief.ratio,
+    layout: pieces?.layout ?? defaultLayout(kind, copy.texts),
+    texts: pieces?.texts ?? copy.texts,
+    brand: brandFromProfile(company.profile),
+    logo: company.logo,
+    visual: visual ? { dataUri: visual.dataUri } : null,
+    ...(pieces?.background ? { background: pieces.background } : {}),
+    ...(pieces?.placements ? { placements: pieces.placements } : {}),
+    ...(pieces?.brandName ? { brandName: pieces.brandName } : {}),
+    ...(pieces?.logoCorner ? { logoCorner: pieces.logoCorner } : {}),
+    ...(pieces?.logoHidden ? { logoHidden: true } : {}),
+  };
   let rendered = renderPng(spec, fontDir ? { fontDir } : {});
-  if (blocking(rendered.issues).length && spec.texts.sub) {
+  if (blocking(rendered.issues).length && spec.texts.sub && !(plan && plan.exactTexts.length > 1)) {
     spec.texts = { ...spec.texts, sub: undefined };
     rendered = renderPng(spec, fontDir ? { fontDir } : {});
   }
+  const directiveIssues = plan && pieces ? reviewComposed(read.directives, plan, pieces) : [];
   const costUsd = trace.reduce((sum, t) => sum + t.costUsd, 0) + imageCostUsd + read.costUsd;
-  return { copy, spec, png: rendered.png, textIssues: issues, layoutIssues: rendered.issues, imageTexts: drawnTexts(spec), visualPng: visual?.png ?? null, visualPrompt, trace, costUsd, directives: read };
+  return { copy, spec, png: rendered.png, textIssues: [...issues, ...directiveIssues], layoutIssues: rendered.issues, imageTexts: drawnTexts(spec), visualPng: visual?.png ?? null, visualPrompt, trace, costUsd, directives: read, applied: pieces?.applied.map((x) => x.text) ?? [], notApplied: pieces?.notApplied ?? [] };
 }

@@ -354,3 +354,89 @@ describe('instruções do pedido (SPEC 020)', () => {
     expect((await one('select directives from briefs where id = $1', [failing])).directives).toEqual({ status: 'failed', directives: {} });
   });
 });
+
+describe('o código obedece as instruções do pedido (SPEC 020, entrega c)', () => {
+  const INFO4 = { ...INFO, texts: { ...INFO.texts, items: [...INFO.texts.items, 'Quarto item que passou do pedido'] } };
+  const readOf = (read) => ({ directives: [read] });
+  const designOf = async (briefId) => one('select pd.layout, pd.design, b.post_kind from post_designs pd join briefs b on b.id = pd.brief_id where pd.brief_id = $1', [briefId]);
+
+  it('cartão de marca: sem foto, sem chamar o modelo de imagem, só o que foi pedido; logo que a conta não tem vira "não aplicado"', async () => {
+    const t = tenantDb(A);
+    await admin.query('update plans set max_posts_per_month = 50 where id = $1', [PLAN]);
+    const id = await brief('Capa: fundo escuro, logo no centro, o nome da empresa e o @ no canto.', 'atmosfera');
+    const model = fakeModel({ text: [INFO], image: [], ...readOf({ background: 'dark', elements: { logo: 'c', name: 'bc', handle: 'br' } }) });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer']); // nenhuma chamada de imagem
+    expect(model.calls[0].prompt).toContain('cartão de marca liso, sem foto');
+    const d = await designOf(id);
+    expect(d.layout).toBe('marca');
+    expect(d.post_kind).toBe('informativo');
+    expect(d.design).toMatchObject({ layout: 'marca', background: 'dark', brandName: 'It Flow', placements: { name: 'bc', handle: 'br' }, texts: { title: '' } });
+    expect(d.design.placements.logo).toBeUndefined();
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation.directives.status).toBe('ok');
+    expect(pending.generation.directives.applied).toEqual(['Fundo escuro', 'O nome da empresa: base, no centro', 'O @: canto inferior direito']);
+    expect(pending.generation.directives.notApplied).toEqual([{ what: 'O logo', why: expect.stringContaining('não tem logo cadastrado') }]);
+    expect((await one("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'visual'", [id])).n).toBe(0);
+  });
+
+  it('texto exato e "mais nada": a frase entra como está e o redator não põe selo, subtítulo nem itens', async () => {
+    const t = tenantDb(A);
+    const id = await brief('Quero a frase "Fornada nova todo dia às 7h" e mais nada.', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [], ...readOf({ exact_texts: ['Fornada nova todo dia às 7h'], text_only: true }) });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls[0].prompt).toContain('"Fornada nova todo dia às 7h"');
+    const d = await designOf(id);
+    expect(d.layout).toBe('titulo-destaque');
+    expect(d.design.texts).toEqual({ title: 'Fornada nova todo dia às 7h' });
+    const pending = await one('select generation, images from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation.directives).toMatchObject({ status: 'ok', applied: ['Texto exato: "Fornada nova todo dia às 7h"', 'Mais nada de texto na imagem'], notApplied: [] });
+    expect(pending.generation.guardrail_flags).not.toContain('directive_text_missing');
+  });
+
+  it('quantidade pedida: o revisor devolve o número ao modelo e a segunda versão vem com a quantidade certa', async () => {
+    const t = tenantDb(A);
+    const id = await brief('Três dicas para o bolo crescer', 'informativo');
+    const model = fakeModel({ text: [INFO4, INFO], image: [], ...readOf({ items_count: 3 }) });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'writer']);
+    expect(model.calls[0].prompt).toContain('EXATAMENTE 3 itens');
+    expect(model.calls[1].prompt).toContain('A pessoa pediu 3 itens e o texto trouxe 4');
+    expect((await designOf(id)).design.texts.items).toHaveLength(3);
+  });
+
+  it('logo no canto e logo escondido valem nas famílias de sempre; regra da marca não passa por cima do pedido', async () => {
+    const t = tenantDb(A);
+    const id = await brief('Post com o logo escondido: dicas do bolo', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [], ...readOf({ elements: { logo: 'off' } }) });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    const d = await designOf(id);
+    expect(d.layout).toBe('lista-numerada');
+    expect(d.design.logoHidden).toBe(true);
+    expect(d.design.rules).toBeUndefined();
+  });
+
+  it('atmosfera com "sem texto": a foto é gerada e fica sem título; a posição do @ sobre a foto é dita como não aplicada', async () => {
+    const t = tenantDb(A);
+    const id = await brief('Foto do bastidor da cozinha, sem nenhum texto, só o @ em um canto.', 'atmosfera');
+    const model = fakeModel({ text: [ATM], image: [{}], ...readOf({ text_only: true, elements: { handle: 'bl' } }) });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'visual']);
+    const d = await designOf(id);
+    expect(d.layout).toBe('foto-titulo');
+    expect(d.design.texts.title).toBe('');
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation.directives.notApplied.map((n) => n.what)).toEqual(['O @']);
+    expect(pending.generation.directives.applied).toEqual(['Mais nada de texto na imagem']);
+  });
+
+  it('pedido sem instrução não muda nada: sem família nova e sem painel de instruções', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto de verdade', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect((await designOf(id)).layout).toBe('lista-numerada');
+    expect((await one('select generation from pending_approvals where brief_id = $1', [id])).generation.directives).toBeUndefined();
+  });
+});

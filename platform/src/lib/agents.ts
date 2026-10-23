@@ -5,6 +5,7 @@
 import type { CompanyProfile } from './company-profile-model';
 import type { Issue } from './design/review';
 import type { PostKind } from './generation-model';
+import type { WriterHints } from './directives-apply';
 
 export type CopyInput = {
   idea: string;
@@ -18,6 +19,7 @@ export type CopyInput = {
   previous?: Copy | null; // o texto recusado
   direction?: number; // 1 = a primeira; acima disso, "outra direção" pedida pela pessoa
   campaign?: CopyCampaign | null; // a campanha do pedido (SPEC 018): só o que a pessoa escreveu nela
+  directives?: WriterHints | null; // o que a pessoa ditou sobre a imagem (SPEC 020): o código obedece, o redator só escreve o resto
 };
 
 // O que a campanha diz ao redator. A oferta vale como afirmada só para este post; as restrições entram como
@@ -90,6 +92,12 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(`- Ideia: ${input.idea}`);
   if (input.goal) lines.push(`- Objetivo do post: ${input.goal}`);
   lines.push(input.kind ? `- Tipo do post: ${input.kind}` : '- Tipo do post: escolha entre "informativo" (o texto manda: dica, dado, passo a passo) e "atmosfera" (a imagem manda: bastidor, produto, clima da marca)');
+  const dir = input.directives;
+  if (dir?.brandCard) lines.push('- A imagem será um cartão de marca liso, sem foto, montado pelo código: tipo "informativo", sem items nem sub, visual_prompt null. Escreva a legenda e um texts.title curto; a pessoa decide o que vai na imagem.');
+  if (dir?.exactTexts.length) lines.push(`- A pessoa ditou o texto da imagem: ${dir.exactTexts.map((t) => `"${t}"`).join(', ')}. Ele entra na imagem como está. Devolva essas mesmas frases em texts.title (e sub, items, nessa ordem) e escreva a legenda a partir delas.`);
+  else if (dir?.textOnly && !dir.brandCard) lines.push('- A pessoa quer só o essencial na imagem: sem selo, subtítulo nem itens.');
+  if (dir?.itemsCount) lines.push(`- items: EXATAMENTE ${dir.itemsCount} itens (a pessoa pediu ${dir.itemsCount}).`);
+  if (dir?.avoid.length) lines.push(`- A pessoa pediu para NÃO colocar: ${dir.avoid.join('; ')}. Vale para a imagem e para a legenda.`);
   if ((input.direction ?? 1) > 1) lines.push(`- Direção ${input.direction}: a pessoa pediu OUTRA direção. Escolha um ângulo, um gancho e (no atmosfera) uma cena diferentes das óbvias para este tema; evite repetir a abordagem mais comum.`);
   lines.push('');
   lines.push('## Regras do texto');

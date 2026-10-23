@@ -6,10 +6,11 @@ entregam. Toda mudança na geração (prompt, agente, revisor, layout) é medida
 
 ## O que roda
 
-Para cada caso de `cases.js` (20 pedidos, 3 empresas fictícias de jeitos de falar diferentes):
+Para cada caso de `cases.js` (23 pedidos, 3 empresas fictícias de jeitos de falar diferentes):
 
-1. `pipeline.js` leva o pedido ao PNG pelo mesmo caminho do `generatePost`: prompt do redator, até 3 rodadas
-   com o revisor por regra, visual por IA (só na atmosfera), grade e render por código.
+1. `pipeline.js` leva o pedido ao PNG pelo mesmo caminho do `generatePost`: leitor de instruções do pedido
+   (SPEC 020), prompt do redator, até 3 rodadas com o revisor por regra, visual por IA (só na atmosfera, e não
+   no cartão de marca), composição das instruções e render por código.
 2. `judge.js` manda o PNG final, a legenda, a base de fatos da empresa e as exigências a um modelo com
    visão (padrão `gemini-3.1-pro-preview`, mais forte que o redator), que responde passou ou reprovou por
    exigência, com o motivo. Se o juiz falha (formato, corte), repete uma vez; falhando de novo, a rodada
@@ -21,6 +22,8 @@ Para cada caso de `cases.js` (20 pedidos, 3 empresas fictícias de jeitos de fal
    - **Ofício**: a régua `CRAFT` que vale para todo post (português, clichê, voz, gancho, recheio, coerência,
      legibilidade, composição, "postaria sem editar").
    - **Código**: `metrics.js` (travessão, emoji na imagem, hashtags, revisor ainda reprovando o resultado).
+   - **Leitor**: nos casos com `directives`, o que o leitor de instruções anotou contra o que uma pessoa esperava
+     (nota própria; `npm run eval:directives` mede só ele, por frações de centavo).
 4. `report.js` resume por caso, por exigência e por tag (`marca`, `texto-exato`, `lista`, `atmosfera`, `fato`,
    `vago`, `voz`), com rodadas do redator e custo por post.
 
@@ -36,6 +39,7 @@ VERTEX_PROJECT_ID=ekoai-prod EVAL_TAGS=marca,fato npm run eval  # só casos com 
 VERTEX_PROJECT_ID=ekoai-prod EVAL_CASES=frase-exata npm run eval
 EVAL_SAVE=nome ...                                              # grava o resumo em evals/baselines/nome.json
 EVAL_REUSE=<pasta de .context/evals> ...                        # julga de novo posts já gravados, sem gerar
+node evals/summarize.js <pasta> [nome]                          # resume (e grava baseline) de uma rodada, até interrompida
 npm run eval:compare -- evals/baselines/a.json evals/baselines/b.json   # antes e depois, em pontos percentuais
 ```
 
@@ -46,7 +50,7 @@ Variáveis: `VERTEX_TEXT_MODEL`, `VERTEX_IMAGE_MODEL` (padrão = os da produçã
 ## Baselines
 
 `evals/baselines/` guarda o resumo (sem imagem) de cada marco. A PR que muda a geração anexa o antes e o
-depois do `eval:compare` no corpo. `baseline-0` é o código de 23/10/2026, antes de qualquer correção.
+depois do `eval:compare` no corpo. `baseline-0` é o código de 23/10/2026, antes de qualquer correção (pedido 66%); `baseline-1` tem o número do pedido e a volta do revisor (72%); `baseline-2` tem o leitor de instruções, o cartão de marca e a obediência (93%).
 
 ## Como escrever um caso
 

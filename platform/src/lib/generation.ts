@@ -19,7 +19,8 @@ import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
-import { buildDirectivesPrompt, directivesFromStored, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
+import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
+import { composeDesign, describeEach, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
@@ -140,12 +141,12 @@ const copyCampaign = (c: Campaign | null) => (c ? { name: c.name, objective: c.o
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
-async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null, campaign: Campaign | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
+async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null, campaign: Campaign | null = null, plan: Plan | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: brief.kind, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -162,13 +163,13 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
         throw e;
       }
     }
-    const parsed = parseCopy(json, brief.kind);
+    const parsed = parseCopy(json, plan?.kind ?? brief.kind);
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
     }
     const copy: Copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea });
+    const issues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) return { copy, issues };
@@ -260,11 +261,16 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const rules = ruleRows.filter((r) => r.active).map((r) => r.rule);
 
     const photo = await photoOf(t, brief, store);
-    // Instruções explícitas do pedido (SPEC 020): lidas uma vez e guardadas; esta entrega só lê e guarda.
+    // Instruções explícitas do pedido (SPEC 020): lidas uma vez, guardadas e obedecidas por código.
     const directives = brief.directives ?? (await readDirectives(t, deps, brief, { name: account?.name ?? profile.niche, hasLogo: !!logo, handle: profile.instagramHandle ? profile.instagramHandle.replace(/^@/, '') : null }, planMax));
     log('info', 'generation', 'instruções do pedido', { briefId: brief.id, status: directives.status, keys: Object.keys(directives.directives) });
     const campaign = await campaignOf(t, brief.campaignId);
-    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign);
+    // Com foto anexada o pedido segue o fluxo da foto: as instruções de composição não se aplicam.
+    const situation = { kind: brief.kind, hasLogo: !!logo, hasHandle: !!profile.instagramHandle, brandName: account?.name ?? null };
+    const plan = !photo && directives.status === 'ok' && hasDirectives(directives.directives) ? planDirectives(directives.directives, situation) : null;
+    const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign, plan);
+    const pieces = plan ? composeDesign(directives.directives, plan, copy, situation) : null;
+    const directed = !!pieces?.applied.length;
     // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.
     const kind: PostKind = photo ? 'atmosfera' : copy.kind;
     if (brief.kind !== kind) await setBrief(t, brief.id, { post_kind: kind });
@@ -277,7 +283,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       photoPng = croppedPhoto(photo, brief.ratio);
       visualKey = `images/${randomUUID()}.png`;
       await store.put(visualKey, photoPng, 'image/png');
-    } else if (kind === 'atmosfera') {
+    } else if (kind === 'atmosfera' && !plan?.skipVisual) {
       const visual = await makeVisual(t, deps, brief, copy, planMax, store, photo);
       if ('limit' in visual) {
         await setBrief(t, brief.id, { status: 'failed', error: `limite do plano: ${visual.limit} posts por mês` });
@@ -291,14 +297,20 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       kind,
       ratio: brief.ratio,
       // Foto "dentro do layout da marca" (BEZ-251): Janela ou Arco, alternando a cada outra direção.
-      layout: photo?.usage === 'layout' ? brandPhotoLayout(brief.direction) : defaultLayout(kind, copy.texts),
-      texts: copy.texts,
+      layout: photo?.usage === 'layout' ? brandPhotoLayout(brief.direction) : (pieces?.layout ?? defaultLayout(kind, copy.texts)),
+      texts: pieces?.texts ?? copy.texts,
       brand,
       logo,
       visual: visualKey ? { dataUri: imageDataUri(await store.get(visualKey)) } : null,
+      ...(pieces?.background ? { background: pieces.background } : {}),
+      ...(pieces?.placements ? { placements: pieces.placements } : {}),
+      ...(pieces?.brandName ? { brandName: pieces.brandName } : {}),
+      ...(pieces?.logoCorner ? { logoCorner: pieces.logoCorner } : {}),
+      ...(pieces?.logoHidden ? { logoHidden: true } : {}),
     };
     // Regras de marca aceitas pela conta (SPEC 019): só em post novo, e cada uma é pulada se pioraria o post.
-    const ruled = photo?.usage === 'as_is' ? null : await applyDesignRulesToSpec(t, spec, deps.fontDir);
+    // O pedido vale mais que a regra da marca (SPEC 020, decisão 3): post com instrução aplicada não recebe regra.
+    const ruled = photo?.usage === 'as_is' || directed ? null : await applyDesignRulesToSpec(t, spec, deps.fontDir);
     if (ruled?.applied.length) Object.assign(spec, ruled.spec);
     // "Como está": a foto cortada é a imagem do post, sem texto, logo nem véu por cima.
     let rendered: { png: Buffer; issues: Issue[] };
@@ -307,7 +319,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     } else {
       rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
       // Texto que não coube: tira o subtítulo e tenta uma vez; se ainda não couber, o aviso vai para a tela.
-      if (blocking(rendered.issues).length && spec.texts.sub) {
+      // (o subtítulo que a pessoa ditou não sai: texto literal nunca é cortado)
+      if (blocking(rendered.issues).length && spec.texts.sub && !(plan && plan.exactTexts.length > 1)) {
         spec.texts = { ...spec.texts, sub: undefined };
         rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
       }
@@ -315,7 +328,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const pngKey = `images/${randomUUID()}.png`;
     await store.put(pngKey, rendered.png, 'image/png');
 
-    const allIssues = [...issues, ...rendered.issues];
+    const directiveIssues = plan && pieces ? reviewComposed(directives.directives, plan, pieces) : [];
+    const allIssues = [...issues, ...rendered.issues, ...directiveIssues];
     const stored = { ...storedDesignOf(spec), ...(photo ? { photo: { assetId: photo.asset.id, usage: photo.usage } } : {}), ...(ruled?.applied.length ? { rules: ruled.applied } : {}) };
     const design = await t
       .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: stored, visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
@@ -341,6 +355,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         // descrição do banco de imagens quando o redator não mandou.
         alt_text: finalAltText({ fromWriter: copy.altText, photoDescription: photo?.usage === 'as_is' ? photo.asset.description : null, texts: copy.texts, banned: profile.bannedWords }),
         guardrail_flags: allIssues.map((i) => i.rule),
+        // O que a pessoa pediu sobre a imagem e o que o código fez (SPEC 020): a tela Aprovar mostra os dois.
+        ...(directives.status === 'failed' || pieces ? { directives: { status: directives.status, read: describeEach(directives.directives).map((x) => x.text), applied: (pieces?.applied ?? []).map((x) => x.text), notApplied: (pieces?.notApplied ?? []).map((x) => ({ what: x.what, why: x.why })) } } : {}),
         judge_reason: allIssues.length ? allIssues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: contraste, tamanho do texto, acentos, palavras proibidas e fatos da base.',
       },
       top_id: 1,
