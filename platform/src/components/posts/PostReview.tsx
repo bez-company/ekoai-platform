@@ -11,12 +11,14 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
+import DesignAdjust, { type Swatch } from './DesignAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
 import { Spinner } from '@/components/auth/ui';
 import { fmtDateTime } from '@/lib/format';
 import { ratioOf } from '@/lib/media-view';
 import type { PendingApproval } from '@/lib/types';
 import type { RewriteMode } from '@/lib/agents';
+import type { DesignState } from '@/lib/post-design-revisions';
 
 type Fact = { id: string; kind: 'fact' | 'never'; text: string };
 
@@ -39,7 +41,9 @@ const RATIO_LABEL: Record<FeedRatio, string> = { '4:5': 'Retrato 4:5', '1:1': 'Q
 
 const joinCaption = (body: string, hashtags: string[]) => (hashtags.length ? `${body.trim()}\n\n${hashtags.map((h) => `#${h}`).join(' ')}` : body.trim());
 
-export default function PostReview({ pending, suggested, nextSlot, handle, accountName, usage, facts, canApprove, canEdit }: { pending: PendingApproval; suggested: string; nextSlot: string | null; handle: string; accountName: string; usage: { used: number; max: number }; facts: Fact[]; canApprove: boolean; canEdit: boolean }) {
+export type DesignProps = { state: DesignState; swatches: Swatch[] };
+
+export default function PostReview({ pending, suggested, nextSlot, handle, accountName, usage, facts, canApprove, canEdit, canManage = false, design = null }: { pending: PendingApproval; suggested: string; nextSlot: string | null; handle: string; accountName: string; usage: { used: number; max: number }; facts: Fact[]; canApprove: boolean; canEdit: boolean; canManage?: boolean; design?: DesignProps | null }) {
   const router = useRouter();
   const initial = useMemo(() => splitCaption(suggested), [suggested]);
   const [body, setBody] = useState(initial.body);
@@ -50,6 +54,10 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [rejecting, setRejecting] = useState(false);
   const [directionAsked, setDirectionAsked] = useState(false);
   const [publishAsked, setPublishAsked] = useState(false);
+  // A imagem que a tela mostra no lugar da salva: a prévia do ajuste ou uma versão antiga (SPEC 019).
+  const [imageOverride, setImageOverride] = useState<string | null>(null);
+  // A versão do design que a pessoa está vendo: aprovar leva esta versão e para se outra pessoa salvou uma nova.
+  const [designVersion, setDesignVersion] = useState<number | undefined>(design?.state.version);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -107,7 +115,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     setBusy(publishNow ? 'publish' : 'approve');
     setError('');
     try {
-      const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow }) });
+      const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow, ...(designVersion ? { designVersion } : {}) }) });
       // Publicado vai para o Histórico; agendado, na fila ou com falha na publicação, para a Agenda.
       router.push(publishNow && j.published ? '/history' : '/calendar');
       router.refresh();
@@ -142,7 +150,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <div>
-          <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio={ratio} />
+          <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} />
         </div>
 
         <div className="space-y-4">
@@ -150,6 +158,10 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
               <strong>O revisor tem um aviso.</strong> {warning} Edite a legenda abaixo ou aprove assim.
             </div>
+          )}
+
+          {design && briefId && (
+            <DesignAdjust briefId={briefId} state={design.state} swatches={design.swatches} usage={usage} canEdit={canEdit} canManage={canManage} onPreview={setImageOverride} onVersion={setDesignVersion} />
           )}
 
           <section className="card space-y-3">

@@ -132,6 +132,16 @@ describe('o revisor depois da edição manual', () => {
     expect(editBlocking(small).map((i) => i.rule)).toContain('font_size');
   });
 
+  it('as frases do revisor falam o nome do texto que a pessoa conhece, não o id da caixa', () => {
+    const box = (over) => ({ id: 'title', x: 64, y: 100, w: 400, h: 120, size: 80, color: '#000000', bg: '#FFFFFF', bold: true, ...over });
+    expect(reviewLayout([box({ color: '#EEEEEE' })], 1350).find((i) => i.rule === 'contrast').message).toBe('Contraste baixo no título (1,2:1, mínimo 3:1). Escolha outra cor.');
+    expect(reviewLayout([box({ id: 'sub', size: 30, bold: false, color: '#EEEEEE' })], 1350).find((i) => i.rule === 'contrast').message).toBe('Contraste baixo no subtítulo (1,2:1, mínimo 4,5:1). Escolha outra cor.');
+    expect(reviewLayout([box({ id: 'item2', size: 20, bold: false })], 1350).find((i) => i.rule === 'font_size').message).toBe('O item 2 ficou pequeno demais para o feed (20px, mínimo 26px).');
+    expect(reviewLayout([box({ x: 10 })], 1350).find((i) => i.rule === 'safe_margin').message).toBe('O título passa da margem de segurança do feed.');
+    expect(reviewLayout([box(), box({ id: 'sub', size: 30, bold: false })], 1350).find((i) => i.rule === 'overlap').message).toBe('O título e o subtítulo estão um em cima do outro.');
+    expect(reviewLayout([], 1350, ['kicker'])[0].message).toBe('O selo é longo demais para caber na imagem. Encurte.');
+  });
+
   it('fronteira do contraste: 4,5:1 passa e 4,49:1 não; título grande em negrito passa com 3:1', () => {
     // #767676 sobre branco = 4,54:1; #777777 = 4,48:1 (valores conhecidos do WCAG)
     expect(contrast('#767676', '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
