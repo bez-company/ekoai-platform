@@ -103,8 +103,10 @@ test.describe.serial('ajuste rápido do post, versões e regra de marca', () => 
     await saveAsOtherEditor(page, posts[1].briefId, (d) => ({ ...d, logoCorner: 'tl' }));
     await panel(page).getByLabel('Esconder o logo neste post').check();
 
-    await expect(page.getByRole('alert').filter({ hasText: 'salvou a versão 2 enquanto você editava' })).toBeVisible();
-    await expect(page.getByRole('alert')).toContainText('Suas mudanças continuam na tela.');
+    // a faixa de publicação pausada também é um alerta: o conflito se acha pelo texto
+    const conflict = page.getByRole('alert').filter({ hasText: 'salvou a versão 2 enquanto você editava' });
+    await expect(conflict).toBeVisible();
+    await expect(conflict).toContainText('Suas mudanças continuam na tela.');
     await expect(panel(page).getByRole('button', { name: 'Confirmar' })).toBeDisabled();
     await page.getByRole('button', { name: /Refazer sobre a versão 2/ }).click();
     await expect(panel(page).getByRole('button', { name: 'Confirmar' })).toBeEnabled();
