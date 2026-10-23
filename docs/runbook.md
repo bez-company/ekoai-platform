@@ -176,6 +176,11 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
    > `prod`). Sem aprovação, nada muda em produção.
 4. **Conferir:** `/api/health` de produção mostra a revisão (`sha-<7 primeiros>`).
 
+**Cards do Linear:** o merge da PR na `staging` leva o card para a coluna **Staging** (automação do
+GitHub no Linear). O `scripts/release.sh` lista os cards `[BEZ-NN]` dos commits que sobem e, depois do
+push na `main`, passa de Staging para **Done** os que estão em Staging (`scripts/linear-release.sh`,
+com `LINEAR_API_KEY` no ambiente; sem a chave, só lista e o movimento é à mão). Done = em produção.
+
 **Desfazer:** `gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100
 --region southamerica-east1` (migrations são aditivas, então o código antigo continua funcionando).
 Para tirar a mudança de vez, reverta o commit na `staging` (por PR) e faça uma nova release.
