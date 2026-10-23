@@ -23,13 +23,23 @@ describe('URL de autorização', () => {
   });
 });
 
-describe('state contra CSRF', () => {
-  it('só aceita o mesmo valor do cookie', () => {
-    expect(m.stateMatches('abc123', 'abc123')).toBe(true);
-    expect(m.stateMatches('abc123', 'abc124')).toBe(false);
-    expect(m.stateMatches('abc', 'abc123')).toBe(false);
-    expect(m.stateMatches('abc123', undefined)).toBe(false);
-    expect(m.stateMatches('', '')).toBe(false);
+describe('state contra CSRF (assinado, sem cookie)', () => {
+  const input = { tenantId: 't1', secret: 'segredo', now: 1_000_000 };
+  const state = m.createState({ ...input, nonce: 'abc' });
+
+  it('aceita o state da mesma empresa dentro do prazo', () => {
+    expect(m.stateValid(state, input)).toBe(true);
+    expect(state.length).toBeLessThan(200);
+  });
+
+  it('recusa outra empresa, outro segredo, adulterado, vencido e vazio', () => {
+    expect(m.stateValid(state, { ...input, tenantId: 't2' })).toBe(false);
+    expect(m.stateValid(state, { ...input, secret: 'outro' })).toBe(false);
+    expect(m.stateValid(state.replace('abc', 'abd'), input)).toBe(false);
+    expect(m.stateValid(state, { ...input, now: input.now + (m.STATE_TTL_SECONDS + 1) * 1000 })).toBe(false);
+    expect(m.stateValid(undefined, input)).toBe(false);
+    expect(m.stateValid('', input)).toBe(false);
+    expect(m.stateValid('a.b', input)).toBe(false);
   });
 });
 
