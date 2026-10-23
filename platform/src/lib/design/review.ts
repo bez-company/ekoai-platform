@@ -13,7 +13,7 @@ export type TextBox = { id: string; x: number; y: number; w: number; h: number; 
 // Palavras comuns que perdem o acento quando o modelo erra. Curta de propósito: pega o erro típico.
 const SEM_ACENTO = ['nao', 'voce', 'tambem', 'solucao', 'solucoes', 'ate', 'ja', 'so', 'servico', 'servicos', 'producao', 'tecnologico', 'codigo', 'saude', 'familia', 'proximo', 'proxima', 'mes', 'horario'];
 
-const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22 };
+const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22, name: 40 };
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 export type TextReviewInput = {
@@ -90,6 +90,7 @@ function nameOf(id: string): { subject: string; where: string } {
     sub: { subject: 'O subtítulo', where: 'no subtítulo' },
     kicker: { subject: 'O selo', where: 'no selo' },
     handle: { subject: 'O @ da conta', where: 'no @ da conta' },
+    name: { subject: 'O nome da empresa', where: 'no nome da empresa' },
   };
   return map[id] ?? { subject: `O texto "${id}"`, where: `no texto "${id}"` };
 }

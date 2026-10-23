@@ -98,8 +98,8 @@ export function parseEditable(body: unknown): Parsed<EditableDesign> {
 }
 
 // O layout escolhido precisa servir ao tipo do post e ao conteúdo (lista numerada pede 2 itens, foto pede visual).
-export function checkLayout(value: EditableDesign, kind: PostKind, hasVisual: boolean): Parsed<EditableDesign> {
-  if (!compatibleLayouts(kind, value.texts, hasVisual).includes(value.layout)) {
+export function checkLayout(value: EditableDesign, kind: PostKind, hasVisual: boolean, current?: Layout): Parsed<EditableDesign> {
+  if (!compatibleLayouts(kind, value.texts, hasVisual, current).includes(value.layout)) {
     return fail('Este layout não serve a este post. Escolha um dos que aparecem na lista.', 'layout');
   }
   return { ok: true, value };
