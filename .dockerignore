@@ -14,3 +14,4 @@ tmp
 **/.env.local
 firebase.json
 supabase/.temp
+e2e

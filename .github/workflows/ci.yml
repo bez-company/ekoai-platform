@@ -245,6 +245,69 @@ jobs:
       - name: Consultas, módulos e executor de migrations contra o Postgres
         run: npm run test:db
 
+  # Jornada no navegador (BEZ-259): o app de verdade (Next em modo dev, que é o que aceita o emulador
+  # de login) contra um Postgres com as migrations e o emulador do Firebase Auth. Nenhum serviço
+  # externo real: IA e Meta ficam simulados nas frentes seguintes. Screenshots e trace saem como artefato.
+  e2e:
+    name: E2E no navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ekoai_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+      DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_e2e
+      E2E_DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            platform/package-lock.json
+            e2e/package-lock.json
+      - run: npm ci --no-audit
+      - run: npm ci --no-audit
+        working-directory: platform
+      - run: npm ci --no-audit
+        working-directory: e2e
+      - name: Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - name: Base do Supabase e migrations
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci/bootstrap.sql
+          npm run migrate
+      # O runner já traz o Java 21 que o emulador precisa; projeto `demo-`, sem conta Google.
+      - name: Specs
+        working-directory: e2e
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          npm run emulator:test
+      - name: Screenshots e trace
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-resultados
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          retention-days: 14
+          if-no-files-found: ignore
+
   infra:
     name: Terraform
     runs-on: ubuntu-latest
@@ -318,7 +381,7 @@ jobs:
   ci-ok:
     name: CI ok
     if: always()
-    needs: [test, identity-emulator, migrations-check, data-layer, containers, infra, security, flow]
+    needs: [test, identity-emulator, migrations-check, data-layer, e2e, containers, infra, security, flow]
     runs-on: ubuntu-latest
     steps:
       - run: |
