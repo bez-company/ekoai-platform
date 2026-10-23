@@ -176,10 +176,10 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
    > `prod`). Sem aprovação, nada muda em produção.
 4. **Conferir:** `/api/health` de produção mostra a revisão (`sha-<7 primeiros>`).
 
-**Cards do Linear:** o merge da PR na `staging` leva o card para a coluna **Staging** (automação do
-GitHub no Linear). O `scripts/release.sh` lista os cards `[BEZ-NN]` dos commits que sobem e, depois do
-push na `main`, passa de Staging para **Done** os que estão em Staging (`scripts/linear-release.sh`,
-com `LINEAR_API_KEY` no ambiente; sem a chave, só lista e o movimento é à mão). Done = em produção.
+**Cards do ClickUp:** o merge da PR na `staging` leva o card para **Staging**. O `scripts/release.sh`
+lista os cards (`CU-<id>` e, nos migrados do Linear, `BEZ-NN`) dos commits que sobem e, depois do push na
+`main`, passa de Staging para **Done** os que estão em Staging (`scripts/clickup-release.sh`, com
+`CLICKUP_API_TOKEN` no ambiente; sem o token, só lista e o movimento é à mão). Done = em produção.
 
 **Desfazer:** `gcloud run services update-traffic ekoai-platform --to-revisions=<revisão anterior>=100
 --region southamerica-east1` (migrations são aditivas, então o código antigo continua funcionando).
@@ -426,7 +426,7 @@ o Vertex, a Meta e o Cloud Run de verdade. Rode antes de uma release e depois de
   **Ligar o ambiente** da tela. Confirme com `GET /api/health` (200).
 - Instagram: só a conta de teste conectada como tester do app (modo desenvolvimento). Publicar de verdade nela é
   uma decisão sua a cada rodada; a Meta não tem como desfazer o que foi publicado.
-- Navegador no perfil Bez Company. Registre a data, o commit do staging e quem rodou no card do Linear.
+- Navegador no perfil Bez Company. Registre a data, o commit do staging e quem rodou no card do ClickUp.
 
 **Roteiro** (marque cada passo; falhou, anote o passo, a tela e o horário, e abra um card)
 
