@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { resetAccount } from '../support/seed';
 import { login } from '../support/session';
 
