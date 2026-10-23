@@ -698,7 +698,7 @@ insert into generation_runs (tenant_id, brief_id, step, input_hash, status) valu
 do $$
 declare d uuid;
 begin
-  select id into d from post_designs where tenant_id = 'exemplo' limit 1;
+  select id into d from post_designs where tenant_id = 'exemplo' and brief_id = '30000000-0000-0000-0000-000000000001';
   begin
     update post_design_revisions set summary = 'mudou' where post_design_id = d;
     raise exception 'revisão foi alterada (deveria ser imutável)';
@@ -804,7 +804,7 @@ begin
   if exists (select 1 from post_design_revisions where tenant_id <> 'exemplo') then raise exception 'A viu revisão de outra conta'; end if;
   begin
     insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
-      select 'exemplo', post_design_id, 2, 1, 'edit', '{}', 'A grava' from post_design_revisions limit 1;
+      select 'exemplo', post_design_id, 2, 1, 'edit', '{}', 'A grava' from post_design_revisions where version = 1;
     raise exception 'A gravou revisão (só o servidor grava)';
   exception when insufficient_privilege then null;
   end;
