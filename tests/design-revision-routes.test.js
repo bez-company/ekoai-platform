@@ -35,7 +35,7 @@ vi.mock('@/lib/post-design-revisions', async () => {
   const run = (name) => async (_t, id, input) => {
     dataMock.calls.push([name, id, input]);
     if (dataMock.error) throw dataMock.error;
-    return { name };
+    return { name, version: 4, source: name === 'restore' ? 'restore' : 'edit', summary: 'Subtítulo removido', diff: [{ field: 'texts.sub' }, { field: 'logoCorner' }], issues: [], renderMs: 12 };
   };
   return {
     RevisionConflict,
@@ -48,17 +48,20 @@ vi.mock('@/lib/post-design-revisions', async () => {
     assertDesignVersion: async (_t, pendingId, version) => {
       dataMock.calls.push(['assert', pendingId, version]);
       if (dataMock.error) throw dataMock.error;
+      return { briefId: 'brief-1', version: version ?? 1 };
     },
   };
 });
 vi.mock('@/lib/rate-limit', () => ({ hit: async () => dataMock.rate, tooMany: (r) => new Response(JSON.stringify({ error: 'Muitas tentativas seguidas.' }), { status: 429, headers: { 'retry-after': String(r.retryAfterS) } }) }));
 vi.mock('@/lib/scheduling', () => ({ approvePending: async () => ({ id: 's1', scheduledFor: null, requestedMissed: false }) }));
 vi.mock('@/lib/publish', () => ({ publishNow: async () => ({ ok: true }) }));
-vi.mock('@/lib/analytics', () => ({ track: async () => undefined }));
+const events = [];
+vi.mock('@/lib/analytics', () => ({ track: async (tenant, event, props) => void events.push([tenant, event, props]) }));
 
 const { POST: PREVIEW } = await import('../platform/src/app/api/posts/[id]/design/preview/route.ts');
 const { GET: STATE, POST: SAVE } = await import('../platform/src/app/api/posts/[id]/design/revisions/route.ts');
 const { GET: PNG } = await import('../platform/src/app/api/posts/[id]/design/revisions/[version]/png/route.ts');
+const { POST: SIGNAL } = await import('../platform/src/app/api/posts/[id]/design/signal/route.ts');
 const { POST: RESTORE } = await import('../platform/src/app/api/posts/[id]/design/revisions/[version]/restore/route.ts');
 const { POST: APPROVE } = await import('../platform/src/app/api/approve/route.ts');
 const { RevisionConflict, RevisionBlocked } = await import('@/lib/post-design-revisions');
@@ -72,6 +75,7 @@ const post = (body) => new Request('http://app.test', { method: 'POST', body: JS
 beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [], user: { id: 'u-1' } });
   Object.assign(dataMock, { calls: [], error: null, rate: { allowed: true, hits: 1, retryAfterS: 0 } });
+  events.length = 0;
 });
 
 describe('prévia', () => {
@@ -169,5 +173,39 @@ describe('aprovar leva a versão que a pessoa via', () => {
     dataMock.error = null;
     expect((await approve({ designVersion: 0 })).status).toBe(400);
     expect((await approve({ designVersion: 'x' })).status).toBe(400);
+  });
+});
+
+describe('eventos de produto (BEZ-269)', () => {
+  it('Confirmar manda design_revision_saved sem texto do post; conflito e revisor não mandam', async () => {
+    await SAVE(post({ baseVersion: 3, design, editMs: 4200 }), params());
+    expect(events).toEqual([['acme', 'design_revision_saved', { brief_id: ID, version: 4, source: 'edit', fields_changed: 2, field_keys: 'sub,logoCorner', render_ms: 12, model_calls: 0, edit_ms: 4200 }]]);
+    events.length = 0;
+    dataMock.error = new RevisionConflict('Outra pessoa salvou.', null);
+    await SAVE(post({ baseVersion: 3, design }), params());
+    dataMock.error = new RevisionBlocked('Contraste baixo.', []);
+    await SAVE(post({ baseVersion: 3, design }), params());
+    expect(events).toEqual([]);
+  });
+
+  it('restaurar manda restored e saved; aprovar leva a versão e se foi editada', async () => {
+    await RESTORE(post({ baseVersion: 3 }), params({ version: '1' }));
+    expect(events.map((e) => e[1])).toEqual(['design_revision_restored', 'design_revision_saved']);
+    expect(events[0][2]).toEqual({ brief_id: ID, from_version: 1, to_version: 4 });
+    events.length = 0;
+    await APPROVE(post({ pendingId: 'plat-1', captionId: 1, artId: 1, designVersion: 3 }));
+    expect(events).toEqual([['acme', 'post_approved', { brief_id: 'brief-1', design_version: 3, edited: true }]]);
+  });
+
+  it('o sinal da tela pede content.edit, valida e manda o evento', async () => {
+    expect((await SIGNAL(post({ kind: 'wish', wish: 'move' }), params())).status).toBe(200);
+    expect(sessionMock.calls).toEqual(['content.edit']);
+    expect(events).toEqual([['acme', 'design_edit_wish', { brief_id: ID, wish: 'move' }]]);
+    events.length = 0;
+    expect((await SIGNAL(post({ kind: 'wish', wish: 'x' }), params())).status).toBe(400);
+    expect((await SIGNAL(post({ kind: 'discarded', edits: 2 }), params({ id: 'x' }))).status).toBe(404);
+    expect(events).toEqual([]);
+    expect((await SIGNAL(post({ kind: 'discarded', edits: 2 }), params())).status).toBe(200);
+    expect(events[0][1]).toBe('design_edit_discarded');
   });
 });

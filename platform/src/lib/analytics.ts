@@ -40,7 +40,12 @@ export type ProductEvent =
   | 'suggestion_replaced'
   | 'suggestion_skipped'
   | 'rework'
-  | 'cost_by_step';
+  | 'cost_by_step'
+  // Ajuste rápido do post (SPEC 019, BEZ-269): custo e tempo de corrigir um detalhe sem regenerar.
+  | 'design_revision_saved'
+  | 'design_revision_restored'
+  | 'design_edit_discarded'
+  | 'design_edit_wish';
 
 // `published_success` (channel, attempts, recorded, latency_ms) e `published_failure` (channel, attempts, reason:
 // classe do erro, nunca a mensagem) saem de publish.ts desde o BEZ-258. Substituem `post_published` e
