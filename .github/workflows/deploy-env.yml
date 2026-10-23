@@ -70,7 +70,25 @@ jobs:
             echo "::error::o banco de produção está $state; deploy interrompido. Investigue antes de seguir."
             exit 1
           fi
-          gcloud sql instances patch ekoai-pg --project "$PROJECT" --activation-policy=ALWAYS --quiet --async
+          # Já há operação no banco (ele está ligando por outro deploy, pela tela "Ligar o ambiente"
+          # ou pelo corte de ociosidade): um patch agora volta 409. O passo "Esperar o banco" espera.
+          ops=$(gcloud sql operations list --instance ekoai-pg --project "$PROJECT" --filter='status!=DONE' --format='value(name)' --limit 5)
+          if [ -n "$ops" ]; then
+            echo "operação em andamento no banco ($ops); não peço para ligar de novo"
+            exit 0
+          fi
+          policy=$(gcloud sql instances describe ekoai-pg --project "$PROJECT" --format='value(settings.activationPolicy)')
+          if [ "$policy" = "ALWAYS" ]; then
+            echo "o banco já foi pedido para ligar (ALWAYS); só falta subir"
+            exit 0
+          fi
+          for i in 1 2 3; do
+            if gcloud sql instances patch ekoai-pg --project "$PROJECT" --activation-policy=ALWAYS --quiet --async; then exit 0; fi
+            echo "patch recusado (tentativa $i); outra operação pode ter começado, nova tentativa em 30 s"
+            sleep 30
+          done
+          echo "::error::não consegui pedir para ligar o banco"
+          exit 1
 
       # Staging constrói e empurra. Produção não constrói: promove, byte a byte, a imagem que passou
       # na staging (mesmo digest). O deploy usa sempre o digest, nunca a tag.
@@ -110,16 +128,20 @@ jobs:
             echo "${img^^}_IMAGE=$REGISTRY/$img@$d" >> "$GITHUB_ENV"
           done
 
+      # RUNNABLE sozinho não basta: o Cloud SQL ainda pode estar terminando a operação de ligar, e o
+      # migrate morria com "connect ETIMEDOUT" (BEZ-120). Espera RUNNABLE e nenhuma operação pendente;
+      # o migrate ainda tenta conectar de novo por cerca de 2 minutos (scripts/migrate.js).
       - name: Esperar o banco
         run: |
           set -euo pipefail
           for _ in $(seq 1 80); do
             state=$(gcloud sql instances describe ekoai-pg --project "$PROJECT" --format='value(state)')
-            echo "banco: $state"
-            if [ "$state" = "RUNNABLE" ]; then exit 0; fi
+            ops=$(gcloud sql operations list --instance ekoai-pg --project "$PROJECT" --filter='status!=DONE' --format='value(name)' --limit 5)
+            echo "banco: $state${ops:+, operação em andamento: $ops}"
+            if [ "$state" = "RUNNABLE" ] && [ -z "$ops" ]; then exit 0; fi
             sleep 15
           done
-          echo "::error::o banco não ficou RUNNABLE em 20 minutos"
+          echo "::error::o banco não ficou RUNNABLE, sem operação pendente, em 20 minutos"
           exit 1
 
       # Migrations antes de trocar o código, e o deploy para se elas falharem.
@@ -146,14 +168,29 @@ jobs:
           URL=$(gcloud run services describe ekoai-platform --region "$REGION" --format 'value(status.url)')
           echo "URL=$URL" >> "$GITHUB_ENV"
 
+      # Duas conferências: o processo de pé (/api/live, sem banco; falha aqui é imagem quebrada) e
+      # o app alcançando o banco (/api/health). Logo depois de o banco ligar, a primeira conexão do
+      # app pode levar uns 2 minutos (BEZ-120): até 3 minutos de espera.
       - name: Health check
         run: |
           set -euo pipefail
-          for i in 1 2 3 4 5 6; do
+          live=""
+          for i in $(seq 1 6); do
+            live=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/live" || true)
+            echo "live, tentativa $i: $live"
+            if [ "$live" = "200" ]; then break; fi
+            sleep 10
+          done
+          if [ "$live" != "200" ]; then
+            echo "::error::a plataforma não subiu em $URL (/api/live respondeu $live)"
+            exit 1
+          fi
+          for i in $(seq 1 18); do
             code=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/health" || true)
-            echo "tentativa $i: $code"
+            echo "health, tentativa $i: $code"
             if [ "$code" = "200" ]; then cat /tmp/health.json; exit 0; fi
             sleep 10
           done
-          echo "::error::health check falhou em $URL"
+          echo "::error::a plataforma subiu, mas não alcança o banco em $URL (/api/health)"
+          cat /tmp/health.json || true
           exit 1
