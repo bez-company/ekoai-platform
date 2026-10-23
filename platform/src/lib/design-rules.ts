@@ -29,7 +29,7 @@ const toRule = (r: Row): DesignRule => ({
   value: r.value as RuleValue,
   status: r.status as RuleStatus,
   decidedAt: r.decided_at ? new Date(r.decided_at as string).toISOString() : null,
-  evidence: (r.evidence as { posts?: number } | null) ?? null,
+  evidence: (r.evidence as DesignRule['evidence']) ?? null,
 });
 const toView = (r: Row): RuleView => {
   const rule = toRule(r);
@@ -124,7 +124,7 @@ export async function proposeDesignRules(t: TenantDb, now: Date = new Date()): P
     if (!made) continue;
     created.push(made);
     await track(t.tenantId, 'design_rule_proposed', { rule_field: p.field, scope_kind: p.scope, evidence_posts: p.posts });
-    await notify(t, { kind: 'design.rule_proposed', title: 'A Ekoai notou um ajuste que você repete', body: made.title, link: '/learning', audience: 'admin' });
+    await notify(t, { kind: 'design.rule_proposed', title: 'A Ekoai notou um ajuste que você repete', body: made.title, link: '/learning?tab=design', audience: 'admin' });
   }
   return created;
 }

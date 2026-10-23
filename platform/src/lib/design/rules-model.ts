@@ -21,7 +21,7 @@ export type RuleStatus = 'proposed' | 'active' | 'off' | 'dismissed';
 // Layout e cor dependem do tipo do post (o fundo muda com a família): essas regras sempre têm um tipo.
 const KIND_SCOPED: ReadonlySet<RuleField> = new Set(['layout', 'colors.title', 'colors.sub']);
 
-export type DesignRule = { id: string; field: RuleField; scope: RuleScope; value: RuleValue; status: RuleStatus; decidedAt: string | null; evidence: { posts?: number } | null };
+export type DesignRule = { id: string; field: RuleField; scope: RuleScope; value: RuleValue; status: RuleStatus; decidedAt: string | null; evidence: { posts?: number; first_at?: string; last_at?: string } | null };
 export type Candidate = { field: RuleField; scope: RuleScope; value: RuleValue; key: string };
 
 const keyOf = (scope: RuleScope, field: RuleField, value: RuleValue) => `${scope}|${field}|${String(value)}`;
