@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@ekoai/db": "file:packages/db",
-    "@google-cloud/secret-manager": "^6.3.0",
+    "@google-cloud/secret-manager": "^7.2.0",
     "@google-cloud/storage": "^8.4.0",
     "@sentry/node": "^10.76.2",
     "dotenv": "^16.4.5",
