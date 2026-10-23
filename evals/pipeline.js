@@ -3,7 +3,7 @@
 // revisor (reviewText), mesmo visual (visualPromptFor), mesma grade (defaultLayout e renderPng). Se o
 // generatePost mudar a ordem ou a escolha de layout, este arquivo muda junto.
 
-import { buildCopyPrompt, imageTextsOf, parseCopy, visualPromptFor } from '../platform/src/lib/agents.ts';
+import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy, visualPromptFor } from '../platform/src/lib/agents.ts';
 import { brandFromProfile, defaultLayout, imageDataUri } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
 import { blocking, reviewText } from '../platform/src/lib/design/review.ts';
@@ -26,7 +26,7 @@ async function writeCopy({ model, brief }) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
     }
-    const copy = parsed.value;
+    const copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
     const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: COMPANY.facts, never: COMPANY.never, banned: COMPANY.profile.bannedWords, request: brief.idea });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };

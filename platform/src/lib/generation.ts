@@ -19,7 +19,7 @@ import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
-import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
+import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -165,7 +165,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
     }
-    const copy = parsed.value;
+    const copy: Copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
     const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
