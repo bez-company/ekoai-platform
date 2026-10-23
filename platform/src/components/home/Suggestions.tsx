@@ -26,7 +26,7 @@ export default function Suggestions({ items, canCreate, title = 'Sugestões da s
     try {
       const res = await fetch(`/api/suggestions/${id}/${action}`, { method: 'POST' });
       if (res.status === 401) {
-        router.push('/login');
+        router.push('/entrar');
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { error?: string; kind?: 'photo' | 'generate'; briefId?: string; assetId?: string; idea?: string };

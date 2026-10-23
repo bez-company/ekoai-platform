@@ -59,7 +59,7 @@ export async function runFactExpiryNotices(deps: { now?: Date } = {}): Promise<E
         }
         if (!claimed.length) continue;
         const text = expiryNoticeText(stage, claimed.map((c) => c.category));
-        await notify(t, { kind: `facts.${stage}`, level: 'warning', title: text.title, body: text.body, link: '/settings/facts', audience: 'admin' });
+        await notify(t, { kind: `facts.${stage}`, level: 'warning', title: text.title, body: text.body, link: '/configuracoes/fatos', audience: 'admin' });
         summary[stage] += claimed.length;
       }
       summary.accounts += 1;

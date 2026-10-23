@@ -1,5 +1,5 @@
 // capabilities.ts: o que cada rede aceita por formato (channel-capabilities.json). O
-// scheduler não chama a API para formato que não é `auto`, e /settings mostra a matriz.
+// scheduler não chama a API para formato que não é `auto`, e /configuracoes mostra a matriz.
 
 import matrix from './channel-capabilities.json';
 

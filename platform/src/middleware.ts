@@ -8,7 +8,7 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
 
 // `/instagram/exclusao/` é a página de status do pedido de exclusão que a Meta mostra para a pessoa: só lê pelo
 // código aleatório e não mostra conta nem perfil.
-const PUBLIC_PREFIXES = ['/login', '/convite', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/', '/instagram/exclusao/'];
+const PUBLIC_PREFIXES = ['/entrar', '/convite', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/', '/instagram/exclusao/'];
 // Caminhos públicos exatos: quem chama ainda não tem sessão (a prova é o ID token). Prefixo não,
 // para uma rota futura debaixo deles continuar exigindo sessão.
 // `/api/live`, `/api/ambiente` e `/api/ambiente/ligar` são do staging sob demanda (SPEC 016): com o banco
@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
   const url = req.nextUrl.clone();
-  url.pathname = '/login';
+  url.pathname = '/entrar';
   url.searchParams.set('next', pathname);
   return NextResponse.redirect(url);
 }

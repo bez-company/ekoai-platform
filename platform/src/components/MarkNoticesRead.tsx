@@ -16,7 +16,7 @@ export default function MarkNoticesRead({ unread }: { unread: number }) {
         setBusy(true);
         try {
           const res = await fetch('/api/notifications/read', { method: 'POST' });
-          if (res.status === 401) router.push('/login');
+          if (res.status === 401) router.push('/entrar');
           else router.refresh();
         } finally {
           setBusy(false);

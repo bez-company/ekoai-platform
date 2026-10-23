@@ -102,10 +102,10 @@ describe('código do app autenticador', () => {
 
 describe('para onde ir depois do login', () => {
   it('só caminhos da própria plataforma', () => {
-    expect(f.safeNext('/settings')).toBe('/settings');
-    expect(f.safeNext('/inbox/abc?x=1')).toBe('/inbox/abc?x=1');
+    expect(f.safeNext('/configuracoes')).toBe('/configuracoes');
+    expect(f.safeNext('/aprovar/abc?x=1')).toBe('/aprovar/abc?x=1');
     for (const bad of ['https://evil.com', '//evil.com', '/\\evil.com', 'javascript:alert(1)', 'evil', '', null, undefined]) {
-      expect(f.safeNext(bad)).toBe('/');
+      expect(f.safeNext(bad)).toBe('/inicio');
     }
   });
 });

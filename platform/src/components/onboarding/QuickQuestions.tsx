@@ -70,7 +70,7 @@ export default function QuickQuestions() {
       const body = skip ? {} : { source, goal, postsPerWeek };
       const res = await fetch('/api/onboarding/answers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 401) {
-        router.push('/login');
+        router.push('/entrar');
         return;
       }
       if (!res.ok) {
@@ -78,7 +78,7 @@ export default function QuickQuestions() {
         setError(data.error ?? 'Não deu para salvar agora. Tente de novo em instantes.');
         return;
       }
-      router.push('/');
+      router.push('/inicio');
       router.refresh();
     } catch {
       setError('Sem conexão. Confira a rede e tente de novo.');

@@ -101,14 +101,14 @@ export default function IdeaForm({
       };
     });
     if (await post('/api/ideas/approve', { briefId: idea.briefId, items })) {
-      router.push('/calendar');
+      router.push('/agenda');
       router.refresh();
     }
   }
 
   async function reject() {
     if (await post('/api/ideas/reject', { briefId: idea.briefId, reason })) {
-      router.push('/inbox');
+      router.push('/aprovar');
       router.refresh();
     }
   }

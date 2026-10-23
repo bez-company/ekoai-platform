@@ -42,6 +42,40 @@ const nextConfig = {
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'raw.githubusercontent.com' }],
   },
+  // As telas ganharam endereço em português. Os antigos seguem valendo: favorito, convite e link de
+  // notificação já gravado no banco apontam para eles. A sessão e as permissões são conferidas no destino.
+  async redirects() {
+    const moved = (from, to) => ({ source: from, destination: to, permanent: true });
+    return [
+      { source: '/', destination: '/inicio', permanent: false },
+      moved('/calendar', '/agenda'),
+      moved('/campaigns/new', '/campanhas/nova'),
+      moved('/campaigns/:id/edit', '/campanhas/:id/editar'),
+      moved('/campaigns/:path*', '/campanhas/:path*'),
+      moved('/campaigns', '/campanhas'),
+      moved('/create/:path*', '/criar/:path*'),
+      moved('/create', '/criar'),
+      moved('/engage', '/engajar'),
+      moved('/history/:path*', '/historico/:path*'),
+      moved('/history', '/historico'),
+      moved('/inbox/idea/:briefId', '/aprovar/ideia/:briefId'),
+      moved('/inbox/:path*', '/aprovar/:path*'),
+      moved('/inbox', '/aprovar'),
+      moved('/learning', '/aprendizado'),
+      moved('/media', '/midia'),
+      moved('/notifications', '/notificacoes'),
+      moved('/photo', '/foto'),
+      moved('/settings/channels', '/configuracoes/canais'),
+      moved('/settings/company', '/configuracoes/empresa'),
+      moved('/settings/data', '/configuracoes/dados'),
+      moved('/settings/facts', '/configuracoes/fatos'),
+      moved('/settings/team', '/configuracoes/equipe'),
+      moved('/settings', '/configuracoes'),
+      moved('/login', '/entrar'),
+      moved('/onboarding/perguntas', '/boas-vindas/perguntas'),
+      moved('/onboarding', '/boas-vindas'),
+    ];
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

@@ -30,7 +30,7 @@ test.describe.serial('papéis', () => {
     await login(page, 'admin');
     await saveMinimalProfile(page);
 
-    await page.goto('/settings/team');
+    await page.goto('/configuracoes/equipe');
     await expect(page.getByRole('heading', { name: 'Equipe', level: 2 })).toBeVisible();
     await expect(page.getByText('3 de 5 pessoas no plano Inicial')).toBeVisible();
     // as três pessoas do seed, cada uma no seu papel
@@ -47,8 +47,8 @@ test.describe.serial('papéis', () => {
     await expect(page.getByRole('heading', { name: 'Olá, Caio' })).toBeVisible();
 
     await test.step('as telas de criação abrem; a equipe não existe para ele', async () => {
-      for (const path of ['/create', '/photo', '/media']) expect((await page.goto(path))?.status(), path).toBe(200);
-      expect((await page.goto('/settings/team'))?.status()).toBe(404);
+      for (const path of ['/criar', '/foto', '/midia']) expect((await page.goto(path))?.status(), path).toBe(200);
+      expect((await page.goto('/configuracoes/equipe'))?.status()).toBe(404);
       await expect(page.getByText('Página ou pendência não encontrada.')).toBeVisible();
     });
 
@@ -76,10 +76,10 @@ test.describe.serial('papéis', () => {
     });
 
     await test.step('as telas de criação e configuração não existem para ele; as de leitura abrem', async () => {
-      for (const path of ['/create', '/photo', '/media', '/settings', '/settings/channels', '/settings/company', '/settings/team']) {
+      for (const path of ['/criar', '/foto', '/midia', '/configuracoes', '/configuracoes/canais', '/configuracoes/empresa', '/configuracoes/equipe']) {
         expect((await page.goto(path))?.status(), path).toBe(404);
       }
-      for (const path of ['/inbox', '/calendar', '/history']) expect((await page.goto(path))?.status(), path).toBe(200);
+      for (const path of ['/aprovar', '/agenda', '/historico']) expect((await page.goto(path))?.status(), path).toBe(200);
     });
 
     await test.step('a API recusa toda escrita', async () => {

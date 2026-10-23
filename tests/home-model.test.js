@@ -11,7 +11,7 @@ describe('próximo passo do Início (SPEC 017, decisão 3)', () => {
   });
 
   it('cada situação dá o seu passo, com a ação', () => {
-    expect(nextStep({ ...ok, pending: 2 }, admin)).toMatchObject({ id: 'pending', title: '2 posts esperando aprovação', action: { href: '/inbox' } });
+    expect(nextStep({ ...ok, pending: 2 }, admin)).toMatchObject({ id: 'pending', title: '2 posts esperando aprovação', action: { href: '/aprovar' } });
     expect(nextStep({ ...ok, pending: 1 }, admin).title).toBe('1 post esperando aprovação');
     expect(id({ hasSlots: false })).toBe('no_slots');
     expect(id({ instagram: 'none' })).toBe('instagram_connect');

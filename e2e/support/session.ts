@@ -4,7 +4,7 @@ import { ACCOUNTS, password, type Persona } from './env';
 // Entra pela tela de login, como a pessoa faria. O login por pessoa troca o ID token do emulador
 // por um cookie de sessão; terminar na URL de destino prova que o par funcionou.
 export async function login(page: Page, persona: Persona, next = '/') {
-  await page.goto(`/login?next=${encodeURIComponent(next)}`);
+  await page.goto(`/entrar?next=${encodeURIComponent(next)}`);
   await page.getByLabel('E-mail').fill(ACCOUNTS[persona].email);
   await page.getByLabel('Senha').fill(password());
   await page.getByRole('button', { name: 'Entrar' }).click();

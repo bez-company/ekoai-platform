@@ -104,7 +104,7 @@ export default function TeamManager({ members, invitations, meId, planName, seat
     setBusy(false);
     if (!reply.ok) {
       if (reply.unauthorized) {
-        router.push('/login');
+        router.push('/entrar');
         return;
       }
       setError(reply.error);

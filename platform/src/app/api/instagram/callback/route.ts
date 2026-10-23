@@ -13,7 +13,7 @@ import { logError } from '@/lib/log';
 export async function GET(req: Request) {
   const origin = appOrigin(req);
   const back = (key: FlashKey) => {
-    return NextResponse.redirect(new URL(`/settings/channels?ig=${key}`, origin));
+    return NextResponse.redirect(new URL(`/configuracoes/canais?ig=${key}`, origin));
   };
 
   try {

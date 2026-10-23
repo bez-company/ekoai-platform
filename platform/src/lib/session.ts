@@ -72,7 +72,7 @@ export async function pageTenant(): Promise<TenantDb> {
   try {
     return await requireTenant();
   } catch (e) {
-    if (e instanceof UnauthorizedError) redirect('/login');
+    if (e instanceof UnauthorizedError) redirect('/entrar');
     throw e;
   }
 }
@@ -83,7 +83,7 @@ export async function pageContext(permission: Permission): Promise<{ t: TenantDb
   try {
     return await requireUserPermission(permission);
   } catch (e) {
-    if (e instanceof UnauthorizedError) redirect('/login');
+    if (e instanceof UnauthorizedError) redirect('/entrar');
     if (e instanceof ForbiddenError || e instanceof UserError) notFound();
     throw e;
   }
@@ -115,7 +115,7 @@ export async function pageSession(): Promise<SessionContext> {
     if (ctx.user && !(await hasPermission(ctx.role, ctx.t.tenantId, 'content.view'))) throw new ForbiddenError();
     return ctx;
   } catch (e) {
-    if (e instanceof UnauthorizedError) redirect('/login');
+    if (e instanceof UnauthorizedError) redirect('/entrar');
     throw e;
   }
 }

@@ -267,7 +267,7 @@ export default function DesignAdjust({
                 {busy === 'rule' ? <Spinner /> : null}
                 Aceitar regra
               </button>
-              <a className="btn-ghost" href="/learning?tab=design">
+              <a className="btn-ghost" href="/aprendizado?tab=design">
                 Ver em Aprendizado
               </a>
             </div>

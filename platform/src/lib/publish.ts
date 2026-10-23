@@ -187,7 +187,7 @@ async function publishX(t: TenantDb, s: ScheduledPost, caption: string): Promise
       level: 'warning',
       title: 'A thread no X saiu incompleta',
       body: `${String(result.partial_error)}. Confira no X e complete à mão.`,
-      link: '/history',
+      link: '/historico',
     });
     return result;
   }
@@ -208,7 +208,7 @@ async function postLinkReply(t: TenantDb, tweetId: string, text: string): Promis
       level: 'warning',
       title: 'O post no X saiu, mas a resposta com o link falhou',
       body: `${msg}. Cole o link à mão: ${text}`,
-      link: '/history',
+      link: '/historico',
     });
     return { ok: false, error: msg, text };
   }
@@ -226,7 +226,7 @@ async function postLinkComment(t: TenantDb, postUrn: string, text: string): Prom
       level: 'warning',
       title: 'O post no LinkedIn saiu, mas o comentário com o link falhou',
       body: `${msg}. Cole o link à mão: ${text}`,
-      link: '/history',
+      link: '/historico',
     });
     return { ok: false, error: msg, text };
   }
@@ -278,7 +278,7 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
       kind: 'publish.rehearsal',
       title: `Ensaio: o ${channelName(s.channel)} aceitou o post, mas ele não foi publicado`,
       body: hook || undefined,
-      link: '/calendar',
+      link: '/agenda',
     });
     return { ok: true };
   }
@@ -288,9 +288,9 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
         level: 'warning',
         title: `Publicado no ${channelName(s.channel)}, mas sem histórico`,
         body: `${persistError}. As métricas não vão ligar a este post.`,
-        link: '/history',
+        link: '/historico',
       }
-    : { kind: 'publish.ok', title: `Publicado no ${channelName(s.channel)}`, body: hook || undefined, link: '/history' });
+    : { kind: 'publish.ok', title: `Publicado no ${channelName(s.channel)}`, body: hook || undefined, link: '/historico' });
   const startedMs = s.publishing_started_at ? Date.parse(s.publishing_started_at) : Number.NaN;
   await track(t.tenantId, 'published_success', { channel: s.channel, attempts: (s.attempts ?? 0) + 1, recorded: !persistError, latency_ms: Number.isFinite(startedMs) ? Math.max(0, Date.now() - startedMs) : null });
   return { ok: true };
@@ -342,14 +342,14 @@ async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {
           level: 'error',
           title: `Não foi possível publicar no ${channelName(s.channel)}`,
           body: `${msg}. Depois de ${attempts} tentativa(s), o post ficou como falhou. Corrija e agende de novo.`,
-          link: '/calendar',
+          link: '/agenda',
         }
       : {
           kind: 'publish.retry',
           level: 'warning',
           title: `Falha ao publicar no ${channelName(s.channel)}, nova tentativa no próximo ciclo`,
           body: `${msg} (tentativa ${attempts} de ${MAX_ATTEMPTS}).`,
-          link: '/calendar',
+          link: '/agenda',
         });
     if (failed) await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: e instanceof NotPublishableError ? 'not_publishable' : e instanceof UserError ? 'user_error' : 'attempts_exhausted' });
     return { ok: false, error: msg };
@@ -490,7 +490,7 @@ export async function reconcileOne(t: TenantDb, stale: ScheduledPost, source: 'i
         level: 'error',
         title: `Não foi possível publicar no ${channelName(s.channel)}`,
         body: `${verdict.detail} Depois de ${attempts} tentativa(s), o post ficou como falhou. Agende de novo.`,
-        link: '/calendar',
+        link: '/agenda',
       });
       await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: 'reconcile_exhausted' });
       return { action: 'failed_for_review', error: verdict.detail };
@@ -508,7 +508,7 @@ export async function reconcileOne(t: TenantDb, stale: ScheduledPost, source: 'i
       level: 'error',
       title: `Confira o post no ${channelName(s.channel)}`,
       body: verdict.detail,
-      link: '/history',
+      link: '/historico',
     });
     await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: 'stuck_for_review' });
     return { action: 'failed_for_review', error: verdict.detail };
@@ -586,7 +586,7 @@ export async function publishNow(t: TenantDb, id: string): Promise<{ ok: boolean
 }
 
 // Varre os vencidos de TODAS as contas (job de sistema), trava cada um (anti-corrida) e publica no
-// escopo da conta dona da linha. A seleção já deixa de fora as contas pausadas em /settings (os
+// escopo da conta dona da linha. A seleção já deixa de fora as contas pausadas em /configuracoes (os
 // vencidos delas esperam a retomada) e reparte o lote entre as contas: ver app.due_scheduled_posts.
 export async function runPublishDue(nowIso = new Date().toISOString()): Promise<{
   picked: number;

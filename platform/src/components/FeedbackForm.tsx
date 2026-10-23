@@ -76,7 +76,7 @@ export default function FeedbackForm({
     setBusy(false);
     if (!res.ok) return setError(j.error || 'Não deu para registrar. Tente de novo.');
     if (rejecting) {
-      router.push('/inbox');
+      router.push('/aprovar');
       router.refresh();
       return;
     }

@@ -49,7 +49,7 @@ beforeAll(async () => {
   const brief = await one("insert into briefs (tenant_id, pillar, idea, status, goal) values ($1, 'ensinar', 'dica', 'ready', 'ensinar') returning id", [A]);
   await admin.query("insert into scheduled_posts (tenant_id, channel, variation, caption_final, scheduled_for, brief_id, status) values ($1, 'instagram', '{}', 'x', $2, $3, 'scheduled')", [A, THU, brief.id]);
   photoId = (await one(
-    "insert into media_assets (tenant_id, storage_path, content_type, byte_size, width, height, description, tags) values ($1, 'tenants/' || $1 || '/media/f.jpg', 'image/jpeg', 10, 1080, 1350, 'Forno a lenha aceso', '{bastidor}') returning id",
+    "insert into media_assets (tenant_id, storage_path, content_type, byte_size, width, height, description, tags) values ($1, 'tenants/' || $1 || '/midia/f.jpg', 'image/jpeg', 10, 1080, 1350, 'Forno a lenha aceso', '{bastidor}') returning id",
     [A],
   )).id;
   // Conta nova nasce pausada (gatilho da 0013): A publica, C continua pausada.

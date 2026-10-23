@@ -66,7 +66,7 @@ export default function ApproveForm({
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
-      router.push('/calendar');
+      router.push('/agenda');
       router.refresh();
     } else {
       setError(j.error || 'Falha ao agendar');

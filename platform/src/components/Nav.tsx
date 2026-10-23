@@ -68,12 +68,12 @@ export default function Nav({
 
   async function logout() {
     await fetch('/api/logout', { method: 'POST' });
-    router.push('/login');
+    router.push('/entrar');
     router.refresh();
   }
 
-  const badgeFor = (href: string) => (href === '/inbox' ? badges?.pendings : href === '/calendar' ? badges?.failed : undefined);
-  const creating = pathname?.startsWith('/create') ?? false;
+  const badgeFor = (href: string) => (href === '/aprovar' ? badges?.pendings : href === '/agenda' ? badges?.failed : undefined);
+  const creating = pathname?.startsWith('/criar') ?? false;
   const primary = links.filter((l) => (MOBILE_PRIMARY as readonly string[]).includes(l.href));
   const rest = links.filter((l) => !(MOBILE_PRIMARY as readonly string[]).includes(l.href));
   const restActive = rest.some((l) => isActive(pathname, l.href));
@@ -82,7 +82,7 @@ export default function Nav({
     <>
       <aside data-theme="dark" aria-label="Menu" className="sticky top-0 hidden h-screen flex-col gap-1.5 bg-surface px-3 py-5 text-fg md:flex">
         <div className="flex items-center justify-between gap-2 pb-2 pl-2.5">
-          <Link href="/" className="text-xl" aria-label="Ekoai, ir para o Início">
+          <Link href="/inicio" className="text-xl" aria-label="Ekoai, ir para o Início">
             <Logo />
           </Link>
           {bellSide}
@@ -101,7 +101,7 @@ export default function Nav({
         )}
 
         {canCreate && !creating && (
-          <Link href="/create" className="btn-primary my-1.5 justify-center">
+          <Link href="/criar" className="btn-primary my-1.5 justify-center">
             <Icon name="plus" size={16} />
             Criar post
           </Link>
@@ -152,7 +152,7 @@ export default function Nav({
       </aside>
 
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur md:hidden">
-        <Link href="/" aria-label="Ekoai, ir para o Início">
+        <Link href="/inicio" aria-label="Ekoai, ir para o Início">
           <Logo className="text-lg" />
         </Link>
         {bellTop}
@@ -173,7 +173,7 @@ export default function Nav({
               </p>
             )}
             {canCreate && (
-              <Link href="/create" className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-semibold text-accent-text hover:bg-inset">
+              <Link href="/criar" className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-semibold text-accent-text hover:bg-inset">
                 <Icon name="plus" />
                 Criar post
               </Link>

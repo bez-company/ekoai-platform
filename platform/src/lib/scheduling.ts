@@ -126,7 +126,7 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       body: requestedMissed
         ? `O horário pedido (${fmtLocal(requested!)}) já tinha passado. ${scheduledFor ? 'Entrou no próximo horário livre.' : 'Ficou na fila.'}`
         : (variation.hook || '').slice(0, 80) || undefined,
-      link: '/calendar',
+      link: '/agenda',
     });
   }
   return { scheduledFor, id: data!.id as string, requestedMissed };
@@ -158,7 +158,7 @@ export async function rejectPending(t: TenantDb, pendingId: string, reason?: str
     kind: 'pending.rejected',
     title: `Post do ${channelName(p.channel)} rejeitado`,
     body: reason || undefined,
-    link: '/learning',
+    link: '/aprendizado',
   });
 }
 

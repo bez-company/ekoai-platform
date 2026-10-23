@@ -40,7 +40,7 @@ export default function ProfileWizard({ initial }: Props) {
 
   // Depois do perfil, as 3 perguntas rápidas (SPEC 017); quem não cuida da publicação segue para o Início.
   function finish() {
-    router.push('/onboarding/perguntas');
+    router.push('/boas-vindas/perguntas');
     router.refresh();
   }
 
@@ -67,7 +67,7 @@ export default function ProfileWizard({ initial }: Props) {
       return;
     }
     if (result.unauthorized) {
-      router.push('/login');
+      router.push('/entrar');
       return;
     }
     setErrors(result.fields);
@@ -76,7 +76,7 @@ export default function ProfileWizard({ initial }: Props) {
 
   async function logout() {
     await fetch('/api/logout', { method: 'POST' });
-    router.push('/login');
+    router.push('/entrar');
     router.refresh();
   }
 

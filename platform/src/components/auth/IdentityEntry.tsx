@@ -85,7 +85,7 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
   }
 
   async function sendVerification(user: User) {
-    const url = `${window.location.origin}/login`;
+    const url = `${window.location.origin}/entrar`;
     try {
       await sendEmailVerification(user, { url });
     } catch (e) {
@@ -225,7 +225,7 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
 
   const onForgot = (mail: string) =>
     run(async () => {
-      const url = `${window.location.origin}/login`;
+      const url = `${window.location.origin}/entrar`;
       try {
         await sendPasswordResetEmail(auth, mail, { url });
       } catch (e) {
@@ -294,7 +294,7 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
       }
       // conta nova: o perfil da empresa é o próximo passo
       if (outcome.kind === 'done') {
-        router.push('/onboarding');
+        router.push('/boas-vindas');
         router.refresh();
         return;
       }

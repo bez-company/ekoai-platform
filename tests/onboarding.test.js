@@ -13,18 +13,18 @@ describe('checklist do Início', () => {
     const c = o.buildChecklist(base);
     expect(c).toMatchObject({ resolved: 0, total: 3, complete: false });
     expect(c.items.map((i) => i.id)).toEqual(['profile', 'instagram', 'team']);
-    expect(c.items[0].actions).toEqual([{ kind: 'link', label: 'Preencher perfil', href: '/onboarding' }]);
+    expect(c.items[0].actions).toEqual([{ kind: 'link', label: 'Preencher perfil', href: '/boas-vindas' }]);
     expect(o.checklistSummary(c)).toBe('Faltam 3 passos para a conta ficar pronta.');
   });
 
   it('perfil começado leva a Configurações; completo vira feito e perde a ação', () => {
-    expect(o.buildChecklist({ ...base, hasProfile: true }).items[0].actions[0]).toMatchObject({ label: 'Completar perfil', href: '/settings/company' });
+    expect(o.buildChecklist({ ...base, hasProfile: true }).items[0].actions[0]).toMatchObject({ label: 'Completar perfil', href: '/configuracoes/empresa' });
     const done = o.buildChecklist({ ...base, hasProfile: true, profileComplete: true });
     expect(done.items[0]).toMatchObject({ status: 'done', actions: [] });
   });
 
   it('Instagram: administrador pendente recebe o link para conectar; conectado vira feito', () => {
-    expect(o.buildChecklist(base).items[1]).toMatchObject({ status: 'todo', actions: [{ kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }] });
+    expect(o.buildChecklist(base).items[1]).toMatchObject({ status: 'todo', actions: [{ kind: 'link', label: 'Conectar Instagram', href: '/configuracoes/canais' }] });
     expect(o.buildChecklist({ ...base, instagramConnected: true }).items[1].status).toBe('done');
   });
 
@@ -131,7 +131,7 @@ describe('guia até a primeira publicação (SPEC 017, decisões 11 e 12)', () =
     const none = { create: false, approve: false, publishing: false, channels: false, brand: false, team: false };
     const g = o.buildGuide({ ...g0, role: 'creator', can: { ...none, create: true } });
     const by = Object.fromEntries(g.steps.map((s) => [s.id, s]));
-    expect(by.post.actions).toEqual([{ kind: 'link', label: 'Criar post', href: '/create' }]);
+    expect(by.post.actions).toEqual([{ kind: 'link', label: 'Criar post', href: '/criar' }]);
     expect(by.approve).toMatchObject({ actions: [], note: expect.stringMatching(/aprova/) });
     expect(by.slots.note).toMatch(/Só administradores/);
     expect(by.team.actions).toEqual([]);

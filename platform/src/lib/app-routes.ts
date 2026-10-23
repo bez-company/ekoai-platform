@@ -2,14 +2,14 @@
 // um chat diferente; quando uma rota mudar, muda aqui.
 
 export const ROUTES = {
-  create: '/create',
-  createProgress: (briefId: string) => `/create/${briefId}`,
-  photo: '/photo',
-  photoFrom: (assetId: string, idea: string) => `/photo?asset=${assetId}&idea=${encodeURIComponent(idea)}`,
-  media: '/media',
-  mediaUnused: '/media?filter=unused',
-  calendar: '/calendar',
-  slots: '/calendar?edit=slots',
-  inbox: '/inbox',
-  history: '/history',
+  create: '/criar',
+  createProgress: (briefId: string) => `/criar/${briefId}`,
+  photo: '/foto',
+  photoFrom: (assetId: string, idea: string) => `/foto?asset=${assetId}&idea=${encodeURIComponent(idea)}`,
+  media: '/midia',
+  mediaUnused: '/midia?filter=unused',
+  calendar: '/agenda',
+  slots: '/agenda?edit=slots',
+  inbox: '/aprovar',
+  history: '/historico',
 } as const;

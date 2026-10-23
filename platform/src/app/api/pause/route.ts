@@ -17,13 +17,13 @@ export async function POST(req: Request) {
           level: 'warning',
           title: 'Publicação pausada: nada sai até retomar',
           body: state.reason || undefined,
-          link: '/settings',
+          link: '/configuracoes',
         }
       : {
           kind: 'publishing.resumed',
           title: 'Publicação retomada',
           body: 'Os posts agendados que venceram saem no próximo ciclo.',
-          link: '/calendar',
+          link: '/agenda',
         });
     return NextResponse.json({ ok: true, ...state });
   } catch (e) {

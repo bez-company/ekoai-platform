@@ -36,7 +36,7 @@ async function flagReauth(target: RefreshTarget, reason: ReauthReason): Promise<
     level: 'warning',
     title: 'Reconecte o Instagram',
     body: `O acesso de ${who} venceu ou foi retirado no Instagram. Os posts aprovados esperam até você reconectar.`,
-    link: '/settings/channels',
+    link: '/configuracoes/canais',
   });
   try {
     await auditTenant(t, {

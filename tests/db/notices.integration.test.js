@@ -116,7 +116,7 @@ describe('aviso de conta criada', () => {
     const id = await accounts.createAccount({ userId: U(5), name: 'It Notice Conta Nova', kind: 'empresa' });
     try {
       const row = await one("select kind, audience, link, title from notifications where tenant_id = $1 and kind = 'account.created'", [id]);
-      expect(row).toEqual({ kind: 'account.created', audience: 'admin', link: '/settings', title: 'Conta criada' });
+      expect(row).toEqual({ kind: 'account.created', audience: 'admin', link: '/configuracoes', title: 'Conta criada' });
       const t = tenantDb(id);
       expect(titles(await n.listNotices(t, 'admin', U(5)))).toEqual(['Conta criada']);
       expect(await n.listNotices(t, 'viewer', U(5))).toEqual([]);

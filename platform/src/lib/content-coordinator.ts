@@ -518,7 +518,7 @@ export async function runContentPlanning(deps: CoordinatorDeps = {}): Promise<Pl
           kind: 'suggestions.week',
           title: 'Sugestões da semana prontas',
           body: `${open === 1 ? '1 post sugerido' : `${open} posts sugeridos`} para os próximos 7 dias, cada um com o motivo. Crie, troque ou pule.`,
-          link: '/',
+          link: '/inicio',
           audience: 'team',
         });
       }

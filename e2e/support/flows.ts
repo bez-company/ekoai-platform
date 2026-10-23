@@ -13,10 +13,10 @@ export async function saveMinimalProfile(page: Page) {
 }
 
 export async function connectInstagram(page: Page) {
-  await page.goto('/settings/channels');
+  await page.goto('/configuracoes/canais');
   await expect(page.getByText('Nenhum Instagram conectado')).toBeVisible();
   await page.getByRole('link', { name: 'Conectar Instagram' }).click();
-  await expect(page).toHaveURL(/\/settings\/channels\?ig=connected/);
+  await expect(page).toHaveURL(/\/configuracoes\/canais\?ig=connected/);
   await expect(page.getByText('Instagram conectado. Os posts aprovados já podem ir para ele.')).toBeVisible();
   await expect(page.getByText('@doceponto.teste')).toBeVisible();
   // o token só sai do app cifrado: o KMS simulado recebeu a cifra
@@ -25,14 +25,14 @@ export async function connectInstagram(page: Page) {
 
 // A conta nova nasce com a publicação pausada.
 export async function resumePublishing(page: Page) {
-  await page.goto('/settings');
+  await page.goto('/configuracoes');
   await expect(page.getByText(/Pausada desde/)).toBeVisible();
   await page.getByRole('button', { name: 'Retomar publicação' }).click();
   await expect(page.getByText(/Publicando normalmente/)).toBeVisible();
 }
 
 export async function pickRhythm(page: Page) {
-  await page.goto('/calendar');
+  await page.goto('/agenda');
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeVisible();
   await page.getByRole('button', { name: '5 por semana' }).click();
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeHidden();
@@ -55,7 +55,7 @@ export function pngSize(bytes: Buffer): { width: number; height: number } {
 // O post agendado aparece na Agenda. Depois da última faixa da semana (sexta à noite, fim de semana) o
 // próximo horário livre cai na semana seguinte, então o passo avança de semana se precisar.
 export async function expectInCalendar(page: Page, name: RegExp) {
-  await page.goto('/calendar');
+  await page.goto('/agenda');
   const entry = page.getByRole('button', { name });
   await expect(async () => {
     if (!(await entry.isVisible())) await page.getByRole('link', { name: 'Próxima semana' }).click();

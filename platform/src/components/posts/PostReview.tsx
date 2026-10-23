@@ -104,7 +104,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     setError('');
     try {
       await call(`/api/posts/${briefId}/direction`);
-      router.push(`/create/${briefId}`);
+      router.push(`/criar/${briefId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy('');
@@ -117,7 +117,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     try {
       const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow, ...(designVersion ? { designVersion } : {}) }) });
       // Publicado vai para o Histórico; agendado, na fila ou com falha na publicação, para a Agenda.
-      router.push(publishNow && j.published ? '/history' : '/calendar');
+      router.push(publishNow && j.published ? '/historico' : '/agenda');
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -135,7 +135,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
   return (
     <div className="space-y-4">
-      <Link href="/inbox" className="text-sm text-muted hover:text-fg">
+      <Link href="/aprovar" className="text-sm text-muted hover:text-fg">
         ← Aprovar
       </Link>
       <div>
@@ -254,7 +254,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             ) : (
               <p className="text-sm text-muted">Nenhum fato cadastrado: o post não afirma número, preço nem prazo.</p>
             )}
-            <Link href="/settings/facts" className="link text-sm">
+            <Link href="/configuracoes/fatos" className="link text-sm">
               Ver os fatos da empresa
             </Link>
           </section>
@@ -309,7 +309,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   ) : (
                     <>
                       A agenda não tem horário livre: o post fica na fila e entra no primeiro horário que você criar.{' '}
-                      <Link href="/calendar?edit=slots" className="link">
+                      <Link href="/agenda?edit=slots" className="link">
                         Criar horários
                       </Link>
                     </>

@@ -44,7 +44,7 @@ export default function Guide({ guide }: { guide: GuideData | null }) {
     try {
       const res = a.kind === 'resume' ? await post('/api/pause', { paused: false }) : await post('/api/onboarding', { item: step.id, skipped: a.kind === 'skip' });
       if (res.status === 401) {
-        router.push('/login');
+        router.push('/entrar');
         return;
       }
       if (!res.ok) {

@@ -34,7 +34,7 @@ export default function NoticeBell({ notices, unread, placement = 'top' }: { not
     setBusy(true);
     try {
       const res = await fetch('/api/notifications/read', { method: 'POST' });
-      if (res.status === 401) router.push('/login');
+      if (res.status === 401) router.push('/entrar');
       else router.refresh();
     } finally {
       setBusy(false);
@@ -69,7 +69,7 @@ export default function NoticeBell({ notices, unread, placement = 'top' }: { not
             </ul>
           )}
           <div className="mt-1 border-t border-line pt-3">
-            <Link href="/notifications" className="link text-sm" onClick={() => setOpen(false)}>
+            <Link href="/notificacoes" className="link text-sm" onClick={() => setOpen(false)}>
               Ver todos os avisos
             </Link>
           </div>

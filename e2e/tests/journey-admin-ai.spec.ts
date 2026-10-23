@@ -31,10 +31,10 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
     await login(page, 'admin');
 
     await test.step('pede o post', async () => {
-      await page.goto('/create');
+      await page.goto('/criar');
       await page.getByRole('textbox', { name: 'Descreva o que você quer no post' }).fill(IDEA);
       await page.getByRole('button', { name: 'Criar post', exact: true }).click();
-      await expect(page).toHaveURL(/\/create\/[0-9a-f-]{36}$/);
+      await expect(page).toHaveURL(/\/criar\/[0-9a-f-]{36}$/);
     });
 
     await test.step('o worker gera e o post fica pronto para revisar', async () => {
@@ -43,7 +43,7 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
       expect(model.length).toBeGreaterThan(0);
       expect(JSON.stringify(model[0].body)).toContain(IDEA);
       await page.getByRole('link', { name: 'Revisar o post' }).click();
-      await expect(page).toHaveURL(/\/inbox\/plat-/);
+      await expect(page).toHaveURL(/\/aprovar\/plat-/);
     });
 
     await test.step('revisa: a arte carrega e a legenda vem do modelo', async () => {
@@ -62,7 +62,7 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
       await hashtag.press('Enter');
       await expect(page.getByRole('button', { name: 'Remover #confeitaria' })).toBeVisible();
       await page.getByRole('button', { name: 'Aprovar e agendar' }).click();
-      await expect(page).toHaveURL(/\/calendar/);
+      await expect(page).toHaveURL(/\/agenda/);
       await expectInCalendar(page, /Agendado\. Legenda editada no teste/);
     });
   });
@@ -89,10 +89,10 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
     });
 
     await test.step('o histórico mostra o post publicado', async () => {
-      await page.goto('/history');
+      await page.goto('/historico');
       await expect(page.getByText('1 post publicado')).toBeVisible();
       await expect(page.getByRole('link', { name: /Seu bolo está pronto\?, publicado/ })).toBeVisible();
-      await page.goto('/calendar');
+      await page.goto('/agenda');
       await expect(page.getByRole('button', { name: /Publicado\. Legenda editada no teste/ })).toBeVisible();
     });
   });

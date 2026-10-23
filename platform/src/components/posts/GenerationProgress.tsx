@@ -86,7 +86,7 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
             <strong>O post está pronto.</strong> Falta a sua revisão.
           </span>
           {progress.pendingId && (
-            <Link href={`/inbox/${encodeURIComponent(progress.pendingId)}`} className="btn-primary">
+            <Link href={`/aprovar/${encodeURIComponent(progress.pendingId)}`} className="btn-primary">
               Revisar o post
             </Link>
           )}

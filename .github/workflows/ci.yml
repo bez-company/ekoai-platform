@@ -156,7 +156,7 @@ jobs:
           update pending_approvals set post_kind = 'informativo', post_design_id = (select id from post_designs limit 1) where pending_id = 'ci-linkedin';
           update briefs set post_kind = 'informativo', source = 'platform', error = null where idea = 'ci';
           insert into notifications (tenant_id, kind, level, title, body, link)
-            values ('exemplo', 'publish.ok', 'info', 'Publicado no LinkedIn', null, '/history');
+            values ('exemplo', 'publish.ok', 'info', 'Publicado no LinkedIn', null, '/historico');
           SQL
 
       # Isolamento por tenant provado como o app acessa (authenticated com JWT), não como

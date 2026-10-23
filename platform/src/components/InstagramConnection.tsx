@@ -29,7 +29,7 @@ export default function InstagramConnection({ view, canManage, flash }: Props) {
     try {
       const res = await fetch(`/api/social-accounts/${id}`, { method: 'DELETE' });
       if (res.status === 401) {
-        router.push('/login');
+        router.push('/entrar');
         return;
       }
       if (!res.ok) {

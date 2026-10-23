@@ -96,7 +96,7 @@ export default function MediaPicker({ selectedId, onSelect, allowUpload = true }
           {load.assets.some((a) => blockedReason(toPicked(a))) && (
             <p className="mt-2 text-xs text-muted">
               As fotos mais claras mostram pessoas e ainda não têm autorização de uso de imagem.{' '}
-              <Link href="/media" className="link">
+              <Link href="/midia" className="link">
                 Autorizar no banco de imagens
               </Link>
             </p>

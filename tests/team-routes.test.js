@@ -143,7 +143,7 @@ describe('POST /api/invitations/accept', () => {
 
   it('quem entra gera um aviso só para administrador, com o nome e o papel, sem o e-mail', async () => {
     await call();
-    expect(noticeMock.sent).toEqual([{ kind: 'team.member_joined', audience: 'admin', link: '/settings/team', title: 'Ana Ribeiro entrou na equipe como Criador' }]);
+    expect(noticeMock.sent).toEqual([{ kind: 'team.member_joined', audience: 'admin', link: '/configuracoes/equipe', title: 'Ana Ribeiro entrou na equipe como Criador' }]);
     expect(JSON.stringify(noticeMock.sent)).not.toContain('@');
   });
 
