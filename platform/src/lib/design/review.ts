@@ -25,7 +25,8 @@ export type TextReviewInput = {
   banned: string[];
   // Fatos que não valem hoje (vencido, para revisar, recusado): número que só existe neles reprova.
   inactive?: InactiveFact[];
-  // Número digitado na oferta da campanha do post: vale como afirmado só para ele (SPEC 018).
+  // Número digitado pela pessoa para este post (a ideia do pedido) ou na oferta da campanha: vale como
+  // afirmado só para ele (SPEC 018). O revisor não contesta o que a própria pessoa pediu.
   allowed?: string[];
 };
 

@@ -46,6 +46,14 @@ describe('revisor de texto', () => {
     expect(reviewText({ ...base, imageTexts: ['Caixa por R$ 89'], caption: '' }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
   });
 
+  it('o número que a pessoa digitou na ideia vale para o post; o que ela não digitou segue barrado', () => {
+    const idea = 'Anunciar 30% de desconto no bolo de chocolate nesta semana.';
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto no bolo de chocolate'], caption: 'Nesta semana, 30% de desconto.', allowed: [idea] })).toEqual([]);
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto'], caption: '', allowed: [] }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
+    // outro número no mesmo post continua fora da base
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto, bolo por R$ 45'], caption: '', allowed: [idea] }).map((i) => [i.rule, i.detail])).toEqual([['number_not_in_facts', '45']]);
+  });
+
   it('acento, travessão, emoji na imagem, legenda longa e hashtags demais', () => {
     const issues = reviewText({ ...base, imageTexts: ['Voce vai amar 🎂 — hoje'], caption: 'x'.repeat(2201), hashtags: Array.from({ length: 31 }, (_, i) => `#h${i}`) });
     expect(issues.map((i) => i.rule).sort()).toEqual(['accent', 'caption_too_long', 'dash', 'emoji_in_image', 'too_many_hashtags']);
