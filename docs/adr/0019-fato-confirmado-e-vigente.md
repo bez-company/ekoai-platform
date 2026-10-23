@@ -1,6 +1,6 @@
 # ADR 0019: o post só usa fato confirmado por uma pessoa e dentro da validade
 
-- **Status:** proposto (vira aceito com a aprovação da SPEC 018)
+- **Status:** aceito (23/10/2026, entregue nas PRs #147, #150 e #152)
 - **Data:** 2026-10-23
 - **Specs que dependem:** [SPEC 018](../specs/018-objetivos-campanhas-e-fatos.md) (fatos e campanhas),
   [SPEC 012](../specs/012-agentes-instagram-fase-2.md) (decisão 5, base de fatos)
