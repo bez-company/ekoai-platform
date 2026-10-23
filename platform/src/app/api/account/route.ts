@@ -5,6 +5,8 @@ import { accountRefusal, adminAccountLimitRefusal, parseCreateAccount, signupMod
 import type { LoginRefusal } from '@/lib/login-policy';
 import { createAccount, findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
+import { RULES, clientIp, trustedHopsFrom } from '@/lib/rate-limit-model';
+import { hit, tooMany } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +22,12 @@ export async function POST(req: Request) {
     if (authProvider() !== 'identity' || signupMode() !== 'open') {
       return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
     }
+    // Limite por IP antes de olhar o token, e por e-mail depois de verificá-lo (BEZ-29).
+    const ip = clientIp(req.headers.get('x-forwarded-for'), trustedHopsFrom(process.env));
+    if (ip) {
+      const byIp = await hit(RULES.accountIp, ip);
+      if (!byIp.allowed) return tooMany(byIp, 'api/account', RULES.accountIp.bucket);
+    }
     const parsed = parseCreateAccount(await req.json().catch(() => null));
     if (!parsed.ok) return badRequest(parsed.error);
 
@@ -32,6 +40,10 @@ export async function POST(req: Request) {
     }
     const early = accountRefusal(identity, Math.floor(Date.now() / 1000));
     if (early) return refuse(early);
+    if (identity.email) {
+      const byEmail = await hit(RULES.accountEmail, identity.email);
+      if (!byEmail.allowed) return tooMany(byEmail, 'api/account', RULES.accountEmail.bucket);
+    }
 
     const user = await findOrLinkUser(identity);
     const memberships = await membershipsOf(user.id);

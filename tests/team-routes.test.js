@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Identidade, banco, sessão e equipe simulados: aqui só a ligação das rotas (o que cada uma
 // recusa, em que ordem, o que devolve). As regras de banco têm teste próprio em tests/db.
 const identityMock = { result: null, calls: 0 };
+// O limite de taxa tem teste próprio (rate-limit.test.js e o de banco): aqui ele sempre deixa passar.
+vi.mock('@/lib/rate-limit', async (orig) => ({ ...(await orig()), hit: async () => ({ allowed: true, hits: 1, retryAfterS: 3600 }) }));
 vi.mock('@/lib/identity', async (orig) => ({
   // a classe de erro é a de verdade: o que é rotina ou não vem do código, não do dublê
   ...(await orig()),

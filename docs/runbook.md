@@ -26,6 +26,20 @@ revogado). Um **erro** com o motivo é problema nosso: o mais provável é a con
 plataforma sem `roles/firebaseauth.viewer` (o servidor consulta o usuário no Identity Toolkit para
 saber se o token foi revogado), ou o `IDENTITY_PROJECT_ID` errado. Já aconteceu no staging.
 
+## Limite de taxa no cadastro (BEZ-29)
+
+Criar conta (`POST /api/account`) e aceitar convite (`POST /api/invitations/accept`) contam tentativas no
+Postgres (`rate_limit_hits`, migration 0035), por IP antes de olhar o token e por e-mail depois de
+verificá-lo. Tetos em `platform/src/lib/rate-limit-model.ts`: criar conta 10 por hora por IP e 5 por dia
+por e-mail; aceitar convite 30 por hora por IP e 10 por hora por e-mail. Acima disso a rota responde 429
+com `Retry-After` e a mensagem de quando tentar de novo; o log registra o balde, sem IP nem e-mail.
+
+- O IP é o último do `X-Forwarded-For` (o front-end do Google acrescenta o IP real no fim). Com um proxy
+  nosso na frente do Cloud Run (balanceador ou Firebase Hosting), defina `TRUSTED_PROXY_HOPS=1`.
+- Se o contador falhar (banco fora), a entrada segue sem limite e o log avisa (`rate-limit`).
+- Liberar alguém antes da hora: `delete from rate_limit_hits where bucket = 'account.email';` (apaga o
+  balde inteiro; a chave é hash).
+
 ## Segundo fator (MFA)
 
 `MFA_MODE` (Terraform `mfa_mode`): `required` exige o app autenticador do administrador para entrar,
