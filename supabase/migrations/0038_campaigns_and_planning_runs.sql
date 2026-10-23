@@ -118,6 +118,8 @@ create table if not exists planning_runs (
   primary key (tenant_id, ran_on)
 );
 
+alter table planning_runs add column if not exists round_at timestamptz;
+
 drop trigger if exists planning_runs_touch on planning_runs;
 create trigger planning_runs_touch before update on planning_runs
   for each row execute function app.touch_updated_at();
