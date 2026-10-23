@@ -26,6 +26,7 @@ export const TENANT_TABLES = [
   'post_variants',
   'posts',
   'prompt_versions',
+  'publish_reconciliations',
   'publish_slots',
   'publishing_controls',
   'queue_items',

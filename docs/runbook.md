@@ -9,6 +9,72 @@ não existe está marcado como **pendente** e aponta para a [SPEC 006](specs/006
 tenant pausado e segue com os outros. Os agendados vencidos esperam e saem juntos no primeiro
 ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 
+## Publicação: post preso, conferência e falha permanente (BEZ-258)
+
+Como a publicação se protege (`platform/src/lib/publish.ts`, migration 0036):
+
+- Cada tentativa em `publishing` leva um `attempt_id` e a hora de início (`publishing_started_at`). Só
+  quem tem o `attempt_id` atual grava o resultado.
+- O id do container da Meta (`meta_container_id`) é gravado **antes** do `media_publish`. Se o processo
+  cai ou a resposta se perde, o post fica em `publishing` e o cron `/api/cron/publish-due` o reconcilia
+  no ciclo seguinte à janela de 10 minutos (`LEASE_TTL_MS`): pergunta à Meta pelo container e só depois
+  decide. Nunca repete às cegas.
+- Timeout, queda de conexão ou 5xx no `media_publish` valem como resposta incerta: a própria tentativa
+  já consulta o container na hora, sem esperar o cron.
+- Cada decisão vira uma linha em `publish_reconciliations` (o que a rede disse, o que foi feito).
+
+O que o reconciliador decide, pelo estado do container na Meta:
+
+| A Meta diz | Decisão | Em `publish_reconciliations` |
+|---|---|---|
+| `PUBLISHED` | registra o post como publicado, sem publicar de novo (acha o id pela legenda) | `published` / `marked_published` |
+| `FINISHED` (pronto, sem publicar) | publica o mesmo container uma vez | `not_published` / `published_now` |
+| `ERROR` ou `EXPIRED`, ou sem container gravado | nada foi ao ar: volta para a fila (`scheduled`) | `not_published` ou `no_container` / `requeued` |
+| sem resposta (rede, 5xx, 429) | espera o próximo ciclo; na 3ª conferência sem resposta vai para conferência | `unknown` / `waiting` |
+| recusa (token vencido, container sumiu) ou canal sem como conferir (LinkedIn, X) | `failed` com aviso para a pessoa conferir | `unverifiable` / `failed_for_review` |
+
+Post em conta **pausada** não é reconciliado (a pausa não chama rede); espera a retomada.
+
+### Alerta
+
+Cada post enviado para conferência escreve uma linha de log `ERROR` com a mensagem
+`post preso: confira na rede antes de publicar de novo` (escopo `publish`), e a conta recebe o aviso
+`publish.stuck` ("Confira o post no Instagram"). O alerta `publish_stuck` (`infra/terraform/modules/ekoai/monitoring.tf`)
+dispara e-mail com essa linha; no Logs Explorer:
+
+```
+resource.type="cloud_run_revision" severity>=ERROR jsonPayload.scope="publish"
+jsonPayload.message="post preso: confira na rede antes de publicar de novo"
+```
+
+O ciclo do cron também escreve `posts presos reconciliados` (resumo: `checked`, `published`, `requeued`,
+`failed`, `waiting`, `errors`) e devolve o mesmo resumo em `reconciled` na resposta de `/api/cron/publish-due`.
+
+### O que fazer com um post em conferência
+
+1. Abra o Instagram (ou a rede do post) e veja se o post está lá.
+2. Está lá: marque como publicado na mão (o post em `failed` ainda aponta o container):
+   `update scheduled_posts set status = 'published', published_at = now(), last_error = 'conferido à mão' where id = '<id>';`
+   (o histórico e as métricas desse post não são ligados; o `posts` fica sem linha). Não use o botão de tentar de novo.
+3. Não está lá: use o botão de publicar de novo em `/calendar`.
+4. Histórico da decisão: `select created_at, found, action, detail from publish_reconciliations where scheduled_post_id = '<id>' order by created_at;`
+
+### Post em `publishing` que não sai
+
+```sql
+select id, tenant_id, channel, attempts, publishing_started_at, meta_container_id, last_error
+from scheduled_posts where status = 'publishing' order by publishing_started_at;
+```
+
+Mais de 10 minutos: o cron deve reconciliar no próximo ciclo (10 em 10 minutos). Se continua depois de
+2 ciclos, confira se o cron roda (log `ciclo concluído` de `cron/publish-due`), se a conta está pausada e se
+o log tem `reconciliação não registrada` ou `falha` do escopo `publish reconcile`.
+
+### Quem sai primeiro
+
+Os vencidos saem em rodadas por conta (`app.due_scheduled_posts`): o mais antigo de cada conta, depois o
+segundo de cada uma, até o lote de 20. Conta pausada fica de fora na própria consulta e não ocupa vaga.
+
 ## Saber se está de pé
 
 - `GET /api/health`: 200 se o app alcança o banco, 503 se não. Não expõe detalhe. Aponte um
@@ -16,7 +82,8 @@ ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 - Logs: o Cloud Logging guarda uma linha JSON por evento (`severity`, `scope`, `message`); campos com
   token, senha, chave ou email saem como `[mascarado]`. Procure por `"level":"error"`.
 - Falha de publicação: cada tentativa vira um aviso da conta (`notifications`), e o item vira
-  `failed` depois de 3. `/calendar` tem o botão de tentar de novo.
+  `failed` depois de 3. `/calendar` tem o botão de tentar de novo. Post preso ou de resultado incerto:
+  seção "Publicação: post preso" acima.
 
 ## Login por pessoa falhando
 
