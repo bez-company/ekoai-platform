@@ -222,3 +222,31 @@ resource "google_logging_metric" "user_requests" {
   }
   depends_on = [google_project_service.api]
 }
+
+# Post preso na publicação (BEZ-258): o reconciliador não conseguiu confirmar na rede se o post saiu e o
+# mandou para a pessoa conferir. A linha vem de platform/src/lib/publish.ts (STUCK_LOG_MESSAGE).
+resource "google_monitoring_alert_policy" "publish_stuck" {
+  count                 = var.deploy_workloads ? 1 : 0
+  project               = var.project_id
+  display_name          = "Post preso na publicação (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Post enviado para conferência manual"
+    condition_matched_log {
+      filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${local.name}-platform\" AND severity>=ERROR AND jsonPayload.scope=\"publish\" AND jsonPayload.message=\"post preso: confira na rede antes de publicar de novo\""
+    }
+  }
+
+  alert_strategy {
+    notification_rate_limit {
+      period = "3600s"
+    }
+  }
+  documentation {
+    mime_type = "text/markdown"
+    content   = "Um post ficou sem resposta da rede e foi marcado como falhou para conferência. Veja docs/runbook.md, seção Publicação: post preso."
+  }
+  depends_on = [google_cloud_run_v2_service.platform]
+}

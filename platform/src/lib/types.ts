@@ -87,6 +87,10 @@ export type ScheduledPost = {
   post_id?: string | null;
   attempts: number;
   last_error?: string | null;
+  // lease da publicação (migration 0036): a tentativa em curso, quando começou e o container da Meta
+  attempt_id?: string | null;
+  publishing_started_at?: string | null;
+  meta_container_id?: string | null;
   source_pending_id?: string | null;
   // distribuição (ADR 0001): vínculos com campanha/brief/ativo e o UTM do link
   asset_id?: string | null;
