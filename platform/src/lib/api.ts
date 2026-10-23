@@ -1,14 +1,16 @@
 // api.ts: resposta de erro padrão das rotas. Sessão vencida = 401; papel sem permissão = 403;
-// erro de domínio = 400 com a mensagem; o resto = 500 neutro, com o detalhe só no log.
+// erro de domínio = 400 (404 e 409 nos casos de não achou e de conflito) com a mensagem; o resto = 500 neutro, com o detalhe só no log.
 
 import { NextResponse } from 'next/server';
-import { UserError, GENERIC_ERROR, userMessage } from './errors';
+import { ConflictError, NotFoundError, UserError, GENERIC_ERROR, userMessage } from './errors';
 import { ForbiddenError, UnauthorizedError } from './session';
 import { log, logError } from './log';
 
 export function apiError(e: unknown, scope: string): NextResponse {
   if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });
   if (e instanceof ForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+  if (e instanceof NotFoundError) return NextResponse.json({ error: e.message }, { status: 404 });
+  if (e instanceof ConflictError) return NextResponse.json({ error: e.message }, { status: 409 });
   if (e instanceof UserError) return NextResponse.json({ error: e.message }, { status: 400 });
   logError(scope, e);
   return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
