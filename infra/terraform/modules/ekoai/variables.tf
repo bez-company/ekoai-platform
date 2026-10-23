@@ -78,6 +78,12 @@ variable "jobs_image" {
   default     = ""
 }
 
+variable "vertex_text_model" {
+  description = "Modelo de texto do Vertex AI (env VERTEX_TEXT_MODEL). Projeto novo não enxerga o gemini-2.5-flash (404); confira com generateContent antes de trocar."
+  type        = string
+  default     = "gemini-2.5-flash"
+}
+
 variable "vertex_image_model" {
   description = "Modelo de imagem do Vertex AI (env VERTEX_IMAGE_MODEL). O preço por modelo está em IMAGE_PRICING (platform/src/lib/vertex.ts)."
   type        = string
