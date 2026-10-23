@@ -1,6 +1,6 @@
 # SPEC 022: análise do público, conteúdo que funciona e horários recomendados
 
-- **Status:** proposta (23/10/2026). Aguarda o protótipo no Claude Design e as 7 decisões abaixo; nenhum código de tela antes disso
+- **Status:** proposta (23/10/2026). Protótipo v15 publicado, aguarda a aprovação e as 3 perguntas em aberto; nenhum código de tela antes disso
 - **Data:** 2026-10-23
 - **Cards:** BEZ-206 (esta spec e as entregas)
 - **Depende de:** BEZ-183 (coleta de métricas por post, entregue em `lib/instagram-metrics.ts`),
@@ -9,7 +9,7 @@
 - **Liga com:** BEZ-201 / [SPEC 019](019-estudio-incremental-e-aprendizado-com-a-edicao.md) (aprendizado da conta:
   o que o público prefere entra na mesma tela de Aprendizado), [SPEC 018](018-objetivos-campanhas-e-fatos.md)
   (a análise de efeito por regra fica aqui quando houver posts suficientes)
-- **Protótipo:** pendente (seção "Telas")
+- **Protótipo:** [Claude Design, v15](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz). Telas Analytics (8 estados), Agenda › Horários (3 estados) e Aprendizado › O público (3 estados), desktop e mobile
 
 ## Problema
 
