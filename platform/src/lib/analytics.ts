@@ -46,6 +46,7 @@ export type ProductEvent =
   | 'design_revision_restored'
   | 'design_edit_discarded'
   | 'design_edit_wish'
+  | 'design_ask'
   | 'design_rule_proposed'
   | 'design_rule_accepted'
   | 'design_rule_dismissed'
