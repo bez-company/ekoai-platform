@@ -54,6 +54,11 @@ primeira impressão.
 pontos seguem nos cartões BEZ-135, BEZ-32 e BEZ-42. Para não levar o "R$ XX" ao Google, a indexação
 continua desligada (`LAUNCHED = false` no site) até o preço entrar.
 
+**Atualização (23/10/2026):** os planos da LP passaram a ser Individual, Time e Agência, com cobrança por
+consumo e cartão obrigatório, conforme a [SPEC 021](021-planos-e-cobranca-por-consumo.md) e o
+[ADR 0023](../adr/0023-cobranca-por-consumo-com-cartao-obrigatorio.md). "Solo" e "Equipe" deixam de existir.
+O preço por post segue "R$ XX", então a indexação continua desligada.
+
 ## Requisitos
 
 ### R1. Protótipo (BEZ-133, dono Matheus)
