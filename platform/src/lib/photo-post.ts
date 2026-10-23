@@ -19,7 +19,7 @@ import { getProfile } from './company-profile';
 import { listFacts } from './company-facts';
 import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
-import { buildRewritePrompt, parseRewrite, type RewriteMode } from './agents';
+import { buildRewritePrompt, cleanAltText, parseRewrite, type RewriteMode } from './agents';
 import { blocking, reviewText } from './design/review';
 import { defaultStore, type BlobStore } from './brand-logo';
 import { exifOrientation } from './media-asset-model';
@@ -63,11 +63,14 @@ export function photoSource(asset: { contentType: string; width: number; height:
 }
 
 // O que a foto cortada leva para a Aprovar e a Agenda: legenda como variação única, sem modelo.
-function photoGeneration(caption: string, hashtags: string[]): Generation {
+function photoGeneration(caption: string, hashtags: string[], description: string | null = null): Generation {
   const hook = caption.split('\n')[0].slice(0, 120);
+  // Texto alternativo (BEZ-203): a descrição que a Ekoai fez da foto no banco de imagens.
+  const alt = cleanAltText(description);
   return {
     pillar: 'foto',
     angle: null,
+    ...(alt ? { alt_text: alt } : {}),
     variations: [{ id: 1, hook, body: caption, hashtags, format: 'single' }],
     judge_reason: 'Foto do banco de imagens, publicada sem gerar imagem.',
     guardrail_flags: [],
@@ -91,7 +94,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
   // Recusa foto com pessoas sem autorização de uso de imagem (BEZ-198) antes de qualquer gravação.
   const { url, key } = await publishableMediaUrl(t, asset.id, { bytes: cropped.png, contentType: 'image/png', store, mediaBaseUrl: deps.mediaBaseUrl });
 
-  const generation = photoGeneration(input.caption, input.hashtags);
+  const generation = photoGeneration(input.caption, input.hashtags, asset.description);
   const variation = generation.variations[0] as Variation;
   const seed: Record<string, unknown> = { source: 'photo', media_asset_id: asset.id, ratio: input.ratio, focus: input.focus, crop: cropped.box };
   // Quem não aprova e escolheu dia e hora: o horário vai junto para Aprovar (BEZ-256).

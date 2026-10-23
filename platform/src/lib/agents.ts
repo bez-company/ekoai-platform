@@ -26,9 +26,10 @@ export type Copy = {
   caption: string;
   hashtags: string[];
   visualPrompt: string | null; // só no post de atmosfera
+  altText: string; // texto alternativo do redator (BEZ-203); vazio quando ele não mandou: a geração escolhe a sobra
 };
 
-export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120 };
+export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120, altText: 1000 };
 
 function voiceLine(p: CompanyProfile): string {
   const scale = (v: number | null, low: string, high: string) => (v == null ? null : v <= 2 ? low : v >= 4 ? high : `entre ${low} e ${high}`);
@@ -84,6 +85,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(`- caption: a legenda, até 900 caracteres, com a chamada no fim. hashtags: de 3 a 8, sem o #, minúsculas, sem acento.`);
   lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa identificável. No informativo, null.');
   lines.push('- angle: uma frase com o ângulo escolhido (para a equipe ver por que).');
+  lines.push('- alt_text: o texto alternativo da imagem, para quem usa leitor de tela. Em português, de 1 a 3 frases (até 600 caracteres): o que a imagem mostra e o texto escrito nela. Sem hashtag, sem link, sem chamada para ação e sem "imagem de" no começo.');
   if (input.feedback?.length) {
     lines.push('');
     lines.push('## A versão anterior foi recusada pelo revisor. Corrija SÓ o que está abaixo e mantenha o resto:');
@@ -92,7 +94,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   }
   lines.push('');
   lines.push('## Formato da resposta (JSON)');
-  lines.push('{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"visual_prompt":null}');
+  lines.push('{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}');
   return lines.join('\n');
 }
 
@@ -132,9 +134,43 @@ export function parseCopy(json: unknown, requested: PostKind | null): Parsed {
     caption,
     hashtags,
     visualPrompt: kind === 'atmosfera' ? str(o.visual_prompt, LIMITS.visualPrompt) : null,
+    altText: '',
   };
+  copy.altText = cleanAltText(o.alt_text) ?? '';
   if (kind === 'atmosfera' && !copy.visualPrompt) return { ok: false, error: 'O modelo não descreveu o visual do post de atmosfera.' };
   return { ok: true, value: copy };
+}
+
+// Texto alternativo (BEZ-203): o que o Instagram lê para quem usa leitor de tela. O que vem do modelo é
+// limpo (sem hashtag, link nem travessão) e cortado em 1000 caracteres, o teto da API; sem nada
+// aproveitável, sai do texto que está na imagem.
+export function cleanAltText(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const text = raw
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/#[\p{L}\p{N}_]+/gu, '')
+    .replace(/\s*[\u2013\u2014]\s*/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+  if (text.length < 3) return null;
+  if (text.length <= LIMITS.altText) return text;
+  const cut = text.slice(0, LIMITS.altText);
+  return cut.slice(0, Math.max(cut.lastIndexOf(' '), LIMITS.altText - 40)).replace(/[,;:]$/, '').trim();
+}
+
+export function altTextFromTexts(texts: Copy['texts']): string {
+  const parts = [texts.kicker, texts.title, texts.sub, ...(texts.items ?? [])].filter((x): x is string => !!x).map((x) => x.replace(/[.!?]+$/, ''));
+  return cleanAltText(`Arte do post com o texto: ${parts.join('. ')}.`) ?? texts.title;
+}
+
+// O texto alternativo final: o do redator; sem ele, a descrição da foto (quando a foto vai sem texto
+// por cima) ou o texto que está na arte. Com palavra proibida da empresa, volta para o texto da arte, que
+// já passou pelo revisor.
+export function finalAltText(input: { fromWriter: string; photoDescription?: string | null; texts: Copy['texts']; banned: string[] }): string {
+  const chosen = input.fromWriter || cleanAltText(input.photoDescription) || altTextFromTexts(input.texts);
+  const low = chosen.toLowerCase();
+  return input.banned.some((w) => w.trim() && low.includes(w.trim().toLowerCase())) ? altTextFromTexts(input.texts) : chosen;
 }
 
 // O pedido ao modelo de imagem: a descrição do agente mais o que vale sempre (nada de texto, logo

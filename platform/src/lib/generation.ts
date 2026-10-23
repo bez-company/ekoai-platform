@@ -17,7 +17,7 @@ import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
-import { buildCopyPrompt, buildRewritePrompt, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
+import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -271,6 +271,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         angle: copy.angle || null,
         variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: 'single' }],
         model: deps.model.config.textModel,
+        // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a
+        // descrição do banco de imagens quando o redator não mandou.
+        alt_text: finalAltText({ fromWriter: copy.altText, photoDescription: photo?.usage === 'as_is' ? photo.asset.description : null, texts: copy.texts, banned: profile.bannedWords }),
         guardrail_flags: allIssues.map((i) => i.rule),
         judge_reason: allIssues.length ? allIssues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: contraste, tamanho do texto, acentos, palavras proibidas e fatos da base.',
       },

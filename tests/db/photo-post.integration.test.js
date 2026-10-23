@@ -90,6 +90,7 @@ describe('publicar foto sem IA', () => {
     const key = row.image_url.replace('https://app.test/api/media/', '');
     expect(pngSize(objects.get(key).bytes)).toEqual({ width: 1080, height: 1350 });
     expect(row.seed).toMatchObject({ source: 'photo', media_asset_id: asset.id, ratio: '4:5' });
+    expect(row.generation.alt_text).toBe('Bolo de morango na bancada');
     // nada da geração por IA: nenhuma chamada de modelo reservada
     expect((await one('select count(*)::int as n from generation_runs where tenant_id = $1', [A])).n).toBe(0);
   });

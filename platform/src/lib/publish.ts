@@ -113,7 +113,11 @@ async function publishToChannel(t: TenantDb, s: ScheduledPost): Promise<Record<s
     if (!isCarousel && !s.image_url) throw new Error('Instagram exige image_url');
     // O token é o da conta que agendou o post; sem conexão a publicação falha com o próximo passo.
     const creds = await instagramCredentials(t);
-    return isCarousel ? instagram.publishCarousel(creds, s.slide_urls!, caption) : instagram.publishSingle(creds, s.image_url!, caption);
+    if (isCarousel) return instagram.publishCarousel(creds, s.slide_urls!, caption);
+    const altText = typeof s.generation?.alt_text === 'string' && s.generation.alt_text.trim() ? s.generation.alt_text.trim() : null;
+    const result = await instagram.publishSingle(creds, s.image_url!, caption, altText);
+    if (result.alt_text === 'dropped') log('warn', 'publish', 'o Instagram recusou o texto alternativo; o post saiu sem ele', { scheduled: s.id });
+    return result;
   }
   if (s.channel === 'linkedin') {
     const result: Record<string, unknown> = s.video_url

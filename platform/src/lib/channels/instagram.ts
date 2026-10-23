@@ -42,12 +42,28 @@ async function waitContainerReady(creds: InstagramCredentials, containerId: stri
   throw new Error(`Container ${containerId} não ficou pronto em ${timeoutMs}ms`);
 }
 
-export async function publishSingle(creds: InstagramCredentials, imageUrl: string, caption: string): Promise<{ id: string; channel: 'instagram' }> {
+export type AltTextOutcome = 'sent' | 'dropped' | 'none';
+
+// Texto alternativo (BEZ-203): a Meta aceita `alt_text` no container de imagem desde 24/03/2025 (até
+// 1000 caracteres, imagem única ou imagem de carrossel). A referência não diz se vale em toda versão
+// nem no login do Instagram; se o container for recusado com o campo, cria de novo sem ele: o post
+// sai, o texto alternativo não, e o resultado diz isso. Outro erro falha de novo na segunda tentativa.
+async function createImageContainer(creds: InstagramCredentials, params: Record<string, string>, altText: string | null): Promise<{ id: string; altText: AltTextOutcome }> {
+  if (!altText) return { ...(await apiPost(creds, `/${creds.accountId}/media`, params)), altText: 'none' };
+  try {
+    return { ...(await apiPost(creds, `/${creds.accountId}/media`, { ...params, alt_text: altText })), altText: 'sent' };
+  } catch (e) {
+    if (!/IG API 400/.test(e instanceof Error ? e.message : '')) throw e;
+    return { ...(await apiPost(creds, `/${creds.accountId}/media`, params)), altText: 'dropped' };
+  }
+}
+
+export async function publishSingle(creds: InstagramCredentials, imageUrl: string, caption: string, altText: string | null = null): Promise<{ id: string; channel: 'instagram'; alt_text: AltTextOutcome }> {
   if (!imageUrl) throw new Error('imageUrl obrigatório (URL pública)');
-  const container = await apiPost(creds, `/${creds.accountId}/media`, { image_url: imageUrl, caption: caption || '' });
+  const container = await createImageContainer(creds, { image_url: imageUrl, caption: caption || '' }, altText);
   await waitContainerReady(creds, container.id);
   const published = await apiPost(creds, `/${creds.accountId}/media_publish`, { creation_id: container.id });
-  return { id: published.id, channel: 'instagram' };
+  return { id: published.id, channel: 'instagram', alt_text: container.altText };
 }
 
 export async function publishCarousel(creds: InstagramCredentials, imageUrls: string[], caption: string): Promise<{ id: string; channel: 'instagram'; slides: number }> {
