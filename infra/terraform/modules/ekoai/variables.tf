@@ -136,6 +136,16 @@ variable "publish_paused" {
   default     = true
 }
 
+variable "publish_mode" {
+  description = "live publica de verdade; rehearsal cria o container na Meta, valida e não chama media_publish (env PUBLISH_MODE). Ambiente de teste usa rehearsal para não postar em perfil real."
+  type        = string
+  default     = "live"
+  validation {
+    condition     = contains(["live", "rehearsal"], var.publish_mode)
+    error_message = "publish_mode aceita live ou rehearsal."
+  }
+}
+
 variable "site_url" {
   description = "Site da conta, destino dos links com UTM (env SITE_URL). Vazio = post sem link rastreado."
   type        = string

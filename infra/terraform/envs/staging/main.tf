@@ -84,6 +84,10 @@ module "ekoai" {
   # Os agendados saem no horário (BEZ-228). O sleep-if-idle não desliga o banco com post esperando.
   publish_paused = false
 
+  # O Instagram conectado aqui é o perfil oficial da marca, então o staging ensaia: cria o container na Meta,
+  # valida e não publica. Para publicar de verdade num teste, troque para "live" com uma conta de teste conectada.
+  publish_mode = "rehearsal"
+
   # O deploy liga o banco parado antes de migrar (o staging fica desligado fora dos testes).
   deploy_can_power_db = true
 

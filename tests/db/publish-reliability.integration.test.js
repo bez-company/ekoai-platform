@@ -420,3 +420,86 @@ describe('falhas que não são da rede', () => {
     expect(meta.media).toHaveLength(0);
   });
 });
+
+// ── Modo ensaio (PUBLISH_MODE=rehearsal): vai até o container pronto e nunca chama media_publish ───────────
+describe('modo ensaio', () => {
+  const dryPosts = async (tenant) => (await admin.query('select is_dry_run, channels from posts where tenant_id = $1', [tenant])).rows;
+  beforeEach(() => {
+    process.env.PUBLISH_MODE = 'rehearsal';
+  });
+  afterEach(() => {
+    delete process.env.PUBLISH_MODE;
+  });
+
+  it('cria e valida o container, não publica, e registra o post como ensaio com aviso próprio', async () => {
+    const id = await post(A);
+    expect(await runPublishDue()).toMatchObject({ picked: 1, published: 1, failed: 0 });
+    expect(meta.createCalls).toBe(1);
+    expect(meta.publishCalls).toBe(0);
+    expect(meta.media).toHaveLength(0);
+    const r = await row(id);
+    expect(r).toMatchObject({ status: 'published', last_error: null });
+    expect(r.meta_container_id).toBe('c1');
+    const saved = await dryPosts(A);
+    expect(saved).toHaveLength(1);
+    expect(saved[0].is_dry_run).toBe(true);
+    expect(saved[0].channels.instagram).toMatchObject({ id: 'rehearsal:c1', rehearsal: true });
+    expect((await notices(A)).map((x) => x.kind)).toEqual(['publish.rehearsal']);
+  });
+
+  it('o ensaio não vira histórico: o post de ensaio fica fora de Publicados', async () => {
+    await post(A);
+    await runPublishDue();
+    const { rows } = await admin.query('select count(*)::int as n from posts where tenant_id = $1 and is_dry_run = false', [A]);
+    expect(rows[0].n).toBe(0);
+  });
+
+  it('imagem recusada pela Meta ainda falha no ensaio: é isso que ele valida', async () => {
+    meta.createError = { status: 400, body: 'Only photo or video can be accepted as media type.' };
+    const id = await post(A, { extra: { attempts: 2 } });
+    await runPublishDue();
+    expect(meta.publishCalls).toBe(0);
+    expect(await row(id)).toMatchObject({ status: 'failed' });
+    expect(await posts(A)).toBe(0);
+  });
+
+  it('post preso com container pronto: a reconciliação NÃO publica, só registra o ensaio', async () => {
+    const id = await stuck(A, { container: true, metaStatus: 'FINISHED' });
+    const out = await reconcileStalePublishing();
+    expect(out).toMatchObject({ checked: 1, published: 1 });
+    expect(meta.publishCalls).toBe(0);
+    expect(meta.media).toHaveLength(0);
+    expect(await row(id)).toMatchObject({ status: 'published' });
+    expect((await dryPosts(A))[0].is_dry_run).toBe(true);
+  });
+
+  it('LinkedIn no ensaio nem chama a rede e o post vira ensaio', async () => {
+    const id = await post(A);
+    await admin.query("update scheduled_posts set channel = 'linkedin', image_url = null, variation = variation || '{\"format\":\"text\"}' where id = $1", [id]);
+    await runPublishDue();
+    expect(meta.createCalls).toBe(0);
+    expect(meta.publishCalls).toBe(0);
+    expect(await row(id)).toMatchObject({ status: 'published' });
+    expect((await dryPosts(A))[0].channels.linkedin).toMatchObject({ rehearsal: true });
+  });
+
+  it('valor desconhecido falha a publicação em vez de postar, e nada vai à Meta', async () => {
+    process.env.PUBLISH_MODE = 'ensaio';
+    const id = await post(A, { extra: { attempts: 2 } });
+    await runPublishDue();
+    expect(meta.createCalls).toBe(0);
+    expect(meta.publishCalls).toBe(0);
+    const r = await row(id);
+    expect(r.status).toBe('failed');
+    expect(r.last_error).toMatch(/PUBLISH_MODE inválido/);
+  });
+
+  it('com PUBLISH_MODE=live publica de verdade, como sem a variável', async () => {
+    process.env.PUBLISH_MODE = 'live';
+    await post(A);
+    await runPublishDue();
+    expect(meta.publishCalls).toBe(1);
+    expect(meta.media).toHaveLength(1);
+    expect((await dryPosts(A))[0].is_dry_run).toBe(false);
+  });
+});

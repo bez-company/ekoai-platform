@@ -23,6 +23,7 @@ import * as linkedin from './channels/linkedin';
 import * as x from './channels/x';
 import { LINK_POLICY, linkCommentText } from './utm';
 import { canAutoPublish, notPublishableReason } from './capabilities';
+import { isRehearsalResult, publishMode, rehearsalId } from './publish-mode';
 import { getPauseState } from './pause';
 import { UserError } from './errors';
 import { markMediaAssetUsed } from './media-assets';
@@ -50,8 +51,10 @@ const openLease = () => ({
 });
 
 // Insere o post durável + todas as variações + eventos. Espelha o backend pra
-// que bandit/métricas/calibração continuem funcionando igual.
+// que bandit/métricas/calibração continuem funcionando igual. Em ensaio (PUBLISH_MODE=rehearsal) grava só o
+// post marcado `is_dry_run` e o evento: toda leitura de histórico, métrica e aprendizado ignora `is_dry_run`.
 async function persistPublishedPost(t: TenantDb, s: ScheduledPost, result: Record<string, unknown>): Promise<string> {
+  const rehearsal = isRehearsalResult(result);
   const gen: Generation = (s.generation || { variations: [] }) as Generation;
   const chosenId = s.chosen_variation_id ?? null;
   const v = s.variation || ({} as Variation);
@@ -69,7 +72,7 @@ async function persistPublishedPost(t: TenantDb, s: ScheduledPost, result: Recor
       format: v.format ?? 'single',
       chosen_variation: chosenId,
       channels: { [s.channel]: result },
-      is_dry_run: false,
+      is_dry_run: rehearsal,
       scheduled_post_id: s.id,
       prompt_hash: gen.prompt_hash ?? null,
       model: gen.model ?? null,
@@ -82,6 +85,11 @@ async function persistPublishedPost(t: TenantDb, s: ScheduledPost, result: Recor
     .single();
   if (error) throw new Error(`Falha ao gravar post: ${error.message}`);
   const postId = post!.id as string;
+
+  if (rehearsal) {
+    await t.insert('post_events', { post_id: postId, type: 'published', payload: { channel: s.channel, channels: { [s.channel]: result }, via: 'rehearsal' } });
+    return postId;
+  }
 
   const variations = gen.variations || [];
   if (variations.length) {
@@ -136,14 +144,17 @@ async function publishToChannel(t: TenantDb, s: ScheduledPost, hooks: instagram.
   const format = s.variation?.format ?? null;
   if (!canAutoPublish(s.channel, format)) throw new NotPublishableError(notPublishableReason(s.channel, format));
   const caption = s.caption_final || '';
+  const rehearsal = publishMode() === 'rehearsal';
+  // Ensaio: LinkedIn e X não têm container para validar, então nem chamam a rede.
+  if (rehearsal && s.channel !== 'instagram') return { id: rehearsalId(s.id), channel: s.channel, rehearsal: true };
   if (s.channel === 'instagram') {
     const isCarousel = s.variation?.format === 'carousel' && Array.isArray(s.slide_urls) && s.slide_urls.length >= 2;
     if (!isCarousel && !s.image_url) throw new Error('Instagram exige image_url');
     // O token é o da conta que agendou o post; sem conexão a publicação falha com o próximo passo.
     const creds = await instagramCredentials(t);
-    if (isCarousel) return instagram.publishCarousel(creds, s.slide_urls!, caption, hooks);
+    if (isCarousel) return instagram.publishCarousel(creds, s.slide_urls!, caption, { ...hooks, rehearsal });
     const altText = typeof s.generation?.alt_text === 'string' && s.generation.alt_text.trim() ? s.generation.alt_text.trim() : null;
-    const result = await instagram.publishSingle(creds, s.image_url!, caption, altText, hooks);
+    const result = await instagram.publishSingle(creds, s.image_url!, caption, altText, { ...hooks, rehearsal });
     if (result.alt_text === 'dropped') log('warn', 'publish', 'o Instagram recusou o texto alternativo; o post saiu sem ele', { scheduled: s.id });
     return result;
   }
@@ -253,13 +264,24 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
     persistError = `Publicado, mas o histórico não foi gravado: ${e instanceof Error ? e.message : String(e)}`;
   }
   await writeWithLease(t, s, { status: 'published', published_at: new Date().toISOString(), post_id: postId, last_error: persistError ?? note });
+  const rehearsal = isRehearsalResult(result);
   // Foto do banco de imagens: marca como usada. Falha aqui não desfaz a publicação, só vai para o log.
-  if (s.media_asset_id) {
+  // Em ensaio a foto não foi usada de verdade, então continua disponível.
+  if (s.media_asset_id && !rehearsal) {
     await markMediaAssetUsed(t, s.media_asset_id, postId).catch((e) =>
       log('error', 'publish', 'não marcou a foto do banco como usada', { scheduled: s.id, asset: s.media_asset_id, error: e instanceof Error ? e.message : String(e) }),
     );
   }
   const hook = (s.variation?.hook || '').slice(0, 80);
+  if (rehearsal) {
+    await notify(t, {
+      kind: 'publish.rehearsal',
+      title: `Ensaio: o ${channelName(s.channel)} aceitou o post, mas ele não foi publicado`,
+      body: hook || undefined,
+      link: '/calendar',
+    });
+    return { ok: true };
+  }
   await notify(t, persistError
     ? {
         kind: 'publish.unrecorded',
@@ -387,6 +409,10 @@ async function judge(t: TenantDb, s: ScheduledPost): Promise<Verdict> {
       result: { id: mediaId, channel: 'instagram', reconciled: true, container_id: containerId },
       note: mediaId ? undefined : 'Publicado (a Meta confirmou), mas o id do post não foi encontrado. As métricas não vão ligar a este post.',
     };
+  }
+  if (state === 'FINISHED' && publishMode() === 'rehearsal') {
+    // Ensaio: container pronto e sem publicar é o resultado esperado. A reconciliação NUNCA o publica.
+    return { found: 'not_published', action: 'marked_published', detail: 'Ensaio: o container está pronto e não foi publicado, como esperado.', result: { id: rehearsalId(containerId), channel: 'instagram', rehearsal: true, reconciled: true, container_id: containerId } };
   }
   if (state === 'FINISHED') {
     // Container pronto e não publicado: publicar o mesmo container de novo é seguro (a Meta recusa a segunda vez).

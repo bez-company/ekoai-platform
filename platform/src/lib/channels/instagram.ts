@@ -4,6 +4,7 @@
 // Docs: developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
 
 import { GRAPH_URL } from '../instagram-oauth-model';
+import { rehearsalId } from '../publish-mode';
 
 const API_BASE = GRAPH_URL;
 
@@ -29,8 +30,15 @@ export class UncertainPublishError extends Error {
 }
 
 // Ganchos da publicação. `onContainer` roda e é aguardado ANTES do media_publish: se não der para
-// gravar o id do container, a publicação para sem ter ido ao ar.
-export type PublishHooks = { onContainer?: (containerId: string) => Promise<void> };
+// gravar o id do container, a publicação para sem ter ido ao ar. `rehearsal` (PUBLISH_MODE=rehearsal) vai até
+// o container pronto e para: sem media_publish, nada vai ao ar.
+export type PublishHooks = { onContainer?: (containerId: string) => Promise<void>; rehearsal?: boolean };
+
+// O último passo: publica o container pronto, ou, em ensaio, devolve um id que não é da Meta.
+async function finishPublish(creds: InstagramCredentials, containerId: string, hooks: PublishHooks): Promise<{ id: string; rehearsal?: true }> {
+  if (hooks.rehearsal) return { id: rehearsalId(containerId), rehearsal: true };
+  return publishContainer(creds, containerId);
+}
 
 async function apiPost(creds: InstagramCredentials, endpoint: string, params: Record<string, string>): Promise<{ id: string }> {
   const url = new URL(`${API_BASE}${endpoint}`);
@@ -123,16 +131,16 @@ async function createImageContainer(creds: InstagramCredentials, params: Record<
   }
 }
 
-export async function publishSingle(creds: InstagramCredentials, imageUrl: string, caption: string, altText: string | null = null, hooks: PublishHooks = {}): Promise<{ id: string; channel: 'instagram'; alt_text: AltTextOutcome }> {
+export async function publishSingle(creds: InstagramCredentials, imageUrl: string, caption: string, altText: string | null = null, hooks: PublishHooks = {}): Promise<{ id: string; channel: 'instagram'; alt_text: AltTextOutcome; rehearsal?: true }> {
   if (!imageUrl) throw new Error('imageUrl obrigatório (URL pública)');
   const container = await createImageContainer(creds, { image_url: imageUrl, caption: caption || '' }, altText);
   await hooks.onContainer?.(container.id);
   await waitContainerReady(creds, container.id);
-  const published = await publishContainer(creds, container.id);
-  return { id: published.id, channel: 'instagram', alt_text: container.altText };
+  const published = await finishPublish(creds, container.id, hooks);
+  return { ...published, channel: 'instagram', alt_text: container.altText };
 }
 
-export async function publishCarousel(creds: InstagramCredentials, imageUrls: string[], caption: string, hooks: PublishHooks = {}): Promise<{ id: string; channel: 'instagram'; slides: number }> {
+export async function publishCarousel(creds: InstagramCredentials, imageUrls: string[], caption: string, hooks: PublishHooks = {}): Promise<{ id: string; channel: 'instagram'; slides: number; rehearsal?: true }> {
   if (!imageUrls || imageUrls.length < 2) throw new Error('Carousel precisa 2+ imagens');
   if (imageUrls.length > 10) throw new Error('Carousel suporta no máximo 10 slides');
 
@@ -150,6 +158,6 @@ export async function publishCarousel(creds: InstagramCredentials, imageUrls: st
   });
   await hooks.onContainer?.(container.id);
   await waitContainerReady(creds, container.id);
-  const published = await publishContainer(creds, container.id);
-  return { id: published.id, channel: 'instagram', slides: imageUrls.length };
+  const published = await finishPublish(creds, container.id, hooks);
+  return { ...published, channel: 'instagram', slides: imageUrls.length };
 }

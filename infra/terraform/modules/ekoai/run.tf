@@ -95,6 +95,10 @@ resource "google_cloud_run_v2_service" "platform" {
         value = var.mfa_mode
       }
       env {
+        name  = "PUBLISH_MODE"
+        value = var.publish_mode
+      }
+      env {
         name  = "IDENTITY_PROJECT_ID"
         value = var.project_id
       }
