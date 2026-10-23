@@ -22,6 +22,7 @@ import { renderPng } from './design/render';
 import { editBlocking, reviewText, type Issue } from './design/review';
 import { applyEditable, checkLayout, editableOf, type EditableDesign } from './design/edit-model';
 import { diffDesigns, summarize, type DiffContext, type DiffEntry } from './design/diff';
+import { contrast } from './design/color';
 
 export const MAX_REVISIONS = 20;
 export const PREVIEW_WIDTH = 540;
@@ -141,10 +142,12 @@ function specOf(target: Target, inputs: Inputs, design: StoredDesign): DesignSpe
 
 // Desenha e confere: os achados do desenho (fonte, margem, contraste, sobreposição) e os do texto
 // (palavra proibida, nunca afirmar, número fora dos fatos vigentes).
-function renderAndReview(target: Target, inputs: Inputs, design: StoredDesign, deps: Deps, width?: number): { png: Buffer; issues: Issue[] } {
+function renderAndReview(target: Target, inputs: Inputs, design: StoredDesign, deps: Deps, width?: number): { png: Buffer; issues: Issue[]; contrasts: Record<string, number> } {
   const rendered = renderPng(specOf(target, inputs, design), { ...(deps.fontDir ? { fontDir: deps.fontDir } : {}), ...(width ? { width } : {}) });
   const text = reviewText({ imageTexts: imageTexts(design), caption: '', hashtags: [], facts: inputs.facts.facts, never: inputs.facts.never, inactive: inputs.facts.inactive, banned: inputs.banned });
-  return { png: rendered.png, issues: [...text.filter((i) => i.where === 'image'), ...rendered.issues] };
+  // O contraste de cada texto sobre o fundo do layout: a tela mostra o selo Bom, No limite ou Baixo.
+  const contrasts = Object.fromEntries(rendered.boxes.filter((b) => !['handle'].includes(b.id)).map((b) => [b.id, Math.round(contrast(b.color, b.bg) * 100) / 100]));
+  return { png: rendered.png, issues: [...text.filter((i) => i.where === 'image'), ...rendered.issues], contrasts };
 }
 
 const contextOf = (target: Target, design: StoredDesign): DiffContext => ({ kind: target.kind, layout: design.layout, ratio: target.ratio, goal: target.goal });
@@ -225,7 +228,10 @@ async function ensureInitial(t: TenantDb, target: Target): Promise<void> {
   if (res.error) throw new Error(`post_design_revisions: ${res.error.message}`);
 }
 
-export type PreviewResult = { version: number; image: string; issues: Issue[]; blocking: Issue[] };
+// O que a tela precisa de cada achado: a regra e a frase (o detalhe técnico fica no servidor).
+const slimIssue = ({ rule, message, where }: Issue): Issue => ({ rule, message, where, detail: '' });
+
+export type PreviewResult = { version: number; image: string; issues: Issue[]; blocking: Issue[]; contrasts: Record<string, number> };
 
 // A prévia: desenha o design editado e confere. Não grava nada.
 export async function previewEdit(t: TenantDb, briefId: string, input: { baseVersion: number; edit: EditableDesign }, deps: Deps = {}): Promise<PreviewResult> {
@@ -235,8 +241,8 @@ export async function previewEdit(t: TenantDb, briefId: string, input: { baseVer
   const checked = checkLayout(input.edit, target.kind, !!inputs.visual);
   if (!checked.ok) throw new UserError(checked.error);
   const next = applyEditable(target.design, input.edit);
-  const { png, issues } = renderAndReview(target, inputs, next, deps, PREVIEW_WIDTH);
-  return { version: target.version, image: `data:image/png;base64,${png.toString('base64')}`, issues, blocking: editBlocking(issues) };
+  const { png, issues, contrasts } = renderAndReview(target, inputs, next, deps, PREVIEW_WIDTH);
+  return { version: target.version, image: `data:image/png;base64,${png.toString('base64')}`, issues: issues.map(slimIssue), blocking: editBlocking(issues).map(slimIssue), contrasts };
 }
 
 export type SavedRevision = { version: number; summary: string; diff: DiffEntry[]; issues: Issue[]; source: RevisionSource; renderMs: number };

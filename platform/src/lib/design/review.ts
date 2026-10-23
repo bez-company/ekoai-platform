@@ -76,29 +76,42 @@ export function reviewText(input: TextReviewInput): Issue[] {
   return issues;
 }
 
+// O nome do texto como a pessoa o conhece (a tela mostra a frase; o id da caixa é interno).
+function nameOf(id: string): { subject: string; where: string } {
+  const item = /^item(\d+)$/.exec(id);
+  if (item) return { subject: `O item ${item[1]}`, where: `no item ${item[1]}` };
+  const map: Record<string, { subject: string; where: string }> = {
+    title: { subject: 'O título', where: 'no título' },
+    sub: { subject: 'O subtítulo', where: 'no subtítulo' },
+    kicker: { subject: 'O selo', where: 'no selo' },
+    handle: { subject: 'O @ da conta', where: 'no @ da conta' },
+  };
+  return map[id] ?? { subject: `O texto "${id}"`, where: `no texto "${id}"` };
+}
+
 export function reviewLayout(boxes: TextBox[], height: number, overflow: string[] = []): Issue[] {
   const issues: Issue[] = [];
   for (const b of boxes) {
     const kind = b.id.replace(/\d+$/, '');
     const min = MIN_SIZE[kind] ?? 22;
-    if (b.size < min) issues.push({ rule: 'font_size', detail: `${b.id} ${b.size}px`, message: `O texto "${b.id}" ficou pequeno demais para o feed (${b.size}px, mínimo ${min}px).`, where: 'image' });
+    if (b.size < min) issues.push({ rule: 'font_size', detail: `${b.id} ${b.size}px`, message: `${nameOf(b.id).subject} ficou pequeno demais para o feed (${b.size}px, mínimo ${min}px).`, where: 'image' });
     if (b.x < MARGIN || b.y < MARGIN || b.x + b.w > WIDTH - MARGIN || b.y + b.h > height - MARGIN) {
-      issues.push({ rule: 'safe_margin', detail: b.id, message: `O texto "${b.id}" passa da margem de segurança do feed.`, where: 'image' });
+      issues.push({ rule: 'safe_margin', detail: b.id, message: `${nameOf(b.id).subject} passa da margem de segurança do feed.`, where: 'image' });
     }
     const min_contrast = b.size >= 56 && b.bold ? 3 : 4.5;
     const ratio = contrast(b.color, b.bg);
-    if (ratio < min_contrast) issues.push({ rule: 'contrast', detail: `${b.id} ${fmtContrast(ratio)}`, message: `O texto "${b.id}" quase não aparece sobre o fundo (contraste ${fmtContrast(ratio)}).`, where: 'image' });
+    if (ratio < min_contrast) issues.push({ rule: 'contrast', detail: `${b.id} ${fmtContrast(ratio)}`, message: `Contraste baixo ${nameOf(b.id).where} (${fmtContrast(ratio)}, mínimo ${min_contrast === 3 ? '3:1' : '4,5:1'}). Escolha outra cor.`, where: 'image' });
   }
   for (let i = 0; i < boxes.length; i += 1) {
     for (let j = i + 1; j < boxes.length; j += 1) {
       const a = boxes[i];
       const b = boxes[j];
       if (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y) {
-        issues.push({ rule: 'overlap', detail: `${a.id} x ${b.id}`, message: `Os textos "${a.id}" e "${b.id}" estão um em cima do outro.`, where: 'image' });
+        issues.push({ rule: 'overlap', detail: `${a.id} x ${b.id}`, message: `${nameOf(a.id).subject} e ${nameOf(b.id).subject.toLowerCase()} estão um em cima do outro.`, where: 'image' });
       }
     }
   }
-  for (const id of overflow) issues.push({ rule: 'text_too_long', detail: id, message: `O texto "${id}" é longo demais para caber na imagem. Encurte.`, where: 'image' });
+  for (const id of overflow) issues.push({ rule: 'text_too_long', detail: id, message: `${nameOf(id).subject} é longo demais para caber na imagem. Encurte.`, where: 'image' });
   return issues;
 }
 

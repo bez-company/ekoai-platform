@@ -1,6 +1,6 @@
 # SPEC 019: ajuste rápido do post, versões e aprendizado com a edição
 
-- **Status:** proposta, aguarda as decisões do Matheus (fim do arquivo) e o protótipo v13
+- **Status:** aprovada em 23/10/2026 (protótipo v13 e as 10 decisões, com as recomendações); entregas a, c, d e e na staging; a tela (b) em PR
 - **Data:** 2026-10-23
 - **Cards:** BEZ-266 (esta spec), BEZ-267 a BEZ-271 (entregas a a e); pai BEZ-205
 - **Depende de:** [SPEC 012](012-agentes-instagram-fase-2.md) (decisões 1 e 4, motor híbrido e revisor por
@@ -18,7 +18,7 @@
   palavra proibida, salvando, versão salva e regra proposta, versões, versão antiga, conflito, erro ao salvar, post já
   aprovado, carregando) e, em **Aprendizado**, as variantes "Design do post" (proposta, aceita, ativas e desligada,
   dispensada, vazio, carregando, erro). Desktop e celular, e os papéis (leitor só vê as versões). Aguarda aprovação do
-  Matheus antes de qualquer código de tela
+  Matheus antes de qualquer código de tela. **Aprovado pelo Matheus em 23/10/2026.**
 
 ## Problema
 
@@ -472,6 +472,8 @@ Cada um tem como verificar.
 | Estúdio completo antes de haver uso | Código que ninguém usa | Gatilho de dado (decisão 16); o botão "Preciso de mais controle" mede a demanda |
 
 ## Decisões do Matheus
+
+Aprovadas em 23/10/2026 com a recomendação de cada item (as caixas abaixo ficam como registro do que foi perguntado).
 
 - [ ] **1:** a lista de campos do ajuste rápido (texto, layout, cor do texto, logo) está boa? Falta algo
   que quase todo post precisa e não exige mexer em posição?

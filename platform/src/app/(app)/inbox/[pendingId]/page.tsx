@@ -10,6 +10,9 @@ import { getProfile } from '@/lib/company-profile';
 import { listFacts } from '@/lib/company-facts';
 import { monthlyUsage } from '@/lib/generation-db';
 import { can, pageSession } from '@/lib/session';
+import { designState } from '@/lib/post-design-revisions';
+import { brandFromProfile } from '@/lib/design/model';
+import { log } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,9 +28,19 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   // Post feito pela Ekoai (SPEC 012) ou foto do banco (Publicar foto, BEZ-254): a tela da moldura do
   // feed, com os atalhos e os fatos usados.
   if (p.post_design_id || p.seed?.source === 'photo') {
-    const [account, profile, facts, canApprove, canEdit] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), can('content.approve'), can('content.edit')]);
+    const [account, profile, facts, canApprove, canEdit, canManage] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), can('content.approve'), can('content.edit'), can('brand.manage')]);
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
+    // O ajuste rápido e as versões (SPEC 019): só para post com design. Falhar aqui nunca derruba a tela.
+    const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
+    const brand = brandFromProfile(profile);
+    const swatches = [
+      { label: 'Cor principal da marca', hex: brand.primary },
+      { label: 'Cor de destaque da marca', hex: brand.accent },
+      { label: 'Cor do texto da marca', hex: brand.ink },
+      { label: 'Branco', hex: '#FFFFFF' },
+      { label: 'Quase preto', hex: '#1F1A19' },
+    ].filter((s, i, all) => all.findIndex((x) => x.hex.toLowerCase() === s.hex.toLowerCase()) === i);
     const handle = profile?.instagramHandle ? `@${profile.instagramHandle}` : (account?.name ?? 'sua conta');
     return (
       <PostReview
@@ -40,6 +53,8 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
         facts={facts.filter((f) => f.active).map((f) => ({ id: f.id, kind: f.kind, text: f.text }))}
         canApprove={canApprove}
         canEdit={canEdit}
+        canManage={canManage}
+        design={design ? { state: design, swatches } : null}
       />
     );
   }
