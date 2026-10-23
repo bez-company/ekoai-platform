@@ -28,6 +28,7 @@ export function summarize(allRows, meta) {
       runs: c.runs,
       pedido: rate(c.verdicts.filter((v) => v.group === 'pedido')),
       oficio: rate(c.verdicts.filter(craft)),
+      leitor: rate(c.verdicts.filter((v) => v.group === 'leitor')),
       rounds: mean(c.rounds),
       costUsd: mean(c.cost),
       req: Object.fromEntries(Object.entries(req).map(([k, list]) => [k, rate(list)])),
@@ -44,7 +45,7 @@ export function summarize(allRows, meta) {
   }
   return {
     meta: { ...meta, runs: rows.length ? Math.max(...rows.map((r) => r.run)) : 0, judgeFailures: allRows.length - rows.length, costUsd: allRows.reduce((s, r) => s + r.costUsd, 0) },
-    overall: { pedido: rate(all.filter((v) => v.group === 'pedido')), oficio: rate(all.filter(craft)), rounds: mean(rows.map((r) => r.rounds ?? 1)), costPerPost: mean(rows.map((r) => r.costUsd)) },
+    overall: { pedido: rate(all.filter((v) => v.group === 'pedido')), oficio: rate(all.filter(craft)), leitor: rate(all.filter((v) => v.group === 'leitor')), rounds: mean(rows.map((r) => r.rounds ?? 1)), costPerPost: mean(rows.map((r) => r.costUsd)) },
     tags: Object.fromEntries(Object.entries(tags).map(([k, v]) => [k, { pedido: mean(v.pedido), oficio: mean(v.oficio) }])),
     cases: outCases,
   };
@@ -57,7 +58,7 @@ export function renderSummary(summary) {
     '',
     `Modelos: texto \`${m.text}\`, imagem \`${m.image}\`, juiz \`${m.judge}\`. Rodadas por caso: ${m.runs}${m.judgeFailures ? `, ${m.judgeFailures} sem nota (o juiz falhou)` : ''}. Custo: US$ ${m.costUsd.toFixed(2)}.`,
     '',
-    `**Pedido cumprido: ${pct(summary.overall.pedido)}. Ofício: ${pct(summary.overall.oficio)}.** Rodadas do redator por post: ${summary.overall.rounds?.toFixed(2) ?? '-'}. Custo por post (com o juiz): US$ ${summary.overall.costPerPost?.toFixed(3) ?? '-'}.`,
+    `**Pedido cumprido: ${pct(summary.overall.pedido)}. Ofício: ${pct(summary.overall.oficio)}.** ${summary.overall.leitor != null ? `Leitor de instruções: ${pct(summary.overall.leitor)}. ` : ''}Rodadas do redator por post: ${summary.overall.rounds?.toFixed(2) ?? '-'}. Custo por post (com o juiz): US$ ${summary.overall.costPerPost?.toFixed(3) ?? '-'}.`,
     '',
     '| Tag | Pedido | Ofício |',
     '| --- | --- | --- |',

@@ -99,7 +99,7 @@ export type PostProgress = {
   createdAt: string;
 };
 
-const STEP_ORDER: Step[] = ['strategist', 'writer', 'art', 'visual', 'review', 'render'];
+const STEP_ORDER: Step[] = ['directives', 'strategist', 'writer', 'art', 'visual', 'review', 'render'];
 
 export async function postProgress(t: TenantDb, briefId: string): Promise<PostProgress | null> {
   const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at').eq('id', briefId).maybeSingle();

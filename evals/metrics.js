@@ -19,3 +19,36 @@ export function codeChecks({ copy, imageTexts, textIssues, layoutIssues }) {
     { id: 'cod-layout-limpo', pass: hard(layoutIssues).length === 0, reason: `O revisor de layout reprovava o PNG final: ${hard(layoutIssues).map((i) => i.rule).join(', ')}.` },
   ];
 }
+
+const looseText = (s) => s.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// O leitor de instruções contra o que uma pessoa esperava do pedido (`directives` do caso). Regras: chave
+// ausente na expectativa = o leitor não pode anotar (invenção); '*' = qualquer valor; lista = qualquer um dela;
+// `optional` lista chaves que ele pode anotar ou não. Devolve { pass, reason }.
+export function compareDirectives(expected, got) {
+  const optional = new Set(expected.optional ?? []);
+  const problems = [];
+  const same = (want, have) => (want === '*' ? have != null : Array.isArray(want) ? want.includes(have) : want === have);
+
+  for (const key of Object.keys(got)) {
+    if (key in expected || optional.has(key)) continue;
+    // `elements` pode vir só com elementos marcados como opcionais (elements.title)
+    const extra = key === 'elements' ? Object.keys(got.elements).filter((el) => !optional.has(`elements.${el}`)) : [key];
+    if (extra.length) problems.push(`anotou ${key} sem a pessoa pedir`);
+  }
+  for (const [key, want] of Object.entries(expected)) {
+    if (key === 'optional') continue;
+    const have = got[key];
+    if (have == null) {
+      if (!optional.has(key)) problems.push(`não anotou ${key}`);
+    } else if (key === 'elements') {
+      for (const [el, place] of Object.entries(want)) if (!same(place, have[el])) problems.push(`elemento ${el}: esperado ${JSON.stringify(place)}, veio ${JSON.stringify(have[el] ?? null)}`);
+      for (const el of Object.keys(have)) if (!(el in want) && !optional.has('elements') && !optional.has(`elements.${el}`)) problems.push(`elemento ${el} anotado sem a pessoa pedir`);
+    } else if (key === 'exactTexts') {
+      if (JSON.stringify(want.map(looseText)) !== JSON.stringify(have.map(looseText))) problems.push(`texto literal: esperado ${JSON.stringify(want)}, veio ${JSON.stringify(have)}`);
+    } else if (!same(want, have)) {
+      problems.push(`${key}: esperado ${JSON.stringify(want)}, veio ${JSON.stringify(have)}`);
+    }
+  }
+  return { pass: problems.length === 0, reason: problems.join('; ') };
+}

@@ -3,6 +3,7 @@
 // revisor (reviewText), mesmo visual (visualPromptFor), mesma grade (defaultLayout e renderPng). Se o
 // generatePost mudar a ordem ou a escolha de layout, este arquivo muda junto.
 
+import { buildDirectivesPrompt, parseDirectives } from '../platform/src/lib/directives.ts';
 import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy, visualPromptFor } from '../platform/src/lib/agents.ts';
 import { brandFromProfile, defaultLayout, imageDataUri } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
@@ -38,11 +39,28 @@ async function writeCopy({ model, brief, company }) {
   return { ...best, trace };
 }
 
+// O leitor de instruções (SPEC 020): uma chamada curta antes do redator. Duas tentativas; falhou, segue sem instruções
+// (igual ao readDirectives do generatePost).
+async function readDirectives({ model, brief, company }) {
+  const prompt = buildDirectivesPrompt(brief.idea, { name: company.name, hasLogo: true, handle: company.handle });
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const out = await model.generateJson({ prompt, labels: { step: 'eval-directives', case: brief.id }, maxOutputTokens: 1024, temperature: 0 });
+      const parsed = parseDirectives(out.json, brief.idea);
+      return { directives: parsed.directives, dropped: parsed.dropped, status: 'ok', costUsd: out.costUsd };
+    } catch {
+      // próxima tentativa
+    }
+  }
+  return { directives: {}, dropped: [], status: 'failed', costUsd: 0 };
+}
+
 // Todo texto que o render desenha: os do post mais o @ da marca, que a grade põe sempre num canto.
 const drawnTexts = (spec) => [...imageTextsOf({ texts: spec.texts }), ...(spec.brand.handle ? [`@${spec.brand.handle}`] : [])];
 
 export async function produce({ model, brief, fontDir }) {
   const company = COMPANIES[brief.company];
+  const read = await readDirectives({ model, brief, company });
   const { copy, issues, trace } = await writeCopy({ model, brief, company });
   const kind = copy.kind;
   let visual = null;
@@ -60,6 +78,6 @@ export async function produce({ model, brief, fontDir }) {
     spec.texts = { ...spec.texts, sub: undefined };
     rendered = renderPng(spec, fontDir ? { fontDir } : {});
   }
-  const costUsd = trace.reduce((sum, t) => sum + t.costUsd, 0) + imageCostUsd;
-  return { copy, spec, png: rendered.png, textIssues: issues, layoutIssues: rendered.issues, imageTexts: drawnTexts(spec), visualPng: visual?.png ?? null, visualPrompt, trace, costUsd };
+  const costUsd = trace.reduce((sum, t) => sum + t.costUsd, 0) + imageCostUsd + read.costUsd;
+  return { copy, spec, png: rendered.png, textIssues: issues, layoutIssues: rendered.issues, imageTexts: drawnTexts(spec), visualPng: visual?.png ?? null, visualPrompt, trace, costUsd, directives: read };
 }
