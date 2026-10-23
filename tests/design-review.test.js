@@ -46,12 +46,16 @@ describe('revisor de texto', () => {
     expect(reviewText({ ...base, imageTexts: ['Caixa por R$ 89'], caption: '' }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
   });
 
-  it('o número que a pessoa digitou na ideia vale para o post; o que ela não digitou segue barrado', () => {
-    const idea = 'Anunciar 30% de desconto no bolo de chocolate nesta semana.';
-    expect(reviewText({ ...base, imageTexts: ['30% de desconto no bolo de chocolate'], caption: 'Nesta semana, 30% de desconto.', allowed: [idea] })).toEqual([]);
-    expect(reviewText({ ...base, imageTexts: ['30% de desconto'], caption: '', allowed: [] }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
-    // outro número no mesmo post continua fora da base
-    expect(reviewText({ ...base, imageTexts: ['30% de desconto, bolo por R$ 45'], caption: '', allowed: [idea] }).map((i) => [i.rule, i.detail])).toEqual([['number_not_in_facts', '45']]);
+  it('o número que a pessoa digitou no pedido vale para o post, número a número; o que ela não digitou segue barrado', () => {
+    const request = 'Anunciar 30% de desconto no bolo de chocolate nesta semana.';
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto no bolo de chocolate'], caption: 'Nesta semana, 30% de desconto.', request })).toEqual([]);
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto'], caption: '' }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
+    // outro número no mesmo post continua fora da base, e um pedaço do número pedido (0 de 30) não vale
+    expect(reviewText({ ...base, imageTexts: ['30% de desconto, bolo por R$ 45'], caption: '', request }).map((i) => [i.rule, i.detail])).toEqual([['number_not_in_facts', '45']]);
+    expect(reviewText({ ...base, imageTexts: ['0% de desconto'], caption: '', request }).map((i) => i.detail)).toEqual(['0']);
+    // fato vencido continua barrando mesmo com o número no pedido (ADR 0019)
+    const inactive = [{ text: 'Bolo por R$ 18', reason: 'expired', validUntil: '2026-10-15' }];
+    expect(reviewText({ ...base, imageTexts: ['Bolo por R$ 18'], caption: '', request: 'Bolo por R$ 18', inactive }).map((i) => i.rule)).toEqual(['fact_not_valid']);
   });
 
   it('acento, travessão, emoji na imagem, legenda longa e hashtags demais', () => {

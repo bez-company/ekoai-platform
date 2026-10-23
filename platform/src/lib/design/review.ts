@@ -25,9 +25,11 @@ export type TextReviewInput = {
   banned: string[];
   // Fatos que não valem hoje (vencido, para revisar, recusado): número que só existe neles reprova.
   inactive?: InactiveFact[];
-  // Número digitado pela pessoa para este post (a ideia do pedido) ou na oferta da campanha: vale como
-  // afirmado só para ele (SPEC 018). O revisor não contesta o que a própria pessoa pediu.
+  // Número digitado na oferta da campanha do post: vale como afirmado só para ele (SPEC 018).
   allowed?: string[];
+  // O pedido da pessoa, palavra por palavra. Número que ela mesma escreveu ali (30% de desconto, 13h, dia 12)
+  // vale como afirmado neste post, comparado número a número. Fato vencido ou recusado continua barrando (ADR 0019).
+  request?: string;
 };
 
 function numbersIn(text: string): string[] {
@@ -58,10 +60,12 @@ export function reviewText(input: TextReviewInput): Issue[] {
   for (const w of SEM_ACENTO) {
     if (new RegExp(`(^|[^a-zà-ú])${w}([^a-zà-ú]|$)`).test(all)) issues.push({ rule: 'accent', detail: w, message: `"${w}" parece estar sem acento.`, where: image.toLowerCase().includes(w) ? 'image' : 'caption' });
   }
+  const requested = new Set(input.request ? numbersIn(input.request) : []);
   for (const n of numbersIn(`${image} ${input.caption}`)) {
     if (allowed.includes(n)) continue;
     const where = image.includes(n) ? 'image' : 'caption';
     const stale = (input.inactive ?? []).find((f) => f.text.includes(n));
+    if (requested.has(n) && !stale) continue;
     if (stale) issues.push({ rule: 'fact_not_valid', detail: n, message: staleMessage(n, stale), where });
     else issues.push({ rule: 'number_not_in_facts', detail: n, message: `O número ${n} não está na base de fatos da empresa.`, where });
   }

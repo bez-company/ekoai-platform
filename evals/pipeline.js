@@ -27,7 +27,7 @@ async function writeCopy({ model, brief }) {
       continue;
     }
     const copy = parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: COMPANY.facts, never: COMPANY.never, banned: COMPANY.profile.bannedWords, allowed: [brief.idea] });
+    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: COMPANY.facts, never: COMPANY.never, banned: COMPANY.profile.bannedWords, request: brief.idea });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) break;
