@@ -2,7 +2,8 @@
 # Cards do ClickUp que vão junto numa release: os `BEZ-N` dos commits entre a main e a staging
 # (`type(scope): [BEZ-N] assunto`), achados pelo prefixo `[BEZ-N]` do nome do card.
 # O merge da PR na staging leva o card para Staging (scripts/clickup-pr-sync.js); a release leva de
-# Staging para Done (Done = em produção).
+# Staging para Done (Done = em produção). Commits antigos ainda trazem `CU-<id>` (regra anterior) e
+# seguem sendo lidos; some quando a staging não tiver mais commit assim.
 #
 #   scripts/clickup-release.sh <de> <até>          # lista os cards (ex.: origin/main origin/staging)
 #   scripts/clickup-release.sh <de> <até> --done   # move de Staging para Done os que estão em Staging
@@ -19,12 +20,13 @@ api=https://api.clickup.com/api/v2
 
 log=$(git log --format='%s%n%b' "$from..$to")
 bez=$(grep -oE '\bBEZ-[0-9]+\b' <<<"$log" | sort -t- -k2 -n -u || true)
-if [ -z "$bez" ]; then
+cu=$(grep -oE '\bCU-[0-9a-z]+\b' <<<"$log" | sort -u || true)
+if [ -z "$bez$cu" ]; then
   echo "nenhum card (BEZ-N) nos commits de ${from} até ${to}"
   exit 0
 fi
 echo "Cards nesta release:"
-for id in $bez; do echo "  $id"; done
+for id in $bez $cu; do echo "  $id"; done
 
 [ "$mode" = "--done" ] || exit 0
 if [ -z "${CLICKUP_API_TOKEN:-}" ]; then
@@ -54,4 +56,8 @@ for id in $bez; do
   row=$(jq -r --arg p "[$id]" '[.[] | select(.name | startswith($p))][0] | select(. != null) | [.id, .status.status] | @tsv' <<<"$tasks")
   [ -n "$row" ] || { echo "  $id: não achei o card" >&2; continue; }
   move "$id" "${row%%$'\t'*}" "${row#*$'\t'}"
+done
+for id in $cu; do
+  task=$(cu_get "task/${id#CU-}") || { echo "  $id: não achei o card" >&2; continue; }
+  move "$id" "${id#CU-}" "$(jq -r '.status.status' <<<"$task")"
 done
