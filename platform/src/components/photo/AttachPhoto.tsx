@@ -3,7 +3,7 @@
 // AttachPhoto.tsx: o bloco "Anexar foto" do Criar post (SPEC 017 decisão 7, BEZ-237). A pessoa sobe uma
 // foto ou escolhe do banco; a Ekoai olha e pergunta só o que ficou em aberto, no máximo 2 perguntas com
 // resposta de um clique ("Como usar a foto?" e "O que escrever?"). O uso já dito no pedido não é
-// perguntado de novo. Quem usa: app/(app)/create (BEZ-240), que manda asset_id e photo_usage.
+// perguntado de novo. Quem usa: app/(app)/criar (BEZ-240), que manda asset_id e photo_usage.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';

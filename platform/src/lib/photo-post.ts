@@ -112,7 +112,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
       status: 'awaiting_decision',
     });
     if (ins.error) throw new Error(`pendências: ${ins.error.message}`);
-    await notify(t, { kind: 'post.ready', title: 'Foto esperando aprovação', body: variation.hook?.slice(0, 120), link: `/inbox/${encodeURIComponent(pendingId)}`, audience: 'team' });
+    await notify(t, { kind: 'post.ready', title: 'Foto esperando aprovação', body: variation.hook?.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });
     return { status: 'pending', pendingId };
   }
 
@@ -149,7 +149,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
     kind: 'schedule.created',
     title: scheduledFor ? `Foto agendada no Instagram para ${fmtLocal(scheduledFor)}` : 'Foto aprovada: na fila até ter horário na agenda',
     body: variation.hook?.slice(0, 80) || undefined,
-    link: '/calendar',
+    link: '/agenda',
   });
   return { status: scheduledFor ? 'scheduled' : 'queued', id, scheduledFor };
 }

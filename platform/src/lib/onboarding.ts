@@ -48,7 +48,7 @@ export function buildChecklist(input: ChecklistInput): Checklist | null {
     actions: [],
   };
   if (profile.status === 'todo') {
-    if (admin) profile.actions = [{ kind: 'link', label: input.hasProfile ? 'Completar perfil' : 'Preencher perfil', href: input.hasProfile ? '/settings/company' : '/onboarding' }];
+    if (admin) profile.actions = [{ kind: 'link', label: input.hasProfile ? 'Completar perfil' : 'Preencher perfil', href: input.hasProfile ? '/configuracoes/empresa' : '/boas-vindas' }];
     else profile.note = adminOnly;
   }
 
@@ -60,7 +60,7 @@ export function buildChecklist(input: ChecklistInput): Checklist | null {
     actions: [],
   };
   if (instagram.status === 'todo') {
-    if (admin) instagram.actions = [{ kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }];
+    if (admin) instagram.actions = [{ kind: 'link', label: 'Conectar Instagram', href: '/configuracoes/canais' }];
     else instagram.note = adminOnly;
   }
 
@@ -77,7 +77,7 @@ export function buildChecklist(input: ChecklistInput): Checklist | null {
     };
     if (admin && team.status === 'todo') {
       team.actions = [
-        { kind: 'link', label: 'Convidar pessoa', href: '/settings/team' },
+        { kind: 'link', label: 'Convidar pessoa', href: '/configuracoes/equipe' },
         { kind: 'skip', label: 'Pular' },
       ];
     } else if (admin && team.status === 'skipped') {
@@ -198,19 +198,19 @@ export function buildGuide(input: GuideInput): Guide | null {
 
   const steps: GuideStep[] = [
     step('profile', 'Perfil da empresa', 'Nicho, o que vende e para quem.', input.profileComplete, input.can.brand,
-      { kind: 'link', label: input.hasProfile ? 'Completar perfil' : 'Preencher perfil', href: input.hasProfile ? '/settings/company' : '/onboarding' }, admins),
+      { kind: 'link', label: input.hasProfile ? 'Completar perfil' : 'Preencher perfil', href: input.hasProfile ? '/configuracoes/empresa' : '/boas-vindas' }, admins),
     step('instagram', 'Conectar o Instagram', 'Conta profissional da marca.', input.instagramConnected, input.can.channels,
-      { kind: 'link', label: 'Conectar Instagram', href: '/settings/channels' }, admins),
+      { kind: 'link', label: 'Conectar Instagram', href: '/configuracoes/canais' }, admins),
     step('post', 'Criar o primeiro post', 'Descreva o que quer e a Ekoai faz.', input.postCreated || input.postApproved || input.published, input.can.create,
-      { kind: 'link', label: 'Criar post', href: '/create' }, 'Quem cria os posts da conta faz este passo.'),
+      { kind: 'link', label: 'Criar post', href: '/criar' }, 'Quem cria os posts da conta faz este passo.'),
     step('approve', 'Aprovar o post', 'Revise a legenda e a imagem.', input.postApproved || input.published, input.can.approve,
-      { kind: 'link', label: 'Revisar o post', href: '/inbox' }, approvers),
+      { kind: 'link', label: 'Revisar o post', href: '/aprovar' }, approvers),
     step('slots', 'Horários de publicação', 'Quando a Ekoai publica.', input.hasSlots, input.can.publishing,
-      { kind: 'link', label: 'Escolher horários', href: '/calendar?edit=slots' }, admins),
+      { kind: 'link', label: 'Escolher horários', href: '/agenda?edit=slots' }, admins),
     step('publishing', 'Ligar a publicação', 'A conta nasce pausada: nada sai até você ligar.', !input.paused, input.can.publishing,
       { kind: 'resume', label: 'Ligar a publicação' }, admins),
     step('publish', 'Primeira publicação', 'Sai no primeiro horário depois de aprovar.', input.published, input.can.approve,
-      { kind: 'link', label: 'Ver a agenda', href: '/calendar' }, approvers),
+      { kind: 'link', label: 'Ver a agenda', href: '/agenda' }, approvers),
   ];
 
   if (input.kind === 'empresa') {
@@ -223,7 +223,7 @@ export function buildGuide(input: GuideInput): Guide | null {
       actions: [],
       optional: true,
     };
-    if (input.can.team && team.status === 'todo') team.actions = [{ kind: 'link', label: 'Convidar pessoa', href: '/settings/team' }, { kind: 'skip', label: 'Pular' }];
+    if (input.can.team && team.status === 'todo') team.actions = [{ kind: 'link', label: 'Convidar pessoa', href: '/configuracoes/equipe' }, { kind: 'skip', label: 'Pular' }];
     else if (input.can.team && team.status === 'skipped') team.actions = [{ kind: 'unskip', label: 'Mostrar de novo' }];
     steps.push(team);
   }

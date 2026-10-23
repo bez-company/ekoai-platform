@@ -22,7 +22,7 @@ export default function CampaignList({ campaigns }: { campaigns: Campaign[] }) {
                 </div>
                 {c.objective && <p className="text-sm text-muted">{c.objective}</p>}
               </div>
-              <Link href={`/campaigns/${c.id}`} className="btn-ghost min-h-9 self-start px-4 text-sm">
+              <Link href={`/campanhas/${c.id}`} className="btn-ghost min-h-9 self-start px-4 text-sm">
                 Abrir
               </Link>
             </li>

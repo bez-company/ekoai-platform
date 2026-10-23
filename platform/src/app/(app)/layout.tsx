@@ -61,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {granted.has('profile.view') ? (
               <>
                 Nada sai até você retomar.{' '}
-                <Link href="/settings" className="font-semibold text-accent-text underline underline-offset-2">
+                <Link href="/configuracoes" className="font-semibold text-accent-text underline underline-offset-2">
                   Retomar em Configurações
                 </Link>
               </>

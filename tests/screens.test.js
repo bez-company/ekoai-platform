@@ -26,12 +26,12 @@ describe('menu por permissão', () => {
 });
 
 describe('item ativo', () => {
-  it('a raiz só vale para a raiz; os outros valem para as rotas abaixo', () => {
-    expect(s.isActive('/', '/')).toBe(true);
-    expect(s.isActive('/inbox', '/')).toBe(false);
-    expect(s.isActive('/settings/team', '/settings')).toBe(true);
-    expect(s.isActive('/settings', '/settings')).toBe(true);
-    expect(s.isActive('/settingsx', '/settings')).toBe(false);
-    expect(s.isActive(null, '/')).toBe(false);
+  it('cada item vale para o próprio caminho e para as rotas abaixo dele', () => {
+    expect(s.isActive('/inicio', '/inicio')).toBe(true);
+    expect(s.isActive('/aprovar', '/inicio')).toBe(false);
+    expect(s.isActive('/configuracoes/equipe', '/configuracoes')).toBe(true);
+    expect(s.isActive('/configuracoes', '/configuracoes')).toBe(true);
+    expect(s.isActive('/configuracoesx', '/configuracoes')).toBe(false);
+    expect(s.isActive(null, '/inicio')).toBe(false);
   });
 });

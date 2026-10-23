@@ -23,8 +23,8 @@ export default function SlotCell({ time, past, suggestion, canCreate, campaignNa
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setError(j.error || 'Não deu para criar agora. Tente de novo.');
-    if (j.kind === 'photo') return router.push(`/photo?asset=${encodeURIComponent(j.assetId)}&idea=${encodeURIComponent(j.idea ?? '')}`);
-    router.push(`/create/${j.briefId}`);
+    if (j.kind === 'photo') return router.push(`/foto?asset=${encodeURIComponent(j.assetId)}&idea=${encodeURIComponent(j.idea ?? '')}`);
+    router.push(`/criar/${j.briefId}`);
   }
 
   return (
@@ -62,7 +62,7 @@ export default function SlotCell({ time, past, suggestion, canCreate, campaignNa
         <>
           <span>Sem post ainda</span>
           {canCreate && (
-            <Link href="/create" className="btn-ghost min-h-8 justify-self-start px-3 py-1 text-xs">
+            <Link href="/criar" className="btn-ghost min-h-8 justify-self-start px-3 py-1 text-xs">
               Criar
             </Link>
           )}

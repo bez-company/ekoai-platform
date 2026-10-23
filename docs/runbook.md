@@ -5,7 +5,7 @@ não existe está marcado como **pendente** e aponta para a [SPEC 006](specs/006
 
 ## Pausar e retomar a publicação
 
-`/settings` > Publicação. A pausa é **por tenant**: o scheduler (`/api/cron/publish-due`) pula o
+`/configuracoes` > Publicação. A pausa é **por tenant**: o scheduler (`/api/cron/publish-due`) pula o
 tenant pausado e segue com os outros. Os agendados vencidos esperam e saem juntos no primeiro
 ciclo depois de retomar. Todo tenant novo nasce pausado (migration 0013).
 
@@ -56,7 +56,7 @@ O ciclo do cron também escreve `posts presos reconciliados` (resumo: `checked`,
 2. Está lá: marque como publicado na mão (o post em `failed` ainda aponta o container):
    `update scheduled_posts set status = 'published', published_at = now(), last_error = 'conferido à mão' where id = '<id>';`
    (o histórico e as métricas desse post não são ligados; o `posts` fica sem linha). Não use o botão de tentar de novo.
-3. Não está lá: use o botão de publicar de novo em `/calendar`.
+3. Não está lá: use o botão de publicar de novo em `/agenda`.
 4. Histórico da decisão: `select created_at, found, action, detail from publish_reconciliations where scheduled_post_id = '<id>' order by created_at;`
 
 ### Post em `publishing` que não sai
@@ -82,7 +82,7 @@ segundo de cada uma, até o lote de 20. Conta pausada fica de fora na própria c
 - Logs: o Cloud Logging guarda uma linha JSON por evento (`severity`, `scope`, `message`); campos com
   token, senha, chave ou email saem como `[mascarado]`. Procure por `"level":"error"`.
 - Falha de publicação: cada tentativa vira um aviso da conta (`notifications`), e o item vira
-  `failed` depois de 3. `/calendar` tem o botão de tentar de novo. Post preso ou de resultado incerto:
+  `failed` depois de 3. `/agenda` tem o botão de tentar de novo. Post preso ou de resultado incerto:
   seção "Publicação: post preso" acima.
 
 ## Login por pessoa falhando
@@ -139,12 +139,12 @@ npm run access:grant -- --email pessoa@acme.com.br --tenant acme --role admin
 ```
 
 Cria a linha em `tenants` (publicação pausada) e dá acesso ao primeiro administrador. Depois:
-slots em `/settings` e retomar. Os jobs rodam com `TENANT_ID=acme`; sem ele, recusam subir
+slots em `/configuracoes` e retomar. Os jobs rodam com `TENANT_ID=acme`; sem ele, recusam subir
 (ADR 0010). **Pendente:** cadastro, perfil da empresa e convites pela tela (SPEC 011).
 
 ## Exportar os dados de um tenant (LGPD)
 
-Logado no tenant, `/settings` > Seus dados > Baixar meus dados. Vem um JSON com todas as
+Logado no tenant, `/configuracoes` > Seus dados > Baixar meus dados. Vem um JSON com todas as
 tabelas do conteúdo da conta (perfil, equipe convidada, redes conectadas, auditoria). O token das
 redes fica cifrado em tabela à parte e o hash do convite é cortado: nenhum dos dois sai no arquivo.
 **Pendente:** apagar os dados de um tenant (precisa de fluxo com confirmação e prazo).
@@ -425,7 +425,7 @@ suspeitar de flake: o CI já repete cada falha uma vez.
 - O app roda em modo dev porque só aceita o emulador fora de produção e o CSP de produção bloqueia `127.0.0.1`.
   Então o E2E não prova o build de produção; quem prova é o job `containers` e o smoke abaixo.
 - `DB_POOL_MAX=2`: o modo dev cria um pool por rota recompilada e o Postgres do teste ficava sem conexão.
-- `test.fixme` em `errors.spec.ts`: `/create/<id inexistente>` responde 200 com um cartão de erro (BEZ-273).
+- `test.fixme` em `errors.spec.ts`: `/criar/<id inexistente>` responde 200 com um cartão de erro (BEZ-273).
 - Segundo fator (TOTP), criar conta com `SIGNUP_MODE=open` e a conexão real com Meta e Vertex ficam fora: são do smoke.
 
 ## Smoke real no staging (à mão)

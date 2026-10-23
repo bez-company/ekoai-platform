@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     await notify(tenantDb(tenantId), {
       kind: 'team.member_joined',
       audience: 'admin',
-      link: '/settings/team',
+      link: '/configuracoes/equipe',
       title: `${user.name ?? identity.name ?? 'Uma pessoa'} entrou na equipe${role ? ` como ${ROLE_COPY[role].label}` : ''}`,
     });
     if (late) return NextResponse.json({ ok: true, accepted: true, tenantId, role, code: late.code, error: late.error }, { status: 202 });

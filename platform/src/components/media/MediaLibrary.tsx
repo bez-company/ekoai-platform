@@ -95,10 +95,10 @@ function MediaCard({ asset, canEdit, onChange, onDelete }: { asset: MediaAsset; 
             <span className="text-xs text-muted">Marque a autorização para publicar.</span>
           ) : (
             <>
-              <Link href={`/photo?asset=${asset.id}`} className="btn-ghost min-h-9 px-3 text-xs">
+              <Link href={`/foto?asset=${asset.id}`} className="btn-ghost min-h-9 px-3 text-xs">
                 Publicar
               </Link>
-              <Link href={`/create?asset=${asset.id}`} className="btn-ghost min-h-9 px-3 text-xs">
+              <Link href={`/criar?asset=${asset.id}`} className="btn-ghost min-h-9 px-3 text-xs">
                 Criar post
               </Link>
             </>

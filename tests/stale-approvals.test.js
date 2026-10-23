@@ -20,7 +20,7 @@ describe('posts esquecidos em Aprovar (SPEC 017, decisão 12)', () => {
 
   it('o texto junta os posts da conta e fala no singular quando é um', () => {
     expect(staleNotice(1).title).toBe('1 post espera aprovação há mais de 3 dias');
-    expect(staleNotice(2)).toMatchObject({ title: '2 posts esperam aprovação há mais de 3 dias', link: '/inbox', audience: 'team' });
+    expect(staleNotice(2)).toMatchObject({ title: '2 posts esperam aprovação há mais de 3 dias', link: '/aprovar', audience: 'team' });
     expect(archiveNotice(3).title).toBe('3 posts em Aprovar há mais de 14 dias');
     expect(archiveNotice(1).body).toMatch(/não conta como rejeição/);
   });

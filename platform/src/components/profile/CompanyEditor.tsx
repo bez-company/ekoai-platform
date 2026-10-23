@@ -90,7 +90,7 @@ export default function CompanyEditor({ initial, canEdit }: { initial: CompanyPr
       return;
     }
     if (result.unauthorized) {
-      router.push('/login');
+      router.push('/entrar');
       return;
     }
     setErrors(result.fields);

@@ -121,7 +121,7 @@ describe('primeira rodada', () => {
       expect(await account(k)).toMatchObject({ status: 'reauth_required', status_reason: reason });
       const n = await notices(k);
       expect(n).toHaveLength(1);
-      expect(n[0]).toMatchObject({ level: 'warning', audience: 'admin', title: 'Reconecte o Instagram', link: '/settings/channels' });
+      expect(n[0]).toMatchObject({ level: 'warning', audience: 'admin', title: 'Reconecte o Instagram', link: '/configuracoes/canais' });
       expect(n[0].body).toContain(`@conta_${k}`);
       const audit = await one("select actor_user_id, actor_kind, target_id, metadata from audit_events where tenant_id = $1 and action = 'social_account.reauth_required'", [ids[k].tenant]);
       expect(audit).toMatchObject({ actor_user_id: null, actor_kind: 'system', target_id: ids[k].id, metadata: { channel: 'instagram', reason } });

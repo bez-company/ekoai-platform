@@ -17,8 +17,8 @@ test.describe('sem sessão', () => {
       expect(res.status(), path).toBe(401);
       expect(await res.json()).toEqual({ error: 'Não autorizado' });
     }
-    await page.goto(`/inbox/plat-${UNKNOWN_ID}`);
-    await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Finbox%2Fplat-${UNKNOWN_ID}$`));
+    await page.goto(`/aprovar/plat-${UNKNOWN_ID}`);
+    await expect(page).toHaveURL(new RegExp(`/entrar\\?next=%2Faprovar%2Fplat-${UNKNOWN_ID}$`));
   });
 
   test('cookie de sessão adulterado não vale', async ({ page, context }) => {
@@ -33,7 +33,7 @@ test.describe('sem sessão', () => {
 
     expect((await page.request.get('/api/posts/' + UNKNOWN_ID, { maxRedirects: 0 })).status()).toBe(401);
     await page.goto('/');
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/entrar/);
   });
 });
 
@@ -49,7 +49,7 @@ test.describe.serial('com sessão', () => {
 
     expect((await page.goto('/nao-existe'))?.status()).toBe(404);
     await expect(page.getByText('Página ou pendência não encontrada.')).toBeVisible();
-    expect((await page.goto(`/inbox/plat-${UNKNOWN_ID}`))?.status()).toBe(404);
+    expect((await page.goto(`/aprovar/plat-${UNKNOWN_ID}`))?.status()).toBe(404);
 
     const post = await page.request.get(`/api/posts/${UNKNOWN_ID}`);
     expect(post.status()).toBe(404);
@@ -68,7 +68,7 @@ test.describe.serial('com sessão', () => {
   // cartão de erro com status 200 e uma linha de erro no log. Quando for corrigido, tire o `fixme`.
   test.fixme('pedido de post que não existe responde 404', async ({ page }) => {
     await login(page, 'admin');
-    expect((await page.goto(`/create/${UNKNOWN_ID}`))?.status()).toBe(404);
+    expect((await page.goto(`/criar/${UNKNOWN_ID}`))?.status()).toBe(404);
   });
 
   test('o limite de taxa responde 429 com o tempo de espera, e conta por IP', async ({ page }) => {
@@ -92,7 +92,7 @@ test.describe.serial('com sessão', () => {
     await login(page, 'admin');
     await failFake('aiplatform.googleapis.com', 400, 1);
 
-    await page.goto('/create');
+    await page.goto('/criar');
     await page.getByRole('textbox', { name: 'Descreva o que você quer no post' }).fill('bolo de cenoura da semana');
     await page.getByRole('button', { name: 'Criar post', exact: true }).click();
 

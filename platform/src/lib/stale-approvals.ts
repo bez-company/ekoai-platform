@@ -36,7 +36,7 @@ export function staleNotice(n: number) {
     level: 'warning' as const,
     title: `${posts(n)} ${n === 1 ? 'espera' : 'esperam'} aprovação há mais de ${STALE_DAYS} dias`,
     body: 'Aprovado, cada post entra no próximo horário da agenda.',
-    link: '/inbox',
+    link: '/aprovar',
     audience: 'team' as const,
   };
 }
@@ -47,7 +47,7 @@ export function archiveNotice(n: number) {
     level: 'info' as const,
     title: `${posts(n)} em Aprovar há mais de ${ARCHIVE_DAYS} dias`,
     body: 'Aprove ou arquive para tirar de Aprovar. Arquivar não conta como rejeição e dá para desfazer.',
-    link: '/inbox',
+    link: '/aprovar',
     audience: 'team' as const,
   };
 }

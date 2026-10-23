@@ -132,7 +132,7 @@ export async function createAccount(input: { userId: string; name: string; kind:
           metadata: { kind: input.kind },
         });
         await tx.query(
-          "insert into notifications (tenant_id, kind, level, title, body, link, audience) values ($1, 'account.created', 'info', 'Conta criada', 'A publicação começa pausada até você revisar os horários.', '/settings', 'admin')",
+          "insert into notifications (tenant_id, kind, level, title, body, link, audience) values ($1, 'account.created', 'info', 'Conta criada', 'A publicação começa pausada até você revisar os horários.', '/configuracoes', 'admin')",
           [id],
         );
       });

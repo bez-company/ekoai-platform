@@ -81,7 +81,7 @@ export default function CreatePostForm({
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
-      router.push(`/create/${j.id}`);
+      router.push(`/criar/${j.id}`);
       return;
     }
     if (j.field === 'idea') setFieldError(j.error);
@@ -211,7 +211,7 @@ export default function CreatePostForm({
         <p className="text-xs text-muted">
           Usa o perfil da {accountName}: voz, cores, logo e fatos.{' '}
           {canEditProfile ? (
-            <Link href="/settings/company" className="font-semibold text-accent-text hover:underline">
+            <Link href="/configuracoes/empresa" className="font-semibold text-accent-text hover:underline">
               Editar o perfil
             </Link>
           ) : null}

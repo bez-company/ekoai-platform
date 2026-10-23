@@ -92,7 +92,7 @@ describe('jobs da raiz', () => {
   });
 
   it('aviso do job grava na conta do TENANT_ID', async () => {
-    expect(await notify({ kind: 'publish.ok', title: 'ok', link: '/history' })).toEqual({ stored: true });
+    expect(await notify({ kind: 'publish.ok', title: 'ok', link: '/historico' })).toEqual({ stored: true });
     const { rows } = await admin.query('select count(*)::int n from notifications where tenant_id = $1', [JOB_TENANT]);
     expect(rows[0].n).toBe(1);
   });
@@ -133,7 +133,7 @@ describe('plataforma', () => {
 
   it('aviso da plataforma e export de todas as tabelas do tenant', async () => {
     const job = tenantDb(JOB_TENANT);
-    await platformNotifications.notify(job, { kind: 'publish.ok', level: 'info', title: 'Publicado', link: '/history' });
+    await platformNotifications.notify(job, { kind: 'publish.ok', level: 'info', title: 'Publicado', link: '/historico' });
     const dump = await exportTenant(job);
     expect(dump.tenant).toBe(JOB_TENANT);
     expect(dump.tables.notifications.length).toBeGreaterThan(0);

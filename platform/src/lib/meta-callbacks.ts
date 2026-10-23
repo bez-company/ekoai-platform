@@ -29,7 +29,7 @@ async function afterRevoke(accounts: RevokedAccount[], reason: Reason): Promise<
       level: 'warning',
       title: 'Instagram desconectado',
       body: `${who} removeu o acesso da Ekoai pelo Instagram. Os posts aprovados esperam até alguém conectar de novo.`,
-      link: '/settings/channels',
+      link: '/configuracoes/canais',
     });
     try {
       await auditTenant(t, { actorUserId: null, actorKind: 'system', action: 'social_account.revoked_by_meta', targetType: 'social_account', targetId: a.id, metadata: { channel: 'instagram', reason } });

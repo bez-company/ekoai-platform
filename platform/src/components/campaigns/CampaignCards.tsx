@@ -34,7 +34,7 @@ export function CampaignProgressCard({ campaign, progress }: { campaign: Campaig
           </div>
         ))}
       </dl>
-      <Link href={`/campaigns/${campaign.id}`} className="link mt-1 inline-block text-sm">
+      <Link href={`/campanhas/${campaign.id}`} className="link mt-1 inline-block text-sm">
         Ver a campanha
       </Link>
     </section>
@@ -49,7 +49,7 @@ export function CampaignInvite({ canManage }: { canManage: boolean }) {
         {canManage ? 'Crie uma campanha e as sugestões da semana passam a servir a ela.' : 'Quando quem administra a conta criar uma campanha, ela orienta as sugestões.'}
       </p>
       {canManage && (
-        <Link href="/campaigns/new" className="btn-primary mt-3">
+        <Link href="/campanhas/nova" className="btn-primary mt-3">
           Criar campanha
         </Link>
       )}
@@ -69,7 +69,7 @@ export function CampaignStrip({ campaign, progress }: { campaign: Campaign; prog
             <strong>{campaign.name}</strong> <span className="text-sm text-muted">· {daysLeftLabel(progress.daysLeft).toLowerCase()} · {cadenceLabel(progress)} esta semana</span>
           </p>
         </div>
-        <Link href={`/campaigns/${campaign.id}`} className="link text-sm">
+        <Link href={`/campanhas/${campaign.id}`} className="link text-sm">
           Ver a campanha
         </Link>
       </div>

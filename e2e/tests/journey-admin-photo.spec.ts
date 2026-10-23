@@ -24,7 +24,7 @@ test.describe.serial('administrador: foto sem IA até a publicação', () => {
     await test.step('conta pronta para publicar', () => readyToPublish(page));
 
     await test.step('sobe a foto e a Ekoai a descreve olhando a imagem', async () => {
-      await page.goto('/media');
+      await page.goto('/midia');
       await page.locator('input[type=file]').first().setInputFiles({ name: 'bolo.png', mimeType: 'image/png', buffer: testPhoto() });
       await expect(page.getByText(/Descrita: "Bolo de cenoura/)).toBeVisible();
       await expect(page.getByRole('button', { name: 'Todas (1)' })).toBeVisible();
@@ -39,7 +39,7 @@ test.describe.serial('administrador: foto sem IA até a publicação', () => {
 
   test('escolhe a foto, corta, aceita a legenda da Ekoai, ajusta e agenda', async ({ page }) => {
     await login(page, 'admin');
-    await page.goto('/photo');
+    await page.goto('/foto');
 
     await test.step('escolhe do banco e corta em quadrado', async () => {
       await page.getByRole('option', { name: /Bolo de cenoura/ }).getByRole('button').click();
@@ -88,9 +88,9 @@ test.describe.serial('administrador: foto sem IA até a publicação', () => {
     });
 
     await test.step('histórico e banco de imagens refletem a publicação', async () => {
-      await page.goto('/history');
+      await page.goto('/historico');
       await expect(page.getByText('1 post publicado')).toBeVisible();
-      await page.goto('/media');
+      await page.goto('/midia');
       await expect(page.getByRole('button', { name: 'Usadas (1)' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Não usadas (0)' })).toBeVisible();
     });

@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const t = await requirePermission('channels.manage');
     const origin = appOrigin(req);
     const app = instagramApp();
-    if (!app) return NextResponse.redirect(new URL('/settings/channels?ig=unavailable', origin));
+    if (!app) return NextResponse.redirect(new URL('/configuracoes/canais?ig=unavailable', origin));
 
     const state = createState({ tenantId: t.tenantId, secret: app.appSecret });
     return NextResponse.redirect(buildAuthorizeUrl({ appId: app.appId, redirectUri: callbackUrl(origin), state }));

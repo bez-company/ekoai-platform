@@ -18,7 +18,7 @@ export default function PlanBanner({ kind, canRetry, withCampaign }: { kind: 'fa
     setError('');
     try {
       const res = await fetch('/api/suggestions/plan', { method: 'POST' });
-      if (res.status === 401) return router.push('/login');
+      if (res.status === 401) return router.push('/entrar');
       const j = await res.json().catch(() => ({}));
       if (!res.ok) return setError(j.error || 'Não foi possível montar as sugestões agora. Tente de novo em instantes.');
       router.refresh();

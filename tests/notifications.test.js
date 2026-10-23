@@ -20,10 +20,10 @@ beforeEach(() => {
 
 describe('avisos dos jobs (src/utils/notifications.js)', () => {
   it('grava na tabela com o tenant carimbado', async () => {
-    const out = await notify({ kind: 'publish.ok', title: 'Publicado no Instagram', link: '/history' }, { tenantId: 'acme' });
+    const out = await notify({ kind: 'publish.ok', title: 'Publicado no Instagram', link: '/historico' }, { tenantId: 'acme' });
     expect(out.stored).toBe(true);
     expect(insert).toHaveBeenCalledWith('notifications', {
-      tenant_id: 'acme', kind: 'publish.ok', level: 'info', title: 'Publicado no Instagram', body: null, link: '/history',
+      tenant_id: 'acme', kind: 'publish.ok', level: 'info', title: 'Publicado no Instagram', body: null, link: '/historico',
     });
   });
 

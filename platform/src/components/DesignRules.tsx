@@ -55,7 +55,7 @@ export default function DesignRules({ rules, canManage }: { rules: RuleView[]; c
           Quando você fizer o mesmo ajuste em 3 posts (por exemplo, mover o logo para o mesmo canto), ela propõe uma regra aqui. Você decide se vale para os próximos posts.
         </p>
         <div>
-          <Link href="/inbox" className="btn-ghost">
+          <Link href="/aprovar" className="btn-ghost">
             Ver os posts para aprovar
           </Link>
         </div>

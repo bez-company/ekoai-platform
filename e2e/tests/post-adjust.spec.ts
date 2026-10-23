@@ -12,14 +12,14 @@ import { login } from '../support/session';
 type Post = { briefId: string; inbox: string };
 
 async function createPost(page: Page, idea: string): Promise<Post> {
-  await page.goto('/create');
+  await page.goto('/criar');
   await page.getByRole('textbox', { name: 'Descreva o que você quer no post' }).fill(idea);
   await page.getByRole('button', { name: 'Criar post', exact: true }).click();
-  await expect(page).toHaveURL(/\/create\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/criar\/[0-9a-f-]{36}$/);
   const briefId = page.url().split('/').pop()!;
   await expect(page.getByText('O post está pronto.')).toBeVisible({ timeout: 90_000 });
   await page.getByRole('link', { name: 'Revisar o post' }).click();
-  await expect(page).toHaveURL(/\/inbox\/plat-/);
+  await expect(page).toHaveURL(/\/aprovar\/plat-/);
   return { briefId, inbox: new URL(page.url()).pathname };
 }
 
@@ -127,7 +127,7 @@ test.describe.serial('ajuste rápido do post, versões e regra de marca', () => 
     await page.getByRole('button', { name: 'Aceitar regra' }).click();
     await expect(page.getByText('Regra ativa: Logo no canto inferior direito.')).toBeVisible();
 
-    await page.goto('/learning?tab=design');
+    await page.goto('/aprendizado?tab=design');
     await expect(page.getByRole('link', { name: 'Design do post' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByText('Logo no canto inferior direito', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: /Desligar a regra: Logo no canto inferior direito/ }).click();
@@ -148,7 +148,7 @@ test.describe.serial('ajuste rápido do post, versões e regra de marca', () => 
 
   test('o criador lê as regras do design, mas não decide', async ({ page }) => {
     await login(page, 'creator');
-    await page.goto('/learning?tab=design');
+    await page.goto('/aprendizado?tab=design');
     await expect(page.getByText('Só administradores aceitam, desligam e desfazem regras do design.')).toBeVisible();
     await expect(page.getByRole('button', { name: /Desligar a regra/ })).toHaveCount(0);
     const accept = await page.request.post('/api/design-rules/00000000-0000-4000-8000-000000000000/accept');

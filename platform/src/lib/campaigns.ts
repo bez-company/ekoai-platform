@@ -223,7 +223,7 @@ export async function endExpiredCampaigns(now: Date = new Date()): Promise<Ended
       if (!res.data) continue; // outra rodada encerrou primeiro
       await auditTenant(t, { actorUserId: null, actorKind: 'system', action: 'campaign.ended', targetType: 'campaign', targetId: String(row.id), metadata: { from: 'expired', to: 'ended' } });
       const progress = await campaignProgress(t, String(row.id), now);
-      await notify(t, { kind: 'campaign.ended', title: `Campanha encerrada: ${String(row.name).slice(0, 80)}`, body: endedNoticeBody(progress), link: '/campaigns', audience: 'admin' });
+      await notify(t, { kind: 'campaign.ended', title: `Campanha encerrada: ${String(row.name).slice(0, 80)}`, body: endedNoticeBody(progress), link: '/campanhas', audience: 'admin' });
       summary.ended += 1;
     } catch (e) {
       summary.failed += 1;

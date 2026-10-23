@@ -59,7 +59,7 @@ describe('aviso de vencimento dos fatos', () => {
       ['facts.soon', 'admin', '2 fatos da empresa vencem em 7 dias'],
     ]);
     expect(a[1].body).toBe('Oferta e preço, Prazo e horário. Atualize a validade para os posts continuarem usando.');
-    expect(a.every((n) => n.link === '/settings/facts')).toBe(true);
+    expect(a.every((n) => n.link === '/configuracoes/fatos')).toBe(true);
     expect(JSON.stringify(a)).not.toContain(SECRET);
     expect((await notices(B)).map((n) => n.kind)).toEqual(['facts.soon']);
     expect(await noticeOf(A, `${SECRET} 1`)).toBe('soon');

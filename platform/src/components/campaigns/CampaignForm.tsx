@@ -71,7 +71,7 @@ export default function CampaignForm({ initial, profilePosts }: { initial: FormI
       id = String(out.campaign.id);
       setSavedId(id);
       if (mode === 'confirm') await request(`/api/campaigns/${id}/confirm`, 'POST');
-      router.push(`/campaigns/${id}`);
+      router.push(`/campanhas/${id}`);
       router.refresh();
     } catch (e) {
       const x = e as Error & { field?: string; status?: number };
@@ -92,7 +92,7 @@ export default function CampaignForm({ initial, profilePosts }: { initial: FormI
   ) : conflict ? (
     <div role="alert" className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
       <strong>{conflict}</strong> A campanha ficou salva como rascunho.{' '}
-      <Link href="/campaigns" className="link">
+      <Link href="/campanhas" className="link">
         Ver as campanhas
       </Link>
     </div>
@@ -218,7 +218,7 @@ export default function CampaignForm({ initial, profilePosts }: { initial: FormI
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Link href={savedId ? `/campaigns/${savedId}` : '/campaigns'} className="btn-ghost">
+        <Link href={savedId ? `/campanhas/${savedId}` : '/campanhas'} className="btn-ghost">
           Cancelar
         </Link>
         {editingLive ? (

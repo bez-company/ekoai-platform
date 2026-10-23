@@ -70,7 +70,7 @@ export default function DataPrivacy({ accountName, kind, email, config, mfaRequi
         return;
       }
       await signOut(auth).catch(() => undefined);
-      router.push('/login');
+      router.push('/entrar');
       router.refresh();
     } catch (e) {
       const c = errorCode(e);

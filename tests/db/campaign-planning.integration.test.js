@@ -334,7 +334,7 @@ describe('encerrar campanha vencida', () => {
     expect(status).toEqual({ 'Semana das Crianças': 'ended', 'Campanha pausada': 'ended', 'Ainda vale': 'paused' });
     const notes = await rows("select title, body, audience, link from notifications where tenant_id = $1 and kind = 'campaign.ended' order by title", [E]);
     expect(notes.map((n) => n.title)).toEqual(['Campanha encerrada: Campanha pausada', 'Campanha encerrada: Semana das Crianças']);
-    expect(notes.every((n) => n.audience === 'admin' && n.link === '/campaigns')).toBe(true);
+    expect(notes.every((n) => n.audience === 'admin' && n.link === '/campanhas')).toBe(true);
     expect(notes[1].body).toBe('0 posts publicados. O coordenador voltou à rotação.');
     expect(JSON.stringify(notes)).not.toMatch(/venda|conversão|retorno/i);
     expect(await campaigns.endExpiredCampaigns(now)).toEqual({ ended: 0, failed: 0 });

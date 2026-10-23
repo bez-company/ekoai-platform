@@ -322,13 +322,13 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     if (pending.error) throw new Error(`pendências: ${pending.error.message}`);
 
     await setBrief(t, brief.id, { status: 'ready', error: null });
-    await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/inbox/${encodeURIComponent(pendingId)}`, audience: 'team' });
+    await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });
     return { status: 'ready', briefId, pendingId, ...(ruled?.applied.length ? { rulesApplied: ruled.applied.length } : {}) };
   } catch (e) {
     const message = (e instanceof Error ? e.message : String(e)).slice(0, 500);
     log('error', 'generation', 'geração falhou', { briefId, error: message });
     await setBrief(t, brief.id, { status: 'failed', error: message }).catch(() => undefined);
-    await notify(t, { kind: 'post.failed', level: 'error', title: 'Não deu para gerar o post', body: message.slice(0, 160), link: `/inbox`, audience: 'team' }).catch(() => undefined);
+    await notify(t, { kind: 'post.failed', level: 'error', title: 'Não deu para gerar o post', body: message.slice(0, 160), link: `/aprovar`, audience: 'team' }).catch(() => undefined);
     return { status: 'failed', briefId, error: message };
   }
 }

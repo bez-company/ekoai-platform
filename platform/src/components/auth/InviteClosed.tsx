@@ -16,7 +16,7 @@ export default function InviteClosed({ state, accountName, inviterName }: { stat
   return (
     <ViewShell title={c.title} lead={c.text}>
       {c.action && (
-        <Link href="/login" className="btn-primary w-full">
+        <Link href="/entrar" className="btn-primary w-full">
           Entrar
         </Link>
       )}

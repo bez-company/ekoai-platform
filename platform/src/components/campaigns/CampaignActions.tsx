@@ -50,7 +50,7 @@ export default function CampaignActions({ id, status }: { id: string; status: Ca
       <div className="flex flex-wrap items-center gap-2">
         {status === 'draft' && (
           <>
-            <Link href={`/campaigns/${id}/edit`} className="btn-ghost">
+            <Link href={`/campanhas/${id}/editar`} className="btn-ghost">
               Editar
             </Link>
             {button('confirm', 'Confirmar campanha', 'btn-primary')}
@@ -58,7 +58,7 @@ export default function CampaignActions({ id, status }: { id: string; status: Ca
         )}
         {status === 'active' && (
           <>
-            <Link href={`/campaigns/${id}/edit`} className="btn-ghost">
+            <Link href={`/campanhas/${id}/editar`} className="btn-ghost">
               Editar
             </Link>
             {button('pause', 'Pausar', 'btn-ghost')}
@@ -72,7 +72,7 @@ export default function CampaignActions({ id, status }: { id: string; status: Ca
           </>
         )}
         {(status === 'ended' || status === 'archived') && (
-          <Link href={`/campaigns/new?from=${id}`} className="btn-ghost">
+          <Link href={`/campanhas/nova?from=${id}`} className="btn-ghost">
             Duplicar
           </Link>
         )}

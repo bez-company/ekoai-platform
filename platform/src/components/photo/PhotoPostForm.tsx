@@ -149,7 +149,7 @@ export default function PhotoPostForm({
         return;
       }
       if (j.status === 'pending') {
-        router.push(`/inbox/${encodeURIComponent(j.pendingId)}`);
+        router.push(`/aprovar/${encodeURIComponent(j.pendingId)}`);
         return;
       }
       if (j.status === 'failed') {
@@ -184,7 +184,7 @@ export default function PhotoPostForm({
               : 'A agenda não tem horário livre. A foto entra no primeiro horário que você criar.'}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href={done.status === 'published' ? '/history' : '/calendar'} className="btn-primary">
+          <Link href={done.status === 'published' ? '/historico' : '/agenda'} className="btn-primary">
             {done.status === 'published' ? 'Ver em Publicados' : 'Ver na Agenda'}
           </Link>
           <button
@@ -350,7 +350,7 @@ export default function PhotoPostForm({
                 <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm" role="alert">
                   {error}{' '}
                   {peopleError && (
-                    <Link href="/media" className="link">
+                    <Link href="/midia" className="link">
                       Autorizar no banco de imagens
                     </Link>
                   )}
