@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { gunzipSync } from 'node:zlib';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { track, resetAnalyticsForTests, sanitizeProps, RESERVED_EVENTS } from '../platform/src/lib/analytics.ts';
+import { track, resetAnalyticsForTests, sanitizeProps } from '../platform/src/lib/analytics.ts';
 import { costByStep } from '../platform/src/lib/product-events.ts';
 
 afterEach(() => {
@@ -25,7 +25,7 @@ describe('analytics da plataforma', () => {
     process.env.POSTHOG_KEY = 'phc_test';
     process.env.SENTRY_ENVIRONMENT = 'production';
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"status":1}', { status: 200 }));
-    await track('acme', 'post_published', { channel: 'instagram' });
+    await track('acme', 'published_success', { channel: 'instagram' });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0];
     expect(String(url)).toContain('us.i.posthog.com');
@@ -33,7 +33,7 @@ describe('analytics da plataforma', () => {
     const raw = Buffer.from(await new Response(init.body).arrayBuffer());
     const body = raw[0] === 0x1f && raw[1] === 0x8b ? gunzipSync(raw).toString() : raw.toString();
     expect(body).toContain('tenant:acme');
-    expect(body).toContain('post_published');
+    expect(body).toContain('published_success');
     expect(body).toContain('instagram');
     expect(body).not.toMatch(/@/);
     delete process.env.SENTRY_ENVIRONMENT;
@@ -100,8 +100,14 @@ describe('evento sem dado pessoal (BEZ-260)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('published_success e published_failure ficam reservados até o BEZ-258', () => {
-    expect(RESERVED_EVENTS).toEqual(['published_success', 'published_failure']);
+  it('a publicação emite published_success e published_failure, com motivo em classe e nunca a mensagem', () => {
+    const publish = readFileSync('platform/src/lib/publish.ts', 'utf8');
+    expect(publish).toContain("'published_success'");
+    expect(publish).toContain("'published_failure'");
+    expect(publish).not.toMatch(/'post_published'|'post_publish_failed'/);
+    const reasons = [...publish.matchAll(/'published_failure',\s*\{[^}]*\}/g)].map((m) => m[0]);
+    expect(reasons.length).toBeGreaterThanOrEqual(3);
+    for (const call of reasons) expect(call).not.toMatch(/msg|message|detail|error:/);
   });
 });
 

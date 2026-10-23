@@ -339,7 +339,7 @@ proteção ligada.
 | O quê | Onde | Liga com |
 |---|---|---|
 | Erro do servidor | Sentry, org `bez-company`, projeto `ekoai` | segredo `sentry-dsn` (já ativo no staging) |
-| Evento de produto, por conta | PostHog, projeto Ekoai (674036), painel "Scorecard do produto (BEZ-260)" | segredo `posthog-key` (em branco = no-op) |
+| Evento de produto, por conta | PostHog, projeto Ekoai (674036), painel "Scorecard do produto (BEZ-260)" | segredo `posthog-key` (em branco = no-op; gravado no staging em 23/10/2026, produção ainda em branco) |
 | Cron do Scheduler que falhou | alerta "Cron do Scheduler falhou" (Cloud Monitoring) | `deploy_workloads = true` |
 | Job do Cloud Run que falhou | alerta "Job do Cloud Run falhou" | `deploy_workloads = true` |
 
@@ -364,11 +364,10 @@ Limites conhecidos: `latency_ms` mede o tempo do worker, não a espera na fila. 
 post. `suggestion_viewed` dispara a cada carga da lista. Engajamento do Instagram (`collect-metrics`) fica no banco;
 resultado de venda não é medido em lugar nenhum ainda.
 
-**`published_success` e `published_failure`** estão reservados em `RESERVED_EVENTS` (`platform/src/lib/analytics.ts`) e
-**não são emitidos**: dependem da PR de confiabilidade da publicação (BEZ-258, `publish.ts`). Quando ela entrar na
-staging, a mesma PR junta os dois nomes ao tipo `ProductEvent` e emite `published_success` (`channel`, `attempts`,
-`latency_ms`) e `published_failure` (`channel`, `attempts`, `reason` com a classe do erro, nunca a mensagem). Até lá valem
-`post_published` e `post_publish_failed`.
+**Publicação (BEZ-258):** `published_success` (`channel`, `attempts`, `recorded`, `latency_ms`, medido do início da
+tentativa até a rede confirmar) e `published_failure` (`channel`, `attempts`, `reason`: `not_publishable`,
+`user_error`, `attempts_exhausted`, `reconcile_exhausted` ou `stuck_for_review`, nunca a mensagem do erro). Substituem
+`post_published` e `post_publish_failed`, que nunca chegaram ao PostHog.
 
 **Teste de ponta a ponta (depois de aplicar `posthog-key`):** aprovar um post no staging e conferir no PostHog que
 `post_approved` chegou com `environment = staging`; forçar um erro e conferir o issue no Sentry (`environment = staging`).

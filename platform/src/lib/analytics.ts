@@ -21,8 +21,8 @@ export type ProductEvent =
   | 'post_approved'
   | 'post_rejected'
   | 'post_archived'
-  | 'post_published'
-  | 'post_publish_failed'
+  | 'published_success'
+  | 'published_failure'
   | 'photo_post_created'
   | 'engagement_published'
   | 'instagram_connected'
@@ -42,11 +42,9 @@ export type ProductEvent =
   | 'rework'
   | 'cost_by_step';
 
-// Reservados, NÃO emitidos ainda: dependem do trabalho de confiabilidade da publicação (BEZ-258,
-// publish.ts). Quando essa PR entrar na staging, a mesma PR junta os dois nomes ao tipo acima e emite
-// `published_success` (channel, attempts, latency_ms) e `published_failure` (channel, attempts,
-// reason: classe do erro, nunca a mensagem). Até lá `post_published` e `post_publish_failed` valem.
-export const RESERVED_EVENTS = ['published_success', 'published_failure'] as const;
+// `published_success` (channel, attempts, recorded, latency_ms) e `published_failure` (channel, attempts, reason:
+// classe do erro, nunca a mensagem) saem de publish.ts desde o BEZ-258. Substituem `post_published` e
+// `post_publish_failed`, que nunca chegaram ao PostHog (a chave só entrou no staging em 23/10/2026).
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
