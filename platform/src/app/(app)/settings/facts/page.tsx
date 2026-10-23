@@ -12,6 +12,11 @@ export default async function FactsPage() {
     const [facts, canEdit] = await Promise.all([listFacts(t), canAccess('brand.manage')]);
     return <FactsEditor initial={facts} canEdit={canEdit} />;
   } catch (e) {
-    return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/settings/facts')}</div>;
+    pageError(e, 'page/settings/facts'); // registra; a tela diz o que houve e o que fazer
+    return (
+      <div role="alert" className="card border-warning/30 bg-warning/10 text-sm text-warning">
+        Não foi possível carregar os fatos. Recarregue a página; nada foi alterado.
+      </div>
+    );
   }
 }

@@ -230,3 +230,31 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     expect(await requests.retryPostRequest(t, id).catch((e) => e.message)).toMatch(/não está com falha/);
   });
 });
+
+describe('fato que não vale (SPEC 018, ADR 0019)', () => {
+  const CAPTION = 'Bolo de pote por R$ 18 só hoje';
+
+  it('número que só existe em fato vencido não segue para Aprovar: o pedido falha com o motivo; renovado o fato, passa', async () => {
+    const t = tenantDb(A);
+    await admin.query(
+      "insert into company_facts (tenant_id, kind, text, status, verified_at, valid_until, category) values ($1, 'fact', 'Bolo de pote de ninho por R$ 18', 'confirmed', now(), '2026-01-15', 'oferta_preco')",
+      [A],
+    );
+    const stale = await brief('promoção do bolo de pote', 'informativo');
+    const model = fakeModel({ text: [{ ...INFO, caption: CAPTION }, { ...INFO, caption: CAPTION }, { ...INFO, caption: CAPTION }], image: [] });
+    const out = await generatePost(t, stale, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('failed');
+    expect(out.error).toBe('O número 18 vem de um fato vencido em 15/01: "Bolo de pote de ninho por R$ 18". Confirme ou atualize o fato para usá-lo.');
+    // a terceira volta repete o prompt da segunda: a reserva idempotente devolve a linha gravada, sem chamar o modelo
+    expect(model.calls.map((c) => c.step)).toEqual(['writer', 'writer']);
+    expect((await one('select status from briefs where id = $1', [stale])).status).toBe('failed');
+    expect((await admin.query('select id from pending_approvals where brief_id = $1', [stale])).rows).toEqual([]);
+    // o prompt nunca recebeu o fato vencido
+    expect(model.calls[0].prompt).not.toContain('Bolo de pote de ninho por R$ 18');
+
+    await admin.query("update company_facts set valid_until = '2999-01-01' where tenant_id = $1 and text like 'Bolo de pote de ninho%'", [A]);
+    const fresh = await brief('promoção do bolo de pote', 'informativo');
+    const ok = await generatePost(t, fresh, { model: fakeModel({ text: [{ ...INFO, caption: CAPTION }], image: [] }), store, fontDir: FONT_DIR });
+    expect(ok.status).toBe('ready');
+  });
+});
