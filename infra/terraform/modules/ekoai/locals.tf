@@ -115,7 +115,7 @@ locals {
   })
 
   # Modelos da geração de posts (SPEC 012, decisão 6; números da prova de conceito, BEZ-74).
-  vertex = { location = "global", text_model = "gemini-2.5-flash", image_model = var.vertex_image_model }
+  vertex = { location = "global", text_model = var.vertex_text_model, image_model = var.vertex_image_model }
 
   wake_env = {
     WAKE_ENABLED      = "true"
