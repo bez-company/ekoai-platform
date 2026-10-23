@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { track } from '@/lib/analytics';
 import { SESSION_COOKIE, USER_SESSION_TTL_S, authProvider, createUserSessionToken, sessionCookie } from '@/lib/auth';
 import { InvalidIdentityError, verifyIdToken } from '@/lib/identity';
-import { identityRefusal, isRefusal, membershipRefusal, pickTenant, type LoginRefusal } from '@/lib/login-policy';
+import { activeMemberships, identityRefusal, isRefusal, membershipRefusal, pickTenant, suspensionRefusal, type LoginRefusal } from '@/lib/login-policy';
 import { findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { parseSessionBody } from '@/lib/route-input';
 import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
@@ -31,8 +31,9 @@ export async function POST(req: Request) {
     if (early) return refuse(early);
 
     const user = await findOrLinkUser(identity);
-    const memberships = await membershipsOf(user.id);
-    const late = membershipRefusal(identity, memberships);
+    const all = await membershipsOf(user.id);
+    const memberships = activeMemberships(all);
+    const late = suspensionRefusal(all) ?? membershipRefusal(identity, memberships);
     if (late) return refuse(late);
     const picked = pickTenant(memberships, parsed.value.tenantId, user.lastTenantId);
     if (isRefusal(picked)) return refuse(picked);

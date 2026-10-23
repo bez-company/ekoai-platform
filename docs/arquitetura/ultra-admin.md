@@ -92,3 +92,28 @@ O console é tela nova: o layout nasce de protótipo no Claude Design, só deskt
 - Qual e-mail pessoal vai em `PLATFORM_ADMIN_EMAIL`. Não o da Labrynth.
 - Se um dia houver uma segunda pessoa de suporte, ela entra como papel separado ("suporte", só
   leitura e impersonação de leitura), e a tabela de uma linha continua sua.
+
+## Entregue: console mínimo (BEZ-303, 23/10/2026)
+
+Cartão: BEZ-303 (SPEC 011 R9). Protótipo v13: Contas, Detalhe da conta (com Suspender) e Criar conta, só desktop.
+
+- **Rota:** `/console`, `/console/contas/nova` e `/console/contas/<id>`, fora do menu das contas, com faixa
+  "Console interno". Não há link para ela no app: a administradora digita o endereço.
+- **Portão** (`requirePlatformAdmin`, `lib/platform-admin.ts`), em série e cada "não" responde 404 sem dizer qual
+  fechou (o motivo vai para o log, sem e-mail): login por pessoa; e-mail da sessão igual a `PLATFORM_ADMIN_EMAIL`
+  (sem a variável ninguém entra); id em `platform_admins`; com `MFA_MODE=required`, duas etapas ligadas no provedor.
+  Cada rota do console chama o portão antes de ler o corpo (teste de rota).
+- **Contas:** lista com busca (nome, identificador ou e-mail de quem é da conta) e filtro Todas, Ativas, Pausadas,
+  Suspensas. Detalhe com pessoas e convites, uso no mês (vagas contam convites pendentes, como o gatilho do banco),
+  redes e avisos recentes.
+- **Criar conta:** `POST /api/console/accounts` cria a conta (pausada, plano do tipo) e o convite de administrador
+  na mesma transação, com auditoria. Sem provedor de e-mail, a tela mostra o link do convite uma vez, para copiar.
+- **Suspender** (`POST .../suspend`, motivo de 5 a 500 caracteres) e **reativar** (`POST .../reactivate`):
+  - suspensa: ninguém da conta entra (`roleIn` devolve nada, o login responde `account_suspended`, a conta some do
+    seletor), a publicação fica pausada e também é barrada por `app.due_scheduled_posts`, e a fila de geração a ignora;
+  - reativar devolve o acesso e **mantém a publicação pausada**: quem administra a conta confere os horários e retoma;
+    ela recebe um aviso "Conta reativada";
+  - toda ação grava `audit_events` com `actor_kind = platform_admin` (o motivo vai no metadado).
+- **Fora desta entrega:** e-mail de aviso por tentativa negada e aviso de suspensão para a conta (dependem do provedor
+  de e-mail); "ver como a conta" e as demais seções; exportar dados da conta pelo console; IAP (Google Cloud);
+  `PLATFORM_ADMIN_EMAIL` em produção (BEZ-43).

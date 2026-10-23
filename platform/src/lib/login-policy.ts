@@ -18,7 +18,8 @@ export function mfaMode(env: Record<string, string | undefined> = process.env): 
 
 export type LoginRefusal = { status: 401 | 403; code: string; error: string };
 
-export type Membership = { tenantId: string; role: Role; createdAt: string };
+// `suspended`: a conta foi suspensa no console (BEZ-303). Quem só tem contas assim não entra.
+export type Membership = { tenantId: string; role: Role; createdAt: string; suspended?: boolean };
 
 const REFUSALS = {
   stale: { status: 401, code: 'login_stale', error: 'O login expirou antes de terminar. Entre de novo.' },
@@ -26,6 +27,7 @@ const REFUSALS = {
   unverified: { status: 403, code: 'email_not_verified', error: 'Confirme seu e-mail pelo link que enviamos e entre de novo.' },
   noAccess: { status: 403, code: 'no_access', error: 'Seu acesso ainda não foi liberado. Peça um convite ao administrador da conta.' },
   mfa: { status: 403, code: 'mfa_required', error: 'Administradores entram com verificação em duas etapas. Ative o app autenticador e entre de novo.' },
+  suspended: { status: 403, code: 'account_suspended', error: 'Esta conta está suspensa. Fale com o suporte da Ekoai para reativar.' },
   notMember: { status: 403, code: 'not_member', error: 'Você não faz parte dessa conta. Escolha outra ou peça um convite.' },
 } satisfies Record<string, LoginRefusal>;
 
@@ -43,6 +45,14 @@ export function membershipRefusal(id: Identity, memberships: Membership[], mode:
   if (mode === 'required' && memberships.some((m) => m.role === 'admin') && !id.secondFactor) return REFUSALS.mfa;
   return null;
 }
+
+// Todas as contas da pessoa estão suspensas: a mensagem diz isso em vez de "sem acesso".
+export function suspensionRefusal(memberships: Membership[]): LoginRefusal | null {
+  return memberships.length > 0 && memberships.every((m) => m.suspended) ? REFUSALS.suspended : null;
+}
+
+// Contas em que a pessoa pode entrar: as suspensas ficam de fora.
+export const activeMemberships = (memberships: Membership[]): Membership[] => memberships.filter((m) => !m.suspended);
 
 // Conta pedida, senão a última usada, senão a mais antiga. Pedida e não membro = recusa.
 export function pickTenant(
