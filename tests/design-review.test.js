@@ -65,6 +65,22 @@ describe('revisor de texto', () => {
   });
 });
 
+describe('revisor de texto: garantia', () => {
+  const rules = (caption, imageTexts = []) => reviewText({ ...base, imageTexts, caption }).filter((i) => i.detail === 'garantia').map((i) => i.detail);
+
+  it('promessa de resultado continua barrada', () => {
+    for (const frase of ['Garantimos a cura do seu desânimo', 'Satisfação garantida', 'Resultado garantido', 'Com garantia de sucesso', 'Garanto o retorno do investimento', 'Você garante resultado em 7 dias']) {
+      expect(rules(frase), frase).toEqual(['garantia']);
+    }
+  });
+
+  it('o verbo em condição comercial passa', () => {
+    for (const frase of ['Nesta semana você garante 30% de desconto', 'Garanta o seu bolo de chocolate', 'Encomende com 3 dias para garantir o horário', 'Ele garante o frescor do dia']) {
+      expect(rules(frase), frase).toEqual([]);
+    }
+  });
+});
+
 describe('revisor de layout', () => {
   const box = (over = {}) => ({ id: 'title', x: 64, y: 100, w: 600, h: 120, size: 80, color: '#FFFFFF', bg: '#1F2937', bold: true, ...over });
   it('aprova caixa dentro da margem com contraste', () => {
