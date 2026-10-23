@@ -25,6 +25,11 @@ const DEADLINES: RegExp[] = [
 
 const plain = (text: string): string => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+// Promessa de resultado: a empresa que "garante" (garantimos, garantia, garantido) ou o verbo seguido de
+// resultado, cura, retorno e afins. "Você garante 30% de desconto" e "garanta o seu bolo" são condição
+// comercial e passam.
+const GUARANTEE = /garant(?:ia|id[oa]s?|imos|o|em)\b|garant(?:e|a|ir|am)\s+(?:o\s+|a\s+|os\s+|as\s+|seu\s+|sua\s+)?(?:resultados?|sucesso|cura|retorno|lucro|aprova[çc][ãa]o|vendas|seguidores|crescimento|satisfa[çc][ãa]o)/;
+
 const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22 };
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -81,7 +86,7 @@ export function reviewText(input: TextReviewInput): Issue[] {
     if (stale) issues.push({ rule: 'fact_not_valid', detail: n, message: staleMessage(n, stale), where });
     else issues.push({ rule: 'number_not_in_facts', detail: n, message: `O número ${n} não está na base de fatos da empresa.`, where });
   }
-  if (/garant(a|e|ia|ir|ido|imos)/.test(all)) issues.push({ rule: 'never_claim', detail: 'garantia', message: 'Promessa de garantia: o post não pode prometer resultado.', where: /garant/.test(image.toLowerCase()) ? 'image' : 'caption' });
+  if (GUARANTEE.test(all)) issues.push({ rule: 'never_claim', detail: 'garantia', message: 'Promessa de garantia: o post não pode prometer resultado.', where: /garant/.test(image.toLowerCase()) ? 'image' : 'caption' });
   for (const claim of input.never) {
     const c = claim.trim().toLowerCase();
     if (c && all.includes(c)) issues.push({ rule: 'never_claim', detail: c, message: `"${c}" está na lista do que a empresa nunca afirma.`, where: image.toLowerCase().includes(c) ? 'image' : 'caption' });
