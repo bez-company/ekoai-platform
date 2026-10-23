@@ -80,6 +80,11 @@ export default defineConfig({
       INSTAGRAM_APP_ID: '1234567890',
       INSTAGRAM_APP_SECRET: process.env.E2E_APP_SECRET,
       LOCAL_BLOB_DIR: BLOB_DIR,
+      // A URL pública da imagem é absoluta, como na Meta de verdade (que busca a arte por ela).
+      MEDIA_BASE_URL: `${BASE_URL}/api/media`,
+      // O modo dev recompila cada rota num módulo novo, e cada módulo abre o próprio pool: com o teto
+      // padrão (5) o Postgres do teste fica sem conexão ("too many clients").
+      DB_POOL_MAX: '2',
     },
   },
 });

@@ -2,6 +2,7 @@ import { test, expect } from '../support/test';
 import { makeScheduledPostsDue } from '../support/db';
 import { cronSecret } from '../support/env';
 import { fakeCalls, resetFakes } from '../support/fakes';
+import { connectInstagram, expectInCalendar, pickRhythm, resumePublishing, saveMinimalProfile } from '../support/flows';
 import { resetAccount } from '../support/seed';
 import { login } from '../support/session';
 
@@ -20,34 +21,10 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
 
   test('perfil, Instagram, publicação e horários', async ({ page }) => {
     await login(page, 'admin');
-    const api = await page.request.put('/api/profile', { data: { section: 'about', niche: 'Alimentação', offering: 'Bolos sob encomenda para festas', audience: 'Famílias da região' } });
-    expect(api.ok()).toBe(true);
-
-    await test.step('conecta o Instagram (Meta simulada)', async () => {
-      await page.goto('/settings/channels');
-      await expect(page.getByText('Nenhum Instagram conectado')).toBeVisible();
-      await page.getByRole('link', { name: 'Conectar Instagram' }).click();
-      await expect(page).toHaveURL(/\/settings\/channels\?ig=connected/);
-      await expect(page.getByText('Instagram conectado. Os posts aprovados já podem ir para ele.')).toBeVisible();
-      await expect(page.getByText('@doceponto.teste')).toBeVisible();
-      // o token só sai do app cifrado: o KMS simulado recebeu a cifra
-      expect((await fakeCalls(/cloudkms/)).some((c) => c.path.endsWith(':encrypt'))).toBe(true);
-    });
-
-    await test.step('retoma a publicação, que nasce pausada', async () => {
-      await page.goto('/settings');
-      await expect(page.getByText(/Pausada desde/)).toBeVisible();
-      await page.getByRole('button', { name: 'Retomar publicação' }).click();
-      await expect(page.getByText(/Publicando normalmente/)).toBeVisible();
-    });
-
-    await test.step('escolhe o ritmo de publicação', async () => {
-      await page.goto('/calendar');
-      await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeVisible();
-      await page.getByRole('button', { name: '5 por semana' }).click();
-      await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeHidden();
-      await expect(page.getByText('5 horários na semana')).toBeVisible();
-    });
+    await test.step('perfil mínimo', () => saveMinimalProfile(page));
+    await test.step('conecta o Instagram (Meta simulada)', () => connectInstagram(page));
+    await test.step('retoma a publicação, que nasce pausada', () => resumePublishing(page));
+    await test.step('escolhe o ritmo de publicação', () => pickRhythm(page));
   });
 
   test('pede o post, o worker gera, edita e aprova', async ({ page }) => {
@@ -86,12 +63,7 @@ test.describe.serial('administrador: da conta nova à primeira publicação (pos
       await expect(page.getByRole('button', { name: 'Remover #confeitaria' })).toBeVisible();
       await page.getByRole('button', { name: 'Aprovar e agendar' }).click();
       await expect(page).toHaveURL(/\/calendar/);
-      // Depois da última faixa da semana (sexta à noite, fim de semana) o próximo horário livre cai na semana seguinte.
-      const scheduled = page.getByRole('button', { name: /Agendado\. Legenda editada no teste/ });
-      await expect(async () => {
-        if (!(await scheduled.isVisible())) await page.getByRole('link', { name: 'Próxima semana' }).click();
-        await expect(scheduled).toBeVisible({ timeout: 3_000 });
-      }).toPass({ timeout: 20_000 });
+      await expectInCalendar(page, /Agendado\. Legenda editada no teste/);
     });
   });
 

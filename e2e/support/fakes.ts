@@ -21,6 +21,9 @@ export const FAKE_POST = {
   hashtags: ['bolo', 'marilia'],
 };
 
+export const FAKE_PHOTO_DESCRIPTION = { description: 'Bolo de cenoura com cobertura de chocolate sobre uma mesa de madeira', tags: ['produto'], has_people: false };
+export const FAKE_PHOTO_CAPTION = { caption: 'Cenoura com chocolate, do forno para a sua mesa. Encomende pelo WhatsApp.', hashtags: ['bolodecenoura', 'confeitaria'] };
+
 const FAKE_PROFILE = { user_id: '17841400000000001', username: 'doceponto.teste', account_type: 'BUSINESS' };
 
 type Failure = { host: string; status: number; remaining: number };
@@ -57,8 +60,11 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
         modelVersion: 'fake-image-1',
       });
     }
+    // O app diz a etapa nos labels da chamada: cada uma espera um JSON de formato próprio.
+    const step = body?.labels?.step;
+    const reply = step === 'media_describe' ? FAKE_PHOTO_DESCRIPTION : step === 'photo_caption' || step === 'photo_rewrite' ? FAKE_PHOTO_CAPTION : FAKE_POST;
     json(res, 200, {
-      candidates: [{ content: { parts: [{ text: JSON.stringify(FAKE_POST) }] }, finishReason: 'STOP' }],
+      candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 },
       modelVersion: 'fake-text-1',
     });
