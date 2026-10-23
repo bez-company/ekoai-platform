@@ -8,7 +8,8 @@
 --    não é criado e a migration avisa: o servidor recusa a segunda de qualquer jeito.
 -- 2. content_suggestions liga a campanha (FK composta com o tenant) e guarda a regra que escolheu o horário.
 -- 3. planning_runs: uma linha por conta e dia, com chamadas ao modelo, custo e fallback. É o registro do custo
---    de planejamento e o que impede o job de gastar duas vezes no mesmo dia.
+--    de planejamento e o que impede o job de gastar duas vezes no mesmo dia: `round_at` marca quando a rodada
+--    diária do job passou por aquela conta (o "Trocar" manual também grava a linha, mas não marca a rodada).
 --
 -- Aditivo e reaplicável (o CI roda duas vezes). Nada é apagado.
 
@@ -111,6 +112,7 @@ create table if not exists planning_runs (
   fallback    boolean not null default false,
   status      text not null default 'done' check (status in ('done', 'failed')),
   error_code  text check (error_code is null or length(error_code) <= 80),
+  round_at    timestamptz,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   primary key (tenant_id, ran_on)
