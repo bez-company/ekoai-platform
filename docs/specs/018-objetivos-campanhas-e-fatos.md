@@ -9,7 +9,7 @@
 - **Reaproveita:** BEZ-206 (analytics por conteúdo e horário), BEZ-207 (perfil: o que vende e para quem),
   BEZ-208 (exemplos que aprendem), BEZ-192 e BEZ-197 (kit da marca importado do site). Nada do motor da
   [SPEC 001](001-sistema-de-campanha-fase-a.md) volta: só a tabela `campaigns`, que já existe.
-- **Protótipo:** a fazer, só depois da spec aprovada e com ordem do Matheus (Claude Design)
+- **Protótipo:** v12 no mesmo artifact das fases 1 a 3 (https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz). Telas novas: Campanhas (lista, vazio, carregando, erro, nova, rascunho, ativa, pausada, encerrada), Início e Agenda com campanha, Fatos com validade e "Para revisar", Aprovar com fato vencido. Desktop e mobile. Aguarda aprovação do Matheus antes de qualquer código de tela
 
 ## Problema
 
