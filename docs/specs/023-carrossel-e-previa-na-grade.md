@@ -8,7 +8,7 @@
   [ADR 0017](../adr/0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md) (motor híbrido),
   [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md) (revisão), [ADR 0024](../adr/0024-carrossel-como-lista-de-laminas-dentro-do-design.md) (decisão desta spec)
 - **Em paralelo (conflito provável):** SPEC 020 (PRs #184 e #185) mexe em `generation.ts` e em `families.ts`
-- **Protótipo:** pendente (seção "Telas")
+- **Protótipo:** [v14 no Claude Design](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz) (grupo "Fase 6: carrossel e grade"), aguardando a aprovação do Matheus
 
 ## Problema
 
@@ -95,10 +95,10 @@
 
 ## Telas (a prototipar no Claude Design, desktop e mobile)
 
-Parte da v13 aprovada ([protótipo](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz)); o protótipo acrescenta
-uma fase 6 e republica no mesmo artifact. Estados em todas: vazio, carregando, erro e cheio.
+Parte da v13 aprovada; a v14 acrescenta a fase 6 no mesmo artifact. Telas: Aprovar carrossel (7 estados), Aprovar aba Grade (8),
+Ajuste rápido do carrossel (5), Agenda e Publicados e Criar post (2). Estados em todas: vazio, carregando, erro e cheio.
 
-- **Criar post**: campo Formato (3 opções).
+- **Criar post**: campo Imagens do post (3 opções), abaixo do objetivo.
 - **Aprovar, carrossel**: visualizador com setas e pontos, miniaturas, avisos do revisor por lâmina, botão "Trocar
   para imagem única".
 - **Aprovar, aba Grade**: 9 células em 3 colunas (o novo no topo à esquerda), chave 3:4 e 1:1, aviso de
