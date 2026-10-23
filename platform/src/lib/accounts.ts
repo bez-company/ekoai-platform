@@ -102,6 +102,12 @@ export async function markLogin(userId: string, tenantId: string): Promise<void>
   if (error) throw new Error(`marcar login: ${error.message}`);
 }
 
+// Nome de exibição da pessoa (tela Seu perfil). Vale para todas as contas dela; o e-mail não muda aqui.
+export async function renameUser(userId: string, name: string): Promise<void> {
+  const { error } = await db().from('users').update({ name }).eq('id', userId);
+  if (error) throw new Error(`renomear pessoa: ${error.message}`);
+}
+
 // "Sair de todos os dispositivos": toda sessão com a versão anterior deixa de valer.
 export async function bumpSessionVersion(user: SessionUser): Promise<void> {
   const { error } = await db()

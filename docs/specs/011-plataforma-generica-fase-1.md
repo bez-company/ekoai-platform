@@ -519,3 +519,19 @@ Cartão: BEZ-214.
   passageira não avisa, revogada fica de fora, segunda rodada sem aviso repetido, conta desconectada no
   meio não recebe token). **Não exercitado:** a renovação contra a Meta de verdade (só depois do primeiro
   token chegar a 24 horas e entrar na janela de 15 dias, ou forçando a data no banco do staging).
+
+### Seu perfil, a tela da pessoa (2026-10-23)
+
+Cartão: BEZ-304. Protótipo v13 (tela "Perfil da pessoa").
+
+- **Escopo:** é da pessoa, não da conta, e qualquer papel abre. Rota `/perfil` (404 na instalação de senha
+  única, que não tem pessoa). Entra pela pessoa no rodapé da barra lateral e por "Seu perfil" no menu "Mais".
+- **Dados:** nome editável (`PUT /api/me`, `content.view`, o id vem da sessão, 80 caracteres, parser puro em
+  `person-profile-model.ts`). O e-mail é o do login e só aparece.
+- **Duas etapas:** o estado vem do provedor (`firebase-admin getUser`). Ligar e desligar roda no navegador e
+  pede senha de novo (e o código do app para desligar), porque o Identity Platform só altera o segundo fator
+  com login recente. Com `MFA_MODE=required`, quem é administrador de alguma conta não vê "Desligar".
+- **Sessões:** "Sair de todos os dispositivos" usa o `POST /api/auth/logout-all` que já existia.
+- **Notificações:** o cartão leva à lista de avisos. A tela de preferências é o BEZ-184.
+- **Fora:** trocar senha e trocar e-mail (o protótipo os mostra; o login tem "esqueci a senha" e o e-mail
+  novo pede fluxo de confirmação próprio); lista de dispositivos (a sessão não guarda aparelho).
