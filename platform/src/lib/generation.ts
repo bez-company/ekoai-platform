@@ -18,7 +18,7 @@ import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
-import { brandFromProfile, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
+import { brandFromProfile, brandPhotoLayout, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
@@ -228,7 +228,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const spec: DesignSpec = {
       kind,
       ratio: brief.ratio,
-      layout: defaultLayout(kind, copy.texts),
+      // Foto "dentro do layout da marca" (BEZ-251): Janela ou Arco, alternando a cada outra direção.
+      layout: photo?.usage === 'layout' ? brandPhotoLayout(brief.direction) : defaultLayout(kind, copy.texts),
       texts: copy.texts,
       brand,
       logo,
