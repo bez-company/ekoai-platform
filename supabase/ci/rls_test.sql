@@ -678,6 +678,10 @@ select set_config('app.user_id', '', false);
 insert into company_facts (tenant_id, kind, text, source) values
   ('exemplo', 'fact', 'rls-fato-exemplo', 'site'),
   ('acme',    'fact', 'rls-fato-acme',    'owner');
+insert into campaigns (tenant_id, slug, name, status) values
+  ('exemplo', 'rls-camp-exemplo', 'rls-camp-exemplo', 'draft'),
+  ('acme',    'rls-camp-acme',    'rls-camp-acme',    'draft');
+insert into planning_runs (tenant_id, ran_on) values ('exemplo', '2026-10-22'), ('acme', '2026-10-22');
 insert into briefs (id, tenant_id, pillar, idea, status, source, post_kind) values
   ('30000000-0000-0000-0000-000000000001', 'exemplo', 'dica', 'rls-brief-exemplo', 'generating', 'platform', 'informativo'),
   ('30000000-0000-0000-0000-000000000002', 'acme',    'dica', 'rls-brief-acme',    'generating', 'platform', 'atmosfera');
@@ -735,6 +739,23 @@ begin
   insert into company_facts (tenant_id, kind, text) values ('exemplo', 'never', 'rls-a-nunca');
   update company_facts set active = false where text = 'rls-a-nunca';
   delete from company_facts where text = 'rls-a-nunca';
+  select count(*) into n from campaigns where slug like 'rls-camp-%';
+  if n <> 1 then raise exception 'A deveria ver 1 campanha, viu %', n; end if;
+  insert into campaigns (tenant_id, slug, name, status) values ('exemplo', 'rls-a-camp', 'rls-a-camp', 'draft');
+  update campaigns set name = 'rls-a-camp-2' where slug = 'rls-a-camp';
+  delete from campaigns where slug = 'rls-a-camp';
+  begin
+    insert into campaigns (tenant_id, slug, name, status) values ('acme', 'rls-a-invade', 'rls-a-invade', 'draft');
+    raise exception 'A gravou campanha na acme';
+  exception when insufficient_privilege then null;
+  end;
+  select count(*) into n from planning_runs;
+  if n <> 1 then raise exception 'A deveria ver 1 linha de planejamento, viu %', n; end if;
+  begin
+    insert into planning_runs (tenant_id, ran_on) values ('exemplo', '2026-10-23');
+    raise exception 'A gravou planejamento (só o servidor grava)';
+  exception when insufficient_privilege then null;
+  end;
   begin
     insert into company_facts (tenant_id, kind, text) values ('acme', 'fact', 'rls-a-invade');
     raise exception 'A gravou fato na acme';
@@ -771,6 +792,14 @@ begin
     raise exception 'creator B gravou fato';
   exception when insufficient_privilege then null;
   end;
+  select count(*) into n from campaigns where slug like 'rls-camp-%';
+  if n <> 1 then raise exception 'B deveria ver 1 campanha, viu %', n; end if;
+  begin
+    insert into campaigns (tenant_id, slug, name, status) values ('exemplo', 'rls-b-camp', 'rls-b-camp', 'draft');
+    raise exception 'creator B gravou campanha (só quem gere a marca grava)';
+  exception when insufficient_privilege then null;
+  end;
+  if exists (select 1 from planning_runs) then raise exception 'creator B leu o planejamento'; end if;
 end $$;
 
 -- V: leitor não vê os fatos (são do perfil), mas vê o design e as chamadas da conta
@@ -779,6 +808,12 @@ do $$
 declare n int;
 begin
   if exists (select 1 from company_facts) then raise exception 'viewer V leu fatos'; end if;
+  if exists (select 1 from planning_runs) then raise exception 'viewer V leu o planejamento'; end if;
+  begin
+    insert into campaigns (tenant_id, slug, name, status) values ('exemplo', 'rls-v-camp', 'rls-v-camp', 'draft');
+    raise exception 'viewer V gravou campanha';
+  exception when insufficient_privilege then null;
+  end;
   select count(*) into n from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 1 then raise exception 'V deveria ver 1 design, viu %', n; end if;
   if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'V viu design de outra conta'; end if;
