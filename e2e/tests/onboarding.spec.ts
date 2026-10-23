@@ -38,6 +38,6 @@ test.describe.serial('onboarding da conta nova', () => {
   test('o perfil gravado vale na volta: o onboarding não reabre', async ({ page }) => {
     await login(page, 'admin');
     await page.goto('/boas-vindas');
-    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page).toHaveURL((url) => url.pathname === '/inicio');
   });
 });
