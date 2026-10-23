@@ -90,7 +90,8 @@ test.describe.serial('com sessão', () => {
 
   test('a geração falha, a tela diz o que fazer e "Tentar de novo" refaz', async ({ page }) => {
     await login(page, 'admin');
-    await failFake('aiplatform.googleapis.com', 400, 1);
+    // 2 chamadas do leitor de instruções do pedido (duas tentativas) + a 1ª do redator, que é a que derruba o post
+    await failFake('aiplatform.googleapis.com', 400, 3);
 
     await page.goto('/criar');
     await page.getByRole('textbox', { name: 'Descreva o que você quer no post' }).fill('bolo de cenoura da semana');
