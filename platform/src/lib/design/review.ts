@@ -13,6 +13,18 @@ export type TextBox = { id: string; x: number; y: number; w: number; h: number; 
 // Palavras comuns que perdem o acento quando o modelo erra. Curta de propósito: pega o erro típico.
 const SEM_ACENTO = ['nao', 'voce', 'tambem', 'solucao', 'solucoes', 'ate', 'ja', 'so', 'servico', 'servicos', 'producao', 'tecnologico', 'codigo', 'saude', 'familia', 'proximo', 'proxima', 'mes', 'horario'];
 
+// Prazo e urgência que o post afirma (BEZ-299): dia da semana, "até" um mês, "só hoje", "últimas unidades",
+// "fim de semana". Só vale se a mesma expressão está no pedido, nos fatos ou na oferta da campanha.
+const DEADLINES: RegExp[] = [
+  /(?<![a-zà-ú])(?:at[ée]|nesta|desta|neste|deste|toda|todo|na|no|nas|nos|[àa]s|[àa])\s+(segunda|ter[çc]a|quarta|quinta|sexta)(?:-feira)?s?(?![a-zà-ú])/g,
+  /(?<![a-zà-ú])(s[áa]bados?|domingos?)(?![a-zà-ú])/g,
+  /(?<![a-zà-ú])(?:de|em|at[ée]|no)\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?![a-zà-ú])/g,
+  /(?<![a-zà-ú])(?:s[óo]|somente|apenas|at[ée])\s+(hoje|amanh[ãa])(?![a-zà-ú])/g,
+  /(?<![a-zà-ú])(?:[úu]ltimas?\s+(?:unidades|vagas|horas)|por tempo limitado|fim de semana|finais? de semana)(?![a-zà-ú])/g,
+];
+
+const plain = (text: string): string => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
 const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22 };
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -76,6 +88,17 @@ export function reviewText(input: TextReviewInput): Issue[] {
   }
   if (/[—–]/.test(`${image}${input.caption}`)) issues.push({ rule: 'dash', detail: '—', message: 'Travessão no texto: use vírgula, ponto ou dois-pontos.', where: /[—–]/.test(image) ? 'image' : 'caption' });
   if (EMOJI.test(image)) issues.push({ rule: 'emoji_in_image', detail: 'emoji', message: 'Emoji no texto da imagem não renderiza igual em todo lugar.', where: 'image' });
+  const source = plain(`${input.request ?? ''} ${input.facts.join(' ')} ${(input.allowed ?? []).join(' ')}`);
+  const seen = new Set<string>();
+  for (const rx of DEADLINES) {
+    for (const m of all.matchAll(rx)) {
+      const term = m[0].trim();
+      const key = plain(term);
+      if (seen.has(key) || source.includes(key) || (m[1] && source.includes(plain(m[1])))) continue;
+      seen.add(key);
+      issues.push({ rule: 'deadline_not_in_facts', detail: term, message: `O prazo "${term}" não está no pedido nem nos fatos da empresa. Tire ou use o que foi pedido.`, where: image.toLowerCase().includes(term) ? 'image' : 'caption' });
+    }
+  }
   if (input.caption.length > 2200) issues.push({ rule: 'caption_too_long', detail: String(input.caption.length), message: 'A legenda passa de 2.200 caracteres, o máximo do Instagram.', where: 'caption' });
   if (input.hashtags.length > 30) issues.push({ rule: 'too_many_hashtags', detail: String(input.hashtags.length), message: 'Mais de 30 hashtags: o Instagram não publica.', where: 'caption' });
   return issues;
@@ -121,7 +144,7 @@ export function reviewLayout(boxes: TextBox[], height: number, overflow: string[
 }
 
 // O que trava a aprovação automática (o resto é aviso que a pessoa decide).
-export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
+export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'deadline_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
 
 export function blocking(issues: Issue[]): Issue[] {
   return issues.filter((i) => BLOCKING.has(i.rule));

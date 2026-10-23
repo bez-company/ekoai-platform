@@ -65,6 +65,32 @@ describe('revisor de texto', () => {
   });
 });
 
+describe('revisor de texto: prazo', () => {
+  const request = 'Anunciar 30% de desconto no bolo de chocolate nesta semana.';
+  const deadlines = (caption, extra = {}, imageTexts = []) => reviewText({ ...base, imageTexts, caption, request, ...extra }).filter((i) => i.rule === 'deadline_not_in_facts').map((i) => i.detail);
+
+  it('prazo que não está no pedido nem nos fatos é barrado', () => {
+    expect(deadlines('Aproveite até sábado.')).toEqual(['sábado']);
+    expect(deadlines('Vale só até domingo e só hoje.')).toEqual(expect.arrayContaining(['domingo', 'só hoje']));
+    expect(deadlines('Oferta em novembro.')).toEqual(['em novembro']);
+    expect(deadlines('Últimas unidades por tempo limitado.')).toEqual(expect.arrayContaining(['últimas unidades', 'por tempo limitado']));
+    expect(deadlines('Nesta quinta-feira tem fornada.')).toEqual(['nesta quinta-feira']);
+  });
+
+  it('o que o pedido, um fato ou a oferta da campanha já dizem passa, com ou sem acento', () => {
+    expect(deadlines('Vale nesta semana, 30% de desconto.')).toEqual([]);
+    expect(deadlines('Aproveite até sabado.', { request: 'Promoção até sábado' })).toEqual([]);
+    expect(deadlines('Aberto aos domingos.', { facts: ['Abrimos aos domingos'] })).toEqual([]);
+    expect(deadlines('Caixa até o fim de semana.', { allowed: ['Caixa de panetone, só no fim de semana'] })).toEqual([]);
+  });
+
+  it('o texto da imagem também conta e o achado bloqueia', () => {
+    const issues = reviewText({ ...base, imageTexts: ['Só até sábado'], caption: '', request });
+    expect(issues.map((i) => [i.rule, i.where])).toContainEqual(['deadline_not_in_facts', 'image']);
+    expect(blocking(issues).map((i) => i.rule)).toContain('deadline_not_in_facts');
+  });
+});
+
 describe('revisor de layout', () => {
   const box = (over = {}) => ({ id: 'title', x: 64, y: 100, w: 600, h: 120, size: 80, color: '#FFFFFF', bg: '#1F2937', bold: true, ...over });
   it('aprova caixa dentro da margem com contraste', () => {
