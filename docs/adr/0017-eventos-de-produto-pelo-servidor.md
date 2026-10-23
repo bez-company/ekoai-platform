@@ -26,6 +26,11 @@ Eventos: `signed_in`, `invitation_sent`, `invitation_accepted`, `onboarding_item
 `idea_approved`, `idea_rejected`, `idea_rework_requested`, `post_approved`, `post_rejected`,
 `post_published`, `post_publish_failed`, `engagement_published`, `data_exported`, `account_deleted`.
 
+Scorecard (BEZ-260): `account_created`, `post_requested`, `post_ready`, `post_generation_failed`, `cost_by_step`,
+`rework`, `suggestion_viewed`, `suggestion_accepted`, `suggestion_replaced`, `suggestion_skipped`. Contrato por evento no
+`docs/runbook.md` (Observabilidade). `published_success` e `published_failure` ficam reservados até o BEZ-258. Toda
+propriedade passa por `sanitizeProps`: string que parece e-mail, token ou texto de post é removida antes do envio.
+
 ## Consequências
 
 - O funil do produto (ideia → aprovação → publicação) fica visível por conta, sem tela nova.

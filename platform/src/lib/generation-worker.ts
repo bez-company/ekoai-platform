@@ -8,6 +8,7 @@ import { tenantDb } from './tenant-db';
 import { generatePost, type GenerationDeps, type GenerationOutcome } from './generation';
 import { vertexClient } from './vertex';
 import { log, logError } from './log';
+import { trackGenerationOutcome } from './product-events';
 
 export const WORKER_BATCH = 3;
 export const WORKER_BUDGET_MS = 240_000; // abaixo do timeout do Cloud Run (300 s)
@@ -50,7 +51,10 @@ export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: 
       continue;
     }
     try {
-      const outcome = await generatePost(tenantDb(brief.tenant_id), brief.id, { ...deps, model });
+      const t = tenantDb(brief.tenant_id);
+      const startedBrief = (options.now ?? Date.now)();
+      const outcome = await generatePost(t, brief.id, { ...deps, model });
+      await trackGenerationOutcome(t, outcome, (options.now ?? Date.now)() - startedBrief);
       summary.outcomes.push(outcome);
       summary[outcome.status] += 1;
       log('info', 'generation-worker', 'pedido processado', { briefId: brief.id, status: outcome.status });

@@ -5,6 +5,7 @@ import { accountRefusal, adminAccountLimitRefusal, parseCreateAccount, signupMod
 import type { LoginRefusal } from '@/lib/login-policy';
 import { createAccount, findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
+import { track } from '@/lib/analytics';
 import { RULES, clientIp, trustedHopsFrom } from '@/lib/rate-limit-model';
 import { hit, tooMany } from '@/lib/rate-limit';
 
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
     const tenantId = await createAccount({ userId: user.id, name: parsed.value.name, kind: parsed.value.kind });
     const token = await createUserSessionToken({ userId: user.id, tenantId, sessionVersion: user.sessionVersion });
     await markLogin(user.id, tenantId);
+    await track(tenantId, 'account_created', { kind: parsed.value.kind });
     const res = NextResponse.json({ ok: true, tenantId, role: 'admin' }, { status: 201 });
     res.cookies.set(SESSION_COOKIE, token, { ...sessionCookie, maxAge: USER_SESSION_TTL_S });
     return res;

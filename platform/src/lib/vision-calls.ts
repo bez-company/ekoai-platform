@@ -4,6 +4,7 @@
 // Ao fim a linha guarda tokens e custo (painel de custo por conta, BEZ-91); falha libera a vaga.
 
 import type { TenantDb } from './tenant-db';
+import { track } from './analytics';
 import type { TextResult } from './vertex';
 
 export const VISION_KINDS = ['photo_caption', 'media_describe'] as const;
@@ -43,9 +44,11 @@ export async function withVisionBudget(t: TenantDb, kind: VisionKind, targetId: 
   try {
     const result = await call();
     await finishVision(t, r.id, { result });
+    await track(t.tenantId, 'cost_by_step', { step: `vision_${kind}`, calls: 1, failed_calls: 0, cost_usd: result.costUsd, duration_ms: result.durationMs, input_tokens: result.inputTokens, output_tokens: result.outputTokens });
     return result;
   } catch (e) {
     await finishVision(t, r.id, { error: e instanceof Error ? e.message : String(e) }).catch(() => undefined);
+    await track(t.tenantId, 'cost_by_step', { step: `vision_${kind}`, calls: 1, failed_calls: 1, cost_usd: 0 });
     throw e;
   }
 }
