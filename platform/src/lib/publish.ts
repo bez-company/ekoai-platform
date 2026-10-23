@@ -269,7 +269,8 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
         link: '/history',
       }
     : { kind: 'publish.ok', title: `Publicado no ${channelName(s.channel)}`, body: hook || undefined, link: '/history' });
-  await track(t.tenantId, 'post_published', { channel: s.channel, recorded: !persistError });
+  const startedMs = s.publishing_started_at ? Date.parse(s.publishing_started_at) : Number.NaN;
+  await track(t.tenantId, 'published_success', { channel: s.channel, attempts: (s.attempts ?? 0) + 1, recorded: !persistError, latency_ms: Number.isFinite(startedMs) ? Math.max(0, Date.now() - startedMs) : null });
   return { ok: true };
 }
 
@@ -328,7 +329,7 @@ async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {
           body: `${msg} (tentativa ${attempts} de ${MAX_ATTEMPTS}).`,
           link: '/calendar',
         });
-    if (failed) await track(t.tenantId, 'post_publish_failed', { channel: s.channel, attempts });
+    if (failed) await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: e instanceof NotPublishableError ? 'not_publishable' : e instanceof UserError ? 'user_error' : 'attempts_exhausted' });
     return { ok: false, error: msg };
   }
   return finalizePublished(t, s, result);
@@ -465,7 +466,7 @@ export async function reconcileOne(t: TenantDb, stale: ScheduledPost, source: 'i
         body: `${verdict.detail} Depois de ${attempts} tentativa(s), o post ficou como falhou. Agende de novo.`,
         link: '/calendar',
       });
-      await track(t.tenantId, 'post_publish_failed', { channel: s.channel, attempts });
+      await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: 'reconcile_exhausted' });
       return { action: 'failed_for_review', error: verdict.detail };
     }
     log('info', 'publish', 'post reconciliado: nada no ar, volta para a fila', { scheduled: s.id, tenant: t.tenantId, source, detail: verdict.detail });
@@ -483,7 +484,7 @@ export async function reconcileOne(t: TenantDb, stale: ScheduledPost, source: 'i
       body: verdict.detail,
       link: '/history',
     });
-    await track(t.tenantId, 'post_publish_failed', { channel: s.channel, attempts });
+    await track(t.tenantId, 'published_failure', { channel: s.channel, attempts, reason: 'stuck_for_review' });
     return { action: 'failed_for_review', error: verdict.detail };
   }
 

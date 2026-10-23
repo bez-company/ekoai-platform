@@ -16,7 +16,8 @@ quem convida a equipe.
   (`channel`, `role`, `kind`, contagens e booleanos). Nenhum e-mail, nome, id de pessoa ou texto de post.
   Sem GeoIP. Sem o adicional pago de grupos: a "pessoa" do PostHog é a conta.
 - Liga só com `POSTHOG_KEY` (segredo `posthog-key` no Secret Manager, como o `sentry-dsn`). O
-  placeholder em branco do Terraform deixa tudo em no-op; o valor real só entra em produção. Cada
+  placeholder em branco do Terraform deixa tudo em no-op. O valor real entra no staging (desde 23/10/2026, para o
+  scorecard ter dado real) e em produção na release; cada evento leva `environment` e o painel separa os dois. Cada
   evento leva `environment` (o mesmo `SENTRY_ENVIRONMENT`).
 - O envio é aguardado dentro da requisição (no Cloud Run a CPU some quando a resposta sai), com
   2 s de limite e sem nova tentativa: perder um evento é aceitável, segurar a aprovação de um post não.
@@ -24,11 +25,11 @@ quem convida a equipe.
 
 Eventos: `signed_in`, `invitation_sent`, `invitation_accepted`, `onboarding_item_updated`,
 `idea_approved`, `idea_rejected`, `idea_rework_requested`, `post_approved`, `post_rejected`,
-`post_published`, `post_publish_failed`, `engagement_published`, `data_exported`, `account_deleted`.
+`published_success`, `published_failure`, `engagement_published`, `data_exported`, `account_deleted`.
 
 Scorecard (BEZ-260): `account_created`, `post_requested`, `post_ready`, `post_generation_failed`, `cost_by_step`,
 `rework`, `suggestion_viewed`, `suggestion_accepted`, `suggestion_replaced`, `suggestion_skipped`. Contrato por evento no
-`docs/runbook.md` (Observabilidade). `published_success` e `published_failure` ficam reservados até o BEZ-258. Toda
+`docs/runbook.md` (Observabilidade). `published_success` e `published_failure` (BEZ-258) substituem `post_published` e `post_publish_failed`. Toda
 propriedade passa por `sanitizeProps`: string que parece e-mail, token ou texto de post é removida antes do envio.
 
 ## Consequências
