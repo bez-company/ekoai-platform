@@ -69,7 +69,7 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push('- Sirva ao resultado da campanha sem inventar oferta, preço, prazo, desconto nem meta.');
   }
   lines.push('');
-  lines.push('## O que a empresa pode afirmar (fatos, com fonte). Número, preço, prazo ou funcionalidade só saem se estiverem aqui.');
+  lines.push('## O que a empresa pode afirmar (fatos, com fonte). Número, preço, prazo ou funcionalidade só saem se estiverem aqui ou na ideia do pedido (o que a pessoa escreveu vale).');
   lines.push(input.facts.length ? input.facts.map((f) => `- ${f}`).join('\n') : '- (nenhum fato cadastrado: não use número, preço nem prazo)');
   if (input.never.length) {
     lines.push('');
