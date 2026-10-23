@@ -4,6 +4,7 @@
 
 import { getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { logError } from './log';
 
 export type Identity = {
   uid: string;
@@ -44,6 +45,18 @@ function cleanName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const name = value.replace(/\s+/g, ' ').trim().slice(0, 80);
   return name || null;
+}
+
+// A pessoa tem verificação em duas etapas ligada? Lê do provedor (é ele quem sabe). Falha de rede ou de
+// permissão volta `null`: a tela diz que não conseguiu ler em vez de afirmar ligada ou desligada.
+export async function hasSecondFactor(uid: string): Promise<boolean | null> {
+  try {
+    const record = await getAuth(identityApp()).getUser(uid);
+    return (record.multiFactor?.enrolledFactors.length ?? 0) > 0;
+  } catch (e) {
+    logError('identity/second-factor', e);
+    return null;
+  }
 }
 
 // Assinatura, validade e revogação. Qualquer falha vira InvalidIdentityError (a rota responde

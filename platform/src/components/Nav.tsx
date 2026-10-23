@@ -21,6 +21,7 @@ const ICONS: Record<string, string> = {
   plus: 'M12 5v14M5 12h14',
   menu: 'M4 6h16M4 12h16M4 18h16',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 };
 
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -76,7 +77,7 @@ export default function Nav({
   const creating = pathname?.startsWith('/criar') ?? false;
   const primary = links.filter((l) => (MOBILE_PRIMARY as readonly string[]).includes(l.href));
   const rest = links.filter((l) => !(MOBILE_PRIMARY as readonly string[]).includes(l.href));
-  const restActive = rest.some((l) => isActive(pathname, l.href));
+  const restActive = rest.some((l) => isActive(pathname, l.href)) || (!!person && isActive(pathname, '/perfil'));
 
   return (
     <>
@@ -128,7 +129,12 @@ export default function Nav({
 
         <div className="mt-auto flex items-center gap-2.5 border-t border-line pt-3">
           {person && (
-            <>
+            <Link
+              href="/perfil"
+              aria-label={`Seu perfil: ${person.name}`}
+              aria-current={isActive(pathname, '/perfil') ? 'page' : undefined}
+              className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-1 pl-1 pr-2 transition hover:bg-raised ${isActive(pathname, '/perfil') ? 'bg-accent/15' : ''}`}
+            >
               <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-raised text-xs font-bold">
                 {initials(person.name)}
               </span>
@@ -136,7 +142,7 @@ export default function Nav({
                 <strong className="block truncate text-[13px]">{person.name}</strong>
                 <small className="block truncate text-xs text-muted">{person.role}</small>
               </span>
-            </>
+            </Link>
           )}
           <button
             type="button"
@@ -189,6 +195,16 @@ export default function Nav({
                 {l.label}
               </Link>
             ))}
+            {person && (
+              <Link
+                href="/perfil"
+                aria-current={isActive(pathname, '/perfil') ? 'page' : undefined}
+                className={`flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-inset ${isActive(pathname, '/perfil') ? 'font-semibold text-accent-text' : ''}`}
+              >
+                <Icon name="user" />
+                Seu perfil
+              </Link>
+            )}
             <button type="button" onClick={logout} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm text-muted hover:bg-inset">
               <Icon name="logout" />
               Sair

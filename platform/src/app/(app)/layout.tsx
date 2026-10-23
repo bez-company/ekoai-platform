@@ -5,7 +5,7 @@ import { getPauseState, type PauseState } from '@/lib/pause';
 import { fmtDateTime } from '@/lib/format';
 import NoticeBell from '@/components/NoticeBell';
 import type { NoticeView } from '@/components/NoticeItem';
-import { accountOf } from '@/lib/accounts';
+import { accountOf, personProfiles } from '@/lib/accounts';
 import { noticeWhen, toneOf } from '@/lib/notice-view';
 import { listNotices, unreadCount } from '@/lib/notifications';
 import { ROLE_COPY } from '@/lib/auth-flow';
@@ -42,7 +42,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } catch {
     // sem DB ainda (migration não aplicada): segue sem avisos
   }
-  const person = user?.name ? { name: user.name, role: ROLE_COPY[role].label } : null;
+  // Sem nome cadastrado, o e-mail ocupa o lugar dele: a pessoa sempre tem como abrir Seu perfil.
+  let personName = user?.name ?? null;
+  if (user && !personName) {
+    try {
+      personName = (await personProfiles([user.id])).get(user.id)?.email ?? null;
+    } catch {
+      personName = null;
+    }
+  }
+  const person = personName ? { name: personName, role: ROLE_COPY[role].label } : null;
   return (
     <div className="min-h-screen md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       <Nav
