@@ -104,8 +104,8 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('- alt_text: o texto alternativo da imagem, para quem usa leitor de tela. Em português, de 1 a 3 frases (até 600 caracteres): o que a imagem mostra e o texto escrito nela. Sem hashtag, sem link, sem chamada para ação e sem "imagem de" no começo.');
   if (input.feedback?.length) {
     lines.push('');
-    lines.push('## A versão anterior foi recusada pelo revisor. Corrija SÓ o que está abaixo e mantenha o resto:');
-    lines.push(input.feedback.map((i) => `- ${i.message}`).join('\n'));
+    lines.push('## A versão anterior foi recusada pelo revisor. Corrija SÓ o que está abaixo, copie o resto igual e não acrescente fato, prazo nem número novo:');
+    lines.push(input.feedback.map((i) => `- ${i.where === 'image' ? 'Na imagem' : 'Na legenda'}: ${i.message}`).join('\n'));
     if (input.previous) lines.push(`Versão anterior: ${JSON.stringify({ texts: input.previous.texts, caption: input.previous.caption, hashtags: input.previous.hashtags })}`);
   }
   lines.push('');
@@ -195,6 +195,17 @@ export const VISUAL_SUFFIX = 'Photographic, natural light, high quality, subtle,
 
 export function visualPromptFor(copy: Copy): string {
   return `${copy.visualPrompt ?? ''} ${VISUAL_SUFFIX}`.trim();
+}
+
+// A volta do revisor (BEZ-296): o modelo reescreve tudo e traz o que ninguém pediu (fato da base,
+// prazo inventado), e "corrija só" no prompt não segura. Com os achados só na legenda, o texto da imagem
+// da rodada anterior fica como estava; só na imagem, fica a legenda. Nos dois lados, vale a volta inteira.
+export function keepWhatPassed(previous: Copy, next: Copy, feedback: Issue[]): Copy {
+  if (feedback.some((i) => i.rule === 'format')) return next;
+  const sides = new Set(feedback.map((i) => i.where));
+  if (sides.size !== 1) return next;
+  if (sides.has('caption')) return { ...next, kind: previous.kind, angle: previous.angle, texts: previous.texts, visualPrompt: previous.visualPrompt, altText: previous.altText };
+  return { ...next, caption: previous.caption, hashtags: previous.hashtags };
 }
 
 export function imageTextsOf(copy: Copy): string[] {
