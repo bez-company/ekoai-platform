@@ -45,6 +45,10 @@ locals {
   # URL determinística do Cloud Run: serve de MEDIA_BASE_URL sem referência circular.
   platform_url = "https://${local.name}-platform-${data.google_project.this.number}.${var.region}.run.app"
 
+  # Endereço que as pessoas usam: o domínio próprio quando há (app_domain), senão o do Cloud Run. Vai em
+  # APP_BASE_URL e MEDIA_BASE_URL. O Scheduler e o uptime check seguem em platform_url (audiência OIDC).
+  public_url = var.app_domain == "" ? local.platform_url : "https://${var.app_domain}"
+
   # Jobs do src/jobs.js. `cron` em UTC; vazio = sem agenda (execução manual ou pelo deploy).
   # Os jobs de geração (post, resolve, reflect, funnel, engage, repurpose, reel) saíram com o
   # ADR 0010 e voltam na fase 2 do produto: quando voltarem, entram aqui.

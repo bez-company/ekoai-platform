@@ -135,7 +135,7 @@ describe('POST /api/invitations/accept', () => {
     const res = await call();
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ ok: true, accepted: true, tenantId: 'acme', role: 'creator' });
-    expect(res.headers.get('set-cookie')).toMatch(/^pa_session=u\.00000000-0000-4000-8000-00000000000a\.acme\.1\./);
+    expect(res.headers.get('set-cookie')).toMatch(/^__session=u\.00000000-0000-4000-8000-00000000000a\.acme\.1\./);
     expect(accountsMock.accepted[0].userId).toBe(USER);
     expect(accountsMock.accepted[0].hash).toMatch(/^[0-9a-f]{64}$/);
     expect(accountsMock.accepted[0].hash).not.toContain(TOKEN);

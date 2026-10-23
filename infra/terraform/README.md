@@ -56,8 +56,23 @@ terraform output dns_records      # registros que o Firebase pede para o apex e 
 terraform apply -var connect_domain=true -var uptime_host=ekoai.com.br
 ```
 
-`app.ekoai.com.br` é da plataforma (BEZ-42, Load Balancer): o Hosting só repassa o cookie
-`__session` ao Cloud Run, e o login usa outro.
+`app.ekoai.com.br` é da plataforma e não passa por este site: ver "Domínio da plataforma" abaixo.
+
+## Domínio da plataforma (`app_domain`)
+
+[ADR 0020](../../docs/adr/0020-dominio-da-plataforma-no-hosting-ate-o-lancamento.md). Com
+`app_domain = "app.ekoai.com.br"` (só em `envs/prod`), o módulo cria o site `ekoai-prod-app` do Firebase
+Hosting com rewrite para o Cloud Run, liga o domínio e põe `APP_BASE_URL` e `MEDIA_BASE_URL` nele. O
+Cloud Run não aceita domain mapping em `southamerica-east1`; o Load Balancer fica para o BEZ-42.
+
+```bash
+terraform output app_dns_records   # TXT e A que a GoDaddy precisa receber (host `app`)
+# certificado emitido de minutos a 24 h depois do DNS
+curl -I https://app.ekoai.com.br/api/health
+```
+
+Só vale com `deploy_workloads = true` e a API `firebasehosting.googleapis.com` ligada no projeto. O
+nome do cookie de sessão (`__session`) é exigência do Hosting: não renomear.
 
 ## Aplicar
 

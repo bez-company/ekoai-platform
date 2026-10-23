@@ -7,7 +7,8 @@
 
 import { isTenantId } from './tenant';
 
-export const SESSION_COOKIE = 'pa_session';
+// `__session` é o único cookie que o Firebase Hosting repassa ao Cloud Run (ADR 0020): não renomear.
+export const SESSION_COOKIE = '__session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias (senha única)
 export const USER_SESSION_TTL_S = 7 * 24 * 60 * 60; // 7 dias (por pessoa)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

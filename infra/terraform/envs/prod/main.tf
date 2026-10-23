@@ -15,6 +15,13 @@ provider "google" {
   billing_project       = "ekoai-prod"
 }
 
+provider "google-beta" {
+  project               = "ekoai-prod"
+  region                = "southamerica-east1"
+  user_project_override = true
+  billing_project       = "ekoai-prod"
+}
+
 variable "deploy_workloads" {
   type    = bool
   default = false
@@ -65,9 +72,13 @@ module "ekoai" {
   platform_min_instances = 0
   schedules_paused       = true
   uptime_check           = true
+
+  # Domínio da plataforma no Firebase Hosting (ADR 0020). Os registros de DNS saem em `app_dns_records`.
+  app_domain = "app.ekoai.com.br"
 }
 
 output "platform_url" { value = module.ekoai.platform_url }
+output "app_dns_records" { value = module.ekoai.app_dns_records }
 output "registry" { value = module.ekoai.registry }
 output "media_bucket" { value = module.ekoai.media_bucket }
 output "sql_instance" { value = module.ekoai.sql_instance }
