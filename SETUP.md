@@ -165,9 +165,9 @@ printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-id --data-file=
 printf '%s' "$VALOR" | gcloud secrets versions add instagram-app-secret --data-file=- --project=<projeto>
 ```
 
-   O Cloud Run lê `latest` ao subir uma revisão: depois de gravar, force uma revisão nova com
-   `gcloud run services update ekoai-platform --update-labels secrets-refresh=$(date +%s)` para a
-   plataforma enxergar o valor (refazer o deploy do mesmo commit falha: BEZ-216).
+   O Cloud Run lê `latest` ao subir uma revisão: depois de gravar, refaça o deploy do ambiente
+   (Actions > Deploy > Run workflow, na branch dele). Refazer o mesmo commit cria a revisão
+   `sha-<commit>-r<run>-<tentativa>` e a plataforma passa a enxergar o valor (BEZ-216).
    Sem os dois segredos a tela de Redes diz que a conexão ainda não está ativa.
 
 O token dura 60 dias. A plataforma renova sozinha, todo dia às 09:00 UTC (Cloud Scheduler

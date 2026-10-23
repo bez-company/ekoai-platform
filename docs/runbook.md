@@ -120,7 +120,24 @@ do mesmo commit do registry da staging, confere o digest e publica por digest. S
 não estiver no registry da staging, o deploy de produção para e pede para refazer o da staging.
 
 **Refazer o deploy de um ambiente:** Actions > Deploy > Run workflow, escolhendo a branch do ambiente
-(`staging` ou `main`); o environment recusa outra branch.
+(`staging` ou `main`); o environment recusa outra branch. Serve para o serviço reler um segredo novo:
+refazer o mesmo commit cria a revisão `sha-<commit>-r<run>-<tentativa>` (antes o Cloud Run recusava o
+nome repetido, BEZ-216), e o `/api/health` mostra esse nome.
+
+**Aplicar o Terraform (à mão; nenhum workflow aplica):** segredo, variável ou recurso novo só existe
+depois de um apply. As variáveis `deploy_workloads`, `platform_image`, `jobs_image`, `alert_email` e
+`tenant_id` não têm valor no repositório, e com os padrões o plano propõe destruir o serviço e o canal de
+alerta. Use o script, que lê cada uma do ambiente em execução e gera o plano:
+
+```bash
+gcloud auth application-default login            # se o init falhar com invalid_grant
+CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/tf-plan.sh staging
+cd infra/terraform/envs/staging && terraform apply tfplan   # só depois de ler o plano
+```
+
+Leia o plano: nada deve ser destruído sem motivo, e a imagem não muda (o Terraform ignora a troca de
+imagem; quem troca é o deploy). Os rótulos de custo (`app`, `env`, `product`, `tier`, SPEC 013) estão no
+serviço e no template das revisões e dos jobs, então um apply não cria revisão sem eles.
 
 ## Conexões do banco (conta do `f1-micro`)
 
