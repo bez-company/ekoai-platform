@@ -17,7 +17,7 @@ import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { logoDimensions } from './generation';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { log } from './log';
-import { brandFromProfile, compatibleLayouts, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type StoredDesign } from './design/model';
+import { brandFromProfile, compatibleLayouts, imageDataUri, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type StoredDesign } from './design/model';
 import { renderPng } from './design/render';
 import { editBlocking, reviewText, type Issue } from './design/review';
 import { applyEditable, checkLayout, editableOf, type EditableDesign } from './design/edit-model';
@@ -119,7 +119,7 @@ async function loadInputs(t: TenantDb, target: Target, store: BlobStore): Promis
   return {
     brand: brandFromProfile(profile),
     logo,
-    visual: visualBytes ? { dataUri: `data:image/png;base64,${Buffer.from(visualBytes).toString('base64')}` } : null,
+    visual: visualBytes ? { dataUri: imageDataUri(visualBytes) } : null,
     facts: factsForPrompt(factRows),
     banned: profile?.bannedWords ?? [],
   };

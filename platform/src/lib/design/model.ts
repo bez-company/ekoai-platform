@@ -33,6 +33,16 @@ export type Texts = { kicker?: string; title: string; sub?: string; items?: stri
 
 export type Logo = { dataUri: string; width: number; height: number };
 
+// O data URI do visual com o tipo lido dos bytes, não do nome do arquivo: o modelo de imagem devolve
+// JPEG ou PNG e guardamos tudo em `.png`. O resvg decodifica pelo tipo declarado, então JPEG rotulado
+// como PNG some do render sem erro e o post sai só com o fundo da marca.
+export function imageDataUri(bytes: Uint8Array): string {
+  const isJpeg = bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isWebp = bytes.length > 12 && String.fromCharCode(...bytes.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.subarray(8, 12)) === 'WEBP';
+  const type = isJpeg ? 'image/jpeg' : isWebp ? 'image/webp' : 'image/png';
+  return `data:${type};base64,${Buffer.from(bytes).toString('base64')}`;
+}
+
 // Cor do texto escolhida no ajuste rápido (SPEC 019). A marca e as cores de fundo vêm do perfil; só o
 // texto de cada slot pode ter cor própria, e o revisor mede o contraste sobre o fundo do layout.
 export const TEXT_COLOR_KEYS = ['title', 'sub', 'kicker', 'items'] as const;
