@@ -1,6 +1,6 @@
-# ADR 0020: cada ajuste do post vira uma revisão imutável, com o diff por campo calculado pelo servidor
+# ADR 0021: cada ajuste do post vira uma revisão imutável, com o diff por campo calculado pelo servidor
 
-- **Status:** proposto (vira aceito com a aprovação da SPEC 019)
+- **Status:** aceito (SPEC 019 aprovada em 23/10/2026; implementado nas PRs #159, #160, #164, #165 e #166)
 - **Data:** 2026-10-23
 - **Specs que dependem:** [SPEC 019](../specs/019-estudio-incremental-e-aprendizado-com-a-edicao.md),
   [SPEC 012](../specs/012-agentes-instagram-fase-2.md) (decisão 1, motor híbrido)
