@@ -16,7 +16,7 @@ import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
 import { COMPANIES, CASES, CRAFT } from './cases.js';
 import { produce } from './pipeline.js';
 import { buildJudgePrompt, parseJudge, verdictOf } from './judge.js';
-import { codeChecks } from './metrics.js';
+import { codeChecks, compareDirectives } from './metrics.js';
 import { renderSummary, summarize } from './report.js';
 
 const live = process.env.EVAL_LIVE === '1';
@@ -66,7 +66,7 @@ describe.skipIf(!live)('eval da geração de post', () => {
           write(join(dir, 'post.png'), made.png);
           if (made.visualPng) write(join(dir, 'visual.png'), made.visualPng);
           write(join(dir, 'made.json'), { imageTexts: made.imageTexts, costUsd: made.costUsd });
-          write(join(dir, 'trace.json'), { idea: brief.idea, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
+          write(join(dir, 'trace.json'), { idea: brief.idea, directives: made.directives, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
 
           const requirements = [...brief.requirements.map((r) => ({ ...r, group: 'pedido' })), ...CRAFT.map((r) => ({ ...r, group: 'oficio' }))];
           const prompt = buildJudgePrompt({ idea: brief.idea, requirements, caption: made.copy.caption, company });
@@ -92,6 +92,11 @@ describe.skipIf(!live)('eval da geração de post', () => {
             ...requirements.map((req, i) => ({ ...verdictOf(req, judged.items[i], made.imageTexts), group: req.group })),
             ...codeChecks({ copy: made.copy, imageTexts: made.imageTexts, textIssues: made.textIssues, layoutIssues: made.layoutIssues }).map((c) => ({ ...c, reason: c.pass ? '' : c.reason, group: 'codigo', by: 'code' })),
           ];
+          // O leitor de instruções contra o que uma pessoa esperava do pedido (só nos casos que declaram `directives`).
+          if (brief.directives && made.directives) {
+            const read = compareDirectives(brief.directives, made.directives.directives);
+            verdicts.push({ id: 'leitor', pass: read.pass, reason: read.pass ? '' : read.reason, group: 'leitor', by: 'code' });
+          }
           write(join(dir, 'verdicts.json'), { seen: judged.seen, verdicts });
           keep({ caseId: brief.id, run, tags: brief.tags, rounds: made.trace.length, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + judgeCost });
         });

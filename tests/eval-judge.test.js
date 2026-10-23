@@ -2,7 +2,7 @@
 // vivo é `npm run eval`.
 import { describe, it, expect } from 'vitest';
 import { buildJudgePrompt, checkContains, parseJudge, scoreOf, verdictOf } from '../evals/judge.js';
-import { codeChecks } from '../evals/metrics.js';
+import { codeChecks, compareDirectives } from '../evals/metrics.js';
 import { compare, renderSummary, summarize } from '../evals/report.js';
 import { CASES, COMPANIES, CRAFT } from '../evals/cases.js';
 
@@ -80,6 +80,27 @@ describe('checagens por código do resultado', () => {
   });
 });
 
+describe('leitor de instruções contra a expectativa', () => {
+  const want = { background: ['dark', 'brand'], elements: { logo: 'c', handle: ['bl', 'br'] }, exactTexts: ['Olá'], optional: ['noPhoto', 'elements.title'] };
+
+  it('passa quando bate, aceita lista e opcionais e ignora caixa do texto literal', () => {
+    expect(compareDirectives(want, { background: 'brand', elements: { logo: 'c', handle: 'br', title: 'c' }, exactTexts: ['olá'], noPhoto: true })).toEqual({ pass: true, reason: '' });
+  });
+
+  it('reprova o que falta, o que veio errado e o que o leitor inventou', () => {
+    const r = compareDirectives(want, { elements: { logo: 'tl' }, exactTexts: ['Oi'], textOnly: true, itemsCount: 3 });
+    expect(r.pass).toBe(false);
+    for (const piece of ['não anotou background', 'elemento logo: esperado "c"', 'elemento handle', 'texto literal', 'anotou textOnly sem a pessoa pedir', 'anotou itemsCount sem a pessoa pedir']) expect(r.reason).toContain(piece);
+  });
+
+  it('expectativa vazia exige leitura vazia; "*" aceita qualquer valor', () => {
+    expect(compareDirectives({}, {}).pass).toBe(true);
+    expect(compareDirectives({}, { background: 'dark' }).pass).toBe(false);
+    expect(compareDirectives({ elements: { name: '*' } }, { elements: { name: 'bc' } }).pass).toBe(true);
+    expect(compareDirectives({ elements: { name: '*' } }, { elements: { logo: 'c', name: 'bc' } }).pass).toBe(false);
+  });
+});
+
 describe('relatório', () => {
   const v = (id, pass, group) => ({ id, pass, group, reason: '' });
   const rows = [
@@ -92,9 +113,16 @@ describe('relatório', () => {
     const s = summarize(rows, meta);
     expect(s.meta).toMatchObject({ runs: 2, costUsd: 0.2 });
     expect(s.overall).toMatchObject({ pedido: 0.75, oficio: 0.75, rounds: 1, costPerPost: 0.1 });
-    expect(s.cases.x).toMatchObject({ runs: 2, pedido: 0.75, oficio: 0.75, req: { a: 1, b: 0.5, o1: 1, c1: 0.5 } });
+    expect(s.cases.x).toMatchObject({ runs: 2, pedido: 0.75, oficio: 0.75, leitor: null, req: { a: 1, b: 0.5, o1: 1, c1: 0.5 } });
     expect(s.tags.marca).toEqual({ pedido: 0.75, oficio: 0.75 });
     expect(renderSummary(s)).toContain('| x | 75% | 75% | b 50%, c1 50% |');
+  });
+
+  it('o leitor de instruções tem nota própria e não entra no ofício', () => {
+    const withReader = rows.map((r, i) => ({ ...r, verdicts: [...r.verdicts, v('leitor', i === 0, 'leitor')] }));
+    const s = summarize(withReader, meta);
+    expect(s.overall).toMatchObject({ pedido: 0.75, oficio: 0.75, leitor: 0.5 });
+    expect(renderSummary(s)).toContain('Leitor de instruções: 50%');
   });
 
   it('rodada em que o juiz falhou sai da nota e aparece na contagem', () => {
