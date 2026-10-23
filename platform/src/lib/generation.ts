@@ -20,7 +20,7 @@ import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
-import { brandFromProfile, brandPhotoLayout, defaultLayout, storedDesignOf, type DesignSpec, type Logo } from './design/model';
+import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
@@ -255,7 +255,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       texts: copy.texts,
       brand,
       logo,
-      visual: visualKey ? { dataUri: `data:image/png;base64,${Buffer.from(await store.get(visualKey)).toString('base64')}` } : null,
+      visual: visualKey ? { dataUri: imageDataUri(await store.get(visualKey)) } : null,
     };
     // Regras de marca aceitas pela conta (SPEC 019): só em post novo, e cada uma é pulada se pioraria o post.
     const ruled = photo?.usage === 'as_is' ? null : await applyDesignRulesToSpec(t, spec, deps.fontDir);
