@@ -6,6 +6,8 @@ import { identityRefusal, membershipRefusal, type LoginRefusal } from '@/lib/log
 import { acceptFailure, hashInviteToken, parseAcceptInvitation } from '@/lib/invitation-model';
 import { acceptInvitation, findOrLinkUser, markLogin, membershipsOf } from '@/lib/accounts';
 import { apiError, badRequest, invalidTokenResponse } from '@/lib/api';
+import { RULES, clientIp, trustedHopsFrom } from '@/lib/rate-limit-model';
+import { hit, tooMany } from '@/lib/rate-limit';
 import { ROLE_COPY } from '@/lib/auth-flow';
 import { notify } from '@/lib/notifications';
 import { tenantDb } from '@/lib/tenant-db';
@@ -22,6 +24,12 @@ function refuse(r: { status: number; code: string; error: string }): NextRespons
 export async function POST(req: Request) {
   try {
     if (authProvider() !== 'identity') return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+    // Limite por IP antes de olhar o token, e por e-mail depois de verificá-lo (BEZ-29).
+    const ip = clientIp(req.headers.get('x-forwarded-for'), trustedHopsFrom(process.env));
+    if (ip) {
+      const byIp = await hit(RULES.acceptIp, ip);
+      if (!byIp.allowed) return tooMany(byIp, 'api/invitations/accept', RULES.acceptIp.bucket);
+    }
     const parsed = parseAcceptInvitation(await req.json().catch(() => null));
     if (!parsed.ok) return badRequest(parsed.error);
 
@@ -34,6 +42,10 @@ export async function POST(req: Request) {
     }
     const early = identityRefusal(identity, Math.floor(Date.now() / 1000));
     if (early) return refuse(early);
+    if (identity.email) {
+      const byEmail = await hit(RULES.acceptEmail, identity.email);
+      if (!byEmail.allowed) return tooMany(byEmail, 'api/invitations/accept', RULES.acceptEmail.bucket);
+    }
 
     const user = await findOrLinkUser(identity);
     let tenantId: string;

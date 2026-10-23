@@ -172,7 +172,7 @@ variable "auth_provider" {
 }
 
 variable "signup_mode" {
-  description = "Cadastro (env SIGNUP_MODE): `invite` (só por convite) ou `open` (qualquer pessoa cria conta). Aberto só onde não há dado real: ainda não há limite de taxa no cadastro."
+  description = "Cadastro (env SIGNUP_MODE): `invite` (só por convite) ou `open` (qualquer pessoa cria conta). Criar conta e aceitar convite têm limite de taxa por IP e por e-mail (BEZ-29, migration 0035); abrir em produção é decisão de produto."
   type        = string
   default     = "invite"
 
