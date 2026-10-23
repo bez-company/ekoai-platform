@@ -7,18 +7,18 @@ import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy, visualPromptF
 import { brandFromProfile, defaultLayout, imageDataUri } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
 import { blocking, reviewText } from '../platform/src/lib/design/review.ts';
-import { COMPANY, LOGO } from './cases.js';
+import { COMPANIES } from './cases.js';
 
 const MAX_COPY_ROUNDS = 3;
 
 // Texto: até 3 rodadas, o revisor por regra devolvendo o motivo ao modelo (igual ao writeCopy).
-async function writeCopy({ model, brief }) {
+async function writeCopy({ model, brief, company }) {
   let previous = null;
   let feedback = [];
   let best = null;
   const trace = [];
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, goal: null, profile: COMPANY.profile, facts: COMPANY.facts, never: COMPANY.never, rules: [], feedback, previous, direction: 1, campaign: null });
+    const prompt = buildCopyPrompt({ idea: brief.idea, kind: brief.kind, goal: null, profile: company.profile, facts: company.facts, never: company.never, rules: [], feedback, previous, direction: 1, campaign: null });
     const out = await model.generateJson({ prompt, labels: { step: 'eval-writer', case: brief.id } });
     trace.push({ round, prompt, raw: out.raw, costUsd: out.costUsd });
     const parsed = parseCopy(out.json, brief.kind);
@@ -27,7 +27,7 @@ async function writeCopy({ model, brief }) {
       continue;
     }
     const copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: COMPANY.facts, never: COMPANY.never, banned: COMPANY.profile.bannedWords, request: brief.idea });
+    const issues = reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: company.profile.bannedWords, request: brief.idea });
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) break;
@@ -42,7 +42,8 @@ async function writeCopy({ model, brief }) {
 const drawnTexts = (spec) => [...imageTextsOf({ texts: spec.texts }), ...(spec.brand.handle ? [`@${spec.brand.handle}`] : [])];
 
 export async function produce({ model, brief, fontDir }) {
-  const { copy, issues, trace } = await writeCopy({ model, brief });
+  const company = COMPANIES[brief.company];
+  const { copy, issues, trace } = await writeCopy({ model, brief, company });
   const kind = copy.kind;
   let visual = null;
   let visualPrompt = null;
@@ -53,7 +54,7 @@ export async function produce({ model, brief, fontDir }) {
     visual = { dataUri: imageDataUri(img.png), png: img.png };
     imageCostUsd = img.costUsd;
   }
-  const spec = { kind, ratio: brief.ratio, layout: defaultLayout(kind, copy.texts), texts: copy.texts, brand: brandFromProfile(COMPANY.profile), logo: LOGO, visual: visual ? { dataUri: visual.dataUri } : null };
+  const spec = { kind, ratio: brief.ratio, layout: defaultLayout(kind, copy.texts), texts: copy.texts, brand: brandFromProfile(company.profile), logo: company.logo, visual: visual ? { dataUri: visual.dataUri } : null };
   let rendered = renderPng(spec, fontDir ? { fontDir } : {});
   if (blocking(rendered.issues).length && spec.texts.sub) {
     spec.texts = { ...spec.texts, sub: undefined };

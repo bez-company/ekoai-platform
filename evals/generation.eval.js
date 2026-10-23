@@ -1,67 +1,116 @@
 // generation.eval.js: roda cada caso de cases.js no modelo de verdade (Vertex), desenha o PNG, pede ao juiz
-// que confira as exigências e grava o relatório em .context/evals/<data>/. Só roda com EVAL_LIVE=1
-// (gasta chamada paga). Uso: npm run eval (ver evals/README.md).
+// que confira as exigências do caso e a régua de ofício, aplica as checagens por código e grava o relatório
+// em .context/evals/<data>/. Só roda com EVAL_LIVE=1 (gasta chamada paga). Uso: npm run eval (evals/README.md).
+//
+//   EVAL_CASES=id1,id2   só estes casos            EVAL_TAGS=marca,fato   só os casos com estas tags
+//   EVAL_RUNS=3          rodadas por caso (o modelo varia de uma rodada para outra)
+//   EVAL_SAVE=nome       grava o resumo em evals/baselines/nome.json (entra no commit, sem imagem)
+//   EVAL_JUDGE_MODEL     modelo do juiz (padrão gemini-3.1-pro-preview, mais forte que o redator)
+//   EVAL_REUSE=<pasta>   não gera de novo: julga outra vez os posts já gravados nessa pasta de .context/evals/
+//                        (serve para ajustar o juiz sem pagar a geração)
 
 import { afterAll, describe, it } from 'vitest';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
-import { CASES } from './cases.js';
+import { COMPANIES, CASES, CRAFT } from './cases.js';
 import { produce } from './pipeline.js';
-import { buildJudgePrompt, parseJudge, scoreOf, verdictOf } from './judge.js';
+import { buildJudgePrompt, parseJudge, verdictOf } from './judge.js';
+import { codeChecks } from './metrics.js';
+import { renderSummary, summarize } from './report.js';
 
 const live = process.env.EVAL_LIVE === '1';
-const only = (process.env.EVAL_CASES ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-const cases = only.length ? CASES.filter((c) => only.includes(c.id)) : CASES;
-const fontDir = join(import.meta.dirname, '../platform/fonts');
+const list = (v) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const onlyCases = list(process.env.EVAL_CASES);
+const onlyTags = list(process.env.EVAL_TAGS);
+const runs = Math.max(1, Number(process.env.EVAL_RUNS ?? 1));
+const cases = CASES.filter((c) => (!onlyCases.length || onlyCases.includes(c.id)) && (!onlyTags.length || c.tags.some((t) => onlyTags.includes(t))));
+const root = join(import.meta.dirname, '..');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const outDir = join(import.meta.dirname, '../.context/evals', stamp);
-const results = [];
+const outDir = join(root, '.context/evals', stamp);
+const rows = [];
+const reuse = process.env.EVAL_REUSE ? join(root, '.context/evals', process.env.EVAL_REUSE) : null;
+
+// O post de uma rodada anterior, lido da pasta (EVAL_REUSE), no mesmo formato do que `produce` devolve.
+function loadMade(dir, company) {
+  const t = JSON.parse(readFileSync(join(dir, 'trace.json'), 'utf8'));
+  const saved = existsSync(join(dir, 'made.json')) ? JSON.parse(readFileSync(join(dir, 'made.json'), 'utf8')) : {};
+  const imageTexts = saved.imageTexts ?? [t.copy.texts.kicker, t.copy.texts.title, t.copy.texts.sub, ...(t.copy.texts.items ?? []), `@${company.handle}`].filter(Boolean);
+  return { copy: t.copy, spec: { layout: t.layout }, png: readFileSync(join(dir, 'post.png')), imageTexts, textIssues: t.textIssues, layoutIssues: t.layoutIssues, trace: t.rounds, costUsd: saved.costUsd ?? 0, visualPng: null, visualPrompt: t.visualPrompt };
+}
 
 const write = (path, data) => writeFileSync(path, typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data, null, 2));
-
-function report(rows, models) {
-  const total = scoreOf(rows.flatMap((r) => r.verdicts));
-  const lines = [`# Eval da geração, ${stamp}`, '', `Modelos: texto \`${models.text}\`, imagem \`${models.image}\`, juiz \`${models.judge}\`.`, `Exigências cumpridas: **${total.passed} de ${total.total}** (${Math.round(total.rate * 100)}%). Custo: US$ ${rows.reduce((s, r) => s + r.costUsd, 0).toFixed(3)}.`, ''];
-  for (const r of rows) {
-    const s = scoreOf(r.verdicts);
-    lines.push(`## ${r.id}: ${s.passed} de ${s.total}`, '', `Pedido: ${r.idea}`, '', `O juiz viu: ${r.seen || '(nada)'}`, '', `Layout: \`${r.layout}\`, tipo: \`${r.kind}\`, texto na imagem: ${r.imageTexts.map((t) => `"${t}"`).join(', ') || '(nenhum)'}`, '', '| Exigência | Resultado | Motivo |', '| --- | --- | --- |');
-    for (const v of r.verdicts) lines.push(`| ${v.id} | ${v.pass ? 'passou' : 'reprovou'} | ${v.reason.replace(/\|/g, '/')} |`);
-    lines.push('');
-  }
-  return lines.join('\n');
-}
+// Resultado parcial a cada post pronto: se a rodada for interrompida, o que já saiu fica em results.json.
+const keep = (row) => {
+  rows.push(row);
+  write(join(outDir, 'results.json'), rows);
+};
 
 describe.skipIf(!live)('eval da geração de post', () => {
   const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', VERTEX_IMAGE_MODEL: 'gemini-3.1-flash-image', ...process.env });
+  const judgeModel = process.env.EVAL_JUDGE_MODEL || 'gemini-3.1-pro-preview';
   const model = vertexClient({ config: cfg });
-  const judgeModel = process.env.EVAL_JUDGE_MODEL || cfg.textModel;
   const judge = vertexClient({ config: { ...cfg, textModel: judgeModel } });
   mkdirSync(outDir, { recursive: true });
 
-  for (const brief of cases) {
-    it(brief.id, { timeout: 300_000 }, async () => {
-      const made = await produce({ model, brief, fontDir });
-      const dir = join(outDir, brief.id);
-      mkdirSync(dir, { recursive: true });
-      write(join(dir, 'post.png'), made.png);
-      if (made.visualPng) write(join(dir, 'visual.png'), made.visualPng);
-      write(join(dir, 'trace.json'), { idea: brief.idea, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
+  describe.concurrent('casos', () => {
+    for (const brief of cases) {
+      for (let run = 1; run <= runs; run += 1) {
+        it(`${brief.id} #${run}`, { timeout: 600_000 }, async () => {
+          const company = COMPANIES[brief.company];
+          const dir = join(outDir, brief.id, `run-${run}`);
+          mkdirSync(dir, { recursive: true });
+          const from = reuse ? join(reuse, brief.id, `run-${run}`) : null;
+          if (from && !existsSync(join(from, 'post.png'))) return;
+          const made = from ? loadMade(from, company) : await produce({ model, brief, fontDir: join(root, 'platform/fonts') });
+          write(join(dir, 'post.png'), made.png);
+          if (made.visualPng) write(join(dir, 'visual.png'), made.visualPng);
+          write(join(dir, 'made.json'), { imageTexts: made.imageTexts, costUsd: made.costUsd });
+          write(join(dir, 'trace.json'), { idea: brief.idea, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
 
-      const prompt = buildJudgePrompt({ idea: brief.idea, requirements: brief.requirements, caption: made.copy.caption });
-      const out = await judge.generateJson({ prompt, labels: { step: 'eval-judge', case: brief.id }, temperature: 0, image: { bytes: made.png, mimeType: 'image/png' } });
-      const judged = parseJudge(out.json, brief.requirements);
-      const verdicts = brief.requirements.map((req, i) => verdictOf(req, judged.items[i], made.imageTexts));
-      results.push({ id: brief.id, idea: brief.idea, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + out.costUsd });
-    });
-  }
+          const requirements = [...brief.requirements.map((r) => ({ ...r, group: 'pedido' })), ...CRAFT.map((r) => ({ ...r, group: 'oficio' }))];
+          const prompt = buildJudgePrompt({ idea: brief.idea, requirements, caption: made.copy.caption, company });
+          // O juiz falha de vez em quando (formato, corte). Uma segunda chamada resolve quase sempre; se não
+          // resolver, a rodada sai da nota (summary.meta.judgeFailures) em vez de contar como post reprovado.
+          let judged = null;
+          let judgeCost = 0;
+          for (let attempt = 1; attempt <= 2 && !judged?.answered; attempt += 1) {
+            try {
+              const out = await judge.generateJson({ prompt, labels: { step: 'eval-judge', case: brief.id }, temperature: 0, maxOutputTokens: 8192, image: { bytes: made.png, mimeType: 'image/png' } });
+              judgeCost += out.costUsd;
+              judged = parseJudge(out.json, requirements);
+            } catch {
+              judged = null;
+            }
+          }
+          if (!judged?.answered) {
+            write(join(dir, 'verdicts.json'), { judgeFailed: true });
+            keep({ caseId: brief.id, run, tags: brief.tags, judgeFailed: true, verdicts: [], costUsd: made.costUsd + judgeCost });
+            return;
+          }
+          const verdicts = [
+            ...requirements.map((req, i) => ({ ...verdictOf(req, judged.items[i], made.imageTexts), group: req.group })),
+            ...codeChecks({ copy: made.copy, imageTexts: made.imageTexts, textIssues: made.textIssues, layoutIssues: made.layoutIssues }).map((c) => ({ ...c, reason: c.pass ? '' : c.reason, group: 'codigo', by: 'code' })),
+          ];
+          write(join(dir, 'verdicts.json'), { seen: judged.seen, verdicts });
+          keep({ caseId: brief.id, run, tags: brief.tags, rounds: made.trace.length, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + judgeCost });
+        });
+      }
+    }
+  });
 
   afterAll(() => {
-    if (!results.length) return;
-    results.sort((a, b) => cases.findIndex((c) => c.id === a.id) - cases.findIndex((c) => c.id === b.id));
-    write(join(outDir, 'results.json'), results);
-    const md = report(results, { text: cfg.textModel, image: cfg.imageModel, judge: judgeModel });
+    if (!rows.length) return;
+    const summary = summarize(rows, { stamp, text: cfg.textModel, image: cfg.imageModel, judge: judgeModel });
+    write(join(outDir, 'results.json'), rows);
+    write(join(outDir, 'summary.json'), summary);
+    const failed = rows.flatMap((r) => r.verdicts.filter((v) => !v.pass).map((v) => `- ${r.caseId} #${r.run} / ${v.id}: ${v.reason}`));
+    const md = `${renderSummary(summary)}\n\n## Reprovações\n\n${failed.join('\n') || '(nenhuma)'}\n`;
     write(join(outDir, 'report.md'), md);
-    process.stdout.write(`\n${md}\n\nRelatório: ${join(outDir, 'report.md')}\n`);
+    if (process.env.EVAL_SAVE) {
+      mkdirSync(join(root, 'evals/baselines'), { recursive: true });
+      write(join(root, 'evals/baselines', `${process.env.EVAL_SAVE}.json`), summary);
+    }
+    process.stdout.write(`\n${md}\nRelatório: ${join(outDir, 'report.md')}\n`);
   });
 });

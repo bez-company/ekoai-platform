@@ -1,31 +1,52 @@
 # Eval da geração de post
 
-Mede se o post que a plataforma gera cumpre o que a pessoa pediu. Os testes da suíte normal provam que o
-código faz o que o código diz; este eval prova (ou não) que o **modelo e os agentes** entregam o pedido.
+Mede se o post que a plataforma gera cumpre o que a pessoa pediu e se está bem feito. Os testes da suíte
+normal provam que o código faz o que o código diz; este eval prova (ou não) que o **modelo e os agentes**
+entregam. Toda mudança na geração (prompt, agente, revisor, layout) é medida aqui antes e depois.
 
 ## O que roda
 
-Para cada caso de `cases.js`:
+Para cada caso de `cases.js` (20 pedidos, 3 empresas fictícias de jeitos de falar diferentes):
 
 1. `pipeline.js` leva o pedido ao PNG pelo mesmo caminho do `generatePost`: prompt do redator, até 3 rodadas
    com o revisor por regra, visual por IA (só na atmosfera), grade e render por código.
-2. `judge.js` manda o PNG final, a legenda e as exigências do caso a um modelo com visão, que responde
-   passou ou reprovou por exigência, com o motivo. Exigência com `contains` também é conferida por código
-   (o texto está na imagem desenhada); o código derruba um juiz otimista, nunca aprova no lugar dele.
-3. O relatório sai em `.context/evals/<data>/`: `report.md`, `results.json` e, por caso, `post.png`,
-   `visual.png` e `trace.json` (prompt e resposta de cada rodada, achados do revisor).
+2. `judge.js` manda o PNG final, a legenda, a base de fatos da empresa e as exigências a um modelo com
+   visão (padrão `gemini-3.1-pro-preview`, mais forte que o redator), que responde passou ou reprovou por
+   exigência, com o motivo. Se o juiz falha (formato, corte), repete uma vez; falhando de novo, a rodada
+   sai da nota e aparece como "sem nota".
+3. Três grupos de exigência:
+   - **Pedido**: o que a pessoa pediu, escrito à mão por caso (`requirements`). Exigência com `contains`
+     também é conferida por código (o texto está na imagem desenhada); o código derruba um juiz otimista,
+     nunca aprova no lugar dele.
+   - **Ofício**: a régua `CRAFT` que vale para todo post (português, clichê, voz, gancho, recheio, coerência,
+     legibilidade, composição, "postaria sem editar").
+   - **Código**: `metrics.js` (travessão, emoji na imagem, hashtags, revisor ainda reprovando o resultado).
+4. `report.js` resume por caso, por exigência e por tag (`marca`, `texto-exato`, `lista`, `atmosfera`, `fato`,
+   `vago`, `voz`), com rodadas do redator e custo por post.
+
+Relatório em `.context/evals/<data>/`: `report.md`, `summary.json`, `results.json` e, por caso e rodada,
+`post.png`, `visual.png`, `trace.json` (prompt e resposta de cada rodada) e `verdicts.json`.
 
 ## Como rodar
 
 ```bash
-VERTEX_PROJECT_ID=ekoai-prod npm run eval                    # todos os casos
-VERTEX_PROJECT_ID=ekoai-prod EVAL_CASES=frase-exata npm run eval   # só um
+VERTEX_PROJECT_ID=ekoai-prod npm run eval                       # 1 rodada de todos os casos
+VERTEX_PROJECT_ID=ekoai-prod EVAL_RUNS=2 npm run eval           # 2 rodadas por caso (o modelo varia)
+VERTEX_PROJECT_ID=ekoai-prod EVAL_TAGS=marca,fato npm run eval  # só casos com estas tags
+VERTEX_PROJECT_ID=ekoai-prod EVAL_CASES=frase-exata npm run eval
+EVAL_SAVE=nome ...                                              # grava o resumo em evals/baselines/nome.json
+EVAL_REUSE=<pasta de .context/evals> ...                        # julga de novo posts já gravados, sem gerar
+npm run eval:compare -- evals/baselines/a.json evals/baselines/b.json   # antes e depois, em pontos percentuais
 ```
 
 Precisa de credencial do Google Cloud (`gcloud auth application-default login`). Chama o Vertex de verdade:
-um conjunto completo custa cerca de US$ 0,10 a 0,15 (imagem 3.1 Flash, texto 3 Flash). Por isso fica fora de
-`npm test`. Variáveis: `VERTEX_TEXT_MODEL`, `VERTEX_IMAGE_MODEL` (padrão = o da produção) e
-`EVAL_JUDGE_MODEL` (padrão = o modelo de texto; use outro para evitar o juiz gostar do próprio texto).
+cerca de US$ 0,02 por post (US$ 0,40 por rodada de todos os casos). Por isso fica fora de `npm test`.
+Variáveis: `VERTEX_TEXT_MODEL`, `VERTEX_IMAGE_MODEL` (padrão = os da produção), `EVAL_JUDGE_MODEL`.
+
+## Baselines
+
+`evals/baselines/` guarda o resumo (sem imagem) de cada marco. A PR que muda a geração anexa o antes e o
+depois do `eval:compare` no corpo. `baseline-0` é o código de 23/10/2026, antes de qualquer correção.
 
 ## Como escrever um caso
 
@@ -37,8 +58,9 @@ um conjunto completo custa cerca de US$ 0,10 a 0,15 (imagem 3.1 Flash, texto 3 F
 
 ## Limites
 
-- O juiz é um modelo: erra. O resultado muda de uma rodada para outra (o caso principal foi 3 de 6 nas duas
-  primeiras, com layouts diferentes). Olhe a tendência e o `post.png`, não um número isolado.
+- O juiz é um modelo: erra. Foi calibrado olhando imagens à mão (acerta o pedido; a régua de ofício foi
+  apertada depois de ele aprovar post genérico). O resultado muda de uma rodada para outra: use
+  `EVAL_RUNS=2` ou mais e olhe a tendência e o `post.png`, não um número isolado.
 - `pipeline.js` espelha o `generatePost` à mão. Se o orquestrador mudar a ordem ou a escolha de layout, mude
-  o espelho junto (ou extraia a parte pura do `generatePost` para os dois usarem).
-- Julga a imagem final e a legenda. Não mede custo, tempo nem publicação.
+  o espelho junto.
+- Julga a imagem final e a legenda. Não mede publicação.

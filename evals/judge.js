@@ -2,14 +2,26 @@
 // é um modelo com visão que recebe o PNG final, a legenda e a lista de exigências do caso, e responde
 // aprovou ou reprovou por exigência, com o motivo. Ele não vê o que o redator "quis fazer": só o resultado.
 
-export function buildJudgePrompt({ idea, requirements, caption }) {
+export function buildJudgePrompt({ idea, requirements, caption, company }) {
   const list = requirements.map((r) => `- ${r.id} (${r.in === 'image' ? 'olhe a imagem' : 'leia a legenda'}): ${r.text}`).join('\n');
+  const about = company
+    ? [
+        '## A empresa (o que o post pode afirmar e como ela fala)',
+        `- ${company.name}, @${company.handle}. Voz: ${company.voice}.`,
+        `- Base de fatos (o que pode afirmar): ${company.facts.join('; ')}.`,
+        `- Nunca afirma: ${company.never.join('; ')}.`,
+        `- Palavras proibidas: ${company.profile.bannedWords.join(', ')}.`,
+        `- O logo é ${company.logoLooks}.`,
+        '',
+      ]
+    : [];
   return [
-    'Você confere se um post de Instagram feito por uma plataforma cumpre o pedido da pessoa. Responda SÓ com um objeto JSON.',
+    'Você confere se um post de Instagram feito por uma plataforma cumpre o pedido da pessoa e se está bem feito. Responda SÓ com um objeto JSON.',
     '',
     '## O pedido da pessoa, palavra por palavra',
     idea,
     '',
+    ...about,
     '## A legenda gerada',
     caption,
     '',
@@ -20,6 +32,7 @@ export function buildJudgePrompt({ idea, requirements, caption }) {
     '- Julgue só o que está visível na imagem anexada e escrito na legenda. Ignore a intenção de quem fez.',
     '- Seja literal e rigoroso: na dúvida, reprove. Não dê crédito por "ficou bonito" nem por "quase".',
     '- Posição conta: "centralizado" é no meio da imagem, "em um canto" é encostado em um dos quatro cantos.',
+    '- Número, preço, prazo ou horário só são válidos se estiverem no pedido ou na base de fatos acima.',
     '- Ao reprovar, diga em uma frase o que você viu no lugar do pedido.',
     '',
     '## Formato da resposta (JSON)',
@@ -27,13 +40,26 @@ export function buildJudgePrompt({ idea, requirements, caption }) {
   ].join('\n');
 }
 
+// O objeto de resposta do juiz. O modelo às vezes embrulha o objeto num array (`[{"items":[...]}]`) ou devolve
+// só a lista de itens: os dois formatos valem.
+function judgeObject(json) {
+  const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  if (isObj(json)) return json;
+  if (!Array.isArray(json)) return null;
+  const wrapped = json.find((x) => isObj(x) && Array.isArray(x.items));
+  if (wrapped) return wrapped;
+  return json.length && json.every((x) => isObj(x) && typeof x.id === 'string') ? { items: json } : null;
+}
+
 // A resposta do juiz, com um veredito para cada exigência do caso. Exigência que o juiz não respondeu
-// conta como reprovada: sumir da lista não pode inflar a nota.
+// conta como reprovada: sumir da lista não pode inflar a nota. `answered` é quantas ele respondeu; zero
+// quer dizer que o juiz falhou (a rodada sai da nota, em vez de contar como post reprovado).
 export function parseJudge(json, requirements) {
-  const o = json && typeof json === 'object' && !Array.isArray(json) ? json : null;
+  const o = judgeObject(json);
   const byId = new Map((Array.isArray(o?.items) ? o.items : []).filter((i) => i && typeof i.id === 'string').map((i) => [i.id, i]));
   return {
     seen: typeof o?.seen === 'string' ? o.seen.trim() : '',
+    answered: requirements.filter((r) => byId.has(r.id)).length,
     items: requirements.map((r) => {
       const got = byId.get(r.id);
       if (!got) return { id: r.id, pass: false, reason: 'O juiz não respondeu esta exigência.' };
