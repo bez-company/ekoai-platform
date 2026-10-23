@@ -27,7 +27,7 @@
     "@ekoai/db": "file:packages/db",
     "@google-cloud/secret-manager": "^7.2.0",
     "@google-cloud/storage": "^8.4.0",
-    "@sentry/node": "^10.76.2",
+    "@sentry/node": "^11.8.0",
     "dotenv": "^18.0.8",
     "pg": "^8.23.1"
   },
