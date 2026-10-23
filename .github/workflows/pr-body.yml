@@ -1,0 +1,33 @@
+name: PR body
+
+# Confere o corpo da PR (scripts/pr-body-check.js): imagem que renderiza, mudança visual com imagem,
+# sem comentário do modelo; avisa lógica grande sem infográfico e corpo longo.
+# Roda de novo quando o corpo é editado (o CI principal não roda nesse caso, por ser pesado).
+#
+# pull_request_target: workflow e script vêm da staging (a base), o job não faz checkout do código
+# da PR e só usa o GITHUB_TOKEN de leitura.
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-body-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  body:
+    name: Corpo da PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: staging
+          persist-credentials: false
+      - run: node scripts/pr-body-check.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
