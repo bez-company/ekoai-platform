@@ -48,11 +48,14 @@ vi.mock('@/lib/post-design-revisions', async () => {
     assertDesignVersion: async (_t, pendingId, version) => {
       dataMock.calls.push(['assert', pendingId, version]);
       if (dataMock.error) throw dataMock.error;
-      return { briefId: 'brief-1', version: version ?? 1 };
+      return { briefId: 'brief-1', designId: 'design-1', version: version ?? 1 };
     },
+    markDesignApproved: async (_t, designId) => void dataMock.calls.push(['approved', designId]),
   };
 });
 vi.mock('@/lib/rate-limit', () => ({ hit: async () => dataMock.rate, tooMany: (r) => new Response(JSON.stringify({ error: 'Muitas tentativas seguidas.' }), { status: 429, headers: { 'retry-after': String(r.retryAfterS) } }) }));
+const ruleMock = { proposed: [], fail: false };
+vi.mock('@/lib/design-rules', () => ({ proposeDesignRules: async () => { if (ruleMock.fail) throw new Error('banco fora'); return ruleMock.proposed; } }));
 vi.mock('@/lib/scheduling', () => ({ approvePending: async () => ({ id: 's1', scheduledFor: null, requestedMissed: false }) }));
 vi.mock('@/lib/publish', () => ({ publishNow: async () => ({ ok: true }) }));
 const events = [];
@@ -76,6 +79,7 @@ beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [], user: { id: 'u-1' } });
   Object.assign(dataMock, { calls: [], error: null, rate: { allowed: true, hits: 1, retryAfterS: 0 } });
   events.length = 0;
+  Object.assign(ruleMock, { proposed: [], fail: false });
 });
 
 describe('prévia', () => {
@@ -162,9 +166,10 @@ describe('aprovar leva a versão que a pessoa via', () => {
 
   it('repassa designVersion; sem o campo segue como antes', async () => {
     expect((await approve({ designVersion: 4 })).status).toBe(200);
-    expect(dataMock.calls[0]).toEqual(['assert', 'plat-1', 4]);
+    const asserts = () => dataMock.calls.filter((c) => c[0] === 'assert');
+    expect(asserts()[0]).toEqual(['assert', 'plat-1', 4]);
     expect((await approve()).status).toBe(200);
-    expect(dataMock.calls[1]).toEqual(['assert', 'plat-1', undefined]);
+    expect(asserts()[1]).toEqual(['assert', 'plat-1', undefined]);
   });
 
   it('versão que mudou devolve 409 e versão inválida devolve 400', async () => {
@@ -207,5 +212,30 @@ describe('eventos de produto (BEZ-269)', () => {
     expect(events).toEqual([]);
     expect((await SIGNAL(post({ kind: 'discarded', edits: 2 }), params())).status).toBe(200);
     expect(events[0][1]).toBe('design_edit_discarded');
+  });
+});
+
+describe('regra proposta depois do Confirmar (BEZ-270)', () => {
+  it('a resposta do Confirmar e do Restaurar leva a regra proposta, ou nulo', async () => {
+    ruleMock.proposed = [{ id: 'r1', title: 'Logo no canto inferior direito', explanation: 'Você moveu o logo...' }];
+    const saved = await (await SAVE(post({ baseVersion: 3, design }), params())).json();
+    expect(saved.ruleProposed).toEqual({ id: 'r1', title: 'Logo no canto inferior direito', explanation: 'Você moveu o logo...' });
+    expect(saved).toMatchObject({ version: 4, summary: 'Subtítulo removido' });
+    const restored = await (await RESTORE(post({ baseVersion: 3 }), params({ version: '1' }))).json();
+    expect(restored.ruleProposed).toMatchObject({ id: 'r1' });
+    ruleMock.proposed = [];
+    expect((await (await SAVE(post({ baseVersion: 3, design }), params())).json()).ruleProposed).toBeNull();
+  });
+
+  it('falha ao propor nunca derruba o Confirmar, que já foi gravado', async () => {
+    ruleMock.fail = true;
+    const res = await SAVE(post({ baseVersion: 3, design }), params());
+    expect(res.status).toBe(201);
+    expect((await res.json()).ruleProposed).toBeNull();
+  });
+
+  it('aprovar marca o design como aprovado (é o que faz a edição contar para a regra)', async () => {
+    await APPROVE(post({ pendingId: 'plat-1', captionId: 1, artId: 1, designVersion: 2 }));
+    expect(dataMock.calls.filter((c) => c[0] === 'approved')).toEqual([['approved', 'design-1']]);
   });
 });

@@ -98,7 +98,8 @@ export function isLayout(value: unknown): value is Layout {
 
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };
+// `rules`: os ids das regras de marca aplicadas quando o post nasceu (SPEC 019); só para medir e explicar.
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[] };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
   return {

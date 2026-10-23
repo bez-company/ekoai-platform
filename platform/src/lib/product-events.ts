@@ -40,7 +40,7 @@ export async function trackGenerationOutcome(t: TenantDb, outcome: GenerationOut
     const direction = Number(brief.data?.direction ?? 1);
     const common = { brief_id: outcome.briefId, direction, regenerated: direction > 1, kind: (brief.data?.post_kind as string | null) ?? null, goal: (brief.data?.goal as string | null) ?? null };
     const totalCost = Math.round(steps.reduce((sum, s) => sum + s.cost_usd, 0) * 1e6) / 1e6;
-    if (outcome.status === 'ready') await track(t.tenantId, 'post_ready', { ...common, ratio: (brief.data?.ratio as string | null) ?? null, latency_ms: elapsedMs, cost_usd: totalCost });
+    if (outcome.status === 'ready') await track(t.tenantId, 'post_ready', { ...common, ratio: (brief.data?.ratio as string | null) ?? null, latency_ms: elapsedMs, cost_usd: totalCost, rules_applied: outcome.rulesApplied ?? 0 });
     else await track(t.tenantId, 'post_generation_failed', { ...common, outcome: outcome.status, latency_ms: elapsedMs, cost_usd: totalCost });
     for (const s of steps) await track(t.tenantId, 'cost_by_step', { brief_id: outcome.briefId, direction, ...s });
   } catch (e) {

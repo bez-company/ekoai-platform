@@ -10,6 +10,7 @@ export const TENANT_TABLES = [
   'company_facts',
   'company_profiles',
   'content_suggestions',
+  'design_rules',
   'engage_targets',
   'engagements',
   'feedback',

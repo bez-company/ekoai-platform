@@ -690,6 +690,9 @@ insert into post_designs (tenant_id, brief_id, kind, layout, design) values
   ('acme',    '30000000-0000-0000-0000-000000000002', 'atmosfera',   'foto-titulo',    '{"texts":{"title":"rls-acme"}}');
 insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, diff, summary)
   select tenant_id, id, 1, null, 'initial', design, '[]'::jsonb, 'Como a Ekoai gerou' from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
+insert into design_rules (tenant_id, field, scope, rule_key, value, status, explanation) values
+  ('exemplo', 'logoCorner', 'any', 'any|logoCorner|br', '"br"', 'proposed', 'rls-regra-exemplo'),
+  ('acme',    'logoCorner', 'any', 'any|logoCorner|br', '"br"', 'proposed', 'rls-regra-acme');
 insert into generation_runs (tenant_id, brief_id, step, input_hash, status) values
   ('exemplo', '30000000-0000-0000-0000-000000000001', 'writer', repeat('1', 64), 'done'),
   ('acme',    '30000000-0000-0000-0000-000000000002', 'writer', repeat('2', 64), 'done');
@@ -801,6 +804,19 @@ begin
   if n <> 2 then raise exception 'A deveria ver as 2 chamadas da exemplo, viu %', n; end if;
   select count(*) into n from post_design_revisions;
   if n <> 1 then raise exception 'A deveria ver 1 revisão, viu %', n; end if;
+  select count(*) into n from design_rules;
+  if n <> 1 then raise exception 'A deveria ver 1 regra do design, viu %', n; end if;
+  if exists (select 1 from design_rules where tenant_id <> 'exemplo') then raise exception 'A viu regra do design de outra conta'; end if;
+  begin
+    insert into design_rules (tenant_id, field, scope, rule_key, value, explanation) values ('exemplo', 'logoHidden', 'any', 'any|logoHidden|true', 'true', 'A grava');
+    raise exception 'A gravou regra do design (só o servidor grava)';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update design_rules set status = 'active' where tenant_id = 'exemplo';
+    if found then raise exception 'A alterou regra do design (só o servidor grava)'; end if;
+  exception when insufficient_privilege then null;
+  end;
   if exists (select 1 from post_design_revisions where tenant_id <> 'exemplo') then raise exception 'A viu revisão de outra conta'; end if;
   begin
     insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
@@ -871,6 +887,7 @@ begin
   if exists (select 1 from post_designs where tenant_id <> 'acme') then raise exception 'D viu design de outra conta'; end if;
   if exists (select 1 from generation_runs where tenant_id <> 'acme') then raise exception 'D viu chamada de outra conta'; end if;
   if exists (select 1 from post_design_revisions where tenant_id <> 'acme') then raise exception 'D viu revisão de outra conta'; end if;
+  if exists (select 1 from design_rules where tenant_id <> 'acme') then raise exception 'D viu regra do design de outra conta'; end if;
 end $$;
 select set_config('request.jwt.claims', '', false);
 reset role;

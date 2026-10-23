@@ -9,6 +9,8 @@ import { parseRestoreBody, parseVersion } from '@/lib/design/edit-model';
 import { restoreVersion } from '@/lib/post-design-revisions';
 import { track } from '@/lib/analytics';
 import { revisionRestoredProps, revisionSavedProps } from '@/lib/design-edit-events';
+import { proposeDesignRules } from '@/lib/design-rules';
+import { log } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +26,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const saved = await restoreVersion(t, id, { version: v.value, baseVersion: parsed.value.baseVersion, userId });
     await track(t.tenantId, 'design_revision_restored', revisionRestoredProps({ briefId: id, fromVersion: v.value, toVersion: saved.version }));
     await track(t.tenantId, 'design_revision_saved', revisionSavedProps({ briefId: id, version: saved.version, source: saved.source, diff: saved.diff, renderMs: saved.renderMs, editMs: null }));
-    return NextResponse.json(saved, { status: 201 });
+    const proposed = await proposeDesignRules(t).catch((e) => (log('warn', 'design-rules', 'não propôs regra', { error: e instanceof Error ? e.message : String(e) }), []));
+    return NextResponse.json({ ...saved, ruleProposed: proposed[0] ?? null }, { status: 201 });
   } catch (e) {
     return designEditError(e, 'api/posts/[id]/design/revisions/[version]/restore');
   }

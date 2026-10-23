@@ -24,6 +24,7 @@ import { brandFromProfile, brandPhotoLayout, defaultLayout, storedDesignOf, type
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
+import { applyDesignRulesToSpec } from './design-rules';
 import { NotFoundError, UserError } from './errors';
 import { log } from './log';
 import type { ModelClient } from './vertex';
@@ -36,7 +37,7 @@ import { photoSource } from './photo-post';
 export type GenerationDeps = { model: ModelClient; store?: BlobStore; fontDir?: string; mediaBaseUrl?: string };
 
 export type GenerationOutcome =
-  | { status: 'ready'; pendingId: string; briefId: string }
+  | { status: 'ready'; pendingId: string; briefId: string; rulesApplied?: number }
   | { status: 'failed'; briefId: string; error: string }
   | { status: 'limit'; briefId: string; max: number };
 
@@ -256,6 +257,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       logo,
       visual: visualKey ? { dataUri: `data:image/png;base64,${Buffer.from(await store.get(visualKey)).toString('base64')}` } : null,
     };
+    // Regras de marca aceitas pela conta (SPEC 019): só em post novo, e cada uma é pulada se pioraria o post.
+    const ruled = photo?.usage === 'as_is' ? null : await applyDesignRulesToSpec(t, spec, deps.fontDir);
+    if (ruled?.applied.length) Object.assign(spec, ruled.spec);
     // "Como está": a foto cortada é a imagem do post, sem texto, logo nem véu por cima.
     let rendered: { png: Buffer; issues: Issue[] };
     if (photo?.usage === 'as_is' && photoPng) {
@@ -272,7 +276,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     await store.put(pngKey, rendered.png, 'image/png');
 
     const allIssues = [...issues, ...rendered.issues];
-    const stored = photo ? { ...storedDesignOf(spec), photo: { assetId: photo.asset.id, usage: photo.usage } } : storedDesignOf(spec);
+    const stored = { ...storedDesignOf(spec), ...(photo ? { photo: { assetId: photo.asset.id, usage: photo.usage } } : {}), ...(ruled?.applied.length ? { rules: ruled.applied } : {}) };
     const design = await t
       .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: stored, visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
       .select('id')
@@ -319,7 +323,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
 
     await setBrief(t, brief.id, { status: 'ready', error: null });
     await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/inbox/${encodeURIComponent(pendingId)}`, audience: 'team' });
-    return { status: 'ready', briefId, pendingId };
+    return { status: 'ready', briefId, pendingId, ...(ruled?.applied.length ? { rulesApplied: ruled.applied.length } : {}) };
   } catch (e) {
     const message = (e instanceof Error ? e.message : String(e)).slice(0, 500);
     log('error', 'generation', 'geração falhou', { briefId, error: message });
