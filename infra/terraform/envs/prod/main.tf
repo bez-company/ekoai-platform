@@ -73,6 +73,16 @@ module "ekoai" {
   schedules_paused       = true
   uptime_check           = true
 
+  # Lançamento-base (23/10/2026): cada empresa cria a própria conta e entra por pessoa. O limite de taxa
+  # no cadastro entrou com o BEZ-29 (migration 0035), a condição que este ambiente esperava para abrir.
+  # O segundo fator segue `required` (administrador entra, cria e exclui conta com app autenticador).
+  auth_provider = "identity"
+  signup_mode   = "open"
+  mfa_mode      = "required"
+
+  # Os posts agendados saem no horário, como no staging (BEZ-228). Os outros jobs seguem pausados.
+  publish_paused = false
+
   # Domínio da plataforma no Firebase Hosting (ADR 0020). Os registros de DNS saem em `app_dns_records`.
   app_domain = "app.ekoai.com.br"
 }
