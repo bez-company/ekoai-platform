@@ -46,7 +46,8 @@ código e o CI desde o primeiro commit.
   porque o site padrão não serve nada hoje.
 - O Firebase Hosting entrega cookies só com o nome `__session` para o Cloud Run. Isso não afeta o
   site, mas descarta o Hosting como porta do app em `app.ekoai.com.br` (o login usa outro cookie):
-  o BEZ-42 segue com Load Balancer.
+  o BEZ-42 segue com Load Balancer. Revisado pelo [ADR 0020](0020-dominio-da-plataforma-no-hosting-ate-o-lancamento.md):
+  até o lançamento o app usa o Hosting com o cookie `__session`.
 
 ## Alternativas descartadas
 

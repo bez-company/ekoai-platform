@@ -15,6 +15,13 @@ provider "google" {
   billing_project       = "ekoai-staging"
 }
 
+provider "google-beta" {
+  project               = "ekoai-staging"
+  region                = "southamerica-east1"
+  user_project_override = true
+  billing_project       = "ekoai-staging"
+}
+
 variable "deploy_workloads" {
   type    = bool
   default = false

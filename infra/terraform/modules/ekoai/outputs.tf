@@ -41,3 +41,8 @@ output "kms_key_name" {
   description = "Nome completo da chave que cifra os tokens das redes (env KMS_KEY_NAME)."
   value       = local.kms_key_name
 }
+
+output "app_dns_records" {
+  description = "Registros que o DNS do domínio precisa receber (TXT e A) quando app_domain está preenchido."
+  value       = try(google_firebase_hosting_custom_domain.app[0].required_dns_updates, null)
+}

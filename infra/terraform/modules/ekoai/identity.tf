@@ -27,11 +27,14 @@ resource "google_identity_platform_config" "auth" {
   }
 
   # Onde o login pode acontecer: os domínios do projeto e o da plataforma.
-  authorized_domains = [
-    local.firebase_auth_domain,
-    "${var.project_id}.web.app",
-    local.platform_host,
-  ]
+  authorized_domains = concat(
+    [
+      local.firebase_auth_domain,
+      "${var.project_id}.web.app",
+      local.platform_host,
+    ],
+    var.app_domain == "" ? [] : [var.app_domain],
+  )
 
   # Textos dos e-mails de confirmação e de nova senha: a API recusa a edição
   # (EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED) e o provider não expõe o bloco. Edita-se no console
@@ -49,10 +52,13 @@ resource "google_apikeys_key" "web" {
 
   restrictions {
     browser_key_restrictions {
-      allowed_referrers = [
-        "https://${local.platform_host}/*",
-        "https://${local.firebase_auth_domain}/*",
-      ]
+      allowed_referrers = concat(
+        [
+          "https://${local.platform_host}/*",
+          "https://${local.firebase_auth_domain}/*",
+        ],
+        var.app_domain == "" ? [] : ["https://${var.app_domain}/*"],
+      )
     }
     api_targets {
       service = "identitytoolkit.googleapis.com"

@@ -80,7 +80,7 @@ resource "google_cloud_run_v2_service" "platform" {
       }
       env {
         name  = "MEDIA_BASE_URL"
-        value = "${local.platform_url}/api/media"
+        value = "${local.public_url}/api/media"
       }
       env {
         name  = "AUTH_PROVIDER"
@@ -132,10 +132,10 @@ resource "google_cloud_run_v2_service" "platform" {
         value = local.kms_key_name
       }
       # Endereço público: base dos links de convite (/convite/<token>). No Cloud Run, os
-      # cabeçalhos do proxy podem trazer o endereço interno. Troca para o domínio próprio quando houver.
+      # cabeçalhos do proxy podem trazer o endereço interno. Vira o domínio próprio com app_domain.
       env {
         name  = "APP_BASE_URL"
-        value = local.platform_url
+        value = local.public_url
       }
       env {
         name  = "CRON_OIDC_AUDIENCE"
@@ -242,7 +242,7 @@ resource "google_cloud_run_v2_job" "job" {
         }
         env {
           name  = "MEDIA_BASE_URL"
-          value = "${local.platform_url}/api/media"
+          value = "${local.public_url}/api/media"
         }
         dynamic "env" {
           for_each = local.account_env

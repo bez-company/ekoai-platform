@@ -196,7 +196,7 @@ describe('POST /api/account', () => {
     expect(await res.json()).toEqual({ ok: true, tenantId: 'doce-ponto', role: 'admin' });
     expect(accountsMock.created).toEqual([{ userId: '00000000-0000-4000-8000-00000000000a', name: 'Marina Lopes', kind: 'pessoa' }]);
     const cookie = res.headers.get('set-cookie');
-    expect(cookie).toMatch(/^pa_session=u\.00000000-0000-4000-8000-00000000000a\.doce-ponto\.1\./);
+    expect(cookie).toMatch(/^__session=u\.00000000-0000-4000-8000-00000000000a\.doce-ponto\.1\./);
     expect(cookie).toMatch(/HttpOnly/i);
   });
 });

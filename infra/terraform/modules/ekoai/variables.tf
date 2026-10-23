@@ -192,3 +192,9 @@ variable "mfa_mode" {
     error_message = "mfa_mode deve ser required ou optional."
   }
 }
+
+variable "app_domain" {
+  description = "Domínio público da plataforma (ex.: app.ekoai.com.br). Vazio = só o endereço do Cloud Run. Preenchido, cria um site do Firebase Hosting com rewrite para o Cloud Run (ADR 0020), troca APP_BASE_URL e MEDIA_BASE_URL e inclui o domínio no login. Exige deploy_workloads = true e a API do Firebase Hosting ligada no projeto."
+  type        = string
+  default     = ""
+}

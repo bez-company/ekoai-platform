@@ -124,7 +124,7 @@ describe('POST /api/account/delete', () => {
     expect(deleteMock.calls).toEqual([{ tenantId: 'acme', actorUserId: 'user-1', kind: 'empresa' }]);
     expect(mailMock.sent.map((m) => m.to).sort()).toEqual(['carla@x.test', 'diego@x.test']);
     expect(mailMock.sent[0]).toMatchObject({ accountName: 'Doce Ponto Confeitaria', deletedByName: 'Ana Ribeiro' });
-    expect(res.headers.get('set-cookie')).toMatch(/pa_session=;.*Max-Age=0/i);
+    expect(res.headers.get('set-cookie')).toMatch(/__session=;.*Max-Age=0/i);
   });
 
   it('o aviso é melhor esforço: falha de um e-mail, ou provedor mal configurado, não desfaz a exclusão', async () => {
