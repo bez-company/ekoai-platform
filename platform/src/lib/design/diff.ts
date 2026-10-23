@@ -1,4 +1,4 @@
-// diff.ts: o que mudou entre duas versões do design de um post (SPEC 019, ADR 0020). Puro. O servidor
+// diff.ts: o que mudou entre duas versões do design de um post (SPEC 019, ADR 0021). Puro. O servidor
 // calcula; a tela nunca manda diff. Só campos da lista fechada saem daqui, cada um com `antes`, `depois`
 // e o contexto do post, e o resumo em português sai de template, nunca de modelo.
 

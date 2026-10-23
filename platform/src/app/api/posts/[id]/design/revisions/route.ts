@@ -1,7 +1,7 @@
 // GET  /api/posts/[id]/design/revisions: a versão em uso, o design editável, os layouts compatíveis e as
 //      versões (quem mudou, o resumo e o diff por campo). Quem vê o conteúdo lê.
 // POST /api/posts/[id]/design/revisions: Confirmar. Grava a versão baseVersion + 1, sem chamar o modelo
-//      (SPEC 019, ADR 0020). 409 se outra pessoa gravou antes; 422 se o revisor reprova.
+//      (SPEC 019, ADR 0021). 409 se outra pessoa gravou antes; 422 se o revisor reprova.
 
 import { NextResponse } from 'next/server';
 import { requirePermission, requireSession } from '@/lib/session';

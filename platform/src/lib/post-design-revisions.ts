@@ -1,4 +1,4 @@
-// post-design-revisions.ts: o ajuste rápido do post, com versões (SPEC 019, ADR 0020). Nada aqui chama o
+// post-design-revisions.ts: o ajuste rápido do post, com versões (SPEC 019, ADR 0021). Nada aqui chama o
 // modelo: a prévia, o Confirmar e o Restaurar só redesenham o design (design/render.ts) e rodam o revisor
 // por regra. Tudo pelo tenantDb; o tenant vem da sessão.
 //

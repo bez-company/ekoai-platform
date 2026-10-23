@@ -1,13 +1,13 @@
 # SPEC 019: ajuste rápido do post, versões e aprendizado com a edição
 
-- **Status:** aprovada em 23/10/2026 (protótipo v13 e as 10 decisões, com as recomendações); entregas a, c, d e e na staging; a tela (b) em PR
+- **Status:** entregue na staging em 23/10/2026 (protótipo v13 e as 10 decisões aprovados com as recomendações). Faltam o E2E do fluxo e a fase 3, que só começa com o gatilho de dado
 - **Data:** 2026-10-23
 - **Cards:** BEZ-266 (esta spec), BEZ-267 a BEZ-271 (entregas a a e); pai BEZ-205
 - **Depende de:** [SPEC 012](012-agentes-instagram-fase-2.md) (decisões 1 e 4, motor híbrido e revisor por
   regra; R3, edição do texto na imagem), [SPEC 017](017-do-primeiro-uso-a-rotina-de-posts.md) (Aprovar,
   etiquetas de estado), [SPEC 018](018-objetivos-campanhas-e-fatos.md) (fato vigente no revisor),
   [ADR 0017](../adr/0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md) (famílias de layout),
-  [ADR 0017 de eventos](../adr/0017-eventos-de-produto-pelo-servidor.md), [ADR 0020](../adr/0020-revisao-imutavel-com-diff-por-campo.md)
+  [ADR 0017 de eventos](../adr/0017-eventos-de-produto-pelo-servidor.md), [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md)
 - **Ideias que esta spec fecha:** BEZ-195 (versões, Restaurar padrão, Confirmar), BEZ-201 (aprender com a
   edição), BEZ-202 (trocar layout sem chamar o modelo)
 - **Fica fora, com gatilho de dado (seção "Fase 3"):** BEZ-194 (arrastar elementos), BEZ-196 completo (Estúdio)
@@ -117,7 +117,7 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
 
 ### Fase 2: revisões e conflito
 
-6. **Revisão imutável, uma por versão** ([ADR 0020](../adr/0020-revisao-imutavel-com-diff-por-campo.md)).
+6. **Revisão imutável, uma por versão** ([ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md)).
    Tabela `post_design_revisions`. Cada Confirmar grava uma linha nova com o design completo da versão,
    o diff contra a versão de origem, o autor e o resumo. Nunca se altera nem se apaga uma revisão, a não
    ser pela limpeza de retenção (decisão 8) ou pela exclusão da conta. **Voltar a uma versão antiga cria
@@ -396,13 +396,26 @@ Estados e textos (voz ativa, sentence case, sem travessão):
 
 | # | Entrega | Verificação | Card |
 | --- | --- | --- | --- |
-| 0 | Esta spec, o ADR 0020 e os cards | Revisão do Matheus | BEZ-266 |
+| 0 | Esta spec, o ADR 0021 e os cards | Revisão do Matheus | BEZ-266 |
 | 1 | Protótipo v13 (Claude Design), só com este documento na staging | Link aprovado na spec | BEZ-266 |
 | a | Migration `post_design_revisions`, parser, render e revisor no servidor, `diffDesigns` e o resumo por template, rotas de prévia, salvar, listar, restaurar, `designVersion` no aprovar | Critérios 1 a 10 | BEZ-267 |
 | b | Tela de ajuste rápido com desfazer, restaurar, versões e trocar layout | Prints, critério 17; só com o protótipo aprovado | BEZ-268 |
 | c | Eventos de produto e propriedades novas, medição do Gate 4 | Critérios 11 e 12 | BEZ-269 |
 | d | `design_rules`: proposta, aceite, desligar, aplicar na geração | Critérios 13 a 16 | BEZ-270 |
 | e | `EDIT_BLOCKING` e o revisor depois da edição manual | Critérios 5 e 6 | BEZ-271 |
+
+### Estado da entrega (23/10/2026)
+
+| Entrega | PR | Observação |
+| --- | --- | --- |
+| 0 e 1 | #153 e protótipo v13 | spec, ADR 0021 e protótipo aprovados |
+| a e e | #159 | `diffDesigns` e o revisor depois da edição (`EDIT_BLOCKING`) nasceram junto das revisões: o servidor reprova mesmo sem passar pela prévia |
+| c | #160 | eventos e sinal da tela (`/design/signal`); `post_approved` leva `design_version` e `edited` |
+| d | #164 | `design_rules` e `post_designs.approved_at`; a regra é aplicada em `generation.ts` por uma chamada |
+| b | #165 | painel de ajuste rápido e versões em Aprovar |
+| b2 | #166 (BEZ-279) | Aprendizado › Design do post |
+
+Ficou de fora de propósito: as duas miniaturas antes e depois de cada regra e os números de aprovação com regra (o protótipo os marcava como exemplo; os reais vêm do painel do Gate 4). Falta o E2E Playwright do fluxo (o emulador de login exige Java na máquina de desenvolvimento) e a fase 3, que só começa com o gatilho de dado da decisão 16.
 
 A ordem importa: **a** antes de tudo (o resto grava nela; o diff nasce junto porque toda revisão grava o seu); **c** antes de **d** (linha de base de duas
 semanas antes da primeira regra); **e** pode entrar junto de **a**, porque o servidor já precisa dela
