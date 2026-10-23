@@ -264,3 +264,32 @@ export function factsForPrompt(facts: readonly CompanyFact[], today: string = to
   }
   return out;
 }
+
+// Confirmar um fato: o prazo é opcional. Ausente deixa o que já está; vazio ou null tira o prazo.
+export function parseConfirm(body: unknown, today: string = todayLocal()): Parsed<{ validUntil: string | null | undefined }> {
+  const b = obj(body);
+  if (b.valid_until === undefined) return { ok: true, value: { validUntil: undefined } };
+  const validUntil = parseValidUntil(b.valid_until, today);
+  if (!validUntil.ok) return validUntil;
+  return { ok: true, value: { validUntil: validUntil.value } };
+}
+
+// Aviso de vencimento: um por etapa por fato. `soon` (até 7 dias, ainda vigente) e `expired` (passou). Quem já
+// foi avisado da etapa não entra de novo; vencer depois de avisado em `soon` ainda gera o aviso de `expired`.
+export function pendingExpiryNotice(fact: Pick<CompanyFact, 'kind' | 'status' | 'active' | 'validUntil' | 'expiryNotice'>, today: string = todayLocal()): 'soon' | 'expired' | null {
+  if (fact.kind !== 'fact' || fact.status !== 'confirmed' || !fact.active || !fact.validUntil) return null;
+  const left = daysBetween(today, fact.validUntil);
+  if (left < 0) return fact.expiryNotice === 'expired' ? null : 'expired';
+  if (left <= EXPIRY_SOON_DAYS) return fact.expiryNotice ? null : 'soon';
+  return null;
+}
+
+// O texto do aviso nunca leva o texto do fato, só a categoria.
+export function expiryNoticeText(stage: 'soon' | 'expired', categories: readonly FactCategory[]): { title: string; body: string } {
+  const n = categories.length;
+  const labels = [...new Set(categories)].map((c) => CATEGORY_LABEL[c]).join(', ');
+  if (stage === 'soon') {
+    return { title: n === 1 ? '1 fato da empresa vence em 7 dias' : `${n} fatos da empresa vencem em 7 dias`, body: `${labels}. Atualize a validade para os posts continuarem usando.` };
+  }
+  return { title: n === 1 ? '1 fato da empresa venceu' : `${n} fatos da empresa venceram`, body: `${labels}. Fato vencido não entra nos posts. Atualize a validade para voltar a usar.` };
+}

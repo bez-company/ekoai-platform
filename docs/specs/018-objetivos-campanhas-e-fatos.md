@@ -200,9 +200,10 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
    em 12/11. Confirme ou atualize o fato." O que `inactive` não consegue ver (claim sem número) segue
    coberto por `never` e pelo prompt, que não recebeu o fato.
 
-7. **Aviso de vencimento.** O cron diário existente varre `valid_until`: 7 dias antes (`soon`) e no dia
-   (`expired`), uma notificação por etapa por fato (`expiry_notice`), para a audiência `admin`, com o
-   link para a tela de fatos. O texto do fato nunca vai na notificação, só a categoria ("Uma oferta
+7. **Aviso de vencimento.** O cron diário existente varre `valid_until`: 7 dias antes (`soon`) e depois
+   do prazo (`expired`). Cada fato é avisado uma vez por etapa (`expiry_notice`), e a notificação sai agrupada
+   por conta e etapa ("2 fatos da empresa vencem em 7 dias"), para a audiência `admin`, com o link para a
+   tela de fatos. O texto do fato nunca vai na notificação, só a categoria ("Uma oferta
    vence em 7 dias").
 
 8. **Contrato de entrada da importação (BEZ-192 e 197).** A importação grava `source = 'site'`,
@@ -300,6 +301,7 @@ novas por `on delete cascade`.
 | `GET /api/campaigns/[id]/progress` | `content.view` | | 200 contagens e engajamento |
 | `POST /api/facts/[id]/confirm` | `brand.manage` | `valid_until` opcional | 200; 403; 404 |
 | `POST /api/facts/[id]/reject` | `brand.manage` | | 200; 403; 404 |
+| `POST /api/facts/[id]/restore` | `brand.manage` | | 200; 403; 404 (desfaz a recusa: volta a pendente) |
 | `POST /api/facts/confirm-many` | `brand.manage` | `ids` (1 a 50, UUID) | 200 com o total; 400; 403 |
 
 Toda rota declara a permissão (`tests/route-permissions.test.js`). Nenhuma é pública. Eventos de produto
