@@ -6,13 +6,13 @@ const APP = { appId: '27356348073961636', appSecret: 'segredo-do-app' };
 const REDIRECT = 'https://ekoai.example/api/instagram/callback';
 
 describe('URL de autorização', () => {
-  it('pede só as duas permissões do app, com state e login forçado', () => {
+  it('pede as permissões do app (duas obrigatórias e a de insights), com state e login forçado', () => {
     const url = new URL(m.buildAuthorizeUrl({ appId: APP.appId, redirectUri: REDIRECT, state: 'abc' }));
     expect(url.origin + url.pathname).toBe('https://www.instagram.com/oauth/authorize');
     expect(url.searchParams.get('client_id')).toBe(APP.appId);
     expect(url.searchParams.get('redirect_uri')).toBe(REDIRECT);
     expect(url.searchParams.get('response_type')).toBe('code');
-    expect(url.searchParams.get('scope')).toBe('instagram_business_basic,instagram_business_content_publish');
+    expect(url.searchParams.get('scope')).toBe('instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights');
     expect(url.searchParams.get('state')).toBe('abc');
     expect(url.searchParams.get('force_reauth')).toBe('true');
   });
@@ -75,10 +75,12 @@ describe('respostas da Meta (dado externo)', () => {
     expect(m.isProfessional(m.parseProfile({ user_id: '1' }))).toBe(false);
   });
 
-  it('lista a permissão que faltou', () => {
+  it('lista a permissão obrigatória que faltou; a de insights é opcional', () => {
     expect(m.missingScopes(['instagram_business_basic'])).toEqual(['instagram_business_content_publish']);
     expect(m.missingScopes([...m.SCOPES])).toEqual([]);
+    expect(m.missingScopes([...m.REQUIRED_SCOPES])).toEqual([]);
   });
+
 
   it('dias até vencer nunca fica negativo', () => {
     const now = Date.UTC(2026, 9, 22);
