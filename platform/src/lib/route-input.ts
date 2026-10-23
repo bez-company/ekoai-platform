@@ -39,6 +39,8 @@ export type ApproveBody = {
   captionText?: string;
   scheduledFor?: string;
   publishNow: boolean;
+  // A versão do design que a pessoa estava vendo (SPEC 019): se mudou, aprovar devolve 409.
+  designVersion?: number;
 };
 
 export function parseApprove(body: unknown): Parsed<ApproveBody> {
@@ -52,6 +54,10 @@ export function parseApprove(body: unknown): Parsed<ApproveBody> {
   }
   const scheduledFor = isoDate(b.scheduledFor);
   if (scheduledFor === null) return { ok: false, error: 'Horário inválido. Escolha a data de novo.' };
+  const rawVersion = b.designVersion;
+  if (rawVersion !== undefined && rawVersion !== null && (typeof rawVersion !== 'number' || !Number.isInteger(rawVersion) || rawVersion < 1 || rawVersion > 100_000)) {
+    return { ok: false, error: 'Versão do post inválida. Recarregue a página.' };
+  }
   return {
     ok: true,
     value: {
@@ -62,6 +68,7 @@ export function parseApprove(body: unknown): Parsed<ApproveBody> {
       captionText: typeof b.captionText === 'string' ? b.captionText.slice(0, 5000) : undefined,
       scheduledFor,
       publishNow: b.publishNow === true,
+      ...(typeof rawVersion === 'number' ? { designVersion: rawVersion } : {}),
     },
   };
 }

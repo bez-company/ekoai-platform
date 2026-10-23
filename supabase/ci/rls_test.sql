@@ -688,9 +688,42 @@ insert into briefs (id, tenant_id, pillar, idea, status, source, post_kind) valu
 insert into post_designs (tenant_id, brief_id, kind, layout, design) values
   ('exemplo', '30000000-0000-0000-0000-000000000001', 'informativo', 'lista-numerada', '{"texts":{"title":"rls-exemplo"}}'),
   ('acme',    '30000000-0000-0000-0000-000000000002', 'atmosfera',   'foto-titulo',    '{"texts":{"title":"rls-acme"}}');
+insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, diff, summary)
+  select tenant_id, id, 1, null, 'initial', design, '[]'::jsonb, 'Como a Ekoai gerou' from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
 insert into generation_runs (tenant_id, brief_id, step, input_hash, status) values
   ('exemplo', '30000000-0000-0000-0000-000000000001', 'writer', repeat('1', 64), 'done'),
   ('acme',    '30000000-0000-0000-0000-000000000002', 'writer', repeat('2', 64), 'done');
+
+-- revisão (SPEC 019, migration 0039): imutável, com v1 sem origem, e presa ao design da própria conta
+do $$
+declare d uuid;
+begin
+  select id into d from post_designs where tenant_id = 'exemplo' limit 1;
+  begin
+    update post_design_revisions set summary = 'mudou' where post_design_id = d;
+    raise exception 'revisão foi alterada (deveria ser imutável)';
+  exception when raise_exception then
+    if sqlerrm not like '%imutável%' then raise; end if;
+  end;
+  begin
+    insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
+      values ('exemplo', d, 2, null, 'edit', '{}', 'sem origem');
+    raise exception 'versão 2 sem versão de origem passou';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
+      values ('exemplo', d, 1, null, 'initial', '{}', 'duplicada');
+    raise exception 'versão 1 duplicada passou (a chave única é o cadeado)';
+  exception when unique_violation then null;
+  end;
+  begin
+    insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
+      values ('acme', d, 2, 1, 'edit', '{}', 'design de outra conta');
+    raise exception 'revisão da acme apontou para design da exemplo';
+  exception when foreign_key_violation then null;
+  end;
+end $$;
 
 -- o design de uma conta não pode apontar para a pendência de outra (FK composta)
 do $$
@@ -766,6 +799,15 @@ begin
   if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'A viu design de outra conta'; end if;
   select count(*) into n from generation_runs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 2 then raise exception 'A deveria ver as 2 chamadas da exemplo, viu %', n; end if;
+  select count(*) into n from post_design_revisions;
+  if n <> 1 then raise exception 'A deveria ver 1 revisão, viu %', n; end if;
+  if exists (select 1 from post_design_revisions where tenant_id <> 'exemplo') then raise exception 'A viu revisão de outra conta'; end if;
+  begin
+    insert into post_design_revisions (tenant_id, post_design_id, version, parent_version, source, design, summary)
+      select 'exemplo', post_design_id, 2, 1, 'edit', '{}', 'A grava' from post_design_revisions limit 1;
+    raise exception 'A gravou revisão (só o servidor grava)';
+  exception when insufficient_privilege then null;
+  end;
   begin
     insert into post_designs (tenant_id, brief_id, kind, layout, design)
       values ('exemplo', '30000000-0000-0000-0000-000000000001', 'informativo', 'lista-numerada', '{}');
@@ -817,6 +859,8 @@ begin
   select count(*) into n from post_designs where brief_id in ('30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002');
   if n <> 1 then raise exception 'V deveria ver 1 design, viu %', n; end if;
   if exists (select 1 from post_designs where tenant_id <> 'exemplo') then raise exception 'V viu design de outra conta'; end if;
+  select count(*) into n from post_design_revisions;
+  if n <> 1 then raise exception 'V deveria ver 1 revisão (leitor vê as versões), viu %', n; end if;
 end $$;
 
 -- D: leitor da acme vê só o da acme
@@ -826,6 +870,7 @@ do $$
 begin
   if exists (select 1 from post_designs where tenant_id <> 'acme') then raise exception 'D viu design de outra conta'; end if;
   if exists (select 1 from generation_runs where tenant_id <> 'acme') then raise exception 'D viu chamada de outra conta'; end if;
+  if exists (select 1 from post_design_revisions where tenant_id <> 'acme') then raise exception 'D viu revisão de outra conta'; end if;
 end $$;
 select set_config('request.jwt.claims', '', false);
 reset role;

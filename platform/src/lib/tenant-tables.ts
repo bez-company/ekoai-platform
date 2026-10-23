@@ -22,6 +22,7 @@ export const TENANT_TABLES = [
   'onboarding_answers',
   'pending_approvals',
   'planning_runs',
+  'post_design_revisions',
   'post_designs',
   'post_events',
   'post_variants',

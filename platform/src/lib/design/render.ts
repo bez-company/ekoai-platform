@@ -9,11 +9,14 @@ import { reviewLayout, type Issue } from './review';
 
 export type Rendered = Composed & { png: Buffer; issues: Issue[] };
 
-export function renderPng(spec: DesignSpec, options: { fontDir?: string } = {}): Rendered {
+// `width` desenha menor (a prévia do ajuste rápido); as caixas e os achados do revisor são os do tamanho cheio.
+export function renderPng(input: DesignSpec, options: { fontDir?: string; width?: number } = {}): Rendered {
+  // Logo escondido no ajuste rápido: o layout desenha sem ele.
+  const spec = input.logoHidden ? { ...input, logo: null } : input;
   const composed = compose(spec);
   const dir = options.fontDir ?? fontDir();
   const resvg = new Resvg(composed.svg, {
-    fitTo: { mode: 'width', value: composed.width },
+    fitTo: { mode: 'width', value: options.width ?? composed.width },
     font: { fontFiles: fontFilesFor([spec.brand.fontHeading, spec.brand.fontBody, DEFAULT_HEADING, DEFAULT_BODY], dir), loadSystemFonts: false, defaultFontFamily: DEFAULT_BODY },
   });
   const png = resvg.render().asPng();

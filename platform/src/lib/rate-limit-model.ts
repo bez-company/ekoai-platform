@@ -14,6 +14,8 @@ export const RULES = {
   accountEmail: { bucket: 'account.email', windowS: DAY, limit: 5 },
   acceptIp: { bucket: 'accept.ip', windowS: HOUR, limit: 30 },
   acceptEmail: { bucket: 'accept.email', windowS: HOUR, limit: 10 },
+  // Prévia do ajuste rápido (SPEC 019): desenha no servidor, por conta. Uma pessoa digitando chega a poucas por segundo.
+  designPreview: { bucket: 'design.preview', windowS: 60, limit: 60 },
 } as const satisfies Record<string, RateRule>;
 
 // O IP de quem chama atrás do Cloud Run: o front-end do Google acrescenta o IP real no FIM do

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { track } from '@/lib/analytics';
 import { approvePending } from '@/lib/scheduling';
+import { assertDesignVersion } from '@/lib/post-design-revisions';
 import { publishNow } from '@/lib/publish';
 import { requirePermission } from '@/lib/session';
 import { parseApprove } from '@/lib/route-input';
@@ -14,6 +15,8 @@ export async function POST(req: Request) {
     const t = await requirePermission('content.approve');
     const parsed = parseApprove(await req.json().catch(() => null));
     if (!parsed.ok) return badRequest(parsed.error);
+    // A versão do design que a pessoa via: se outra pessoa salvou uma nova, aprovar para (409).
+    await assertDesignVersion(t, parsed.value.pendingId, parsed.value.designVersion);
     const result = await approvePending(t, parsed.value);
     await track(t.tenantId, 'post_approved');
     if (!parsed.value.publishNow) return NextResponse.json({ ok: true, ...result });

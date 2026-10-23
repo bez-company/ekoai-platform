@@ -108,3 +108,11 @@ export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_fa
 export function blocking(issues: Issue[]): Issue[] {
   return issues.filter((i) => BLOCKING.has(i.rule));
 }
+
+// Depois de uma edição manual (SPEC 019, decisão 5): além do que já trava, margem de segurança e fonte
+// mínima também travam o Confirmar. O motor sozinho nunca gera esses dois, mas quem edita o texto pode.
+export const EDIT_BLOCKING = new Set([...BLOCKING, 'safe_margin', 'font_size']);
+
+export function editBlocking(issues: Issue[]): Issue[] {
+  return issues.filter((i) => EDIT_BLOCKING.has(i.rule));
+}

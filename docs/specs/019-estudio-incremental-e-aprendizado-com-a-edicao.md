@@ -12,8 +12,13 @@
   edição), BEZ-202 (trocar layout sem chamar o modelo)
 - **Fica fora, com gatilho de dado (seção "Fase 3"):** BEZ-194 (arrastar elementos), BEZ-196 completo (Estúdio)
 - **Fica em card próprio:** BEZ-193 (pedir ajuste em texto livre), BEZ-257 (alt text editável), BEZ-208, 209, 200
-- **Protótipo:** v13, a publicar no mesmo artifact das fases anteriores (https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz).
-  Aguarda aprovação do Matheus antes de qualquer código de tela
+- **Protótipo:** v13 publicada em 23/10/2026 no mesmo artifact das fases anteriores
+  (https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, versão 13, `version_id` 1792728726-05ec). No seletor do alto:
+  tela **Ajuste rápido do post** (grupo "Fase 5": painel, editando, trocar layout, revisor trava por contraste e por
+  palavra proibida, salvando, versão salva e regra proposta, versões, versão antiga, conflito, erro ao salvar, post já
+  aprovado, carregando) e, em **Aprendizado**, as variantes "Design do post" (proposta, aceita, ativas e desligada,
+  dispensada, vazio, carregando, erro). Desktop e celular, e os papéis (leitor só vê as versões). Aguarda aprovação do
+  Matheus antes de qualquer código de tela
 
 ## Problema
 
@@ -277,7 +282,7 @@ erDiagram
   }
 ```
 
-**`post_design_revisions` (nova, migration 0038 ou a próxima livre):**
+**`post_design_revisions` (nova, migration 0039):**
 
 | Coluna | Regra |
 | --- | --- |
@@ -380,7 +385,7 @@ Estados e textos (voz ativa, sentence case, sem travessão):
 | Carregando | Moldura com esqueleto; o botão Confirmar mostra "Salvando" |
 | Erro ao salvar | "Não foi possível salvar o ajuste. Suas mudanças continuam na tela. Tente de novo." |
 | Conflito | "{Nome} salvou a versão 4 enquanto você editava. Veja a versão 4 ou refaça seu ajuste sobre ela." (sem nome: "Outra pessoa da equipe") |
-| Revisor travou | "Contraste baixo no título (2,1:1, mínimo 4,5:1). Escolha outra cor." |
+| Revisor travou | "Contraste baixo no título (1,2:1, mínimo 4,5:1). Escolha outra cor." |
 | Post já decidido | "Este post já foi aprovado. Peça outra direção para criar um novo." |
 | Sem permissão | O painel some; leitor vê só as versões (200), nunca edita (403) |
 
@@ -390,13 +395,13 @@ Estados e textos (voz ativa, sentence case, sem travessão):
 | --- | --- | --- | --- |
 | 0 | Esta spec, o ADR 0020 e os cards | Revisão do Matheus | BEZ-266 |
 | 1 | Protótipo v13 (Claude Design), só com este documento na staging | Link aprovado na spec | BEZ-266 |
-| a | Migration `post_design_revisions`, parser, render e revisor no servidor, rotas de prévia, salvar, listar, restaurar, `designVersion` no aprovar | Critérios 1 a 9 | BEZ-267 |
+| a | Migration `post_design_revisions`, parser, render e revisor no servidor, `diffDesigns` e o resumo por template, rotas de prévia, salvar, listar, restaurar, `designVersion` no aprovar | Critérios 1 a 10 | BEZ-267 |
 | b | Tela de ajuste rápido com desfazer, restaurar, versões e trocar layout | Prints, critério 17; só com o protótipo aprovado | BEZ-268 |
-| c | `diffDesigns`, resumo por template, eventos e propriedades novas | Critérios 10 a 12 | BEZ-269 |
+| c | Eventos de produto e propriedades novas, medição do Gate 4 | Critérios 11 e 12 | BEZ-269 |
 | d | `design_rules`: proposta, aceite, desligar, aplicar na geração | Critérios 13 a 16 | BEZ-270 |
 | e | `EDIT_BLOCKING` e o revisor depois da edição manual | Critérios 5 e 6 | BEZ-271 |
 
-A ordem importa: **a** antes de tudo (o resto grava nela); **c** antes de **d** (linha de base de duas
+A ordem importa: **a** antes de tudo (o resto grava nela; o diff nasce junto porque toda revisão grava o seu); **c** antes de **d** (linha de base de duas
 semanas antes da primeira regra); **e** pode entrar junto de **a**, porque o servidor já precisa dela
 para salvar com segurança. A entrega **b** é a única de tela e a única bloqueada pelo protótipo.
 
@@ -426,7 +431,7 @@ Cada um tem como verificar.
 9. Aprovar com `designVersion` diferente da versão em uso devolve 409; sem o campo, aprova como hoje;
    post já aprovado não aceita edição (409). A versão aprovada fica em `seed.design_version`.
 
-**Diff e medição (c)**
+**Diff (a) e medição (c)**
 10. `diffDesigns` devolve o mesmo resultado para o mesmo par de designs, só com campos da lista, com
     `antes`, `depois` e `contexto`, e o resumo por template com até 160 caracteres (teste do modelo puro).
 11. Nenhum evento leva texto do post, e-mail, nome ou token (teste sobre `sanitizeProps` com as propriedades
