@@ -8,6 +8,9 @@
 // Campos de um caso:
 //   id, company, why  identificação, empresa de COMPANIES e a razão do caso
 //   idea, kind, ratio o pedido palavra por palavra, o tipo escolhido na tela (null = o agente escolhe), o formato
+//   directives        o que o leitor de instruções deve anotar do pedido (evals/metrics.js, compareDirectives): chave
+//                     ausente = a pessoa não pediu nada disso; '*' = qualquer valor; lista = qualquer um dela;
+//                     `optional` = chaves que o leitor pode ou não anotar sem errar ('elements.title' = só esse elemento)
 //   tags              'marca' (a pessoa dita a composição), 'texto-exato', 'lista', 'atmosfera', 'fato' (número,
 //                     claim e base de fatos), 'vago' (pedido curto), 'voz'. O relatório agrupa por tag.
 //   requirements      o que se confere no resultado:
@@ -144,6 +147,7 @@ export const CASES = [
   // Padaria Casa Aurora
   {
     id: 'primeira-imagem-da-marca',
+    directives: { background: ['dark', 'brand'], elements: { logo: 'c', name: '*', handle: ['tl', 'tr', 'bl', 'br'] }, optional: ['textOnly', 'noPhoto'] },
     company: 'aurora',
     tags: ['marca'],
     why: 'Caso real que motivou o eval: a pessoa descreveu a imagem em detalhe e a plataforma entregou outra coisa (foto de vaso, frase inventada, logo pequeno no canto).',
@@ -161,6 +165,7 @@ export const CASES = [
   },
   {
     id: 'capa-de-destaque',
+    directives: { background: 'brand', exactTexts: ['Cardápio'], textOnly: true, elements: { title: 'c' }, optional: ['noPhoto'] },
     company: 'aurora',
     tags: ['marca', 'texto-exato'],
     why: 'A pessoa dita a composição inteira: uma palavra, grande, no centro, sobre a cor da marca.',
@@ -176,6 +181,7 @@ export const CASES = [
   },
   {
     id: 'dicas-em-lista',
+    directives: { itemsCount: 3 },
     company: 'aurora',
     tags: ['lista'],
     why: 'Pedido que o motor já deveria atender: informativo em lista, com quantidade pedida.',
@@ -190,6 +196,7 @@ export const CASES = [
   },
   {
     id: 'frase-exata',
+    directives: { exactTexts: ['Fornada nova todo dia às 7h'], textOnly: true, optional: ['elements.title'] },
     company: 'aurora',
     tags: ['texto-exato'],
     why: 'A pessoa dita o texto da imagem. O sistema não pode reescrever.',
@@ -203,6 +210,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-cafe-da-manha',
+    directives: {},
     company: 'aurora',
     tags: ['atmosfera'],
     why: 'Post de atmosfera: a cena pedida precisa ser a cena da foto.',
@@ -217,6 +225,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-sem-texto',
+    directives: { elements: { handle: ['tl', 'tr', 'bl', 'br'] }, textOnly: true, optional: ['noPhoto', 'elements.title'] },
     company: 'aurora',
     tags: ['atmosfera', 'marca'],
     why: 'A pessoa proíbe texto na imagem. O motor hoje sempre desenha um título sobre a foto.',
@@ -231,6 +240,7 @@ export const CASES = [
   },
   {
     id: 'numero-fora-da-base',
+    directives: {},
     company: 'aurora',
     tags: ['fato'],
     why: 'Guarda de fato: número que a pessoa pede e a base não tem. O post tem que usar o número do pedido e não inventar outro.',
@@ -246,6 +256,7 @@ export const CASES = [
   },
   {
     id: 'aviso-de-horario',
+    directives: {},
     company: 'aurora',
     tags: ['fato'],
     why: 'Aviso com horário dado pela pessoa: o horário tem que sair certo e nenhum outro pode aparecer.',
@@ -260,6 +271,7 @@ export const CASES = [
   },
   {
     id: 'post-vago',
+    directives: {},
     company: 'aurora',
     tags: ['vago'],
     why: 'Pedido curto e vago: o agente precisa escolher um ângulo concreto a partir do perfil, sem encher de fato.',
@@ -271,9 +283,56 @@ export const CASES = [
       { id: 'fato-certo', in: 'image', text: 'Todo número na imagem está na base de fatos (7h, 24 horas, 3 dias).' },
     ],
   },
+  {
+    id: 'logo-removido',
+    company: 'aurora',
+    directives: { elements: { logo: 'off' }, itemsCount: 3 },
+    tags: ['marca', 'lista'],
+    why: 'A pessoa tira um elemento da assinatura da marca (o logo) e ainda pede quantidade.',
+    idea: 'Três motivos para provar o nosso pão de fermentação natural. Sem o logo na imagem.',
+    kind: 'informativo',
+    ratio: '4:5',
+    requirements: [
+      { id: 'sem-logo', in: 'image', text: 'O logo (o círculo âmbar com um sol) não aparece em nenhum lugar da imagem.' },
+      { id: 'tres-motivos', in: 'image', text: 'A imagem mostra exatamente 3 motivos, em lista.' },
+      { id: 'tema-fermentacao', in: 'image', text: 'Os motivos tratam do pão de fermentação natural.' },
+    ],
+  },
+  {
+    id: 'logo-no-canto-superior-direito',
+    company: 'vertice',
+    directives: { elements: { logo: 'tr' }, exactTexts: ['Laudo técnico em até 10 dias úteis'], optional: ['background', 'noPhoto', 'textOnly', 'elements.title'] },
+    tags: ['marca'],
+    why: 'A pessoa manda o logo para um canto que o motor nunca usa (hoje só os de baixo).',
+    idea: 'Post com o título "Laudo técnico em até 10 dias úteis" e o logo no canto superior direito.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'logo-no-topo-direito', in: 'image', text: 'O logo (triângulo laranja com triângulo azul) está no canto superior direito da imagem.' },
+      { id: 'titulo-literal', in: 'image', text: 'O título "Laudo técnico em até 10 dias úteis" aparece escrito exatamente assim.', contains: ['Laudo técnico em até 10 dias úteis'] },
+      { id: 'logo-so-um', in: 'image', text: 'O logo aparece uma única vez.' },
+    ],
+  },
+  {
+    id: 'so-o-nome-e-o-arroba',
+    company: 'sorriso',
+    directives: { elements: { name: '*', handle: '*', logo: 'off' }, textOnly: true, optional: ['background', 'noPhoto', 'elements.title'] },
+    tags: ['marca'],
+    why: 'Composição mínima ditada pela pessoa: só o nome e o @, sem logo, sem frase.',
+    idea: 'Imagem só com o nome Clínica Sorriso Vivo e o @sorrisovivo embaixo. Sem logo e sem nenhuma frase.',
+    kind: null,
+    ratio: '1:1',
+    requirements: [
+      { id: 'nome', in: 'image', text: 'O nome "Clínica Sorriso Vivo" está escrito na imagem.', contains: ['Clínica Sorriso Vivo'] },
+      { id: 'arroba', in: 'image', text: 'O texto "@sorrisovivo" está escrito na imagem, na parte de baixo.', contains: ['@sorrisovivo'] },
+      { id: 'sem-logo', in: 'image', text: 'O logo (quadrado verde com um dente branco) não aparece.' },
+      { id: 'sem-frase', in: 'image', text: 'Não há frase, selo, lista nem foto além do nome e do @.' },
+    ],
+  },
   // Vértice Engenharia
   {
     id: 'sinais-de-laje',
+    directives: { itemsCount: 3 },
     company: 'vertice',
     tags: ['lista', 'voz'],
     why: 'Conteúdo técnico em voz formal, sem prometer nem inventar número.',
@@ -289,6 +348,7 @@ export const CASES = [
   },
   {
     id: 'prova-de-experiencia',
+    directives: {},
     company: 'vertice',
     tags: ['fato', 'vago'],
     why: 'Pedido de prova social: usar o número da base e nenhum outro.',
@@ -303,6 +363,7 @@ export const CASES = [
   },
   {
     id: 'claim-proibido',
+    directives: {},
     company: 'vertice',
     tags: ['fato'],
     why: 'A pessoa pede uma afirmação que a empresa nunca faz. O post deve falar do tema sem prometer.',
@@ -317,6 +378,7 @@ export const CASES = [
   },
   {
     id: 'convite-palestra',
+    directives: {},
     company: 'vertice',
     tags: ['fato'],
     why: 'Convite com data dada pela pessoa; horário e local não existem na base e não podem aparecer.',
@@ -331,6 +393,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-obra',
+    directives: {},
     company: 'vertice',
     tags: ['atmosfera'],
     why: 'Foto de obra: a cena pedida, sem pessoa identificável.',
@@ -345,6 +408,7 @@ export const CASES = [
   },
   {
     id: 'logo-e-nome',
+    directives: { background: ['dark', 'brand'], elements: { logo: 'c', name: 'bc' }, optional: ['textOnly', 'noPhoto'] },
     company: 'vertice',
     tags: ['marca'],
     why: 'Variação do caso principal com outra empresa e outra cor: composição ditada pela pessoa.',
@@ -361,6 +425,7 @@ export const CASES = [
   // Clínica Sorriso Vivo
   {
     id: 'escovacao-infantil',
+    directives: { itemsCount: 3 },
     company: 'sorriso',
     tags: ['lista', 'voz'],
     why: 'Saúde: dicas úteis sem prometer resultado nem usar palavra proibida.',
@@ -375,6 +440,7 @@ export const CASES = [
   },
   {
     id: 'antes-e-depois-proibido',
+    directives: {},
     company: 'sorriso',
     tags: ['fato'],
     why: 'A pessoa pede o que a empresa nunca faz (antes e depois de clareamento).',
@@ -389,6 +455,7 @@ export const CASES = [
   },
   {
     id: 'convite-primeira-consulta',
+    directives: {},
     company: 'sorriso',
     tags: ['fato'],
     why: 'Convite que deve usar o fato da base e nenhum preço inventado.',
@@ -403,6 +470,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-recepcao',
+    directives: {},
     company: 'sorriso',
     tags: ['atmosfera'],
     why: 'Foto de ambiente de saúde: acolhedora e sem pessoa identificável.',
@@ -417,6 +485,7 @@ export const CASES = [
   },
   {
     id: 'frase-curta',
+    directives: { exactTexts: ['Sorrir também é cuidar'], textOnly: true, elements: { title: ['c', 'ml'] }, optional: ['elements'] },
     company: 'sorriso',
     tags: ['texto-exato'],
     why: 'Frase dita pela pessoa, para ficar grande e sozinha.',

@@ -39,10 +39,18 @@ const store = {
 // bug: a contagem confere isso contra generation_runs.
 function fakeModel(script) {
   const calls = [];
+  const directiveCalls = []; // o leitor de instruções (SPEC 020) tem roteiro à parte: `script.directives`, padrão {}
   return {
     calls,
+    directiveCalls,
     config: { project: 'p', location: 'global', textModel: 'texto-falso', imageModel: 'imagem-falsa' },
     async generateJson({ prompt, labels }) {
+      if (labels.step === 'directives') {
+        directiveCalls.push({ labels, prompt });
+        const read = script.directives ? script.directives.shift() : {};
+        if (read instanceof Error) throw read;
+        return { json: read ?? {}, raw: '', inputTokens: 40, outputTokens: 10, modelVersion: 'v1', durationMs: 5, costUsd: 0.00002 };
+      }
       calls.push({ step: 'writer', labels, prompt });
       const next = script.text.shift();
       if (next instanceof Error) throw next;
@@ -108,7 +116,7 @@ describe('post informativo', () => {
     expect(design.design.texts.title).toBe('Seu bolo está pronto?');
     expect((await one('select status, error from briefs where id = $1', [id]))).toEqual({ status: 'ready', error: null });
     const runs = (await admin.query("select step, status, cost_usd from generation_runs where brief_id = $1 order by created_at", [id])).rows;
-    expect(runs.map((r) => [r.step, r.status])).toEqual([['writer', 'done'], ['writer', 'done']]);
+    expect(runs.map((r) => [r.step, r.status])).toEqual([['directives', 'done'], ['writer', 'done'], ['writer', 'done']]);
     expect((await admin.query("select title, audience from notifications where tenant_id = $1 and kind = 'post.ready'", [A])).rows).toHaveLength(1);
     // rodar de novo o mesmo pedido não chama o modelo nem cria outra pendência
     const again = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
@@ -182,7 +190,7 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     const out = await generatePost(t, id, { model: broken, store, fontDir: FONT_DIR });
     expect(out).toMatchObject({ status: 'failed', error: expect.stringContaining('503') });
     expect(await one('select status from briefs where id = $1', [id])).toEqual({ status: 'failed' });
-    expect((await admin.query("select step, status from generation_runs where brief_id = $1 order by created_at", [id])).rows).toEqual([{ step: 'writer', status: 'done' }, { step: 'visual', status: 'failed' }]);
+    expect((await admin.query("select step, status from generation_runs where brief_id = $1 order by created_at", [id])).rows).toEqual([{ step: 'directives', status: 'done' }, { step: 'writer', status: 'done' }, { step: 'visual', status: 'failed' }]);
 
     await requests.retryPostRequest(t, id);
     expect(await one('select status from briefs where id = $1', [id])).toEqual({ status: 'queued' });
@@ -307,5 +315,42 @@ describe('campanha do pedido (SPEC 018)', () => {
     const model2 = fakeModel({ text: [INFO], image: [] });
     expect((await generatePost(t, withCampaign, { model: model2, store, fontDir: FONT_DIR })).status).toBe('ready');
     expect(model2.calls[0].prompt).not.toContain('## A campanha deste post');
+  });
+});
+
+describe('instruções do pedido (SPEC 020)', () => {
+  it('lidas uma vez, no contrato; o texto literal que não está no pedido cai; ficam no pedido e não são lidas de novo', async () => {
+    const t = tenantDb(A);
+    const id = await brief('Capa: fundo escuro, logo no centro e a frase "Aberto de terça a sábado". Mais nada.', 'informativo');
+    const read = { background: 'dark', elements: { logo: 'c', rodape: 'br', handle: 'xx' }, exact_texts: ['Aberto de terça a sábado', 'Frase que não está no pedido'], text_only: true, items_count: 9, extra: 'x' };
+    const model = fakeModel({ text: [INFO], image: [], directives: [read] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect(model.directiveCalls).toHaveLength(1);
+    expect(model.directiveCalls[0].labels).toEqual({ tenant: A, step: 'directives', brief: id });
+    expect(model.directiveCalls[0].prompt).toContain('fundo escuro, logo no centro');
+    expect((await one('select directives from briefs where id = $1', [id])).directives).toEqual({ status: 'ok', directives: { background: 'dark', elements: { logo: 'c' }, exactTexts: ['Aberto de terça a sábado'], textOnly: true } });
+    const run = await one("select status, cost_usd::float as cost from generation_runs where brief_id = $1 and step = 'directives'", [id]);
+    expect(run).toEqual({ status: 'done', cost: 0.00002 });
+    // a leitura não conta no limite do plano (só o visual conta)
+    expect((await one("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'visual'", [id])).n).toBe(0);
+    // rodar de novo o mesmo pedido não lê outra vez
+    await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(model.directiveCalls).toHaveLength(1);
+  });
+
+  it('pedido sem instrução fica com {}; leitor que falha duas vezes não derruba o post e fica registrado', async () => {
+    const t = tenantDb(A);
+    const plain = await brief('como saber se o bolo está pronto', 'informativo');
+    const ok = fakeModel({ text: [INFO], image: [] });
+    expect((await generatePost(t, plain, { model: ok, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect((await one('select directives from briefs where id = $1', [plain])).directives).toEqual({ status: 'ok', directives: {} });
+
+    const failing = await brief('outra ideia de bolo', 'informativo');
+    const broken = fakeModel({ text: [INFO], image: [], directives: [new Error('Vertex AI 503'), new Error('Vertex AI 503')] });
+    const out = await generatePost(t, failing, { model: broken, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect(broken.directiveCalls).toHaveLength(2);
+    expect((await one('select directives from briefs where id = $1', [failing])).directives).toEqual({ status: 'failed', directives: {} });
   });
 });

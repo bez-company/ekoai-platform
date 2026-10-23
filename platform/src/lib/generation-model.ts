@@ -4,7 +4,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const STEPS = ['strategist', 'writer', 'art', 'visual', 'review', 'render'] as const;
+export const STEPS = ['directives', 'strategist', 'writer', 'art', 'visual', 'review', 'render'] as const;
 export type Step = (typeof STEPS)[number];
 
 export const POST_KINDS = ['informativo', 'atmosfera'] as const;

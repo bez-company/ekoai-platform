@@ -19,6 +19,7 @@ import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
+import { buildDirectivesPrompt, directivesFromStored, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
@@ -42,10 +43,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -59,6 +60,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     assetId: (data.asset_id as string | null) ?? null,
     photoUsage: isPhotoUsage(data.photo_usage) ? data.photo_usage : null,
     campaignId: (data.campaign_id as string | null) ?? null,
+    directives: directivesFromStored(data.directives),
   };
 }
 
@@ -181,6 +183,41 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   return best;
 }
 
+const DIRECTIVES_TRIES = 2;
+
+// O leitor de instruções (SPEC 020, ADR 0022): uma chamada curta lê o pedido e devolve o que a pessoa disse
+// sobre COMO a imagem deve ser. Reservada como as outras (idempotente pelo hash do pedido, não conta no limite
+// do plano). Guardada no pedido para o resto da geração e para a tela. Nunca derruba o post: resposta inválida
+// depois de uma nova tentativa vira { status: 'failed' } e o post segue sem instruções.
+async function readDirectives(t: TenantDb, deps: GenerationDeps, brief: Brief, ctx: { name: string; hasLogo: boolean; handle: string | null }, planMax: number): Promise<StoredDirectives> {
+  const prompt = buildDirectivesPrompt(brief.idea, ctx);
+  const model = deps.model.config.textModel;
+  const hash = inputHash('directives', model, { prompt });
+  let stored: StoredDirectives = storedDirectives({}, 'failed');
+  for (let attempt = 1; attempt <= DIRECTIVES_TRIES; attempt += 1) {
+    const reservation = await reserveRun(t, { briefId: brief.id, step: 'directives', inputHash: hash, model }, planMax).catch(() => null);
+    if (!reservation?.ok) break;
+    try {
+      let json: unknown;
+      if (reservation.reused && reservation.run.status === 'done') json = reservation.run.result;
+      else {
+        const out = await deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step: 'directives', brief: brief.id }, maxOutputTokens: 1024, temperature: 0 });
+        await completeRun(t, reservation.run.id, { result: out.json, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd, durationMs: out.durationMs });
+        json = out.json;
+      }
+      const parsed = parseDirectives(json, brief.idea);
+      if (parsed.dropped.length) log('warn', 'generation', 'instruções do pedido com partes descartadas', { briefId: brief.id, dropped: parsed.dropped });
+      stored = storedDirectives(parsed.directives);
+      break;
+    } catch (e) {
+      log('warn', 'generation', 'não leu as instruções do pedido', { briefId: brief.id, attempt, error: e instanceof Error ? e.message : String(e) });
+      await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e)).catch(() => undefined);
+    }
+  }
+  await setBrief(t, brief.id, { directives: stored }).catch((e) => log('warn', 'generation', 'não guardou as instruções do pedido', { briefId: brief.id, error: e instanceof Error ? e.message : String(e) }));
+  return stored;
+}
+
 // O visual gerado, em cache por hash do pedido (prompt, modelo, formato). Só aqui o limite mensal vale.
 async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy: Copy, planMax: number, store: BlobStore, reference: BriefPhoto | null = null): Promise<{ key: string } | { limit: number }> {
   const prompt = visualPromptFor(copy);
@@ -223,6 +260,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const rules = ruleRows.filter((r) => r.active).map((r) => r.rule);
 
     const photo = await photoOf(t, brief, store);
+    // Instruções explícitas do pedido (SPEC 020): lidas uma vez e guardadas; esta entrega só lê e guarda.
+    const directives = brief.directives ?? (await readDirectives(t, deps, brief, { name: account?.name ?? profile.niche, hasLogo: !!logo, handle: profile.instagramHandle ? profile.instagramHandle.replace(/^@/, '') : null }, planMax));
+    log('info', 'generation', 'instruções do pedido', { briefId: brief.id, status: directives.status, keys: Object.keys(directives.directives) });
     const campaign = await campaignOf(t, brief.campaignId);
     const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign);
     // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.

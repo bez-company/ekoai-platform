@@ -45,7 +45,8 @@ function fakeModel() {
   return {
     calls,
     config: { project: 'p', location: 'global', textModel: 'texto-falso', imageModel: 'imagem-falsa' },
-    async generateJson({ prompt }) {
+    async generateJson({ prompt, labels }) {
+      if (labels?.step === 'directives') return { json: {}, raw: '', inputTokens: 1, outputTokens: 1, modelVersion: 'v1', durationMs: 1, costUsd: 0 };
       calls.push({ step: 'writer', prompt });
       return { json: ATM, raw: '', inputTokens: 100, outputTokens: 50, modelVersion: 'v1', durationMs: 10, costUsd: 0.0001 };
     },
