@@ -30,7 +30,7 @@ const plain = (text: string): string => text.toLowerCase().normalize('NFD').repl
 // comercial e passam.
 const GUARANTEE = /garant(?:ia|id[oa]s?|imos|o|em)\b|garant(?:e|a|ir|am)\s+(?:o\s+|a\s+|os\s+|as\s+|seu\s+|sua\s+)?(?:resultados?|sucesso|cura|retorno|lucro|aprova[çc][ãa]o|vendas|seguidores|crescimento|satisfa[çc][ãa]o)/;
 
-const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22 };
+const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22, name: 40 };
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 export type TextReviewInput = {
@@ -118,6 +118,7 @@ function nameOf(id: string): { subject: string; where: string } {
     sub: { subject: 'O subtítulo', where: 'no subtítulo' },
     kicker: { subject: 'O selo', where: 'no selo' },
     handle: { subject: 'O @ da conta', where: 'no @ da conta' },
+    name: { subject: 'O nome da empresa', where: 'no nome da empresa' },
   };
   return map[id] ?? { subject: `O texto "${id}"`, where: `no texto "${id}"` };
 }
