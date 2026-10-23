@@ -1,0 +1,774 @@
+{
+  "meta": {
+    "stamp": "2026-10-23T18-37-57",
+    "text": "gemini-3-flash-preview",
+    "image": "gemini-3.1-flash-image",
+    "judge": "gemini-3.1-pro-preview",
+    "runs": 2,
+    "judgeFailures": 0,
+    "costUsd": 0.7527354
+  },
+  "overall": {
+    "pedido": 0.9256756756756757,
+    "oficio": 0.90527950310559,
+    "leitor": 1,
+    "rounds": 1.7391304347826086,
+    "costPerPost": 0.01636381304347826
+  },
+  "tags": {
+    "marca": {
+      "pedido": 0.9642857142857143,
+      "oficio": 0.8673469387755102
+    },
+    "texto-exato": {
+      "pedido": 1,
+      "oficio": 0.9047619047619048
+    },
+    "lista": {
+      "pedido": 1,
+      "oficio": 0.9375
+    },
+    "atmosfera": {
+      "pedido": 0.9166666666666666,
+      "oficio": 0.8839285714285714
+    },
+    "fato": {
+      "pedido": 0.8392857142857143,
+      "oficio": 0.9285714285714285
+    },
+    "vago": {
+      "pedido": 0.8333333333333333,
+      "oficio": 0.875
+    },
+    "voz": {
+      "pedido": 1,
+      "oficio": 0.9285714285714286
+    }
+  },
+  "cases": {
+    "capa-de-destaque": {
+      "tags": [
+        "marca",
+        "texto-exato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 1.5,
+      "costUsd": 0.00408425,
+      "req": {
+        "palavra-literal": 1,
+        "no-centro": 1,
+        "cor-da-marca": 1,
+        "nada-mais": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "primeira-imagem-da-marca": {
+      "tags": [
+        "marca"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.0053183499999999995,
+      "req": {
+        "fundo-escuro": 1,
+        "logo-centralizado": 1,
+        "nome-da-empresa": 1,
+        "arroba-no-canto": 1,
+        "sem-frase-extra": 1,
+        "sem-foto-aleatoria": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "dicas-em-lista": {
+      "tags": [
+        "lista"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9642857142857143,
+      "leitor": 1,
+      "rounds": 2.5,
+      "costUsd": 0.0056486,
+      "req": {
+        "tres-dicas": 1,
+        "tema-pao": 1,
+        "legenda-chamada": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 0.5,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "frase-exata": {
+      "tags": [
+        "texto-exato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.00451785,
+      "req": {
+        "frase-literal": 1,
+        "so-a-frase": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "atmosfera-cafe-da-manha": {
+      "tags": [
+        "atmosfera"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.07217785000000002,
+      "req": {
+        "cena-pedida": 1,
+        "luz-de-manha": 1,
+        "sem-texto-na-foto": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0.5,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "numero-fora-da-base": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 0.875,
+      "oficio": 0.9642857142857143,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.005109099999999999,
+      "req": {
+        "sem-numero-inventado": 0.5,
+        "legenda-sem-invencao": 1,
+        "desconto-na-legenda": 1,
+        "pedido-atendido": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "aviso-de-horario": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 0.8333333333333334,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 3,
+      "costUsd": 0.006243449999999999,
+      "req": {
+        "horario-na-imagem": 1,
+        "horario-na-legenda": 1,
+        "sem-outro-horario": 0.5,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 0.5,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "post-vago": {
+      "tags": [
+        "vago"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.0049464999999999995,
+      "req": {
+        "angulo-concreto": 1,
+        "fato-certo": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 0,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "logo-removido": {
+      "tags": [
+        "marca",
+        "lista"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 2.5,
+      "costUsd": 0.005793699999999999,
+      "req": {
+        "sem-logo": 1,
+        "tres-motivos": 1,
+        "tema-fermentacao": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 0.5,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "so-o-nome-e-o-arroba": {
+      "tags": [
+        "marca"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8214285714285714,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0037476999999999996,
+      "req": {
+        "nome": 1,
+        "arroba": 1,
+        "sem-logo": 1,
+        "sem-frase": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 0.5,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "logo-no-canto-superior-direito": {
+      "tags": [
+        "marca"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.005071149999999999,
+      "req": {
+        "logo-no-topo-direito": 1,
+        "titulo-literal": 1,
+        "logo-so-um": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 0.5,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "sinais-de-laje": {
+      "tags": [
+        "lista",
+        "voz"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.00552235,
+      "req": {
+        "tres-sinais": 1,
+        "tom-formal": 1,
+        "sem-numero-inventado": 1,
+        "sem-promessa": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "prova-de-experiencia": {
+      "tags": [
+        "fato",
+        "vago"
+      ],
+      "runs": 2,
+      "pedido": 0.6666666666666666,
+      "oficio": 0.8928571428571429,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0040764,
+      "req": {
+        "usa-o-fato": 1,
+        "sem-numero-novo": 0,
+        "sem-superlativo": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0.5,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "claim-proibido": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.00515315,
+      "req": {
+        "sem-garantia": 1,
+        "sem-garantia-legenda": 1,
+        "fala-do-tema": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "convite-palestra": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 0.5,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.005240450000000001,
+      "req": {
+        "data-certa": 1,
+        "sem-horario-nem-local": 0,
+        "legenda-sem-invencao": 0.5,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "atmosfera-obra": {
+      "tags": [
+        "atmosfera"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.9285714285714286,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.07205105,
+      "req": {
+        "cena-pedida": 1,
+        "luz-de-amanhecer": 1,
+        "sem-pessoa": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0.5,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0.5,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "logo-e-nome": {
+      "tags": [
+        "marca"
+      ],
+      "runs": 2,
+      "pedido": 0.75,
+      "oficio": 0.7857142857142857,
+      "leitor": 1,
+      "rounds": 1.5,
+      "costUsd": 0.00445095,
+      "req": {
+        "fundo-azul-escuro": 1,
+        "logo-no-meio": 1,
+        "nome-embaixo": 1,
+        "sem-mais-nada": 0,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 0,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "escovacao-infantil": {
+      "tags": [
+        "lista",
+        "voz"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0037348,
+      "req": {
+        "tres-dicas": 1,
+        "sem-promessa": 1,
+        "tom-acolhedor": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 0,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "antes-e-depois-proibido": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0036682,
+      "req": {
+        "sem-antes-depois": 1,
+        "sem-promessa-resultado": 1,
+        "fala-de-clareamento": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 1,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "convite-primeira-consulta": {
+      "tags": [
+        "fato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0036433,
+      "req": {
+        "avaliacao-30": 1,
+        "sem-preco": 1,
+        "chamada-whatsapp": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 1,
+        "ofc-sem-recheio": 0,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "atmosfera-recepcao": {
+      "tags": [
+        "atmosfera"
+      ],
+      "runs": 2,
+      "pedido": 0.6666666666666666,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0706974,
+      "req": {
+        "cena-pedida": 1,
+        "sem-pessoa": 0,
+        "sem-cara-de-hospital": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0.5,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 0.5,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "frase-curta": {
+      "tags": [
+        "texto-exato"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8571428571428571,
+      "leitor": 1,
+      "rounds": 1,
+      "costUsd": 0.0033978000000000003,
+      "req": {
+        "frase-literal": 1,
+        "so-a-frase": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    },
+    "atmosfera-sem-texto": {
+      "tags": [
+        "atmosfera",
+        "marca"
+      ],
+      "runs": 2,
+      "pedido": 1,
+      "oficio": 0.8214285714285714,
+      "leitor": 1,
+      "rounds": 2,
+      "costUsd": 0.07207335000000001,
+      "req": {
+        "cena-bastidor": 1,
+        "sem-titulo": 1,
+        "arroba-presente": 1,
+        "ofc-portugues": 1,
+        "ofc-sem-cliche": 0.5,
+        "ofc-voz": 1,
+        "ofc-gancho": 0,
+        "ofc-sem-recheio": 1,
+        "ofc-coerencia": 1,
+        "ofc-legibilidade": 1,
+        "ofc-composicao": 1,
+        "ofc-postaria": 0,
+        "cod-sem-travessao": 1,
+        "cod-sem-emoji-na-imagem": 1,
+        "cod-hashtags": 1,
+        "cod-revisor-limpo": 1,
+        "cod-layout-limpo": 1,
+        "leitor": 1
+      }
+    }
+  }
+}
