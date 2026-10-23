@@ -1,6 +1,9 @@
 # SPEC 018: objetivos e campanhas no coordenador, e fatos da empresa com fonte, validade e aprovação
 
-- **Status:** proposta, aguarda as decisões do Matheus (fim do arquivo) e o protótipo
+- **Status:** entregue na `staging` em 23/10/2026. Fatos: PRs #147, #150 e #152. Campanhas: PRs #155, #157 e
+  #161. Sobram quatro cards: BEZ-275 (reavaliar o fato na hora de publicar), BEZ-276 (eventos de produto),
+  BEZ-277 (E2E Playwright) e BEZ-278 (campanha nos posts já agendados da Agenda). As decisões abaixo seguiram
+  as recomendações
 - **Data:** 2026-10-23
 - **Cards:** BEZ-261 (esta spec), BEZ-262 (campanhas), BEZ-263 (fatos)
 - **Depende de:** [SPEC 017](017-do-primeiro-uso-a-rotina-de-posts.md) (decisão 8, coordenador),
@@ -422,13 +425,15 @@ protegido antes de existir.
 
 ## Decisões do Matheus
 
-- [ ] **Campanhas 1:** estender `campaigns` (recomendado) ou criar `marketing_campaigns`?
-- [ ] **Campanhas 2:** uma campanha ativa por conta (recomendado) ou várias ao mesmo tempo?
-- [ ] **Campanhas 3:** os cinco tipos (divulgar, vender, captar, relacionar, marca) estão bons? Falta algum nicho (imóvel, cardápio)?
-- [ ] **Campanhas 5:** 60% dos horários da semana para a campanha (recomendado) ou outro teto?
-- [ ] **Campanhas 8:** a pessoa atualiza a meta mensurável à mão (recomendado) ou a meta fica fora do MVP?
-- [ ] **Campanhas 10:** A/B de regra fora do MVP (recomendado)?
-- [ ] **Fatos 4:** validade sugerida por categoria (oferta 30 dias, prazo 90, número 180, o resto sem data)?
-- [ ] **Fatos 8:** confirmar vários por seleção, sem "confirmar todos" (recomendado)?
-- [ ] **Fatos 9:** fatos que já existem ficam confirmados (recomendado) ou pedem nova confirmação?
-- [ ] **Fatos 2:** "nunca afirmar" vale sempre, mesmo pendente (recomendado)?
+O Matheus aprovou o protótipo e pediu para seguir em 23/10/2026; as recomendações valeram como resposta.
+
+- [x] **Campanhas 1:** estender `campaigns` (recomendado) ou criar `marketing_campaigns`?
+- [x] **Campanhas 2:** uma campanha ativa por conta (recomendado) ou várias ao mesmo tempo?
+- [x] **Campanhas 3:** os cinco tipos (divulgar, vender, captar, relacionar, marca) estão bons? Falta algum nicho (imóvel, cardápio)?
+- [x] **Campanhas 5:** 60% dos horários da semana para a campanha (recomendado) ou outro teto?
+- [x] **Campanhas 8:** a pessoa atualiza a meta mensurável à mão (recomendado) ou a meta fica fora do MVP?
+- [x] **Campanhas 10:** A/B de regra fora do MVP (recomendado)?
+- [x] **Fatos 4:** validade sugerida por categoria (oferta 30 dias, prazo 90, número 180, o resto sem data)?
+- [x] **Fatos 8:** confirmar vários por seleção, sem "confirmar todos" (recomendado)?
+- [x] **Fatos 9:** fatos que já existem ficam confirmados (recomendado) ou pedem nova confirmação?
+- [x] **Fatos 2:** "nunca afirmar" vale sempre, mesmo pendente (recomendado)?
