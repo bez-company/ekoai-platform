@@ -1,6 +1,7 @@
 // families.ts: a biblioteca de famílias de layout (ADR 0017). Cada família recebe o DesignSpec e
 // devolve o SVG (em pixels, 1080 de largura) e as caixas de texto que o revisor confere. Três
 // famílias na fase 1: lista numerada e título em destaque (informativo), foto com título (atmosfera).
+// Com a foto anexada no layout da marca (BEZ-251): foto na janela e foto no arco.
 
 import { FONTS } from './fonts';
 import { contrast, mix, over, untilContrast, type Hex } from './color';
@@ -208,6 +209,79 @@ function fotoTitulo(spec: DesignSpec): Composed {
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 
+// A foto (ou o visual) recortada para caber na área, sem distorcer; sem foto, um tom da marca.
+function framedVisual(spec: DesignSpec, id: string, clip: string, box: { x: number; y: number; w: number; h: number }, fallback: Hex): string {
+  const fill = `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" fill="${fallback}"/>`;
+  const image = spec.visual?.dataUri ? `<image href="${spec.visual.dataUri}" x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" preserveAspectRatio="xMidYMid slice"/>` : '';
+  return `<defs><clipPath id="${id}">${clip}</clipPath></defs><g clip-path="url(#${id})">${fill}${image}</g>`;
+}
+
+// Selo e título embaixo da foto, sobre a cor do fundo; devolve onde o texto terminou.
+function captionBlock(spec: DesignSpec, P: ReturnType<typeof paletteFor>, y: number, maxLines: number, parts: string[], boxes: TextBox[], overflow: string[]): void {
+  const heading = spec.brand.fontHeading;
+  const body = spec.brand.fontBody;
+  const kicker = spec.texts.kicker?.trim();
+  if (kicker) {
+    const size = 26;
+    const text = kicker.toUpperCase();
+    parts.push(`<text x="${MARGIN}" y="${y + size}" font-size="${size}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(text)}</text>`);
+    boxes.push({ id: 'kicker', x: MARGIN, y, w: Math.min(WIDTH - MARGIN * 2, textWidth(text, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: P.bg, bold: true });
+    y += size + 26;
+  }
+  const title = fitText(spec.texts.title, { family: heading, maxWidth: 820, maxLines, start: 80, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+  if (title.overflow) overflow.push('title');
+  parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
+  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
+}
+
+function signature(spec: DesignSpec, P: ReturnType<typeof paletteFor>, H: number, badge: Hex | null, parts: string[], boxes: TextBox[]): void {
+  const corner = spec.logoCorner ?? 'bl';
+  parts.push(logoAt(spec.logo, corner, H, badge).svg);
+  const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
+  const handle = handleText(spec.brand.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, spec.brand.fontBody, handleCorner === 'br' ? 'end' : 'start');
+  parts.push(handle.svg);
+  if (handle.box) boxes.push({ ...handle.box, bg: P.bg });
+}
+
+// Janela: fundo claro da marca, a foto num quadro arredondado no alto, selo e título embaixo. O texto
+// fica sempre sobre a cor da marca, então o contraste não depende da foto.
+function fotoJanela(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const box = { x: MARGIN, y: MARGIN, w: WIDTH - MARGIN * 2, h: spec.ratio === '4:5' ? 720 : 500 };
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
+  // Grafismo: meio círculo da marca saindo da borda direita, entre a foto e a assinatura.
+  parts.push(`<circle cx="${WIDTH + 60}" cy="${Math.round(box.y + box.h + (H - box.y - box.h) * 0.42)}" r="170" fill="${mix(b.primary, P.bg, 0.82)}"/>`);
+  parts.push(framedVisual(spec, 'janela', `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="36"/>`, box, mix(b.primary, P.bg, 0.6)));
+  captionBlock(spec, P, box.y + box.h + 48, spec.ratio === '4:5' ? 3 : 2, parts, boxes, overflow);
+  signature(spec, P, H, null, parts, boxes);
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
+// Arco: fundo na cor profunda da marca, a foto num arco à direita encostado no topo; título claro
+// sobre a cor. O logo ganha uma placa branca para ler sobre o fundo escuro.
+function fotoArco(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const w = spec.ratio === '4:5' ? 680 : 560;
+  const h = spec.ratio === '4:5' ? 780 : 600;
+  const x = WIDTH - MARGIN - w;
+  const r = w / 2;
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
+  parts.push(`<circle cx="70" cy="120" r="190" fill="${mix('#FFFFFF', P.bg, 0.9)}"/>`);
+  const arch = `<path d="M${x} ${h} V${r} A${r} ${r} 0 0 1 ${x + w} ${r} V${h} Z"/>`;
+  parts.push(framedVisual(spec, 'arco', arch, { x, y: 0, w, h }, mix(b.primary, '#FFFFFF', 0.35)));
+  captionBlock(spec, P, h + 52, spec.ratio === '4:5' ? 3 : 2, parts, boxes, overflow);
+  signature(spec, P, H, '#FFFFFF', parts, boxes);
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
 function wrap(parts: string[], H: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${H}" viewBox="0 0 ${WIDTH} ${H}">${parts.join('')}</svg>`;
 }
@@ -215,10 +289,12 @@ function wrap(parts: string[], H: number): string {
 export function compose(spec: DesignSpec): Composed {
   if (spec.layout === 'lista-numerada') return listaNumerada(spec);
   if (spec.layout === 'titulo-destaque') return tituloDestaque(spec);
+  if (spec.layout === 'foto-janela') return fotoJanela(spec);
+  if (spec.layout === 'foto-arco') return fotoArco(spec);
   return fotoTitulo(spec);
 }
 
 // As famílias que servem a cada tipo de post (a tela de "trocar layout" da fase 2 lê daqui).
-export const FAMILIES_BY_KIND = { informativo: ['lista-numerada', 'titulo-destaque'], atmosfera: ['foto-titulo'] } as const;
+export const FAMILIES_BY_KIND = { informativo: ['lista-numerada', 'titulo-destaque'], atmosfera: ['foto-titulo', 'foto-janela', 'foto-arco'] } as const;
 
 export { FONTS };

@@ -6,8 +6,8 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderPng, pngSize } from '../platform/src/lib/design/render.ts';
-import { brandFromProfile, defaultLayout } from '../platform/src/lib/design/model.ts';
-import { compose } from '../platform/src/lib/design/families.ts';
+import { brandFromProfile, brandPhotoLayout, defaultLayout } from '../platform/src/lib/design/model.ts';
+import { compose, FAMILIES_BY_KIND } from '../platform/src/lib/design/families.ts';
 
 const FONT_DIR = join(import.meta.dirname, '../platform/fonts');
 const OUT = '/tmp/design-out';
@@ -84,5 +84,54 @@ describe('render', () => {
     expect(defaultLayout('atmosfera', { title: 'x' })).toBe('foto-titulo');
     expect(defaultLayout('informativo', { title: 'x', items: ['a', 'b'] })).toBe('lista-numerada');
     expect(defaultLayout('informativo', { title: 'x' })).toBe('titulo-destaque');
+  });
+
+  // BEZ-251: a foto da pessoa dentro do layout da marca. O texto fica sobre a cor da marca, então
+  // foto clara ou escura não muda o contraste; as duas famílias saem diferentes do "de fundo".
+  describe('foto no layout da marca (Janela e Arco)', () => {
+    const photoSvg = (top, bottom) => `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#p)"/><rect x="380" y="420" width="320" height="420" rx="40" fill="#FFFFFF" opacity="0.8"/><circle cx="760" cy="760" r="90" fill="#B83262"/></svg>`;
+    const photos = { clara: photoSvg('#F6D9C4', '#FBF1EC'), escura: photoSvg('#2A1A19', '#6B3A22') };
+    const base = { kind: 'atmosfera', texts: { kicker: 'Casamentos em Marília', title: 'Mesas de doces para o seu casamento' }, brand, logo };
+
+    it('Janela e Arco saem no tamanho certo, sem achado do revisor, com foto clara e escura', () => {
+      for (const layout of ['foto-janela', 'foto-arco']) {
+        for (const ratio of ['4:5', '1:1']) {
+          for (const [tone, svg] of Object.entries(photos)) {
+            const spec = { ...base, layout, ratio, visual: { dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}` } };
+            const out = renderPng(spec, { fontDir: FONT_DIR });
+            writeFileSync(join(OUT, `${layout}-${ratio.replace(':', 'x')}-${tone}.png`), out.png);
+            expect(pngSize(out.png)).toEqual({ width: 1080, height: ratio === '1:1' ? 1080 : 1350 });
+            expect(out.issues, `${layout} ${ratio} ${tone}: ${JSON.stringify(out.issues)}`).toEqual([]);
+            expect(out.overflow).toEqual([]);
+            for (const box of out.boxes) {
+              expect(box.x, box.id).toBeGreaterThanOrEqual(64);
+              expect(box.x + box.w, box.id).toBeLessThanOrEqual(1080 - 64);
+              expect(box.y + box.h, `${layout} ${ratio} ${box.id}`).toBeLessThanOrEqual(out.height - 64);
+            }
+          }
+        }
+      }
+    });
+
+    it('o texto não depende da foto: a mesma caixa de título com foto clara e escura', () => {
+      for (const layout of ['foto-janela', 'foto-arco']) {
+        const boxesFor = (svg) => compose({ ...base, layout, ratio: '4:5', visual: { dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}` } }).boxes;
+        expect(boxesFor(photos.clara)).toEqual(boxesFor(photos.escura));
+      }
+    });
+
+    it('fica diferente do "de fundo" e sem foto usa um tom da marca', () => {
+      const visual = { dataUri: `data:image/svg+xml;base64,${Buffer.from(photos.clara).toString('base64')}` };
+      const fundo = sha(renderPng({ ...base, layout: 'foto-titulo', ratio: '4:5', visual }, { fontDir: FONT_DIR }).png);
+      for (const layout of ['foto-janela', 'foto-arco']) {
+        expect(sha(renderPng({ ...base, layout, ratio: '4:5', visual }, { fontDir: FONT_DIR }).png)).not.toBe(fundo);
+        expect(renderPng({ ...base, layout, ratio: '4:5', visual: null }, { fontDir: FONT_DIR }).issues).toEqual([]);
+      }
+    });
+
+    it('Janela por padrão; cada outra direção alterna com o Arco; as duas estão no catálogo da atmosfera', () => {
+      expect([1, 2, 3, 4].map(brandPhotoLayout)).toEqual(['foto-janela', 'foto-arco', 'foto-janela', 'foto-arco']);
+      expect(FAMILIES_BY_KIND.atmosfera).toEqual(['foto-titulo', 'foto-janela', 'foto-arco']);
+    });
   });
 });

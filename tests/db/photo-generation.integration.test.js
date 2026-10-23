@@ -1,5 +1,5 @@
-// Foto anexada no Criar post contra o Postgres (SPEC 017 decisão 7, BEZ-237): "como está" e "de fundo"
-// usam a foto do banco no lugar do visual por IA e não contam no limite; "inspiração" gera com a foto
+// Foto anexada no Criar post contra o Postgres (SPEC 017 decisão 7, BEZ-237): "como está", "de fundo"
+// e "no layout da marca" (BEZ-251) usam a foto do banco no lugar do visual por IA e não contam no limite; "inspiração" gera com a foto
 // de referência e conta; foto sem autorização ou apagada não vira post; aprovar leva a foto ao agendado.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import pg from 'pg';
@@ -119,6 +119,26 @@ describe('foto anexada no pedido de post', () => {
     expect(d.visual_key).not.toBe(d.png_key);
     expect(objects.get(d.png_key).bytes.equals(objects.get(d.visual_key).bytes)).toBe(false);
     expect(pngSize(objects.get(d.png_key).bytes)).toEqual({ width: 1080, height: 1350 });
+  });
+
+  it('"no layout da marca": a foto vai na Janela, sem modelo de imagem; outra direção alterna para o Arco (BEZ-251)', async () => {
+    const m = fakeModel();
+    const { id } = await request('layout');
+    expect((await generatePost(t, id, { model: m, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(m.calls.map((c) => c.step)).toEqual(['writer']);
+    const d = await one('select layout, design, png_key from post_designs where brief_id = $1', [id]);
+    expect(d.layout).toBe('foto-janela');
+    expect(d.design.photo).toEqual({ assetId, usage: 'layout' });
+    expect(pngSize(objects.get(d.png_key).bytes)).toEqual({ width: 1080, height: 1350 });
+
+    const other = await request('layout');
+    await admin.query('update briefs set direction = 2 where id = $1', [other.id]);
+    expect((await generatePost(t, other.id, { model: fakeModel(), store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect((await one('select layout from post_designs where brief_id = $1', [other.id])).layout).toBe('foto-arco');
+
+    const fundo = await request('background');
+    expect((await generatePost(t, fundo.id, { model: fakeModel(), store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect((await one('select layout from post_designs where brief_id = $1', [fundo.id])).layout).toBe('foto-titulo');
   });
 
   it('"inspiração": gera a imagem com a foto de referência, conta no limite e não marca a foto', async () => {

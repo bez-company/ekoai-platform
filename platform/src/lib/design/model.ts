@@ -5,7 +5,9 @@
 import { DEFAULT_BODY, DEFAULT_HEADING, fontOrDefault, type FontFamily } from './fonts';
 import { contrast, isHex, mix, untilContrast, type Hex } from './color';
 
-export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo'] as const;
+// foto-janela e foto-arco (BEZ-251): a foto da pessoa encaixada no layout da marca, com o texto
+// sempre sobre a cor da marca (uso "Dentro do layout da marca" da foto anexada).
+export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo', 'foto-janela', 'foto-arco'] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
 export type PostKind = 'informativo' | 'atmosfera';
@@ -38,7 +40,7 @@ export type DesignSpec = {
   texts: Texts;
   brand: Brand;
   logo?: Logo | null;
-  visual?: { dataUri: string } | null; // foto ou ilustração gerada, só no foto-titulo
+  visual?: { dataUri: string } | null; // foto ou ilustração gerada: foto-titulo, foto-janela e foto-arco
   logoCorner?: LogoCorner;
 };
 
@@ -76,6 +78,12 @@ export function defaultLayout(kind: PostKind, texts: Texts): Layout {
   return texts.items && texts.items.length >= 2 ? 'lista-numerada' : 'titulo-destaque';
 }
 
+// Foto "dentro do layout da marca": Janela na primeira direção (briefs.direction começa em 1); cada
+// "Outra direção" alterna com o Arco.
+export function brandPhotoLayout(direction: number): Layout {
+  return direction % 2 === 1 ? 'foto-janela' : 'foto-arco';
+}
+
 export function isLayout(value: unknown): value is Layout {
   return typeof value === 'string' && (LAYOUTS as readonly string[]).includes(value);
 }
@@ -105,6 +113,10 @@ export function paletteFor(spec: DesignSpec) {
     return { bg: b.deep, title: '#FFFFFF', sub: softened('#FFFFFF', b.deep), kicker, items: '#FFFFFF' };
   }
   if (spec.layout === 'foto-titulo') return { bg: b.deep, title: '#FFFFFF', sub: '#FFFFFF', kicker: '#FFFFFF', items: '#FFFFFF' };
+  if (spec.layout === 'foto-arco') {
+    const kicker = contrast(b.accent, b.deep) >= 4.5 ? b.accent : softened('#FFFFFF', b.deep);
+    return { bg: b.deep, title: '#FFFFFF', sub: softened('#FFFFFF', b.deep), kicker, items: '#FFFFFF' };
+  }
   const kicker = contrast(b.primary, b.paper) >= 4.5 ? b.primary : b.ink;
   return { bg: b.paper, title: b.ink, sub: softened(b.ink, b.paper), kicker, items: b.ink };
 }
