@@ -50,7 +50,7 @@ export default function NoticeItem({ n }: { n: NoticeView }) {
             </>
           )}
         </p>
-        <p className="text-sm text-muted">
+        <p className="break-words text-sm text-muted [overflow-wrap:anywhere]">
           {n.body ? `${n.body} · ` : ''}
           {n.when}
         </p>

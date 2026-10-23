@@ -80,7 +80,7 @@ export default function Nav({
 
   return (
     <>
-      <aside data-theme="dark" aria-label="Menu" className="sticky top-0 hidden h-screen flex-col gap-1.5 bg-surface px-3 py-5 text-fg md:flex">
+      <aside data-theme="dark" aria-label="Menu" className="sticky top-0 z-40 hidden h-screen flex-col gap-1.5 bg-surface px-3 py-5 text-fg md:flex">
         <div className="flex items-center justify-between gap-2 pb-2 pl-2.5">
           <Link href="/inicio" className="text-xl" aria-label="Ekoai, ir para o Início">
             <Logo />
@@ -151,7 +151,7 @@ export default function Nav({
         </div>
       </aside>
 
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur md:hidden">
         <Link href="/inicio" aria-label="Ekoai, ir para o Início">
           <Logo className="text-lg" />
         </Link>
