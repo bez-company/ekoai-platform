@@ -54,6 +54,8 @@ export default function DesignAdjust({
   canManage,
   onPreview,
   onVersion,
+  refreshKey = 0,
+  onDirty,
 }: {
   briefId: string;
   state: DesignState;
@@ -63,6 +65,10 @@ export default function DesignAdjust({
   canManage: boolean;
   onPreview: (url: string | null) => void;
   onVersion: (version: number) => void;
+  // "Pedir ajuste" grava uma versão por fora deste painel: a chave muda e o painel recarrega as versões (BEZ-193).
+  refreshKey?: number;
+  // Avisa se há mudança ainda não confirmada: o pedido de ajuste espera, para não passar por cima dela.
+  onDirty?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
   const [version, setVersion] = useState(state.version);
@@ -95,6 +101,20 @@ export default function DesignAdjust({
   const subtitleOn = !!cur.texts.sub;
   // Post de atmosfera não tem subtítulo: o campo só aparece quando a versão em uso tem um (ou a edição acabou de tirar).
   const hasSubtitle = !!base.texts.sub || subtitleOn;
+
+  const refreshed = useRef(refreshKey);
+  useEffect(() => {
+    onDirty?.(dirty);
+    // `onDirty` é um setState do pai: estável
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
+  useEffect(() => {
+    if (refreshKey === refreshed.current) return;
+    refreshed.current = refreshKey;
+    void reload(false);
+    // só a chave dispara a recarga; `reload` lê o estado atual
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   const call = useCallback((path: string, body: unknown) => api(`/api/posts/${briefId}/design/${path}`, { method: 'POST', body: JSON.stringify(body) }), [briefId]);
 

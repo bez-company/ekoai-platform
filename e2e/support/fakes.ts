@@ -24,6 +24,10 @@ export const FAKE_POST = {
 export const FAKE_PHOTO_DESCRIPTION = { description: 'Bolo de cenoura com cobertura de chocolate sobre uma mesa de madeira', tags: ['produto'], has_people: false };
 export const FAKE_PHOTO_CAPTION = { caption: 'Cenoura com chocolate, do forno para a sua mesa. Encomende pelo WhatsApp.', hashtags: ['bolodecenoura', 'confeitaria'] };
 
+// Resposta do modelo ao "Pedir ajuste" (SPEC 024): o patch de quem pede para tirar o subtítulo. O spec programa outra com
+// `/__fake/ask`; sem programar, é esta.
+export const FAKE_ASK = { image: { texts: { sub: null } } };
+
 const FAKE_PROFILE = { user_id: '17841400000000001', username: 'doceponto.teste', account_type: 'BUSINESS' };
 
 type Failure = { host: string; status: number; remaining: number };
@@ -32,6 +36,7 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
   const calls: FakeCall[] = [];
   let failures: Failure[] = [];
   let counter = 0;
+  let ask: unknown = FAKE_ASK;
 
   const json = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
     res.writeHead(status, { 'content-type': 'application/json', ...headers });
@@ -62,7 +67,7 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
     }
     // O app diz a etapa nos labels da chamada: cada uma espera um JSON de formato próprio.
     const step = body?.labels?.step;
-    const reply = step === 'media_describe' ? FAKE_PHOTO_DESCRIPTION : step === 'photo_caption' || step === 'photo_rewrite' ? FAKE_PHOTO_CAPTION : FAKE_POST;
+    const reply = step === 'ask' ? ask : step === 'media_describe' ? FAKE_PHOTO_DESCRIPTION : step === 'photo_caption' || step === 'photo_rewrite' ? FAKE_PHOTO_CAPTION : FAKE_POST;
     json(res, 200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 },
@@ -99,6 +104,11 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
     if (url.pathname === '/__fake/reset') {
       calls.length = 0;
       failures = [];
+      ask = FAKE_ASK;
+      return json(res, 200, { ok: true });
+    }
+    if (url.pathname === '/__fake/ask') {
+      ask = (await readBody(req)) ?? FAKE_ASK;
       return json(res, 200, { ok: true });
     }
     if (url.pathname === '/__fake/fail') {
@@ -149,6 +159,11 @@ export async function fakeCalls(host?: RegExp): Promise<FakeCall[]> {
 
 export async function resetFakes() {
   await fetch(`http://127.0.0.1:${FAKES_PORT}/__fake/reset`);
+}
+
+// Programa o que o modelo devolve ao próximo "Pedir ajuste" (e aos seguintes, até o reset).
+export async function programAsk(reply: unknown) {
+  await fetch(`http://127.0.0.1:${FAKES_PORT}/__fake/ask`, { method: 'POST', body: JSON.stringify(reply) });
 }
 
 export async function failFake(host: string, status = 500, times = 1) {

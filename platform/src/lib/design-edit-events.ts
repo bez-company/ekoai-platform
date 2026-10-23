@@ -30,6 +30,22 @@ export function revisionSavedProps(input: { briefId: string; version: number; so
   };
 }
 
+// Pedir ajuste em texto livre (SPEC 024). Nunca o texto do pedido nem o antes e depois: só o aspecto, o resultado e
+// quantos campos mudaram. `model_calls` é 1 quando a Ekoai leu o pedido e 0 quando só mandou para "Outra direção".
+export function askProps(input: { briefId: string; aspect: string | null; outcome: 'applied' | 'caption' | 'needs_visual'; version: number | null; diff: readonly Pick<DiffEntry, 'field'>[]; captionChanged: boolean; notApplied: number; modelCalls: number }): EventProps {
+  return {
+    brief_id: input.briefId,
+    aspect: input.aspect ?? 'auto',
+    outcome: input.outcome,
+    ...(input.version !== null ? { version: input.version } : {}),
+    fields_changed: input.diff.length,
+    field_keys: fieldKeys(input.diff),
+    caption_changed: input.captionChanged,
+    not_applied: input.notApplied,
+    model_calls: input.modelCalls,
+  };
+}
+
 export const revisionRestoredProps = (input: { briefId: string; fromVersion: number; toVersion: number }): EventProps => ({
   brief_id: input.briefId,
   from_version: input.fromVersion,
