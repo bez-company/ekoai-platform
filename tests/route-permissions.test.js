@@ -61,6 +61,7 @@ const EXPECTED = {
   'facts/[id]/confirm': ['brand.manage'],
   'facts/[id]/reject': ['brand.manage'],
   'facts/[id]/restore': ['brand.manage'],
+  'suggestions/plan': ['content.create'],
   'facts/confirm-many': ['brand.manage'],
   campaigns: ['content.view', 'brand.manage'],
   'campaigns/[id]': ['brand.manage'],

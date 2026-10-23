@@ -8,8 +8,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
 import { ROUTES } from '@/lib/app-routes';
+import { CampaignTag } from '@/components/campaigns/Badge';
 
-export type SuggestionView = { id: string; day: string; weekday: string; time: string; goalLabel: string; idea: string; reason: string; assetId: string | null };
+// campaignName: o nome curto da campanha quando a sugestão é dela (SPEC 018); o motivo já diz por que o post foi proposto.
+export type SuggestionView = { id: string; day: string; weekday: string; time: string; goalLabel: string; idea: string; reason: string; assetId: string | null; campaignName?: string | null };
 
 type Action = 'create' | 'replace' | 'skip';
 
@@ -69,9 +71,12 @@ export default function Suggestions({ items, canCreate, title = 'Sugestões da s
                 <div className="flex flex-wrap gap-1.5">
                   <span className="chip border-accent/30 bg-accent/15 text-accent-text">{s.goalLabel}</span>
                   {s.assetId && <span className="chip">Foto do banco</span>}
+                  {s.campaignName && <CampaignTag name={s.campaignName} />}
                 </div>
                 <strong className="mt-1 block text-sm">{s.idea}</strong>
-                <p className="text-sm leading-snug text-muted">{s.reason}</p>
+                <p className="text-sm leading-snug text-muted">
+                  <b className="font-semibold text-fg">Por que este post:</b> {s.reason}
+                </p>
                 {canCreate && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" className="btn-primary" disabled={busy !== null} onClick={() => void act(s.id, 'create')}>

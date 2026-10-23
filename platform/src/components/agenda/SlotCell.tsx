@@ -7,9 +7,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { CampaignTag } from '@/components/campaigns/Badge';
 import type { AgendaSuggestion } from '@/lib/agenda-model';
 
-export default function SlotCell({ time, past, suggestion, canCreate }: { time: string; past: boolean; suggestion: AgendaSuggestion | null; canCreate: boolean }) {
+// campaignName: o nome curto da campanha quando a sugestão deste horário é dela (SPEC 018).
+export default function SlotCell({ time, past, suggestion, canCreate, campaignName = null }: { time: string; past: boolean; suggestion: AgendaSuggestion | null; canCreate: boolean; campaignName?: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +28,7 @@ export default function SlotCell({ time, past, suggestion, canCreate }: { time: 
   }
 
   return (
-    <div className="grid min-w-0 gap-1 rounded-md border-[1.5px] border-dashed border-line-strong bg-raised p-2 text-xs text-muted">
+    <div className={`grid min-w-0 gap-1 rounded-md border-[1.5px] border-dashed bg-raised p-2 text-xs text-muted ${campaignName && suggestion ? 'border-accent' : 'border-line-strong'}`}>
       <span>
         <span className="font-mono font-semibold text-fg">{time}</span> · livre
       </span>
@@ -37,6 +39,11 @@ export default function SlotCell({ time, past, suggestion, canCreate }: { time: 
           <span className="text-fg">
             Sugestão: {suggestion.goalLabel.toLowerCase()}, &quot;{suggestion.idea}&quot;
           </span>
+          {campaignName && (
+            <span className="min-w-0 max-w-full justify-self-start">
+              <CampaignTag name={campaignName} />
+            </span>
+          )}
           <span title={suggestion.reason} className="line-clamp-2">
             {suggestion.reason}
           </span>

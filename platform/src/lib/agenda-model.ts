@@ -15,7 +15,7 @@ export type AgendaQuery = { view: AgendaView; date: string }; // date = dia loca
 export type AgendaPost = Pick<ScheduledPost, 'id' | 'channel' | 'status' | 'scheduled_for' | 'caption_final' | 'image_url' | 'last_error'>;
 
 // A sugestão do coordenador (content_suggestions), só o que a Agenda mostra.
-export type AgendaSuggestion = { id: string; slotAt: string; goal: string; goalLabel: string; assetId: string | null; idea: string; reason: string };
+export type AgendaSuggestion = { id: string; slotAt: string; goal: string; goalLabel: string; assetId: string | null; idea: string; reason: string; campaignId?: string | null };
 
 export type AgendaCell =
   | { kind: 'slot'; at: string; time: string; channel: Channel; slotId: string; post: AgendaPost | null; suggestion: AgendaSuggestion | null }
