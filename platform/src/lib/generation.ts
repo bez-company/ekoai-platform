@@ -26,7 +26,7 @@ import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { notify } from './notifications';
 import { applyDesignRulesToSpec } from './design-rules';
-import { NotFoundError, UserError } from './errors';
+import { NotFoundError, UserError, userMessage } from './errors';
 import { log } from './log';
 import type { ModelClient } from './vertex';
 import { getMediaAsset, readMediaAssetBytes } from './media-assets';
@@ -365,8 +365,10 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });
     return { status: 'ready', briefId, pendingId, ...(ruled?.applied.length ? { rulesApplied: ruled.applied.length } : {}) };
   } catch (e) {
-    const message = (e instanceof Error ? e.message : String(e)).slice(0, 500);
-    log('error', 'generation', 'geração falhou', { briefId, error: message });
+    // O erro técnico vai inteiro para o log; o pedido e o aviso levam só texto escrito para a pessoa.
+    const raw = (e instanceof Error ? e.message : String(e)).slice(0, 500);
+    log('error', 'generation', 'geração falhou', { briefId, error: raw });
+    const message = userMessage(e);
     await setBrief(t, brief.id, { status: 'failed', error: message }).catch(() => undefined);
     await notify(t, { kind: 'post.failed', level: 'error', title: 'Não deu para gerar o post', body: message.slice(0, 160), link: `/aprovar`, audience: 'team' }).catch(() => undefined);
     return { status: 'failed', briefId, error: message };
