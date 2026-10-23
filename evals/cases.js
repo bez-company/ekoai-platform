@@ -2,51 +2,150 @@
 // digita em "Criar post") mais a lista de exigências que a imagem final e a legenda precisam cumprir.
 // As exigências são escritas por uma pessoa, a partir do pedido, nunca pelo modelo que está sendo medido.
 //
-// Empresa fictícia (este repositório é público): padaria e confeitaria "Casa Aurora".
+// Três empresas fictícias (este repositório é público), de jeitos de falar bem diferentes:
+// padaria (descontraída), engenharia estrutural (formal, técnica) e odontologia (acolhedora, área de saúde).
 //
-// Campos de `requirements`:
-//   id        identificador estável, aparece no relatório
-//   text      a exigência, em português, no que se pode conferir olhando a imagem ou lendo a legenda
-//   in        'image' (o juiz olha o PNG) ou 'caption' (o juiz lê a legenda)
-//   contains  opcional: trechos que precisam estar no texto desenhado na imagem (conferência por código,
-//             sem modelo, para pegar erro do juiz)
+// Campos de um caso:
+//   id, company, why  identificação, empresa de COMPANIES e a razão do caso
+//   idea, kind, ratio o pedido palavra por palavra, o tipo escolhido na tela (null = o agente escolhe), o formato
+//   tags              'marca' (a pessoa dita a composição), 'texto-exato', 'lista', 'atmosfera', 'fato' (número,
+//                     claim e base de fatos), 'vago' (pedido curto), 'voz'. O relatório agrupa por tag.
+//   requirements      o que se confere no resultado:
+//     id, text        a exigência, no que se vê na imagem ou se lê na legenda
+//     in              'image' (o juiz olha o PNG) ou 'caption' (o juiz lê a legenda)
+//     contains        opcional: trechos que precisam estar no texto desenhado na imagem (conferência por código)
+//
+// O juiz também aplica a régua de ofício (CRAFT) a todo caso, e o código aplica as checagens de metrics.js.
 
-export const COMPANY = {
-  name: 'Casa Aurora',
-  handle: 'casaaurora',
-  profile: {
-    niche: 'Padaria e confeitaria artesanal',
-    offering: 'Pães de fermentação natural, bolos sob encomenda e café da manhã',
-    audience: 'Famílias e escritórios do bairro',
-    region: 'Marília, SP',
-    siteUrl: null,
-    instagramHandle: '@casaaurora',
-    differentiators: ['Fornada nova todo dia às 7h', 'Fermentação natural de 24 horas'],
-    pains: ['Pão que endurece no mesmo dia', 'Bolo de festa que chega amassado'],
-    voiceFormal: 2,
-    voiceTechnical: 4,
-    voiceSerious: 3,
-    bannedWords: ['imperdível', 'o melhor da cidade'],
-    logoAssetId: null,
-    colorPrimary: '#3A1F1A',
-    colorAccent: '#E8A33D',
-    fontHeading: 'Playfair Display',
-    fontBody: 'Inter',
-    ctaDefault: 'whatsapp',
-    postsPerWeek: 3,
-    updatedAt: '',
+const svgLogo = (svg, width, height) => ({ dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, width, height });
+
+export const COMPANIES = {
+  aurora: {
+    name: 'Casa Aurora',
+    handle: 'casaaurora',
+    voice: 'descontraída, simples, próxima',
+    profile: {
+      niche: 'Padaria e confeitaria artesanal',
+      offering: 'Pães de fermentação natural, bolos sob encomenda e café da manhã',
+      audience: 'Famílias e escritórios do bairro',
+      region: 'Marília, SP',
+      siteUrl: null,
+      instagramHandle: '@casaaurora',
+      differentiators: ['Fornada nova todo dia às 7h', 'Fermentação natural de 24 horas'],
+      pains: ['Pão que endurece no mesmo dia', 'Bolo de festa que chega amassado'],
+      voiceFormal: 4,
+      voiceTechnical: 4,
+      voiceSerious: 3,
+      bannedWords: ['imperdível', 'o melhor da cidade'],
+      logoAssetId: null,
+      colorPrimary: '#3A1F1A',
+      colorAccent: '#E8A33D',
+      fontHeading: 'Playfair Display',
+      fontBody: 'Inter',
+      ctaDefault: 'whatsapp',
+      postsPerWeek: 3,
+      updatedAt: '',
+    },
+    facts: ['Fornada nova todo dia às 7h', 'Pão de fermentação natural leva 24 horas para ficar pronto', 'Encomenda de bolo com 3 dias de antecedência'],
+    never: ['promessa de entrega em menos de 3 dias'],
+    logo: svgLogo(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><circle cx="110" cy="110" r="104" fill="#E8A33D"/><circle cx="110" cy="124" r="38" fill="#3A1F1A"/><path d="M110 40v22M58 62l15 15M162 62l-15 15M36 112h22M184 112h-22" stroke="#3A1F1A" stroke-width="8" stroke-linecap="round"/></svg>`,
+      220,
+      220,
+    ),
+    logoLooks: 'um círculo âmbar com um sol marrom',
   },
-  facts: ['Fornada nova todo dia às 7h', 'Pão de fermentação natural leva 24 horas para ficar pronto', 'Encomenda de bolo com 3 dias de antecedência'],
-  never: ['promessa de entrega em menos de 3 dias'],
+  vertice: {
+    name: 'Vértice Engenharia',
+    handle: 'verticeeng',
+    voice: 'formal, técnica, séria',
+    profile: {
+      niche: 'Engenharia estrutural e de fundações',
+      offering: 'Projeto estrutural, laudo técnico e acompanhamento de obra',
+      audience: 'Construtoras e incorporadoras de médio porte',
+      region: 'Londrina, PR',
+      siteUrl: null,
+      instagramHandle: '@verticeeng',
+      differentiators: ['Projetos conforme a ABNT NBR 6118', 'Acompanhamento de obra por engenheiro responsável'],
+      pains: ['Retrabalho por projeto incompatível com a obra', 'Laudo que demora e trava a liberação'],
+      voiceFormal: 1,
+      voiceTechnical: 2,
+      voiceSerious: 1,
+      bannedWords: ['revolucionário', 'inovador', 'solução completa'],
+      logoAssetId: null,
+      colorPrimary: '#12355B',
+      colorAccent: '#F28C28',
+      fontHeading: 'Montserrat',
+      fontBody: 'Inter',
+      ctaDefault: 'dm',
+      postsPerWeek: 2,
+      updatedAt: '',
+    },
+    facts: ['Projetos conforme a ABNT NBR 6118', 'Mais de 120 obras acompanhadas desde 2015', 'Laudo técnico entregue em até 10 dias úteis'],
+    never: ['garantia de aprovação em órgão público', 'prazo de conclusão de obra'],
+    logo: svgLogo(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="200" viewBox="0 0 240 200"><path d="M20 20h200L120 180z" fill="#F28C28"/><path d="M70 20h100L120 105z" fill="#12355B"/></svg>`,
+      240,
+      200,
+    ),
+    logoLooks: 'um triângulo laranja apontando para baixo com um triângulo azul dentro',
+  },
+  sorriso: {
+    name: 'Clínica Sorriso Vivo',
+    handle: 'sorrisovivo',
+    voice: 'acolhedora, simples, cuidadosa (área de saúde)',
+    profile: {
+      niche: 'Odontologia geral e infantil',
+      offering: 'Consultas, limpeza, clareamento e atendimento infantil',
+      audience: 'Famílias do bairro, pais de crianças pequenas',
+      region: 'Curitiba, PR',
+      siteUrl: null,
+      instagramHandle: '@sorrisovivo',
+      differentiators: ['Atendimento infantil com tempo para a criança se acostumar', 'Atende de segunda a sábado'],
+      pains: ['Medo de dentista', 'Criança que não escova direito'],
+      voiceFormal: 3,
+      voiceTechnical: 4,
+      voiceSerious: 3,
+      bannedWords: ['milagre', 'garantido', 'indolor'],
+      logoAssetId: null,
+      colorPrimary: '#0F766E',
+      colorAccent: '#FBBF24',
+      fontHeading: 'Poppins',
+      fontBody: 'Inter',
+      ctaDefault: 'whatsapp',
+      postsPerWeek: 3,
+      updatedAt: '',
+    },
+    facts: ['Primeira consulta com avaliação de 30 minutos', 'Atendimento de segunda a sábado'],
+    never: ['promessa de resultado de tratamento', 'foto de antes e depois', 'afirmar que um tratamento cura', 'afirmar que o atendimento é indolor'],
+    logo: svgLogo(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect x="6" y="6" width="188" height="188" rx="48" fill="#0F766E"/><path d="M60 80c0-22 80-22 80 0 0 30-12 74-24 74-8 0-8-30-16-30s-8 30-16 30c-12 0-24-44-24-74z" fill="#FFFFFF"/></svg>`,
+      200,
+      200,
+    ),
+    logoLooks: 'um quadrado arredondado verde com um dente branco',
+  },
 };
 
-// Logo fictício: círculo âmbar com um sol e a palavra, em SVG embutido.
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><circle cx="110" cy="110" r="104" fill="#E8A33D"/><circle cx="110" cy="124" r="38" fill="#3A1F1A"/><path d="M110 40v22M58 62l15 15M162 62l-15 15M36 112h22M184 112h-22" stroke="#3A1F1A" stroke-width="8" stroke-linecap="round"/></svg>`;
-export const LOGO = { dataUri: `data:image/svg+xml;base64,${Buffer.from(LOGO_SVG).toString('base64')}`, width: 220, height: 220 };
+// A régua de ofício: vale para todo caso, e diz se o post é bom, não só se cumpre o pedido.
+export const CRAFT = [
+  { id: 'ofc-portugues', in: 'image', text: 'Todo texto da imagem e a legenda estão em português do Brasil correto, com acentos nos lugares certos e sem erro de digitação.' },
+  { id: 'ofc-sem-cliche', in: 'caption', text: 'O texto não usa clichê de vendedor nem de IA (por exemplo "transforme", "descubra", "jornada", "essência", "mergulhe", "no mundo de hoje") nem superlativo vazio.' },
+  { id: 'ofc-voz', in: 'caption', text: 'O jeito de falar combina com a voz da empresa descrita acima (formalidade, tom técnico e seriedade).' },
+  { id: 'ofc-gancho', in: 'image', text: 'O texto principal da imagem promete algo específico a quem lê (um benefício, uma pergunta, um fato concreto do negócio). Rótulo de tema, como "Segurança técnica em projetos", ou elogio genérico reprova.' },
+  { id: 'ofc-sem-recheio', in: 'image', text: 'Cada texto da imagem serve ao pedido. Fato solto da base que não tem a ver com o pedido (o horário da fornada num post sobre outro assunto, por exemplo) reprova.' },
+  { id: 'ofc-coerencia', in: 'caption', text: 'A legenda e a imagem falam da mesma coisa, e a legenda acrescenta algo em vez de repetir o texto da imagem.' },
+  { id: 'ofc-legibilidade', in: 'image', text: 'O texto da imagem é legível no celular: contraste bom, nada cortado, nada sobreposto, fonte grande o bastante.' },
+  { id: 'ofc-composicao', in: 'image', text: 'A composição é equilibrada e profissional: hierarquia clara, respiro, nada amontoado nem jogado num canto sem razão.' },
+  { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho.' },
+];
 
 export const CASES = [
+  // Padaria Casa Aurora
   {
     id: 'primeira-imagem-da-marca',
+    company: 'aurora',
+    tags: ['marca'],
     why: 'Caso real que motivou o eval: a pessoa descreveu a imagem em detalhe e a plataforma entregou outra coisa (foto de vaso, frase inventada, logo pequeno no canto).',
     idea: 'Quero uma imagem para ser a primeira do Instagram. Fundo escuro, com o logo bem centralizado, o nome da empresa, Casa Aurora, e em um canto o @casaaurora.',
     kind: null,
@@ -61,7 +160,24 @@ export const CASES = [
     ],
   },
   {
+    id: 'capa-de-destaque',
+    company: 'aurora',
+    tags: ['marca', 'texto-exato'],
+    why: 'A pessoa dita a composição inteira: uma palavra, grande, no centro, sobre a cor da marca.',
+    idea: 'Capa para o destaque do Instagram: só a palavra "Cardápio" bem grande no centro, sobre a cor da marca. Nada mais.',
+    kind: null,
+    ratio: '1:1',
+    requirements: [
+      { id: 'palavra-literal', in: 'image', text: 'A palavra "Cardápio" aparece na imagem, grande, escrita exatamente assim.', contains: ['Cardápio'] },
+      { id: 'no-centro', in: 'image', text: 'A palavra está no centro da imagem.' },
+      { id: 'cor-da-marca', in: 'image', text: 'O fundo é liso e usa a cor da marca (marrom escuro ou âmbar).' },
+      { id: 'nada-mais', in: 'image', text: 'Não há outro texto grande, lista, selo nem foto; no máximo o @ ou o logo pequeno em um canto.' },
+    ],
+  },
+  {
     id: 'dicas-em-lista',
+    company: 'aurora',
+    tags: ['lista'],
     why: 'Pedido que o motor já deveria atender: informativo em lista, com quantidade pedida.',
     idea: 'Três dicas para o pão não endurecer no mesmo dia.',
     kind: 'informativo',
@@ -69,12 +185,13 @@ export const CASES = [
     requirements: [
       { id: 'tres-dicas', in: 'image', text: 'A imagem mostra exatamente 3 dicas, em lista.' },
       { id: 'tema-pao', in: 'image', text: 'As dicas tratam de conservar pão para ele não endurecer.' },
-      { id: 'acentos', in: 'image', text: 'Todo texto da imagem está em português correto, com acentos nos lugares certos.' },
       { id: 'legenda-chamada', in: 'caption', text: 'A legenda termina convidando a pessoa a chamar no WhatsApp.' },
     ],
   },
   {
     id: 'frase-exata',
+    company: 'aurora',
+    tags: ['texto-exato'],
     why: 'A pessoa dita o texto da imagem. O sistema não pode reescrever.',
     idea: 'Post com a frase exata "Fornada nova todo dia às 7h" em destaque e mais nada na imagem.',
     kind: 'informativo',
@@ -86,6 +203,8 @@ export const CASES = [
   },
   {
     id: 'atmosfera-cafe-da-manha',
+    company: 'aurora',
+    tags: ['atmosfera'],
     why: 'Post de atmosfera: a cena pedida precisa ser a cena da foto.',
     idea: 'Foto de uma mesa de café da manhã com pães e café, luz de manhã, clima acolhedor.',
     kind: 'atmosfera',
@@ -93,21 +212,220 @@ export const CASES = [
     requirements: [
       { id: 'cena-pedida', in: 'image', text: 'A foto de fundo mostra uma mesa de café da manhã com pães e café.' },
       { id: 'luz-de-manha', in: 'image', text: 'A luz da foto é natural e suave, de manhã.' },
-      { id: 'texto-legivel', in: 'image', text: 'O título escrito sobre a foto é legível (contraste bom, sem cortar).' },
       { id: 'sem-texto-na-foto', in: 'image', text: 'A foto em si não tem letras nem logo desenhados pelo modelo de imagem (só o texto colocado por cima).' },
     ],
   },
   {
+    id: 'atmosfera-sem-texto',
+    company: 'aurora',
+    tags: ['atmosfera', 'marca'],
+    why: 'A pessoa proíbe texto na imagem. O motor hoje sempre desenha um título sobre a foto.',
+    idea: 'Foto do bastidor da cozinha de manhã, com as mãos de alguém sovando massa. Sem nenhum texto na imagem, só o @ em um canto.',
+    kind: 'atmosfera',
+    ratio: '4:5',
+    requirements: [
+      { id: 'cena-bastidor', in: 'image', text: 'A foto mostra o bastidor de uma cozinha com massa sendo sovada.' },
+      { id: 'sem-titulo', in: 'image', text: 'Não há título, frase nem selo escrito sobre a foto; o único texto é o "@casaaurora" em um canto.' },
+      { id: 'arroba-presente', in: 'image', text: 'O texto "@casaaurora" aparece em um canto.', contains: ['@casaaurora'] },
+    ],
+  },
+  {
     id: 'numero-fora-da-base',
-    why: 'Guarda de fato: número que a pessoa pede e a base não tem. O post não pode afirmar o que não sabe.',
+    company: 'aurora',
+    tags: ['fato'],
+    why: 'Guarda de fato: número que a pessoa pede e a base não tem. O post tem que usar o número do pedido e não inventar outro.',
     idea: 'Anunciar 30% de desconto no bolo de chocolate nesta semana.',
     kind: 'informativo',
     ratio: '1:1',
     requirements: [
       { id: 'sem-numero-inventado', in: 'image', text: 'Todo número na imagem vem do pedido (30%) ou da base de fatos (7h, 24 horas, 3 dias). Preço, data ou prazo fora dessas fontes reprova.' },
-      { id: 'legenda-sem-invencao', in: 'caption', text: 'A legenda não inventa data, horário, preço nem condição. Só vale o que está no pedido (30% de desconto, bolo de chocolate, esta semana) ou na base de fatos (fornada às 7h, fermentação de 24 horas, encomenda com 3 dias).' },
+      { id: 'legenda-sem-invencao', in: 'caption', text: 'A legenda não inventa data, horário, preço nem condição. Só vale o que está no pedido (30% de desconto, bolo de chocolate, esta semana) ou na base de fatos.' },
       { id: 'desconto-na-legenda', in: 'caption', text: 'A legenda diz que o desconto é de 30%.' },
       { id: 'pedido-atendido', in: 'image', text: 'A imagem anuncia o desconto de 30% no bolo de chocolate.', contains: ['30%'] },
+    ],
+  },
+  {
+    id: 'aviso-de-horario',
+    company: 'aurora',
+    tags: ['fato'],
+    why: 'Aviso com horário dado pela pessoa: o horário tem que sair certo e nenhum outro pode aparecer.',
+    idea: 'Avisar que neste domingo a gente fecha mais cedo, às 13h.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'horario-na-imagem', in: 'image', text: 'A imagem diz que no domingo a casa fecha às 13h.', contains: ['13h'] },
+      { id: 'horario-na-legenda', in: 'caption', text: 'A legenda diz que no domingo a casa fecha às 13h.' },
+      { id: 'sem-outro-horario', in: 'image', text: 'A imagem não traz outro horário ou prazo além das 13h (a base de fatos tem fornada às 7h, que só vale se ajudar o aviso).' },
+    ],
+  },
+  {
+    id: 'post-vago',
+    company: 'aurora',
+    tags: ['vago'],
+    why: 'Pedido curto e vago: o agente precisa escolher um ângulo concreto a partir do perfil, sem encher de fato.',
+    idea: 'Um post sobre o nosso pão.',
+    kind: null,
+    ratio: '4:5',
+    requirements: [
+      { id: 'angulo-concreto', in: 'image', text: 'O post escolhe um ângulo específico sobre o pão (por exemplo a fermentação de 24 horas ou a fornada das 7h), não um elogio genérico.' },
+      { id: 'fato-certo', in: 'image', text: 'Todo número na imagem está na base de fatos (7h, 24 horas, 3 dias).' },
+    ],
+  },
+  // Vértice Engenharia
+  {
+    id: 'sinais-de-laje',
+    company: 'vertice',
+    tags: ['lista', 'voz'],
+    why: 'Conteúdo técnico em voz formal, sem prometer nem inventar número.',
+    idea: 'Três sinais de que uma laje precisa de avaliação estrutural.',
+    kind: 'informativo',
+    ratio: '4:5',
+    requirements: [
+      { id: 'tres-sinais', in: 'image', text: 'A imagem lista exatamente 3 sinais de problema em laje.' },
+      { id: 'tom-formal', in: 'caption', text: 'A legenda é formal e técnica, sem gíria nem exclamação em excesso.' },
+      { id: 'sem-numero-inventado', in: 'image', text: 'Nenhum número aparece na imagem além da numeração da lista (a base de fatos tem 120 obras, 2015, 10 dias úteis e NBR 6118).' },
+      { id: 'sem-promessa', in: 'caption', text: 'A legenda não promete resultado, prazo de obra nem aprovação.' },
+    ],
+  },
+  {
+    id: 'prova-de-experiencia',
+    company: 'vertice',
+    tags: ['fato', 'vago'],
+    why: 'Pedido de prova social: usar o número da base e nenhum outro.',
+    idea: 'Mostrar que a Vértice tem experiência de verdade.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'usa-o-fato', in: 'image', text: 'A imagem usa um fato da base (120 obras acompanhadas desde 2015, ou a NBR 6118) para mostrar experiência.' },
+      { id: 'sem-numero-novo', in: 'image', text: 'Todo número na imagem está na base de fatos (120, 2015, 10 dias úteis, 6118). Qualquer outro reprova.' },
+      { id: 'sem-superlativo', in: 'caption', text: 'A legenda não usa superlativo vazio nem as palavras "inovador", "revolucionário" ou "solução completa".' },
+    ],
+  },
+  {
+    id: 'claim-proibido',
+    company: 'vertice',
+    tags: ['fato'],
+    why: 'A pessoa pede uma afirmação que a empresa nunca faz. O post deve falar do tema sem prometer.',
+    idea: 'Dizer que a gente garante a aprovação do projeto na prefeitura.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'sem-garantia', in: 'image', text: 'A imagem não afirma garantia de aprovação do projeto em órgão público.' },
+      { id: 'sem-garantia-legenda', in: 'caption', text: 'A legenda não afirma nem insinua garantia de aprovação na prefeitura.' },
+      { id: 'fala-do-tema', in: 'image', text: 'O post ainda trata do tema de aprovação de projeto ou de conformidade com a norma, de forma que a empresa possa sustentar.' },
+    ],
+  },
+  {
+    id: 'convite-palestra',
+    company: 'vertice',
+    tags: ['fato'],
+    why: 'Convite com data dada pela pessoa; horário e local não existem na base e não podem aparecer.',
+    idea: 'Convite para a palestra sobre a NBR 6118 no dia 12 de novembro.',
+    kind: 'informativo',
+    ratio: '4:5',
+    requirements: [
+      { id: 'data-certa', in: 'image', text: 'A imagem traz a data 12 de novembro (ou 12/11) e o tema NBR 6118.', contains: ['6118'] },
+      { id: 'sem-horario-nem-local', in: 'image', text: 'A imagem não inventa horário nem local da palestra.' },
+      { id: 'legenda-sem-invencao', in: 'caption', text: 'A legenda não inventa horário, local, palestrante nem preço.' },
+    ],
+  },
+  {
+    id: 'atmosfera-obra',
+    company: 'vertice',
+    tags: ['atmosfera'],
+    why: 'Foto de obra: a cena pedida, sem pessoa identificável.',
+    idea: 'Foto de uma obra ao amanhecer, com a estrutura de concreto aparente e os pilares à mostra.',
+    kind: 'atmosfera',
+    ratio: '4:5',
+    requirements: [
+      { id: 'cena-pedida', in: 'image', text: 'A foto mostra uma obra com estrutura de concreto e pilares à mostra.' },
+      { id: 'luz-de-amanhecer', in: 'image', text: 'A luz é de amanhecer (céu claro, tons quentes ou frios suaves).' },
+      { id: 'sem-pessoa', in: 'image', text: 'Não há pessoa identificável na foto.' },
+    ],
+  },
+  {
+    id: 'logo-e-nome',
+    company: 'vertice',
+    tags: ['marca'],
+    why: 'Variação do caso principal com outra empresa e outra cor: composição ditada pela pessoa.',
+    idea: 'Imagem de apresentação da empresa: fundo azul bem escuro, o logo grande no meio e o nome Vértice Engenharia embaixo dele. Sem mais nada.',
+    kind: null,
+    ratio: '1:1',
+    requirements: [
+      { id: 'fundo-azul-escuro', in: 'image', text: 'O fundo é azul bem escuro e liso.' },
+      { id: 'logo-no-meio', in: 'image', text: 'O logo (triângulo laranja com triângulo azul) está grande, no meio da imagem.' },
+      { id: 'nome-embaixo', in: 'image', text: 'O nome "Vértice Engenharia" está escrito logo abaixo do logo.', contains: ['Vértice Engenharia'] },
+      { id: 'sem-mais-nada', in: 'image', text: 'Não há outro título, frase, lista nem foto.' },
+    ],
+  },
+  // Clínica Sorriso Vivo
+  {
+    id: 'escovacao-infantil',
+    company: 'sorriso',
+    tags: ['lista', 'voz'],
+    why: 'Saúde: dicas úteis sem prometer resultado nem usar palavra proibida.',
+    idea: 'Três dicas para ajudar criança pequena a escovar os dentes direito.',
+    kind: 'informativo',
+    ratio: '4:5',
+    requirements: [
+      { id: 'tres-dicas', in: 'image', text: 'A imagem mostra exatamente 3 dicas, em lista.' },
+      { id: 'sem-promessa', in: 'caption', text: 'O texto não promete resultado, cura nem "dente sem cárie".' },
+      { id: 'tom-acolhedor', in: 'caption', text: 'O tom é acolhedor e simples, adequado a pais de crianças pequenas.' },
+    ],
+  },
+  {
+    id: 'antes-e-depois-proibido',
+    company: 'sorriso',
+    tags: ['fato'],
+    why: 'A pessoa pede o que a empresa nunca faz (antes e depois de clareamento).',
+    idea: 'Post mostrando o antes e depois de um clareamento dental.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'sem-antes-depois', in: 'image', text: 'A imagem não mostra nem sugere comparação de antes e depois.' },
+      { id: 'sem-promessa-resultado', in: 'caption', text: 'A legenda não promete resultado de clareamento nem usa "antes e depois".' },
+      { id: 'fala-de-clareamento', in: 'image', text: 'O post ainda fala de clareamento ou de avaliação antes de clarear, sem promessa.' },
+    ],
+  },
+  {
+    id: 'convite-primeira-consulta',
+    company: 'sorriso',
+    tags: ['fato'],
+    why: 'Convite que deve usar o fato da base e nenhum preço inventado.',
+    idea: 'Convidar para a primeira consulta, que tem avaliação de 30 minutos.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'avaliacao-30', in: 'image', text: 'A imagem diz que a primeira consulta tem avaliação de 30 minutos.', contains: ['30 minutos'] },
+      { id: 'sem-preco', in: 'caption', text: 'O texto não cita preço, desconto nem gratuidade (a base não diz que é grátis).' },
+      { id: 'chamada-whatsapp', in: 'caption', text: 'A legenda termina convidando a chamar no WhatsApp.' },
+    ],
+  },
+  {
+    id: 'atmosfera-recepcao',
+    company: 'sorriso',
+    tags: ['atmosfera'],
+    why: 'Foto de ambiente de saúde: acolhedora e sem pessoa identificável.',
+    idea: 'Foto da recepção da clínica, clara e acolhedora, com plantas e um sofá.',
+    kind: 'atmosfera',
+    ratio: '4:5',
+    requirements: [
+      { id: 'cena-pedida', in: 'image', text: 'A foto mostra uma recepção clara com plantas e um sofá.' },
+      { id: 'sem-pessoa', in: 'image', text: 'Não há pessoa identificável na foto.' },
+      { id: 'sem-cara-de-hospital', in: 'image', text: 'O ambiente parece acolhedor, não frio nem hospitalar.' },
+    ],
+  },
+  {
+    id: 'frase-curta',
+    company: 'sorriso',
+    tags: ['texto-exato'],
+    why: 'Frase dita pela pessoa, para ficar grande e sozinha.',
+    idea: 'Quero só a frase "Sorrir também é cuidar" bem grande, sem mais nada.',
+    kind: 'informativo',
+    ratio: '1:1',
+    requirements: [
+      { id: 'frase-literal', in: 'image', text: 'A frase "Sorrir também é cuidar" aparece grande na imagem, escrita exatamente assim.', contains: ['Sorrir também é cuidar'] },
+      { id: 'so-a-frase', in: 'image', text: 'Não há subtítulo, lista nem selo; no máximo o @ ou o logo pequeno em um canto.' },
     ],
   },
 ];
