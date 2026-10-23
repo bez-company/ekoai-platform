@@ -47,7 +47,7 @@ describe('/api/facts', () => {
     const res = await POST(new Request('http://app.test/api/facts', json({ kind: 'fact', text: ' Entrega no dia ', source: 'site', tenant_id: 'outra' })));
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({ fact: { text: 'Entrega no dia', source: 'site' } });
-    expect(dataMock.created).toEqual([{ user: 'u1', input: { kind: 'fact', text: 'Entrega no dia', source: 'site', source_note: null } }]);
+    expect(dataMock.created).toEqual([{ user: 'u1', input: { kind: 'fact', text: 'Entrega no dia', source: 'site', source_note: null, category: 'outro', valid_until: null } }]);
     expect(sessionMock.calls).toEqual(['brand.manage']);
     const bad = await POST(new Request('http://app.test/api/facts', json({ kind: 'fact', text: '' })));
     expect(bad.status).toBe(400);

@@ -24,6 +24,28 @@ describe('revisor de texto', () => {
     expect(reviewText({ ...base, facts: ['R$ 36'], imageTexts: ['Custa R$ 36'] }).filter((i) => i.rule === 'number_not_in_facts')).toEqual([]);
   });
 
+  it('número que só existe em fato vencido, pendente ou recusado reprova com o fato; o que vale passa', () => {
+    const inactive = [
+      { text: 'Bolo de pote de ninho por R$ 18', reason: 'expired', validUntil: '2026-10-15' },
+      { text: 'Mais de 2 mil bolos entregues', reason: 'pending', validUntil: null },
+      { text: 'Entregamos em 12 cidades', reason: 'rejected', validUntil: null },
+    ];
+    const expired = reviewText({ ...base, imageTexts: ['Bolo por R$ 18'], caption: '', inactive });
+    expect(expired).toEqual([{ rule: 'fact_not_valid', detail: '18', message: 'O número 18 vem de um fato vencido em 15/10: "Bolo de pote de ninho por R$ 18". Confirme ou atualize o fato para usá-lo.', where: 'image' }]);
+    expect(reviewText({ ...base, imageTexts: [], caption: 'Mais de 2 mil bolos', inactive })[0].message).toContain('ainda não confirmado');
+    expect(reviewText({ ...base, imageTexts: [], caption: 'Atendemos 12 cidades', inactive })[0].message).toContain('Tire o número do post');
+    // o mesmo número num fato que vale: passa, e não aparece como "fora da base"
+    expect(reviewText({ ...base, facts: ['Bolo de pote por R$ 18 até 30/11'], imageTexts: ['Bolo por R$ 18'], caption: '', inactive })).toEqual([]);
+    // sem nenhum fato com o número: segue como "fora da base"
+    expect(reviewText({ ...base, imageTexts: ['Custa R$ 99'], caption: '', inactive }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
+    expect(blocking(expired).map((i) => i.rule)).toEqual(['fact_not_valid']);
+  });
+
+  it('o número da oferta da campanha vale só quando o post a leva (allowed)', () => {
+    expect(reviewText({ ...base, imageTexts: ['Caixa por R$ 89'], caption: '', allowed: ['Caixa de panetone por R$ 89'] })).toEqual([]);
+    expect(reviewText({ ...base, imageTexts: ['Caixa por R$ 89'], caption: '' }).map((i) => i.rule)).toEqual(['number_not_in_facts']);
+  });
+
   it('acento, travessão, emoji na imagem, legenda longa e hashtags demais', () => {
     const issues = reviewText({ ...base, imageTexts: ['Voce vai amar 🎂 — hoje'], caption: 'x'.repeat(2201), hashtags: Array.from({ length: 31 }, (_, i) => `#h${i}`) });
     expect(issues.map((i) => i.rule).sort()).toEqual(['accent', 'caption_too_long', 'dash', 'emoji_in_image', 'too_many_hashtags']);
