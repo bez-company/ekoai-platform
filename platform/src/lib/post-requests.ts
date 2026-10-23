@@ -43,7 +43,8 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
 export const BRIEF_STATUS = ['queued', 'generating', 'ready', 'failed'] as const;
 export type BriefStatus = (typeof BRIEF_STATUS)[number];
 
-export async function createPostRequest(t: TenantDb, actor: SessionUser | null, input: Pick<PostRequestInput, 'idea' | 'kind'> & Partial<PostRequestInput>): Promise<{ id: string }> {
+// campaignId só vem do servidor (a sugestão do coordenador), nunca do corpo da rota: a FK do briefs não amarra o tenant.
+export async function createPostRequest(t: TenantDb, actor: SessionUser | null, input: Pick<PostRequestInput, 'idea' | 'kind'> & Partial<PostRequestInput> & { campaignId?: string | null }): Promise<{ id: string }> {
   const photo = input.photo ?? null;
   if (photo) {
     const asset = await getMediaAsset(t, photo.assetId);
@@ -59,6 +60,7 @@ export async function createPostRequest(t: TenantDb, actor: SessionUser | null, 
       ratio: input.ratio ?? DEFAULT_RATIO,
       asset_id: photo?.assetId ?? null,
       photo_usage: photo?.usage ?? null,
+      campaign_id: input.campaignId ?? null,
       status: 'queued',
       source: 'platform',
       requested_by: actor?.id ?? null,

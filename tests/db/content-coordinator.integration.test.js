@@ -63,10 +63,10 @@ afterAll(async () => {
 
 describe('coordenador de conteúdo', () => {
   it('sugere um post por horário livre, com a foto do banco e as ideias do modelo', async () => {
-    const models = ideas([{ i: 0, idea: 'O forno a lenha às 5h da manhã' }, { i: 1, idea: 'Pergunte qual sabor volta no cardápio' }]);
+    const models = ideas([{ i: 0, idea: 'O forno a lenha logo cedo' }, { i: 1, idea: 'Pergunte qual sabor volta no cardápio' }]);
     const saved = await coord.planForTenant(ta, { now, models });
     expect(saved.map((s) => s.slotAt)).toEqual([SAT, TUE]);
-    expect(saved[0]).toMatchObject({ goal: 'bastidores', assetId: photoId, idea: 'O forno a lenha às 5h da manhã', status: 'suggested' });
+    expect(saved[0]).toMatchObject({ goal: 'bastidores', assetId: photoId, idea: 'O forno a lenha logo cedo', status: 'suggested' });
     expect(saved[0].reason).toMatch(/^Bastidores com a foto "Forno a lenha aceso"/);
     expect(saved[1].goal).not.toBe('bastidores');
     expect(saved[1].assetId).toBeNull();
@@ -96,7 +96,7 @@ describe('coordenador de conteúdo', () => {
     const [sat] = await coord.listSuggestions(ta, now);
     await expect(coord.skipSuggestion(tb, ANA, sat.id)).rejects.toBeInstanceOf(UserError);
     const photo = await coord.createFromSuggestion(ta, ANA, sat.id, { wake: () => {} });
-    expect(photo).toEqual({ kind: 'photo', assetId: photoId, idea: 'O forno a lenha às 5h da manhã' });
+    expect(photo).toEqual({ kind: 'photo', assetId: photoId, idea: 'O forno a lenha logo cedo', campaignId: null });
     await expect(coord.skipSuggestion(ta, ANA, sat.id)).rejects.toThrow(/já foi usada/);
   });
 
@@ -121,7 +121,7 @@ describe('coordenador de conteúdo', () => {
 
   it('o job passa pelas contas com horário e pula a pausada', async () => {
     const summary = await coord.runContentPlanning({ now, models: null });
-    expect(summary).toEqual({ accounts: 1, suggested: 0, paused: 1, failed: 0 });
+    expect(summary).toEqual({ accounts: 1, suggested: 0, paused: 1, failed: 0, skipped: 0, fallback: 0, costUsd: 0 });
     expect(await rows('select id from content_suggestions where tenant_id = $1', [C])).toEqual([]);
   });
 

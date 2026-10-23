@@ -17,7 +17,12 @@ export type CopyInput = {
   feedback?: Issue[]; // achados da volta anterior
   previous?: Copy | null; // o texto recusado
   direction?: number; // 1 = a primeira; acima disso, "outra direção" pedida pela pessoa
+  campaign?: CopyCampaign | null; // a campanha do pedido (SPEC 018): só o que a pessoa escreveu nela
 };
+
+// O que a campanha diz ao redator. A oferta vale como afirmada só para este post; as restrições entram como
+// "nunca diga". Meta e números de acompanhamento nunca vão ao modelo.
+export type CopyCampaign = { name: string; objective: string | null; offering: string | null; audience: string | null; cta: string | null; restrictions: string[] };
 
 export type Copy = {
   kind: PostKind;
@@ -51,7 +56,18 @@ export function buildCopyPrompt(input: CopyInput): string {
   if (p.differentiators.length) lines.push(`- Diferenciais: ${p.differentiators.join('; ')}`);
   if (p.pains.length) lines.push(`- Dores do público: ${p.pains.join('; ')}`);
   lines.push(`- Jeito de falar: ${voiceLine(p)}`);
-  if (p.ctaDefault && CTA_TEXT[p.ctaDefault]) lines.push(`- Chamada padrão: ${CTA_TEXT[p.ctaDefault]}`);
+  const cta = input.campaign?.cta ?? p.ctaDefault;
+  if (cta && CTA_TEXT[cta]) lines.push(`- Chamada padrão: ${CTA_TEXT[cta]}`);
+  if (input.campaign) {
+    const c = input.campaign;
+    lines.push('');
+    lines.push(`## A campanha deste post: ${c.name}`);
+    if (c.objective) lines.push(`- Resultado que a empresa quer: ${c.objective}`);
+    if (c.offering) lines.push(`- O que entra nos posts (vale como afirmado só para esta campanha): ${c.offering}`);
+    if (c.audience) lines.push(`- Para quem: ${c.audience}`);
+    if (c.restrictions.length) lines.push(`- Nunca diga nesta campanha: ${c.restrictions.join('; ')}`);
+    lines.push('- Sirva ao resultado da campanha sem inventar oferta, preço, prazo, desconto nem meta.');
+  }
   lines.push('');
   lines.push('## O que a empresa pode afirmar (fatos, com fonte). Número, preço, prazo ou funcionalidade só saem se estiverem aqui.');
   lines.push(input.facts.length ? input.facts.map((f) => `- ${f}`).join('\n') : '- (nenhum fato cadastrado: não use número, preço nem prazo)');

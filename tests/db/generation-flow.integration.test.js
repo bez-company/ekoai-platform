@@ -18,6 +18,7 @@ const worker = await import('../../platform/src/lib/generation-worker.ts');
 const requests = await import('../../platform/src/lib/post-requests.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 const facts = await import('../../platform/src/lib/company-facts.ts');
+const campaignsLib = await import('../../platform/src/lib/campaigns.ts');
 const { pngSize } = await import('../../platform/src/lib/design/render.ts');
 
 const A = 'it-flow-a';
@@ -256,5 +257,55 @@ describe('fato que não vale (SPEC 018, ADR 0019)', () => {
     const fresh = await brief('promoção do bolo de pote', 'informativo');
     const ok = await generatePost(t, fresh, { model: fakeModel({ text: [{ ...INFO, caption: CAPTION }], image: [] }), store, fontDir: FONT_DIR });
     expect(ok.status).toBe('ready');
+  });
+});
+
+describe('campanha do pedido (SPEC 018)', () => {
+  it('o prompt leva a campanha; o número da oferta passa; a restrição vira "nunca diga" e o revisor devolve ao modelo', async () => {
+    const t = tenantDb(A);
+    const campaign = await campaignsLib.createCampaign(t, ANA, {
+      name: 'Encomendas de fim de ano',
+      kind: 'vender',
+      objective: 'Vender as caixas de fim de ano',
+      offering: 'Caixas de panetone por R$ 89',
+      audience: 'Famílias que dão presente',
+      cta: 'dm',
+      restrictions: ['desconto'],
+      target_label: null,
+      target_value: null,
+      posts_per_week: null,
+      start_date: '2026-10-12',
+      end_date: '2026-12-15',
+    });
+    const id = (await requests.createPostRequest(t, ANA, { idea: 'a caixa de panetone de Natal', kind: 'informativo', campaignId: campaign.id })).id;
+    expect((await one('select campaign_id from briefs where id = $1', [id])).campaign_id).toBe(campaign.id);
+    const model = fakeModel({ text: [{ ...INFO, caption: 'Caixa de panetone por R$ 89, com desconto de Natal' }, { ...INFO, caption: 'Caixa de panetone por R$ 89 para presentear' }], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status, JSON.stringify(out)).toBe('ready');
+    expect(model.calls).toHaveLength(2);
+    const first = model.calls[0].prompt;
+    expect(first).toContain('## A campanha deste post: Encomendas de fim de ano');
+    expect(first).toContain('(vale como afirmado só para esta campanha): Caixas de panetone por R$ 89');
+    expect(first).toContain('Nunca diga nesta campanha: desconto');
+    expect(first).toContain('convide a pessoa a mandar mensagem direta'); // a chamada da campanha vale no lugar da do perfil
+    expect(first).not.toContain('chamar no WhatsApp');
+    // a primeira legenda disse "desconto": o revisor devolve o motivo ao modelo
+    expect(model.calls[1].prompt).toContain('"desconto" está na lista do que a empresa nunca afirma.');
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(JSON.stringify(pending.generation)).toContain('R$ 89');
+  });
+
+  it('um pedido sem campanha não leva nada dela, e a campanha apagada deixa o post sair como um post normal', async () => {
+    const t = tenantDb(A);
+    const model = fakeModel({ text: [INFO], image: [] });
+    const plain = await brief('dica de bolo', 'informativo');
+    expect((await generatePost(t, plain, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls[0].prompt).not.toContain('## A campanha deste post');
+    const campaign = (await campaignsLib.listCampaigns(t))[0];
+    const withCampaign = (await requests.createPostRequest(t, ANA, { idea: 'dica de bolo', kind: 'informativo', campaignId: campaign.id })).id;
+    await admin.query('delete from campaigns where id = $1', [campaign.id]); // a FK solta o pedido (set null)
+    const model2 = fakeModel({ text: [INFO], image: [] });
+    expect((await generatePost(t, withCampaign, { model: model2, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model2.calls[0].prompt).not.toContain('## A campanha deste post');
   });
 });

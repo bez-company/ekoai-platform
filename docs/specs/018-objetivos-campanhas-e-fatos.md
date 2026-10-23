@@ -108,8 +108,10 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
    uma regra a mais, antes da rotação (regra 5 do modelo):
    1. Data comemorativa em até 3 dias segue ganhando o horário (regra 1 de hoje).
    2. **Campanha:** entre os horários livres da semana, a campanha ativa, confirmada e dentro da janela
-      fica com até 60% (arredonda para cima, no mínimo 1), distribuídos alternados com o resto, nunca
-      todos seguidos. O objetivo do post vem do tipo (decisão 3).
+      fica com até 60% (arredonda para cima, no mínimo 1 e, havendo mais de um horário, sempre sobra um
+      para a rotação: 2 horários, 1 da campanha; 3, 2; 5, 3). Os posts de campanha que a semana já tem
+      (sugestões abertas ou criadas e pedidos agendados) entram na conta, e os horários saem espalhados do
+      primeiro ao último, nunca no lugar de uma data comemorativa. O objetivo do post vem do tipo (decisão 3).
    3. Dentro da campanha valem as mesmas travas do planejador: não repetir o objetivo anterior, no
       máximo 1 promoção a cada 4 posts, foto real que casa com o tipo antes de imagem de IA.
    4. Horários que sobram seguem a rotação e o engajamento como hoje.
@@ -122,7 +124,9 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
    aceita esses números nos posts com `campaign_id`.
 
 6. **Fallback determinístico, custo com teto e idempotência.**
-   - **Fallback:** modelo fora do ar, lento ou com resposta inválida, ou teto estourado: a ideia sai de
+   - **Fallback:** modelo fora do ar, lento ou com resposta inválida, teto estourado, ou ideia que traz
+     número fora dos fatos que valem (a ideia passa pelo mesmo revisor do post, item a item; o número da
+     oferta da campanha vale só para os itens dela): a ideia sai de
      `fallbackIdea` com o texto da campanha (`"<objetivo do post>: <oferta>"`, até 160 caracteres). A
      sequência, o motivo e os horários são os mesmos com ou sem modelo.
    - **Teto de custo:** uma chamada de texto por conta por rodada diária e no máximo 10 por conta por dia
@@ -132,7 +136,9 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
    - **Idempotência:** por horário, pelo índice único `content_suggestions_open_slot_idx`; por dia, por
      nova tabela `planning_runs`.
    - **`planning_runs`** (nova, uma linha por conta e dia): `tenant_id`, `ran_on` (data local),
-     `llm_calls`, `cost_usd`, `suggested`, `fallback` (boolean), `status` (`done`, `failed`), `error_code`.
+     `llm_calls`, `cost_usd`, `suggested`, `fallback` (boolean), `status` (`done`, `failed`), `error_code` e
+     `round_at` (quando a rodada diária do job passou pela conta: o "Trocar" manual também grava a linha e
+     soma as chamadas, mas não ocupa a rodada; uma rodada que falhou pode ser refeita no mesmo dia).
      Chave `(tenant_id, ran_on)`. É o registro do custo de planejamento (hoje só vai para log) e o que
      impede o cron de gastar duas vezes no mesmo dia.
 
