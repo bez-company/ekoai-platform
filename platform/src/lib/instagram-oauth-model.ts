@@ -2,7 +2,7 @@
 // proteção contra CSRF e validação do formato das respostas da Meta. Sem I/O e sem segredo, para
 // testar sem rede. Instagram Login (não Facebook Login): não exige Página do Facebook.
 
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { UserError } from './errors';
 
 export const GRAPH_VERSION = 'v21.0';
@@ -17,7 +17,6 @@ export const REQUIRED_SCOPES = ['instagram_business_basic', 'instagram_business_
 export const OPTIONAL_SCOPES = ['instagram_business_manage_insights'] as const;
 export const SCOPES = [...REQUIRED_SCOPES, ...OPTIONAL_SCOPES] as const;
 
-export const STATE_COOKIE = 'ig_oauth_state';
 export const STATE_TTL_SECONDS = 10 * 60;
 
 // Quanto falta para o token vencer e a conta pedir nova autorização (token de 60 dias).
@@ -39,10 +38,27 @@ export function callbackUrl(origin: string): string {
   return `${origin.replace(/\/+$/, '')}/api/instagram/callback`;
 }
 
-// O `state` volta intacto da Meta; o cookie httpOnly do navegador que iniciou o fluxo guarda a cópia.
-export function stateMatches(fromQuery: string | null | undefined, fromCookie: string | null | undefined): boolean {
-  if (!fromQuery || !fromCookie || fromQuery.length !== fromCookie.length) return false;
-  return timingSafeEqual(Buffer.from(fromQuery), Buffer.from(fromCookie));
+// O `state` não usa cookie: o Firebase Hosting só repassa `__session` ao Cloud Run (ADR 0020), então um
+// cookie próprio nunca chegaria ao callback. O `state` é assinado com o segredo do app (HMAC) e amarrado à
+// empresa que iniciou o fluxo: um `state` de outra empresa, adulterado ou vencido não passa.
+function stateSignature(secret: string, tenantId: string, nonce: string, expiresAt: string): Buffer {
+  return createHmac('sha256', secret).update(`${tenantId}.${nonce}.${expiresAt}`).digest();
+}
+
+export function createState(input: { tenantId: string; secret: string; now?: number; nonce?: string }): string {
+  const nonce = input.nonce ?? randomBytes(12).toString('hex');
+  const expiresAt = String(Math.floor((input.now ?? Date.now()) / 1000) + STATE_TTL_SECONDS);
+  const signature = stateSignature(input.secret, input.tenantId, nonce, expiresAt).toString('hex');
+  return `${nonce}.${expiresAt}.${signature}`;
+}
+
+export function stateValid(state: string | null | undefined, input: { tenantId: string; secret: string; now?: number }): boolean {
+  const [nonce, expiresAt, signature, ...rest] = (state ?? '').split('.');
+  if (!nonce || !expiresAt || !signature || rest.length > 0 || !/^\d+$/.test(expiresAt)) return false;
+  if (Number(expiresAt) < Math.floor((input.now ?? Date.now()) / 1000)) return false;
+  const expected = stateSignature(input.secret, input.tenantId, nonce, expiresAt);
+  const given = Buffer.from(signature, 'hex');
+  return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
 export type CallbackQuery =

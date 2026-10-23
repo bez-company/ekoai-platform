@@ -42,6 +42,8 @@ por IP para um endereço que ninguém usa.
 - **Sem WAF e sem limite de requisições por IP** na borda até o BEZ-42. O `run.app` continua
   público (`ingress = INGRESS_TRAFFIC_ALL`, como já era). Dívida aceita, registrada no BEZ-42.
 - O Hosting remove qualquer cookie que não seja `__session`. Cookie novo exige outro desenho.
+  O `state` do OAuth do Instagram já seguiu esse caminho: é assinado (HMAC com o segredo do app) e
+  amarrado à empresa, sem cookie (o `ig_oauth_state` antigo nunca chegava ao callback).
 - O rewrite do Hosting corta em 60 s. As rotas longas (`/api/cron/*`) são chamadas pelo Scheduler
   direto no Cloud Run e não passam por ele; as de usuário respondem em segundos (a geração é
   assíncrona, ADR 0018).
