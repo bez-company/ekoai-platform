@@ -50,7 +50,7 @@ export default function NoticeBell({ notices, unread, placement = 'top' }: { not
         {unread > 0 && <span aria-hidden="true" className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Avisos" className={`z-30 rounded-xl border border-line bg-raised p-4 text-fg shadow-lg ${placement === 'side' ? 'absolute left-0 top-12 w-[22rem]' : 'fixed inset-x-3 top-14'}`}>
+        <div role="dialog" aria-label="Avisos" className={`z-50 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-line bg-raised p-4 text-fg shadow-lg ${placement === 'side' ? 'absolute left-0 top-12 w-[22rem] max-w-[calc(100vw-1.5rem)]' : 'fixed inset-x-3 top-14'}`}>
           <div className="flex items-center justify-between gap-3">
             <strong className="text-sm">Avisos</strong>
             {unread > 0 && (

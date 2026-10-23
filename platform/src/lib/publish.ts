@@ -287,7 +287,7 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
         kind: 'publish.unrecorded',
         level: 'warning',
         title: `Publicado no ${channelName(s.channel)}, mas sem histórico`,
-        body: `${persistError}. As métricas não vão ligar a este post.`,
+        body: 'O histórico não foi gravado, então as métricas não vão ligar a este post. A publicação está no ar.',
         link: '/historico',
       }
     : { kind: 'publish.ok', title: `Publicado no ${channelName(s.channel)}`, body: hook || undefined, link: '/historico' });

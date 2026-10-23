@@ -188,7 +188,7 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     const id = await brief('festa de aniversário', 'atmosfera');
     const broken = fakeModel({ text: [ATM], image: [new Error('Vertex AI 503 em imagem-falsa: indisponível')] });
     const out = await generatePost(t, id, { model: broken, store, fontDir: FONT_DIR });
-    expect(out).toMatchObject({ status: 'failed', error: expect.stringContaining('503') });
+    expect(out).toMatchObject({ status: 'failed', error: expect.stringContaining('Não deu para concluir') });
     expect(await one('select status from briefs where id = $1', [id])).toEqual({ status: 'failed' });
     expect((await admin.query("select step, status from generation_runs where brief_id = $1 order by created_at", [id])).rows).toEqual([{ step: 'directives', status: 'done' }, { step: 'writer', status: 'done' }, { step: 'visual', status: 'failed' }]);
 
