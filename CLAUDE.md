@@ -36,6 +36,14 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
   `CLICKUP_API_TOKEN`): comenta o link da PR no card, leva para **In Review** ao abrir e para
   **Staging** ao mergear. A release (`scripts/release.sh`) leva de Staging para **Done**. Sem o
   secret, a Action só avisa e o card se move à mão.
+- **Épico do card (lista Platform):** todo card leva exatamente uma tag `epic:<nome>`, entre
+  `epic:geracao-ia` (agentes, revisor, eval, estúdio, aprendizado, layouts), `epic:publicacao` (Instagram,
+  Meta, agenda, tokens, publicar foto), `epic:campanhas-fatos`, `epic:telas-ui` (só trabalho de tela,
+  navegação, onboarding, design system), `epic:conta-acesso` (login, convite, papéis, perfil),
+  `epic:infra-gcp`, `epic:esteira` (CI, E2E, release, ClickUp), `epic:cobranca-planos` e
+  `epic:observabilidade`. A tag `eval` vem a mais quando o card nasce do eval da geração ou mexe nele. As
+  tags ficam escondidas na lista; as views `Épico: <nome>` e `Evals` da lista Platform filtram por elas.
+  Sem a tag, o card some dessas views.
 - O corpo segue `.github/pull_request_template.md`. Apague a seção que não se aplica; não deixe
   seção vazia nem comentário do modelo.
 - **Mudança visual: prints no corpo da PR, sempre.** Antes e depois quando muda uma tela que já
