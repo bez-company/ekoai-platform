@@ -97,8 +97,10 @@ describe('foto anexada no pedido de post', () => {
     expect(m.calls[0].prompt).toContain('vai no post como está');
     expect(m.calls[0].prompt).toContain('Forno a lenha aceso');
     expect(await runs(id, 'visual')).toBe(0);
-    const p = await one('select images, seed, post_kind from pending_approvals where brief_id = $1', [id]);
+    const p = await one('select images, seed, post_kind, generation from pending_approvals where brief_id = $1', [id]);
     expect(p.post_kind).toBe('atmosfera');
+    // sem texto por cima, o texto alternativo é a descrição da foto no banco (BEZ-203)
+    expect(p.generation.alt_text).toBe('Forno a lenha aceso');
     expect(p.seed).toMatchObject({ photo_usage: 'as_is', media_asset_id: assetId });
     const png = objects.get(p.images[0].path).bytes;
     expect(pngSize(png)).toEqual({ width: 1080, height: 1350 });
@@ -112,6 +114,7 @@ describe('foto anexada no pedido de post', () => {
     const { id } = await request('background');
     expect((await generatePost(t, id, { model: m, store, fontDir: FONT_DIR })).status).toBe('ready');
     expect(m.calls.map((c) => c.step)).toEqual(['writer']);
+    expect((await one('select generation from pending_approvals where brief_id = $1', [id])).generation.alt_text).toBe('Arte do post com o texto: Quarta de massa. Bolo bom não tem pressa.');
     const d = await one('select visual_key, png_key from post_designs where brief_id = $1', [id]);
     expect(d.visual_key).not.toBe(d.png_key);
     expect(objects.get(d.png_key).bytes.equals(objects.get(d.visual_key).bytes)).toBe(false);

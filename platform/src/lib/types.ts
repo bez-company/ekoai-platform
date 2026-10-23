@@ -35,6 +35,7 @@ export type Generation = {
   critic?: unknown;
   guardrail_flags?: string[];
   heuristic_scores?: Record<string, number>;
+  alt_text?: string; // texto alternativo da imagem, enviado ao Instagram (BEZ-203)
 };
 
 export type PendingApproval = {
