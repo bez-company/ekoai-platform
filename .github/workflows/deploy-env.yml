@@ -162,9 +162,16 @@ jobs:
         run: |
           set -euo pipefail
           # O SHA vai no nome da revisão (K_REVISION, mostrado em /api/health). Variável de ambiente
-          # não serve: o Terraform a desfaria no próximo apply.
+          # não serve: o Terraform a desfaria no próximo apply. Refazer o deploy do mesmo commit (para o
+          # serviço reler um segredo novo, por exemplo) acharia a revisão sha-<commit> já criada e o
+          # Cloud Run recusaria o nome (BEZ-216): aí o sufixo leva o número e a tentativa deste run.
+          suffix="sha-${SHA:0:7}"
+          if gcloud run revisions describe "ekoai-platform-$suffix" --region "$REGION" --format='value(metadata.name)' >/dev/null 2>&1; then
+            suffix="sha-${SHA:0:7}-r${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+            echo "a revisão do commit já existe: este deploy cria ekoai-platform-$suffix"
+          fi
           gcloud run services update ekoai-platform --region "$REGION" --image "$PLATFORM_IMAGE" \
-            --revision-suffix "sha-${SHA:0:7}" --quiet
+            --revision-suffix "$suffix" --quiet
           URL=$(gcloud run services describe ekoai-platform --region "$REGION" --format 'value(status.url)')
           echo "URL=$URL" >> "$GITHUB_ENV"
 

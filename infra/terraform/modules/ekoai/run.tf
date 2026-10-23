@@ -21,6 +21,9 @@ resource "google_cloud_run_v2_service" "platform" {
   invoker_iam_disabled = true
 
   template {
+    # Rótulos de custo também em cada revisão (SPEC 013, BEZ-216): sem eles no template, um apply
+    # criava revisão sem app, env, product e tier.
+    labels                           = local.labels
     service_account                  = google_service_account.app.email
     max_instance_request_concurrency = 40
     # O worker da geração (/api/cron/generate) roda até 3 pedidos por chamada, cada um com uma chamada
@@ -198,6 +201,7 @@ resource "google_cloud_run_v2_job" "job" {
   labels              = local.labels
 
   template {
+    labels      = local.labels
     parallelism = 1
     task_count  = 1
 
