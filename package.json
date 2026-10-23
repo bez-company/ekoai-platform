@@ -15,7 +15,8 @@
     "migrate": "node scripts/migrate.js",
     "test:emulator": "vitest run --config vitest.emulator.config.js",
     "test:db": "vitest run --config vitest.db.config.js",
-    "emulator:test": "npx -y firebase-tools@15.34.0 emulators:exec --only auth --project demo-post-automation \"npm run test:emulator\""
+    "emulator:test": "npx -y firebase-tools@15.34.0 emulators:exec --only auth --project demo-post-automation \"npm run test:emulator\"",
+    "eval": "EVAL_LIVE=1 vitest run --config vitest.eval.config.js"
   },
   "engines": {
     "node": ">=22.12.0"
