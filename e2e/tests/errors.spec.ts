@@ -23,7 +23,9 @@ test.describe('sem sessão', () => {
 
   test('cookie de sessão adulterado não vale', async ({ page, context }) => {
     await login(page, 'admin');
-    const cookie = (await context.cookies()).find((c) => c.name === 'pa_session');
+    // O nome do cookie já mudou uma vez (`__session`, o único que o Firebase Hosting repassa): acha pela
+    // forma, o único cookie httpOnly do app.
+    const cookie = (await context.cookies()).find((c) => c.httpOnly);
     expect(cookie).toBeTruthy();
     // troca o fim da assinatura: o servidor recalcula e recusa
     const forged = `${cookie!.value.slice(0, -4)}AAAA`;
