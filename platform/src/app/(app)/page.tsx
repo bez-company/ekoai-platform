@@ -3,20 +3,26 @@ import Guide from '@/components/onboarding/Guide';
 import StaleApprovals from '@/components/onboarding/StaleApprovals';
 import { LastPublishedCard, NextStepBar, Shortcuts, ThisWeek, type Shortcut } from '@/components/home/Panel';
 import Suggestions, { type SuggestionView } from '@/components/home/Suggestions';
+import PlanBanner from '@/components/home/PlanBanner';
+import { CampaignInvite, CampaignProgressCard } from '@/components/campaigns/CampaignCards';
+import { campaignInEffect } from '@/lib/campaign-model';
+import { shortCampaignName } from '@/lib/campaign-view';
+import { campaignProgress, listCampaigns } from '@/lib/campaigns';
 import { pageError } from '@/lib/api';
 import { ROUTES } from '@/lib/app-routes';
-import { listSuggestions, type Suggestion } from '@/lib/content-coordinator';
+import { listSuggestions, planningState, type Suggestion } from '@/lib/content-coordinator';
 import { slotParts, slotsSummary, todayLine } from '@/lib/home-model';
 import { homeSummary } from '@/lib/home-summary';
 import { guideSummary } from '@/lib/onboarding';
 import { loadGuide } from '@/lib/onboarding-data';
 import { can, pageTenant, requireSession } from '@/lib/session';
 import { getActiveSlots, tzOffsetHours } from '@/lib/slots';
+import { todayLocal as todayLocalDay } from '@/lib/campaign-model';
 
 export const dynamic = 'force-dynamic';
 
-function suggestionView(s: Suggestion, tz: number): SuggestionView {
-  return { id: s.id, ...slotParts(s.slotAt, tz), goalLabel: s.goalLabel, idea: s.idea, reason: s.reason, assetId: s.assetId };
+function suggestionView(s: Suggestion, tz: number, campaignNames: Map<string, string>): SuggestionView {
+  return { id: s.id, ...slotParts(s.slotAt, tz), goalLabel: s.goalLabel, idea: s.idea, reason: s.reason, assetId: s.assetId, campaignName: s.campaignId ? campaignNames.get(s.campaignId) ?? null : null };
 }
 
 // Início (SPEC 017, decisões 3, 11 e 12; protótipo v10). Conta nova vê o guia até a primeira
@@ -56,7 +62,10 @@ export default async function HomePage() {
       getActiveSlots(t, 'instagram'),
       Promise.all([t.select('media_assets', 'id', { count: 'exact', head: true }), t.select('media_assets', 'id', { count: 'exact', head: true }).is('used_at', null)]),
     ]);
-    const sugg = suggestions.map((s) => suggestionView(s, tz));
+    // Campanhas (SPEC 018): falha de leitura aqui não derruba o Início, que segue como sempre pela rotação.
+    const campaigns = await listCampaigns(t).catch(() => []);
+    const names = new Map(campaigns.map((c) => [c.id, shortCampaignName(c.name)]));
+    const sugg = suggestions.map((s) => suggestionView(s, tz, names));
     // As ações da sugestão registram quem decidiu: no login de senha única (sem pessoa) elas não existem.
     const canAct = create && !!user;
     const guide = view.guide;
@@ -85,6 +94,12 @@ export default async function HomePage() {
       );
     }
 
+    const today = new Date(nowMs);
+    const active = campaigns.find((c) => campaignInEffect(c, todayLocalDay(today))) ?? null;
+    const [progress, plan] = await Promise.all([
+      active ? campaignProgress(t, active.id, today).catch(() => null) : Promise.resolve(null),
+      planningState(t, today).catch(() => ({ failed: false, simple: false })),
+    ]);
     const [allMedia, unusedMedia] = media;
     const mediaTotal = allMedia.count ?? 0;
     const shortcuts: Shortcut[] = [
@@ -112,9 +127,12 @@ export default async function HomePage() {
         <StaleApprovals pending={view.pending} />
         <NextStepBar step={summary.next} />
         <Shortcuts items={shortcuts} />
+        {plan.failed && sugg.length === 0 && <PlanBanner kind="failed" canRetry={canAct} withCampaign={!!active} />}
+        {!plan.failed && plan.simple && sugg.length > 0 && <PlanBanner kind="simple" canRetry={false} withCampaign={!!active} />}
         <div className="grid items-start gap-5 lg:grid-cols-2 [&>*]:min-w-0">
           <Suggestions items={sugg.slice(0, 7)} canCreate={canAct} />
           <div className="space-y-5">
+            {active && progress ? <CampaignProgressCard campaign={active} progress={progress} /> : campaigns.length === 0 ? <CampaignInvite canManage={brand} /> : null}
             <ThisWeek posts={summary.week} when={when} />
             <LastPublishedCard post={summary.lastPublished} />
           </div>

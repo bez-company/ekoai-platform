@@ -4,11 +4,11 @@ import * as s from '../platform/src/lib/screens.ts';
 const grant = (...p) => (permission) => p.includes(permission);
 
 describe('menu por permissão', () => {
-  it('administrador e criador veem tudo; o leitor não vê Banco de imagens nem Configurações', () => {
+  it('administrador e criador veem tudo; o leitor vê Campanhas, mas não Banco de imagens nem Configurações', () => {
     const admin = s.screensFor(grant('content.view', 'content.create', 'profile.view', 'team.manage')).map((x) => x.label);
-    expect(admin).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Banco de imagens', 'Aprendizado', 'Configurações']);
+    expect(admin).toEqual(['Início', 'Aprovar', 'Agenda', 'Campanhas', 'Publicados', 'Banco de imagens', 'Aprendizado', 'Configurações']);
     expect(s.screensFor(grant('content.view', 'content.create', 'profile.view')).map((x) => x.label)).toEqual(admin);
-    expect(s.screensFor(grant('content.view')).map((x) => x.label)).toEqual(['Início', 'Aprovar', 'Agenda', 'Publicados', 'Aprendizado']);
+    expect(s.screensFor(grant('content.view')).map((x) => x.label)).toEqual(['Início', 'Aprovar', 'Agenda', 'Campanhas', 'Publicados', 'Aprendizado']);
   });
 
   it('no celular, a barra de baixo tem as quatro telas do dia a dia; o resto vai para Mais', () => {

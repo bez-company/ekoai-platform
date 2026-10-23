@@ -4,7 +4,7 @@
 
 import type { Permission } from './permissions';
 
-export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'chart' | 'image' | 'spark' | 'settings';
+export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'flag' | 'chart' | 'image' | 'spark' | 'settings';
 
 export type Screen = { href: string; label: string; icon: ScreenIcon; permission: Permission };
 
@@ -12,6 +12,8 @@ export const SCREENS: readonly Screen[] = [
   { href: '/', label: 'Início', icon: 'home', permission: 'content.view' },
   { href: '/inbox', label: 'Aprovar', icon: 'inbox', permission: 'content.view' },
   { href: '/calendar', label: 'Agenda', icon: 'calendar', permission: 'content.view' },
+  // Campanhas (SPEC 018): o que a empresa quer alcançar; o coordenador monta a semana a partir disso. Todos leem, só quem gere a marca cria.
+  { href: '/campaigns', label: 'Campanhas', icon: 'flag', permission: 'content.view' },
   { href: '/history', label: 'Publicados', icon: 'chart', permission: 'content.view' },
   // Banco de imagens (SPEC 017, BEZ-198): quem cria post sobe e escolhe fotos; o leitor não vê.
   { href: '/media', label: 'Banco de imagens', icon: 'image', permission: 'content.create' },

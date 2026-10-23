@@ -169,6 +169,21 @@ describe('fallback e teto de custo', () => {
     expect(broken.map((s) => s.idea)).toEqual(without.map((s) => s.idea));
   });
 
+  it('ambiente sem o modelo configurado: o planejamento não cai e as ideias saem do objetivo', async () => {
+    await withCampaign({});
+    await clearSuggestions(E);
+    const saved = process.env.VERTEX_PROJECT_ID;
+    delete process.env.VERTEX_PROJECT_ID;
+    try {
+      const out = await coord.planForTenant(te, { now });
+      expect(out).toHaveLength(3);
+      expect(out.every((s) => !!s.idea && !!s.reason)).toBe(true);
+      expect((await one('select fallback, llm_calls from planning_runs where tenant_id = $1 and ran_on = $2', [E, DAY]))).toEqual({ fallback: true, llm_calls: 0 });
+    } finally {
+      if (saved !== undefined) process.env.VERTEX_PROJECT_ID = saved;
+    }
+  });
+
   it('teto por conta e dia: depois de 10 chamadas, o modelo nem é chamado e a ideia sai do objetivo', async () => {
     await withCampaign({});
     await clearSuggestions(E);

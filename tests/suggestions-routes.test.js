@@ -22,6 +22,7 @@ vi.mock('@/lib/content-coordinator', () => ({
   listSuggestions: async () => [{ id: 's1' }],
   createFromSuggestion: async (_t, _u, id) => (lib.calls.push(['create', id]), lib.created),
   replaceSuggestion: async (_t, _u, id) => (lib.calls.push(['replace', id]), { id: 's2' }),
+  planForTenant: async () => (lib.calls.push(['plan']), [{ id: 's1' }, { id: 's2' }]),
   skipSuggestion: async (_t, _u, id) => {
     if (lib.skipError) throw lib.skipError;
     lib.calls.push(['skip', id]);
@@ -35,6 +36,7 @@ const list = await import('../platform/src/app/api/suggestions/route.ts');
 const create = await import('../platform/src/app/api/suggestions/[id]/create/route.ts');
 const replace = await import('../platform/src/app/api/suggestions/[id]/replace/route.ts');
 const skip = await import('../platform/src/app/api/suggestions/[id]/skip/route.ts');
+const plan = await import('../platform/src/app/api/suggestions/plan/route.ts');
 const { UserError } = await import('@/lib/errors');
 
 const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
@@ -86,5 +88,22 @@ describe('/api/cron/plan-content', () => {
     cron.authorized = true;
     cron.asleep = true;
     expect(await (await route.POST(req())).json()).toEqual({ ok: true, skipped: 'asleep' });
+  });
+});
+
+describe('/api/suggestions/plan (Tentar de novo)', () => {
+  it('pede content.create, planeja os horários livres e devolve quantas sugestões saíram', async () => {
+    const res = await plan.POST();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, suggested: 2 });
+    expect(sessionMock.calls).toEqual(['content.create']);
+    expect(lib.calls).toEqual([['plan']]);
+  });
+
+  it('sem permissão: 403 e nada é planejado', async () => {
+    const { ForbiddenError } = await import('@/lib/session');
+    sessionMock.error = new ForbiddenError('sem permissão');
+    expect((await plan.POST()).status).toBe(403);
+    expect(lib.calls).toEqual([]);
   });
 });

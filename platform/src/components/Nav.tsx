@@ -13,6 +13,7 @@ const ICONS: Record<string, string> = {
   home: 'M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10',
   inbox: 'M4 4h16v10h-5l-1.5 3h-3L9 14H4zM4 14v6h16v-6',
   calendar: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  flag: 'M5 21V4M5 4h12l-2.5 4L17 12H5',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   image: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM21 17l-5-5-9 8',
   spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6',

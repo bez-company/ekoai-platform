@@ -327,6 +327,16 @@ async function writeIdeas(
   return { ideas: final, calls, costUsd, fallback: ideas.some((x) => x === null) };
 }
 
+// Como foi o planejamento de hoje, para o Início explicar sem esconder: `failed` quando a rodada não terminou (a
+// pessoa pode tentar de novo) e `simple` quando as ideias saíram do objetivo (modelo fora do ar ou teto de custo).
+export type PlanningState = { failed: boolean; simple: boolean };
+
+export async function planningState(t: TenantDb, now: Date = new Date()): Promise<PlanningState> {
+  const res = await t.select('planning_runs', 'status,fallback').eq('ran_on', todayLocal(now)).maybeSingle();
+  if (res.error || !res.data) return { failed: false, simple: false };
+  return { failed: res.data.status === 'failed', simple: res.data.fallback === true };
+}
+
 export type PlanResult = { saved: Suggestion[]; llmCalls: number; costUsd: number; fallback: boolean };
 
 // Planeja e grava as sugestões que faltam. `onlySlot` = replanejar um horário só (Trocar); `slotRule` diz se a
@@ -368,7 +378,16 @@ export async function planCore(t: TenantDb, deps: CoordinatorDeps = {}, onlySlot
 
   // Teto de custo: por conta e dia (as chamadas já gravadas em planning_runs) e, no job, por execução.
   const day = todayLocal(now);
-  let models = deps.models === undefined ? vertexClient() : deps.models;
+  let models: ModelClient | null = null;
+  if (deps.models !== undefined) models = deps.models;
+  else {
+    // Ambiente sem o projeto do modelo configurado: o planejamento não cai, as ideias saem do objetivo.
+    try {
+      models = vertexClient();
+    } catch (e) {
+      log('warn', 'content-coordinator', 'modelo não configurado: as ideias saem do objetivo', { tenant: t.tenantId, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
   const capped = models !== null && ((await dayRow(t, day))?.llmCalls ?? 0) >= MAX_LLM_CALLS_PER_DAY;
   const overBudget = models !== null && deps.budget !== undefined && deps.budget.remainingUsd() <= 0;
   if (capped || overBudget) {

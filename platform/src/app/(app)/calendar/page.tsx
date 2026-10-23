@@ -5,6 +5,11 @@ import AgendaPostCell from '@/components/agenda/AgendaPostCell';
 import SlotCell from '@/components/agenda/SlotCell';
 import { NoSlots, SlotsButton } from '@/components/agenda/AgendaActions';
 import { getAgenda } from '@/lib/agenda';
+import { CampaignStrip } from '@/components/campaigns/CampaignCards';
+import type { Campaign, CampaignProgress } from '@/lib/campaign-model';
+import { campaignInEffect, todayLocal } from '@/lib/campaign-model';
+import { shortCampaignName } from '@/lib/campaign-view';
+import { campaignProgress, listCampaigns } from '@/lib/campaigns';
 import { agendaCounts, agendaTitle, dayOfMonth, parseAgendaQuery, WEEKDAY_SHORT, type Agenda, type AgendaDay } from '@/lib/agenda-model';
 import { getActiveSlots, tzOffsetHours } from '@/lib/slots';
 import { can, pageSession } from '@/lib/session';
@@ -35,6 +40,17 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     err = pageError(e, 'page/calendar');
   }
   const slotList = slots.map((s) => ({ weekday: s.weekday, hour: s.hour, minute: s.minute }));
+  // Campanhas (SPEC 018): a Agenda segue sem elas se a leitura falhar.
+  let campaignNames = new Map<string, string>();
+  let strip: { campaign: Campaign; progress: CampaignProgress } | null = null;
+  try {
+    const campaigns = await listCampaigns(t);
+    campaignNames = new Map(campaigns.map((c) => [c.id, shortCampaignName(c.name)]));
+    const active = campaigns.find((c) => campaignInEffect(c, todayLocal()));
+    if (active) strip = { campaign: active, progress: await campaignProgress(t, active.id) };
+  } catch {
+    strip = null;
+  }
 
   return (
     <div className="space-y-4">
@@ -74,18 +90,20 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </section>
       )}
 
+      {strip && <CampaignStrip campaign={strip.campaign} progress={strip.progress} />}
+
       {agenda && agenda.slots === 0 ? (
         <Suspense>
           <NoSlots canManage={canManage} />
         </Suspense>
       ) : agenda ? (
-        <AgendaBody agenda={agenda} canCreate={canCreate} />
+        <AgendaBody agenda={agenda} canCreate={canCreate} campaignNames={campaignNames} />
       ) : null}
     </div>
   );
 }
 
-function AgendaBody({ agenda, canCreate }: { agenda: Agenda; canCreate: boolean }) {
+function AgendaBody({ agenda, canCreate, campaignNames }: { agenda: Agenda; canCreate: boolean; campaignNames: Map<string, string> }) {
   const counts = agendaCounts(agenda);
   const failed = agenda.days.flatMap((d) => d.cells).filter((c) => c.post?.status === 'failed').length;
   return (
@@ -109,12 +127,12 @@ function AgendaBody({ agenda, canCreate }: { agenda: Agenda; canCreate: boolean 
           {counts.posts === 1 ? '1 post' : `${counts.posts} posts`} · {counts.slots === 1 ? '1 horário' : `${counts.slots} horários`} {agenda.view === 'week' ? 'na semana' : 'no mês'}
         </span>
       </div>
-      {agenda.view === 'week' ? <Week days={agenda.days} canCreate={canCreate} /> : <Month days={agenda.days} />}
+      {agenda.view === 'week' ? <Week days={agenda.days} canCreate={canCreate} campaignNames={campaignNames} /> : <Month days={agenda.days} />}
     </section>
   );
 }
 
-function Week({ days, canCreate }: { days: AgendaDay[]; canCreate: boolean }) {
+function Week({ days, canCreate, campaignNames }: { days: AgendaDay[]; canCreate: boolean; campaignNames: Map<string, string> }) {
   return (
     <div className="grid gap-2 md:grid-cols-7">
       {days.map((d) => (
@@ -125,7 +143,7 @@ function Week({ days, canCreate }: { days: AgendaDay[]; canCreate: boolean }) {
           </h3>
           <div className="grid gap-1.5">
             {d.cells.map((c) =>
-              c.post ? <AgendaPostCell key={`${c.at}-${c.post.id}`} post={c.post} time={c.time} /> : c.kind === 'slot' ? <SlotCell key={`${c.at}-${c.slotId}`} time={c.time} past={d.past} suggestion={c.suggestion} canCreate={canCreate} /> : null,
+              c.post ? <AgendaPostCell key={`${c.at}-${c.post.id}`} post={c.post} time={c.time} /> : c.kind === 'slot' ? <SlotCell key={`${c.at}-${c.slotId}`} time={c.time} past={d.past} suggestion={c.suggestion} canCreate={canCreate} campaignName={c.suggestion?.campaignId ? campaignNames.get(c.suggestion.campaignId) ?? null : null} /> : null,
             )}
             {d.cells.length === 0 && <span className="text-xs text-muted">Sem horário</span>}
           </div>
