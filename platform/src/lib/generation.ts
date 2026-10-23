@@ -157,6 +157,10 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
     previous = copy;
   }
   if (!best) throw new Error('O modelo não devolveu um texto utilizável.');
+  // Número que vem de fato vencido, recusado ou ainda não confirmado não segue para Aprovar (ADR 0019):
+  // o pedido falha com o motivo, e a pessoa atualiza o fato ou tira o número da ideia.
+  const stale = best.issues.find((i) => i.rule === 'fact_not_valid');
+  if (stale) throw new UserError(stale.message);
   return best;
 }
 
