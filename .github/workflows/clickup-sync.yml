@@ -1,0 +1,33 @@
+name: ClickUp sync
+
+# A PR com `[BEZ-N]` no título liga ao card: comenta o link, leva para In Review ao abrir e para
+# Staging ao mergear (scripts/clickup-pr-sync.js). Done é da release.
+#
+# pull_request_target: o workflow e o script vêm da staging (a base), nunca do código da PR, e o
+# job não faz checkout do código da PR. Por isso o secret fica seguro mesmo com PR de terceiro.
+# Precisa do secret CLICKUP_API_TOKEN (token pessoal do ClickUp da BEZ). Sem ele, só avisa.
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, edited, closed]
+    branches: [staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clickup-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Card do ClickUp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: staging
+          persist-credentials: false
+      - run: node scripts/clickup-pr-sync.js
+        env:
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
