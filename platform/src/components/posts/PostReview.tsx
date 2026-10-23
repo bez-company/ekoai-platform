@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import DesignAdjust, { type Swatch } from './DesignAdjust';
+import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
 import { Spinner } from '@/components/auth/ui';
 import { fmtDateTime } from '@/lib/format';
@@ -58,6 +59,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [imageOverride, setImageOverride] = useState<string | null>(null);
   // A versão do design que a pessoa está vendo: aprovar leva esta versão e para se outra pessoa salvou uma nova.
   const [designVersion, setDesignVersion] = useState<number | undefined>(design?.state.version);
+  // "Pedir ajuste" (BEZ-193): grava uma versão por fora do painel de ajuste rápido, que recarrega quando a chave muda.
+  const [askKey, setAskKey] = useState(0);
+  const [designDirty, setDesignDirty] = useState(false);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -125,6 +129,14 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     }
   }
 
+  // O pedido de ajuste gravou (ou desfez) uma versão: a prévia sai, o painel recarrega e a página traz o PNG novo.
+  function designChanged(version: number) {
+    setDesignVersion(version);
+    setImageOverride(null);
+    setAskKey((k) => k + 1);
+    router.refresh();
+  }
+
   function addTag() {
     const tag = newTag.trim().replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
     if (tag && !hashtags.includes(tag)) setHashtags([...hashtags, tag]);
@@ -161,7 +173,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           )}
 
           {design && briefId && (
-            <DesignAdjust briefId={briefId} state={design.state} swatches={design.swatches} usage={usage} canEdit={canEdit} canManage={canManage} onPreview={setImageOverride} onVersion={setDesignVersion} />
+            <DesignAdjust briefId={briefId} state={design.state} swatches={design.swatches} usage={usage} canEdit={canEdit} canManage={canManage} onPreview={setImageOverride} onVersion={setDesignVersion} refreshKey={askKey} onDirty={setDesignDirty} />
           )}
 
           <section className="card space-y-3">
@@ -203,7 +215,25 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
           {canEdit && (briefId || photoAssetId) && (
             <section className="card space-y-3">
-              <h2 className="text-base font-semibold">Ajustes rápidos</h2>
+              <h2 className="text-base font-semibold">{design && briefId ? 'Pedir ajuste' : 'Ajustes rápidos'}</h2>
+              {design && briefId && designVersion !== undefined && (
+                <AskAdjust
+                  briefId={briefId}
+                  version={designVersion}
+                  body={body}
+                  hashtags={hashtags}
+                  usage={usage}
+                  blockedReason={designDirty ? 'Confirme ou descarte as mudanças da imagem acima antes de pedir um ajuste.' : null}
+                  busyElsewhere={!!busy}
+                  onCaption={(b, h) => {
+                    setBody(b);
+                    setHashtags(h);
+                  }}
+                  onChanged={designChanged}
+                  onDirection={anotherDirection}
+                />
+              )}
+              {design && briefId && <span className="label block border-t border-line pt-3">Atalhos</span>}
               <div className="flex flex-wrap gap-2">
                 {SHORTCUTS.map((s) => (
                   <button key={s.mode} type="button" className="btn-ghost" disabled={!!busy} onClick={() => shortcut(s.mode)}>
