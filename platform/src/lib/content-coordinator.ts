@@ -34,6 +34,7 @@ import { latestPostMetrics } from './instagram-metrics';
 import { listFacts } from './company-facts';
 import { factsForPrompt, todayLocal } from './company-facts-model';
 import { activeCampaign } from './campaigns';
+import { loadPlannerHints } from './observations';
 import { KIND_GOALS, campaignSlotQuota, type Campaign } from './campaign-model';
 import {
   METRICS_DAYS,
@@ -55,6 +56,16 @@ import {
 
 const DAY = 86_400_000;
 const HISTORY_DAYS = 30;
+
+// SPEC 022: as observações do público que a pessoa ligou viram dica no prompt. Sem nenhuma ligada, ou se a
+// leitura falhar, o planejamento segue como sempre: a dica é opcional.
+async function observationHints(t: TenantDb): Promise<string[]> {
+  try {
+    return await loadPlannerHints(t);
+  } catch {
+    return [];
+  }
+}
 const COLUMNS = 'id,channel,slot_at,goal,asset_id,date_key,idea,reason,status,brief_id,created_at,campaign_id,rule';
 
 // Teto de chamadas de texto por conta e dia: a rodada diária e os "Trocar" juntos. Acima, só fallbackIdea.
@@ -298,12 +309,12 @@ async function writeIdeas(
   let costUsd = 0;
   if (models && items.length) {
     try {
-      const [profile, factRows] = await Promise.all([profileOf(t), listFacts(t)]);
+      const [profile, factRows, hints] = await Promise.all([profileOf(t), listFacts(t), observationHints(t)]);
       const facts = factsForPrompt(factRows);
       const ideaCampaign: IdeaCampaign | null = campaign ? { name: campaign.name, objective: campaign.objective, offering: campaign.offering, audience: campaign.audience, restrictions: campaign.restrictions } : null;
       calls = 1;
       const out = await models.generateJson({
-        prompt: ideasPrompt({ niche: profile.niche, offering: profile.offering, items, campaign: ideaCampaign, facts: facts.facts, never: facts.never }),
+        prompt: ideasPrompt({ niche: profile.niche, offering: profile.offering, items, campaign: ideaCampaign, facts: facts.facts, never: facts.never, hints }),
         labels: { tenant: t.tenantId, step: 'content_plan' },
         maxOutputTokens: 1200,
         temperature: 0.8,

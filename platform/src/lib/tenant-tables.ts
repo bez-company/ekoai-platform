@@ -21,6 +21,7 @@ export const TENANT_TABLES = [
   'media_assets',
   'metrics_snapshots',
   'notifications',
+  'observation_settings',
   'onboarding_answers',
   'pending_approvals',
   'planning_runs',
