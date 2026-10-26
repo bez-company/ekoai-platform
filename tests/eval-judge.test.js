@@ -2,9 +2,10 @@
 // vivo é `npm run eval`.
 import { describe, it, expect } from 'vitest';
 import { buildJudgePrompt, checkContains, parseJudge, scoreOf, verdictOf } from '../evals/judge.js';
-import { codeChecks, compareDirectives } from '../evals/metrics.js';
+import { codeChecks, compareDirectives, compareNotApplied } from '../evals/metrics.js';
 import { compare, renderSummary, summarize } from '../evals/report.js';
-import { CASES, COMPANIES, CRAFT } from '../evals/cases.js';
+import { COMPANIES, CRAFT } from '../evals/cases.js';
+import { ALL_CASES as CASES } from '../evals/all-cases.js';
 
 const reqs = [
   { id: 'a', in: 'image', text: 'O fundo é escuro.' },
@@ -101,6 +102,14 @@ describe('leitor de instruções contra a expectativa', () => {
   });
 });
 
+describe('o que a plataforma declara como não aplicado', () => {
+  it('as chaves esperadas têm que aparecer, e só elas', () => {
+    expect(compareNotApplied(['elements.logo'], [{ key: 'elements.logo' }])).toEqual({ pass: true, reason: '' });
+    expect(compareNotApplied(['elements.logo'], []).reason).toBe('não declarou elements.logo como não aplicado');
+    expect(compareNotApplied([], [{ key: 'itemsCount' }]).reason).toBe('declarou itemsCount como não aplicado sem precisar');
+  });
+});
+
 describe('relatório', () => {
   const v = (id, pass, group) => ({ id, pass, group, reason: '' });
   const rows = [
@@ -157,10 +166,11 @@ describe('conjunto de casos', () => {
     }
   });
 
-  it('cada empresa tem perfil com @ igual ao handle, logo e voz', () => {
+  it('cada empresa tem perfil com @ igual ao handle, logo (ou nenhum, de propósito) e voz', () => {
     for (const [key, c] of Object.entries(COMPANIES)) {
-      expect(c.profile.instagramHandle, key).toBe(`@${c.handle}`);
-      expect(c.logo.dataUri, key).toMatch(/^data:image\/svg\+xml;base64,/);
+      expect(c.profile.instagramHandle, key).toBe(c.handle ? `@${c.handle}` : null);
+      if (c.logo) expect(c.logo.dataUri, key).toMatch(/^data:image\/svg\+xml;base64,/);
+      else expect(key).toBe('lume');
       expect(c.voice.length, key).toBeGreaterThan(5);
     }
   });

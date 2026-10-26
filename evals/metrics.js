@@ -52,3 +52,14 @@ export function compareDirectives(expected, got) {
   }
   return { pass: problems.length === 0, reason: problems.join('; ') };
 }
+
+// O que a plataforma declarou como "não aplicado" (chaves como `elements.logo`) contra o que a pessoa esperava:
+// instrução que a conta não consegue cumprir tem que aparecer, e só ela.
+export function compareNotApplied(expectedKeys, got) {
+  const have = new Set(got.map((n) => n.key));
+  const want = new Set(expectedKeys);
+  const missing = [...want].filter((k) => !have.has(k));
+  const extra = [...have].filter((k) => !want.has(k));
+  const problems = [...missing.map((k) => `não declarou ${k} como não aplicado`), ...extra.map((k) => `declarou ${k} como não aplicado sem precisar`)];
+  return { pass: problems.length === 0, reason: problems.join('; ') };
+}

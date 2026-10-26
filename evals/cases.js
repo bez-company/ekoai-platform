@@ -23,6 +23,38 @@
 const svgLogo = (svg, width, height) => ({ dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, width, height });
 
 export const COMPANIES = {
+  // Estúdio sem logo nem @ cadastrados: serve aos cenários em que a instrução pede o que a conta não tem.
+  lume: {
+    name: 'Estúdio Lume',
+    handle: null,
+    voice: 'criativa, próxima, direta',
+    profile: {
+      niche: 'Fotografia de família e de eventos',
+      offering: 'Ensaios de família, aniversários e casamentos pequenos',
+      audience: 'Famílias e casais da região',
+      region: 'Bauru, SP',
+      siteUrl: null,
+      instagramHandle: null,
+      differentiators: ['Entrega das fotos em até 7 dias', 'Ensaio na casa da família ou ao ar livre'],
+      pains: ['Foto que ninguém olha depois', 'Fotógrafo que deixa todo mundo sem graça'],
+      voiceFormal: 4,
+      voiceTechnical: 4,
+      voiceSerious: 3,
+      bannedWords: ['perfeito', 'inesquecível'],
+      logoAssetId: null,
+      colorPrimary: '#1F3A5F',
+      colorAccent: '#F4B942',
+      fontHeading: 'Sora',
+      fontBody: 'Inter',
+      ctaDefault: 'dm',
+      postsPerWeek: 2,
+      updatedAt: '',
+    },
+    facts: ['Entrega das fotos em até 7 dias', 'Ensaio na casa da família ou ao ar livre'],
+    never: ['promessa de data de entrega menor que 7 dias'],
+    logo: null,
+    logoLooks: 'nenhum (a conta não tem logo cadastrado)',
+  },
   aurora: {
     name: 'Casa Aurora',
     handle: 'casaaurora',

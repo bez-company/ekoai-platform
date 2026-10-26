@@ -13,10 +13,11 @@ import { afterAll, describe, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
-import { COMPANIES, CASES, CRAFT } from './cases.js';
+import { COMPANIES, CRAFT } from './cases.js';
+import { ALL_CASES as CASES } from './all-cases.js';
 import { produce } from './pipeline.js';
 import { buildJudgePrompt, parseJudge, verdictOf } from './judge.js';
-import { codeChecks, compareDirectives } from './metrics.js';
+import { codeChecks, compareDirectives, compareNotApplied } from './metrics.js';
 import { renderSummary, summarize } from './report.js';
 
 const live = process.env.EVAL_LIVE === '1';
@@ -96,6 +97,10 @@ describe.skipIf(!live)('eval da geração de post', () => {
           if (brief.directives && made.directives) {
             const read = compareDirectives(brief.directives, made.directives.directives);
             verdicts.push({ id: 'leitor', pass: read.pass, reason: read.pass ? '' : read.reason, group: 'leitor', by: 'code' });
+          }
+          if (brief.notApplied && made.directives) {
+            const na = compareNotApplied(brief.notApplied, made.notApplied ?? []);
+            verdicts.push({ id: 'nao-aplicado', pass: na.pass, reason: na.pass ? '' : na.reason, group: 'leitor', by: 'code' });
           }
           write(join(dir, 'verdicts.json'), { seen: judged.seen, verdicts });
           keep({ caseId: brief.id, run, tags: brief.tags, rounds: made.trace.length, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + judgeCost });
