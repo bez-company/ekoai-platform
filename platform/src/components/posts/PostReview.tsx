@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
+import { SlideList, SlideStrip } from './CarouselSlides';
+import { carouselOf } from '@/lib/carousel-view';
 import DesignAdjust, { type Swatch } from './DesignAdjust';
 import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
@@ -66,6 +68,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   // Feed ou Grade (SPEC 023): a mesma imagem vista na moldura do feed ou entre os últimos posts do perfil.
   const [preview, setPreview] = useState<'feed' | 'grid'>('feed');
   const [showCropGuide, setShowCropGuide] = useState(false);
+  // Carrossel (SPEC 023): as lâminas e a que está à mostra.
+  const carousel = useMemo(() => carouselOf(pending), [pending]);
+  const [slide, setSlide] = useState(0);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -175,14 +180,15 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           </div>
           {preview === 'feed' ? (
             <>
-              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide} />
+              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide} slides={carousel?.slides.map((s) => s.url)} slide={slide} onSlide={setSlide} />
+              {carousel && <SlideStrip view={carousel} current={slide} onSelect={setSlide} />}
               <label className="mt-3 flex max-w-[420px] items-center gap-2 text-sm text-muted">
                 <input type="checkbox" checked={showCropGuide} onChange={(e) => setShowCropGuide(e.target.checked)} />
                 Mostrar o corte da grade sobre o post
               </label>
             </>
           ) : (
-            <ProfileGrid newImageUrl={imageOverride ?? image} handle={handle} accountName={accountName} />
+            <ProfileGrid newImageUrl={imageOverride ?? image} newIsCarousel={!!carousel} handle={handle} accountName={accountName} />
           )}
         </div>
 
@@ -193,7 +199,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             </div>
           )}
 
-          {design && briefId && (
+          {carousel && <SlideList view={carousel} current={slide} onSelect={setSlide} />}
+
+          {design && briefId && !carousel && (
             <DesignAdjust briefId={briefId} state={design.state} swatches={design.swatches} usage={usage} canEdit={canEdit} canManage={canManage} onPreview={setImageOverride} onVersion={setDesignVersion} refreshKey={askKey} onDirty={setDesignDirty} />
           )}
 

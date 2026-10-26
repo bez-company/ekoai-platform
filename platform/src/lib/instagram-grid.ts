@@ -38,7 +38,7 @@ async function ekoaiPosts(t: TenantDb): Promise<GridItem[]> {
   return published
     .filter((p) => p.channel === 'instagram' && p.imageUrl)
     .slice(0, GRID_LIMIT)
-    .map((p) => ({ id: p.id, type: 'IMAGE' as const, imageUrl: p.imageUrl!, permalink: null, timestamp: p.publishedAt }));
+    .map((p) => ({ id: p.id, type: p.slides > 0 ? ('CAROUSEL_ALBUM' as const) : ('IMAGE' as const), imageUrl: p.imageUrl!, permalink: null, timestamp: p.publishedAt }));
 }
 
 async function fallback(t: TenantDb, reason: NonNullable<GridView['reason']>): Promise<GridView> {

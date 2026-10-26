@@ -3,6 +3,7 @@ import PublishedTabs from '@/components/analysis/PublishedTabs';
 import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
+import { carouselBadge } from '@/lib/carousel-view';
 import { fmtDateTime } from '@/lib/format';
 import { averageEngagement, fmtCount, fmtRate, listPublished, type PublishedItem } from '@/lib/published-feed';
 import { pageTenant } from '@/lib/session';
@@ -31,6 +32,12 @@ function Tile({ p }: { p: PublishedItem }) {
         <img src={p.imageUrl} alt="" className="h-full w-full object-cover transition group-hover:opacity-90" />
       ) : (
         <span className="flex h-full items-center justify-center p-3 text-center text-sm text-muted">{p.title}</span>
+      )}
+      {p.slides > 0 && (
+        <svg className="absolute right-1.5 top-1.5 h-[18px] w-[18px] text-paper drop-shadow" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label={carouselBadge(p.slides)}>
+          <path d="M7 3h12a2 2 0 0 1 2 2v12h-2V5H7z" />
+          <rect x="3" y="7" width="14" height="14" rx="2" />
+        </svg>
       )}
       {p.metrics && (
         <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex justify-center gap-3 bg-ink/60 px-2 py-1.5 text-xs font-bold text-paper">

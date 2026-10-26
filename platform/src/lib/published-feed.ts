@@ -12,13 +12,14 @@ export type PublishedItem = {
   title: string;
   caption: string;
   imageUrl: string | null;
+  slides: number; // lâminas do carrossel; 0 quando é uma imagem só
   publishedAt: string | null;
   metrics: PostMetricsView | null;
   funnel: { cadastros: number; ativados: number; pagantes: number } | null;
 };
 
 type PostRow = { id: string; channel: Channel; hook: string | null; body: string | null; published_at: string | Date | null; scheduled_post_id: string | null; funnel?: PublishedItem['funnel'] };
-type ScheduledRow = { id: string; image_url: string | null; caption_final: string | null };
+type ScheduledRow = { id: string; image_url: string | null; caption_final: string | null; slide_urls: unknown };
 
 const iso = (v: string | Date | null) => (v === null ? null : new Date(v).toISOString());
 
@@ -41,7 +42,7 @@ async function assemble(t: TenantDb, posts: PostRow[]): Promise<PublishedItem[]>
   const scheduledIds = posts.map((p) => p.scheduled_post_id).filter((id): id is string => !!id);
   const scheduled = new Map<string, ScheduledRow>();
   if (scheduledIds.length) {
-    const { data, error } = await t.select('scheduled_posts', 'id,image_url,caption_final').in('id', scheduledIds);
+    const { data, error } = await t.select('scheduled_posts', 'id,image_url,caption_final,slide_urls').in('id', scheduledIds);
     if (error) throw new Error(`Falha ao ler as imagens dos publicados: ${error.message}`);
     for (const r of (data ?? []) as unknown as ScheduledRow[]) scheduled.set(String(r.id), r);
   }
@@ -55,6 +56,7 @@ async function assemble(t: TenantDb, posts: PostRow[]): Promise<PublishedItem[]>
       title: titleOf(p.hook, caption),
       caption,
       imageUrl: s?.image_url ?? null,
+      slides: Array.isArray(s?.slide_urls) && s!.slide_urls.length >= 2 ? s!.slide_urls.length : 0,
       publishedAt: iso(p.published_at),
       metrics: metrics[String(p.id)] ?? null,
       funnel: p.funnel ?? null,

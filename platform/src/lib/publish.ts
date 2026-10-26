@@ -152,7 +152,12 @@ async function publishToChannel(t: TenantDb, s: ScheduledPost, hooks: instagram.
     if (!isCarousel && !s.image_url) throw new Error('Instagram exige image_url');
     // O token é o da conta que agendou o post; sem conexão a publicação falha com o próximo passo.
     const creds = await instagramCredentials(t);
-    if (isCarousel) return instagram.publishCarousel(creds, s.slide_urls!, caption, { ...hooks, rehearsal });
+    if (isCarousel) {
+      const alts = Array.isArray(s.generation?.slide_alts) ? (s.generation!.slide_alts as string[]) : [];
+      const result = await instagram.publishCarousel(creds, s.slide_urls!, caption, { ...hooks, rehearsal }, alts);
+      if (result.alt_text.dropped) log('warn', 'publish', 'o Instagram recusou o texto alternativo de lâminas; saíram sem ele', { scheduled: s.id, dropped: result.alt_text.dropped });
+      return result;
+    }
     const altText = typeof s.generation?.alt_text === 'string' && s.generation.alt_text.trim() ? s.generation.alt_text.trim() : null;
     const result = await instagram.publishSingle(creds, s.image_url!, caption, altText, { ...hooks, rehearsal });
     if (result.alt_text === 'dropped') log('warn', 'publish', 'o Instagram recusou o texto alternativo; o post saiu sem ele', { scheduled: s.id });

@@ -1,7 +1,7 @@
 // carousel.ts: o carrossel na parte pura (SPEC 023, ADR 0025). Do texto das lâminas aos DesignSpec que o render
 // desenha, e as regras do revisor que só existem entre lâminas (capa curta, título que não se repete). Sem I/O.
 
-import type { CopySlide } from '../agents';
+import { cleanAltText, type CopySlide } from '../agents';
 import { roleAt, slidePositions, type DesignSpec, type Layout, type PostKind, type Slide, type SlideRole, type Texts } from './model';
 import type { Issue } from './review';
 
@@ -62,4 +62,11 @@ export function slideSpecs(slides: readonly CopySlide[], common: Omit<DesignSpec
 // O que o design guarda de cada lâmina: papel, layout, texto e a chave do PNG. Marca e logo entram na hora de desenhar.
 export function storedSlides(specs: readonly DesignSpec[], roles: readonly SlideRole[], pngKeys: readonly string[]): Slide[] {
   return specs.map((spec, i) => ({ role: roles[i], layout: spec.layout, texts: spec.texts as Texts, pngKey: pngKeys[i] }));
+}
+
+// O texto alternativo de uma lâmina (BEZ-203, estendido ao carrossel): qual lâmina é e o que está escrito nela. Vai no
+// container de cada lâmina na Meta; a legenda e o resto do post têm o seu.
+export function slideAltText(texts: Texts, index: number, count: number): string {
+  const said = [texts.title, texts.sub].filter((x): x is string => !!x).map((x) => x.replace(/\.+$/, '')).join('. ');
+  return cleanAltText(`Lâmina ${index + 1} de ${count}: ${said}${/[?!]$/.test(said) ? '' : '.'}`) ?? `Lâmina ${index + 1} de ${count}`;
 }
