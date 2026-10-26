@@ -21,7 +21,7 @@ import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGoal, isRatio, LIMIT_MESSAGE, type PostFormat, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { clicheIssues, offTopicFacts, requestNumbersMissing } from './off-topic-facts';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
-import { composeDesign, describeEach, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
+import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
@@ -388,7 +388,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         ...(carousel ? { slide_alts: copy.slides!.map((sl, k) => slideAltText(sl.texts, k, copy.slides!.length)) } : {}),
         guardrail_flags: allIssues.map((i) => i.rule),
         // O que a pessoa pediu sobre a imagem e o que o código fez (SPEC 020): a tela Aprovar mostra os dois.
-        ...(directives.status === 'failed' || pieces ? { directives: { status: directives.status, read: describeEach(directives.directives).map((x) => x.text), applied: (pieces?.applied ?? []).map((x) => x.text), notApplied: (pieces?.notApplied ?? []).map((x) => ({ what: x.what, why: x.why })) } } : {}),
+        ...(directives.status === 'failed' || pieces ? { directives: { status: directives.status, read: describeEach(directives.directives).map((x) => x.text), items: pieces ? directiveItems(directives.directives, pieces) : [], applied: (pieces?.applied ?? []).map((x) => x.text), notApplied: (pieces?.notApplied ?? []).map((x) => ({ what: x.what, why: x.why })) } } : {}),
         judge_reason: allIssues.length ? allIssues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: contraste, tamanho do texto, acentos, palavras proibidas e fatos da base.',
       },
       top_id: 1,

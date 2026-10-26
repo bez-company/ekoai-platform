@@ -194,6 +194,21 @@ export function composeDesign(d: Directives, plan: Plan, copy: CopyTexts, s: Sit
   return { layout, texts, ...out, applied, notApplied };
 }
 
+// O que a tela Aprovar lista (SPEC 020, entrega d): cada instrução, na ordem do pedido, com Aplicado ou Não aplicado e
+// o motivo. Uma instrução aplicada só em parte (mais de um texto exato num cartão) ganha uma linha extra do que ficou de fora.
+export type DirectiveItem = { text: string; ok: boolean; why?: string };
+
+export function directiveItems(d: Directives, pieces: Pick<DesignPieces, 'applied' | 'notApplied'>): DirectiveItem[] {
+  const applied = new Set(pieces.applied.map((a) => a.key));
+  const skipped = new Map(pieces.notApplied.map((n) => [n.key, n]));
+  const items = describeEach(d).map((x): DirectiveItem => {
+    const n = skipped.get(x.key);
+    return applied.has(x.key) || !n ? { text: x.text, ok: true } : { text: x.text, ok: false, why: n.why };
+  });
+  const partial = pieces.notApplied.filter((n) => applied.has(n.key)).map((n): DirectiveItem => ({ text: n.what, ok: false, why: n.why }));
+  return [...items, ...partial];
+}
+
 // ── 3. Revisar ───────────────────────────────────────────────────────────────
 
 const loose = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();

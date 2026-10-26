@@ -378,6 +378,12 @@ describe('o código obedece as instruções do pedido (SPEC 020, entrega c)', ()
     expect(pending.generation.directives.status).toBe('ok');
     expect(pending.generation.directives.applied).toEqual(['Fundo escuro', 'O nome da empresa: base, no centro', 'O @: canto inferior direito']);
     expect(pending.generation.directives.notApplied).toEqual([{ what: 'O logo', why: expect.stringContaining('não tem logo cadastrado') }]);
+    expect(pending.generation.directives.items).toEqual([
+      { text: 'Fundo escuro', ok: true },
+      { text: 'O logo: centro', ok: false, why: expect.stringContaining('não tem logo cadastrado') },
+      { text: 'O nome da empresa: base, no centro', ok: true },
+      { text: 'O @: canto inferior direito', ok: true },
+    ]);
     expect((await one("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'visual'", [id])).n).toBe(0);
   });
 
