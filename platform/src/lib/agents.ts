@@ -115,6 +115,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   if (input.format === 'carousel') {
     lines.push(`- CARROSSEL: o post tem de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas que se leem deslizando. Devolva "slides" no lugar de "texts" e "items". A primeira lâmina é a capa (o gancho, com selo e título; a capa tem até 12 palavras), as do meio levam UM item cada (título curto e um subtítulo opcional que explica) e a última é a chamada (título e subtítulo com o convite).`);
     lines.push(`- Em cada lâmina: title até ${LIMITS.title} caracteres, sub até ${LIMITS.sub}, kicker até ${LIMITS.kicker} só na capa e, se quiser, nas do meio. Nada de items. Cada título é diferente dos outros. Se o tema é uma lista (ex.: "3 sinais"), cada item vira uma lâmina.`);
+    lines.push('- Em "atmosfera", o visual_prompt descreve UMA foto só, para a capa: uma cena, sem colagem, sem painéis, sem sequência de momentos. As outras lâminas não levam foto.');
   }
   lines.push(`- caption: a legenda, até 900 caracteres, com a chamada no fim. hashtags: de 3 a 8, sem o #, minúsculas, sem acento.`);
   lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa identificável. No informativo, null.');
