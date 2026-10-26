@@ -25,9 +25,11 @@ export type SocialAccount = {
   status: SocialAccountStatus;
   expiresAt: string | null;
   connectedAt: string;
+  // Permissões que a pessoa concedeu no Instagram (a de insights é opcional).
+  scopes: string[];
 };
 
-const COLUMNS = 'id,channel,handle,status,expires_at,connected_at';
+const COLUMNS = 'id,channel,handle,status,expires_at,connected_at,scopes';
 
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null);
 
@@ -41,6 +43,7 @@ export async function listSocialAccounts(t: TenantDb): Promise<SocialAccount[]> 
     status: r.status as SocialAccountStatus,
     expiresAt: iso(r.expires_at),
     connectedAt: iso(r.connected_at) ?? '',
+    scopes: Array.isArray(r.scopes) ? (r.scopes as unknown[]).map(String) : [],
   }));
 }
 
