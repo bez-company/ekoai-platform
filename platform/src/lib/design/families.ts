@@ -296,6 +296,7 @@ const PLACE_ROW: Record<Place, 't' | 'm' | 'b'> = { tl: 't', tc: 't', tr: 't', m
 const STACK_ORDER: Element[] = ['logo', 'name', 'title', 'handle'];
 const STACK_GAP = 36;
 const PLATE_PAD = 14;
+const TEXT_GAP = 40; // folga mínima entre dois elementos da mesma linha
 
 // Onde fica cada elemento depois de somar o pedido, o padrão e o que existe (sem logo, não há logo para pôr).
 export function markPlacements(spec: DesignSpec): Partial<Record<Element, Place>> {
@@ -330,6 +331,25 @@ function marca(spec: DesignSpec): Composed {
 
   type Item = { id: Element; h: number; draw: (x: number, y: number, col: 'l' | 'c' | 'r') => void };
   const items: Item[] = [];
+  // Larguras já ocupadas por linha da grade (topo, meio, base) e coluna: um texto largo numa célula não pode
+  // invadir o logo ou o @ da célula do lado, na mesma linha. Cada texto cabe no que sobra.
+  const taken: { row: 't' | 'm' | 'b'; col: 'l' | 'c' | 'r'; w: number }[] = [];
+  const take = (place: Place, w: number) => taken.push({ row: PLACE_ROW[place], col: PLACE_COL[place], w });
+  const roomFor = (place: Place): number => {
+    const row = PLACE_ROW[place];
+    const col = PLACE_COL[place];
+    const others = taken.filter((t) => t.row === row && t.col !== col);
+    let room = inner;
+    for (const o of others) {
+      const edge = o.col === 'l' ? MARGIN + o.w : o.col === 'r' ? WIDTH - MARGIN - o.w : WIDTH / 2; // borda do outro, do lado de dentro
+      const half = o.col === 'c' ? o.w / 2 : 0;
+      if (col === 'l') room = Math.min(room, (o.col === 'c' ? WIDTH / 2 - half : WIDTH - MARGIN - o.w) - TEXT_GAP - MARGIN);
+      else if (col === 'r') room = Math.min(room, WIDTH - MARGIN - ((o.col === 'c' ? WIDTH / 2 + half : MARGIN + o.w) + TEXT_GAP));
+      else room = Math.min(room, 2 * (o.col === 'l' ? WIDTH / 2 - (MARGIN + o.w) : o.col === 'r' ? WIDTH - MARGIN - o.w - WIDTH / 2 : Infinity) - 2 * TEXT_GAP);
+      void edge;
+    }
+    return Math.max(160, Math.round(room));
+  };
   const anchorOf = (col: 'l' | 'c' | 'r') => (col === 'l' ? 'start' : col === 'c' ? 'middle' : 'end');
   const left = (col: 'l' | 'c' | 'r', x: number, w: number) => (col === 'l' ? x : col === 'c' ? x - w / 2 : x - w);
 
@@ -339,6 +359,7 @@ function marca(spec: DesignSpec): Composed {
     const h = large ? Math.round(H * 0.3) : LOGO_H;
     const w = Math.min(inner, Math.round((h * logo.width) / Math.max(1, logo.height)));
     const pad = large ? 0 : PLATE_PAD;
+    take(where.logo, w + pad * 2);
     items.push({
       id: 'logo',
       h: h + pad * 2,
@@ -349,9 +370,11 @@ function marca(spec: DesignSpec): Composed {
       },
     });
   }
+  if (where.handle && b.handle) take(where.handle, textWidth(`@${b.handle}`, body, 24, 1.05));
   if (where.name && spec.brandName) {
-    const fit = fitText(spec.brandName, { family: heading, maxWidth: inner, maxLines: 2, start: where.logo === where.name && where.name === 'c' ? 72 : 76, min: 40, step: 4, lineHeight: 1.1, weightFactor: 1.08 });
+    const fit = fitText(spec.brandName, { family: heading, maxWidth: roomFor(where.name), maxLines: 2, start: where.logo === where.name && where.name === 'c' ? 72 : 76, min: 40, step: 4, lineHeight: 1.1, weightFactor: 1.08 });
     if (fit.overflow) overflow.push('name');
+    take(where.name, fit.width);
     items.push({
       id: 'name',
       h: fit.height,
@@ -368,12 +391,14 @@ function marca(spec: DesignSpec): Composed {
     const sharing = items.filter((i) => where[i.id] === where.title);
     const reservedBottom = where.handle && where.handle !== where.title && PLACE_ROW[where.handle] === 'b' ? 24 * 1.2 + STACK_GAP : 0;
     const budget = H - MARGIN * 2 - reservedBottom - sharing.reduce((sum, i) => sum + i.h + STACK_GAP, 0);
-    let fit = fitText(text, { family: heading, maxWidth: inner, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+    const room = roomFor(where.title);
+    let fit = fitText(text, { family: heading, maxWidth: room, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
     while (fit.height > budget && start > 56) {
       start = Math.max(56, start - 8);
-      fit = fitText(text, { family: heading, maxWidth: inner, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+      fit = fitText(text, { family: heading, maxWidth: room, maxLines: 4, start, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
     }
     if (fit.overflow) overflow.push('title');
+    take(where.title, fit.width);
     items.push({
       id: 'title',
       h: fit.height,

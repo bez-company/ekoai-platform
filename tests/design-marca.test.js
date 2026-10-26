@@ -7,6 +7,7 @@ import { renderPng, pngSize } from '../platform/src/lib/design/render.ts';
 import { compose, markPlacements } from '../platform/src/lib/design/families.ts';
 import { brandFromProfile, compatibleLayouts, markBackground, paletteFor, storedDesignOf } from '../platform/src/lib/design/model.ts';
 import { applyRule } from '../platform/src/lib/design/rules-model.ts';
+import { reviewLayout } from '../platform/src/lib/design/review.ts';
 import { contrast } from '../platform/src/lib/design/color.ts';
 import { COMPANIES } from '../evals/cases.js';
 
@@ -152,5 +153,44 @@ describe('cartão de marca: guardado e editado', () => {
     for (const rule of [{ field: 'layout', scope: 'any', value: 'titulo-destaque' }, { field: 'logoHidden', scope: 'any', value: true }, { field: 'logoCorner', scope: 'any', value: 'tr' }]) {
       expect(applyRule(design, rule, { kind: 'informativo', hasVisual: false })).toBeNull();
     }
+  });
+});
+
+describe('cartão de marca: grade inteira, sem sobreposição', () => {
+  const PLACES = ['tl', 'tc', 'tr', 'ml', 'c', 'mr', 'bl', 'bc', 'br'];
+  const other = (p) => PLACES[(PLACES.indexOf(p) + 4) % PLACES.length];
+
+  it('logo, nome, frase e @ em cada célula, em 4 marcas, 2 proporções e 3 fundos: nada se sobrepõe nem sai da margem', () => {
+    const bad = [];
+    let count = 0;
+    for (const key of Object.keys(COMPANIES)) {
+      for (const ratio of ['1:1', '4:5']) {
+        for (const background of ['dark', 'brand', 'light']) {
+          for (const p of PLACES) {
+            const combos = [
+              { placements: { logo: p } },
+              { placements: { logo: p, handle: other(p) } },
+              { placements: { name: p, logo: 'off' }, name: true },
+              { placements: { name: p, handle: other(p), logo: 'off' }, name: true },
+              { placements: { handle: p, logo: 'off' } },
+              { placements: { title: p, logo: 'off', handle: 'off' }, title: 'Fornada nova todo dia às 7h' },
+              { placements: { logo: 'c', name: 'bc', handle: p }, name: true },
+              { placements: { logo: p, name: p, handle: p === 'br' ? 'bl' : 'br' }, name: true },
+              { placements: { logo: other(p), title: p }, title: 'Obra segura' },
+            ];
+            for (const combo of combos) {
+              const c = COMPANIES[key];
+              const spec = { kind: 'informativo', ratio, layout: 'marca', texts: { title: combo.title ?? '' }, brand: brandFromProfile(c.profile), logo: c.logo, background, placements: combo.placements, ...(combo.name ? { brandName: c.name } : {}) };
+              count += 1;
+              const composed = compose(spec);
+              const issues = reviewLayout(composed.boxes, composed.height, composed.overflow);
+              if (issues.length) bad.push(`${key} ${ratio} ${background} ${JSON.stringify(combo.placements)}: ${issues.map((i) => `${i.rule} ${i.detail}`).join(', ')}`);
+            }
+          }
+        }
+      }
+    }
+    expect(count).toBe(4 * 2 * 3 * 9 * 9);
+    expect(bad.slice(0, 12)).toEqual([]);
   });
 });
