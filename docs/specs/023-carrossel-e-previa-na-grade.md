@@ -8,7 +8,7 @@
   [ADR 0017](../adr/0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md) (motor híbrido),
   [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md) (revisão), [ADR 0025](../adr/0025-carrossel-como-lista-de-laminas-dentro-do-design.md) (decisão desta spec)
 - **Em paralelo (conflito provável):** SPEC 020 (PRs #184 e #185) mexe em `generation.ts` e em `families.ts`
-- **Protótipo:** [v16 no Claude Design](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz) (grupo "Fase 6: carrossel e grade")
+- **Protótipo:** [v17 no Claude Design](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz) (grupo "Fase 6: carrossel e grade")
 
 ## Problema
 
