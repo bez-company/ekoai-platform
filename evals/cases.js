@@ -135,12 +135,12 @@ export const CRAFT = [
   { id: 'ofc-portugues', in: 'image', text: 'Todo texto da imagem e a legenda estão em português do Brasil correto, com acentos nos lugares certos e sem erro de digitação.' },
   { id: 'ofc-sem-cliche', in: 'caption', text: 'O texto não usa clichê de vendedor nem de IA (por exemplo "transforme", "descubra", "jornada", "essência", "mergulhe", "no mundo de hoje") nem superlativo vazio.' },
   { id: 'ofc-voz', in: 'caption', text: 'O jeito de falar combina com a voz da empresa descrita acima (formalidade, tom técnico e seriedade).' },
-  { id: 'ofc-gancho', in: 'image', text: 'O texto principal da imagem promete algo específico a quem lê (um benefício, uma pergunta, um fato concreto do negócio). Rótulo de tema, como "Segurança técnica em projetos", ou elogio genérico reprova.' },
+  { id: 'ofc-gancho', in: 'image', text: 'O texto principal da imagem promete algo específico a quem lê (um benefício, uma pergunta, um fato concreto do negócio; em post de atmosfera, uma cena concreta). Rótulo de tema, como "Segurança técnica em projetos", ou elogio genérico reprova. Vale como cumprida quando a pessoa ditou o texto ou a composição (frase exata, só o nome e o logo, só uma palavra): aí o texto não é do post, é dela.' },
   { id: 'ofc-sem-recheio', in: 'image', text: 'Cada texto da imagem serve ao pedido. Fato solto da base que não tem a ver com o pedido (o horário da fornada num post sobre outro assunto, por exemplo) reprova.' },
   { id: 'ofc-coerencia', in: 'caption', text: 'A legenda e a imagem falam da mesma coisa, e a legenda acrescenta algo em vez de repetir o texto da imagem.' },
   { id: 'ofc-legibilidade', in: 'image', text: 'O texto da imagem é legível no celular: contraste bom, nada cortado, nada sobreposto, fonte grande o bastante.' },
   { id: 'ofc-composicao', in: 'image', text: 'A composição é equilibrada e profissional: hierarquia clara, respiro, nada amontoado nem jogado num canto sem razão.' },
-  { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho.' },
+  { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho. Falta de gancho não conta contra um texto ou uma composição que a própria pessoa ditou.' },
 ];
 
 export const CASES = [
@@ -248,7 +248,7 @@ export const CASES = [
     kind: 'informativo',
     ratio: '1:1',
     requirements: [
-      { id: 'sem-numero-inventado', in: 'image', text: 'Todo número na imagem vem do pedido (30%) ou da base de fatos (7h, 24 horas, 3 dias). Preço, data ou prazo fora dessas fontes reprova.' },
+      { id: 'sem-numero-inventado', in: 'image', text: 'Todo número na imagem vem do pedido (30%) ou da base de fatos (7h, 24 horas, 3 dias). Preço, data ou prazo fora dessas fontes reprova. A numeração 1, 2, 3 de uma lista não é número do post e não conta.' },
       { id: 'legenda-sem-invencao', in: 'caption', text: 'A legenda não inventa data, horário, preço nem condição. Só vale o que está no pedido (30% de desconto, bolo de chocolate, esta semana) ou na base de fatos.' },
       { id: 'desconto-na-legenda', in: 'caption', text: 'A legenda diz que o desconto é de 30%.' },
       { id: 'pedido-atendido', in: 'image', text: 'A imagem anuncia o desconto de 30% no bolo de chocolate.', contains: ['30%'] },
@@ -357,7 +357,7 @@ export const CASES = [
     ratio: '1:1',
     requirements: [
       { id: 'usa-o-fato', in: 'image', text: 'A imagem usa um fato da base (120 obras acompanhadas desde 2015, ou a NBR 6118) para mostrar experiência.' },
-      { id: 'sem-numero-novo', in: 'image', text: 'Todo número na imagem está na base de fatos (120, 2015, 10 dias úteis, 6118). Qualquer outro reprova.' },
+      { id: 'sem-numero-novo', in: 'image', text: 'Todo número na imagem está na base de fatos (120, 2015, 10 dias úteis, 6118). Qualquer outro reprova. A numeração 1, 2, 3 de uma lista não é número do post e não conta.' },
       { id: 'sem-superlativo', in: 'caption', text: 'A legenda não usa superlativo vazio nem as palavras "inovador", "revolucionário" ou "solução completa".' },
     ],
   },
@@ -419,7 +419,7 @@ export const CASES = [
       { id: 'fundo-azul-escuro', in: 'image', text: 'O fundo é azul bem escuro e liso.' },
       { id: 'logo-no-meio', in: 'image', text: 'O logo (triângulo laranja com triângulo azul) está grande, no meio da imagem.' },
       { id: 'nome-embaixo', in: 'image', text: 'O nome "Vértice Engenharia" está escrito logo abaixo do logo.', contains: ['Vértice Engenharia'] },
-      { id: 'sem-mais-nada', in: 'image', text: 'Não há outro título, frase, lista nem foto.' },
+      { id: 'sem-mais-nada', in: 'image', text: 'Não há outro título, frase, lista nem foto (o @ da empresa em um canto não conta como extra: é a assinatura da marca).' },
     ],
   },
   // Clínica Sorriso Vivo
