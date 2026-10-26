@@ -1,4 +1,4 @@
-# ADR 0024: o carrossel é um post com uma lista de lâminas dentro do design
+# ADR 0025: o carrossel é um post com uma lista de lâminas dentro do design
 
 - **Status:** proposto (SPEC 023, 23/10/2026)
 - **Data:** 2026-10-23
