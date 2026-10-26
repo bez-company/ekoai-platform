@@ -25,6 +25,14 @@ export const cornerOf = (d: EditableDesign): string => d.logoCorner ?? defaultCo
 const canon = (v: unknown): unknown => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, x]) => x !== undefined).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, canon(x)])) : v);
 export const sameDesign = (a: EditableDesign, b: EditableDesign): boolean => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 
+// O slot de cor e como a frase o chama (o gênero fica fixo por slot).
+const COLOR_SLOT: ReadonlyArray<readonly ['title' | 'sub' | 'kicker' | 'items', string]> = [
+  ['title', 'do título'],
+  ['sub', 'do subtítulo'],
+  ['kicker', 'do selo'],
+  ['items', 'dos itens'],
+];
+
 // O que mudou entre a versão em uso e a edição na tela, em português, antes de confirmar.
 export function changesOf(base: EditableDesign, cur: EditableDesign): string[] {
   const out: string[] = [];
@@ -33,10 +41,18 @@ export function changesOf(base: EditableDesign, cur: EditableDesign): string[] {
   if (base.texts.sub && !cur.texts.sub) out.push('subtítulo removido');
   else if (cur.texts.sub !== base.texts.sub) out.push(base.texts.sub ? 'subtítulo alterado' : 'subtítulo adicionado');
   if (base.texts.kicker !== cur.texts.kicker) out.push(cur.texts.kicker ? 'selo alterado' : 'selo removido');
-  if (JSON.stringify(base.texts.items ?? []) !== JSON.stringify(cur.texts.items ?? [])) out.push('itens alterados');
+  // Um item por frase, como o resumo que o servidor grava (diff.ts).
+  const from = base.texts.items ?? [];
+  const to = cur.texts.items ?? [];
+  for (let i = 0; i < Math.max(from.length, to.length); i += 1) {
+    if (from[i] === to[i]) continue;
+    out.push(from[i] === undefined ? `item ${i + 1} adicionado` : to[i] === undefined ? `item ${i + 1} removido` : `item ${i + 1} alterado`);
+  }
   if (cornerOf(base) !== cornerOf(cur)) out.push(`logo movido para o canto ${CORNER_NAME[cornerOf(cur)] ?? 'novo'}`);
   if (!!base.logoHidden !== !!cur.logoHidden) out.push(cur.logoHidden ? 'logo escondido' : 'logo de volta');
-  if ((base.colors?.title ?? null) !== (cur.colors?.title ?? null)) out.push(cur.colors?.title ? 'cor do título alterada' : 'cor do título voltou à da marca');
+  for (const [key, name] of COLOR_SLOT) {
+    if ((base.colors?.[key] ?? null) !== (cur.colors?.[key] ?? null)) out.push(cur.colors?.[key] ? `cor ${name} alterada` : `cor ${name} voltou à da marca`);
+  }
   return out;
 }
 
@@ -68,9 +84,20 @@ export function withSub(d: EditableDesign, sub: string | null): EditableDesign {
 }
 export const withCorner = (d: EditableDesign, corner: 'tl' | 'tr' | 'bl' | 'br'): EditableDesign => ({ ...d, logoCorner: corner, logoHidden: undefined });
 export const withHidden = (d: EditableDesign, hidden: boolean): EditableDesign => ({ ...d, logoHidden: hidden ? true : undefined });
-export function withTitleColor(d: EditableDesign, hex: string | null): EditableDesign {
-  const { title: _old, ...rest } = d.colors ?? {};
-  const colors = hex ? { ...rest, title: hex } : rest;
+export type ColorSlot = 'title' | 'sub' | 'kicker' | 'items';
+export function withColor(d: EditableDesign, slot: ColorSlot, hex: string | null): EditableDesign {
+  const { [slot]: _old, ...rest } = d.colors ?? {};
+  const colors = hex ? { ...rest, [slot]: hex } : rest;
   return { ...d, colors: Object.keys(colors).length ? colors : undefined };
+}
+export const withTitleColor = (d: EditableDesign, hex: string | null): EditableDesign => withColor(d, 'title', hex);
+// Selo e itens: `null` ou lista vazia tira o campo (o servidor entende ausente como "sem").
+export function withKicker(d: EditableDesign, kicker: string | null): EditableDesign {
+  const { kicker: _old, ...rest } = d.texts;
+  return { ...d, texts: kicker ? { ...rest, kicker } : rest };
+}
+export function withItems(d: EditableDesign, items: readonly string[] | null): EditableDesign {
+  const { items: _old, ...rest } = d.texts;
+  return { ...d, texts: items && items.length ? { ...rest, items: [...items] } : rest };
 }
 export const withLayout = (d: EditableDesign, layout: EditableDesign['layout']): EditableDesign => ({ ...d, layout });

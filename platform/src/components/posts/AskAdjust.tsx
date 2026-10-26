@@ -26,6 +26,7 @@ export default function AskAdjust({
   body,
   hashtags,
   usage,
+  aspects = ASPECTS,
   blockedReason,
   busyElsewhere,
   onCaption,
@@ -37,6 +38,7 @@ export default function AskAdjust({
   body: string;
   hashtags: string[];
   usage: { used: number; max: number };
+  aspects?: readonly Aspect[]; // onde dá para mudar nesta tela (o Estúdio não tem legenda)
   blockedReason: string | null; // por que o campo está parado (mudança da imagem sem confirmar)
   busyElsewhere: boolean;
   onCaption: (body: string, hashtags: string[]) => void;
@@ -214,7 +216,7 @@ export default function AskAdjust({
               Onde <span className="font-normal">(opcional)</span>
             </span>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Onde mudar">
-              {ASPECTS.map((a) => (
+              {aspects.map((a) => (
                 <button
                   key={a}
                   type="button"

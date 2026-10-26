@@ -49,7 +49,7 @@ test.describe.serial('pedir ajuste em texto livre', () => {
     await expect(changes).toContainText('Subtítulo');
     await expect(changes).toContainText('removido');
     await expect(changes).toContainText('Todo o resto');
-    await expect(page.getByText('Versão 2', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Versão 2 em uso/)).toBeVisible();
 
     // uma chamada de texto para ler o pedido, nenhuma de imagem
     const all = await fakeCalls(/aiplatform/);
@@ -69,10 +69,10 @@ test.describe.serial('pedir ajuste em texto livre', () => {
     await box(page).fill('Põe o subtítulo de volta: Confira sem abrir o forno.');
     await page.getByRole('button', { name: 'Aplicar ajuste' }).click();
     await expect(page.getByText('Ajuste aplicado.')).toBeVisible();
-    await expect(page.getByText('Versão 3', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Versão 3 em uso/)).toBeVisible();
     await page.getByRole('button', { name: 'Desfazer ajuste' }).click();
     await expect(page.getByText('Ajuste desfeito.')).toBeVisible();
-    await expect(page.getByText('Versão 4', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Versão 4 em uso/)).toBeVisible();
     const state = await page.request.get(`/api/posts/${post.briefId}/design/revisions`);
     const { version, revisions, editable } = (await state.json()) as { version: number; revisions: unknown[]; editable: { texts: { sub?: string } } };
     expect(version).toBe(4);
@@ -106,7 +106,7 @@ test.describe.serial('pedir ajuste em texto livre', () => {
   test('o leitor não vê o campo e a API recusa o pedido', async ({ page }) => {
     await login(page, 'viewer');
     await page.goto(post.inbox);
-    await expect(page.getByRole('region', { name: 'Versões' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Ver versões' })).toBeVisible();
     await expect(box(page)).toHaveCount(0);
     const ask = await page.request.post(`/api/posts/${post.briefId}/design/ask`, { data: { baseVersion: 4, instruction: 'Tira o subtítulo' } });
     expect(ask.status()).toBe(403);

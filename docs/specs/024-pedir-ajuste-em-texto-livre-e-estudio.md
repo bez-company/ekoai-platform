@@ -1,6 +1,6 @@
 # SPEC 024: pedir ajuste em texto livre e Estúdio de edição do post
 
-- **Status:** a entrega a (pedir ajuste) está implementada nesta PR; a entrega b (Estúdio) aguarda as decisões abaixo (23/10/2026)
+- **Status:** entrega a (pedir ajuste) na staging (PR #195); entrega b-E1 (Estúdio) implementada em 26/10/2026 com as decisões 10, 11 e 13 resolvidas; E2 a E4 seguem em card
 - **Data:** 2026-10-23
 - **Cards:** BEZ-193 (entrega a), BEZ-196 (entrega b, com os filhos BEZ-315 a BEZ-318)
 - **Depende de:** [SPEC 019](019-estudio-incremental-e-aprendizado-com-a-edicao.md) (revisão imutável, conflito de versão,
@@ -53,20 +53,27 @@ propriedades à direita, com desfazer, refazer, Restaurar padrão, versões e o 
 9. **Medição sem texto.** Evento `design_ask` com aspecto, resultado, campos mudados e `model_calls`; nunca o pedido nem o antes
    e depois (`sanitizeProps` continua valendo).
 
-**Entrega b (aguarda decisão)**
+**Entrega b (Estúdio), decidida pelo Matheus em 26/10/2026**
 
-10. **Gatilho da fase 3 da SPEC 019 liberado a pedido do Matheus (23/10/2026).** O Estúdio completo estava condicionado a dado
-    (5 contas, 25% de descarte ou 20% de desejo de mover). Ele pediu para fazer agora; os eventos `design_edit_wish` seguem
-    medindo e agora decidem a ordem entre E3 e E4, não se o Estúdio existe. **(Matheus)** confirmar que a liberação vale.
-11. **O painel de ajuste rápido fica em Aprovar** (um minuto, sem sair da página); **Editar imagem** passa a abrir o Estúdio.
-    Os dois usam as mesmas rotas e o mesmo desenho do servidor. **(Matheus)** ou o Estúdio substitui o painel?
-12. **Quatro entregas, na ordem:** E1 tela própria só com o que o motor já faz (BEZ-315); E2 tamanho do texto, fonte da lista curada,
-    formato e fundo liso, com campos novos no design (BEZ-316); E3 posição em grade 3x3 e arrastar (BEZ-317, junto do BEZ-194);
+10. **Gatilho da fase 3 da SPEC 019 liberado.** O Estúdio completo estava condicionado a dado (5 contas, 25% de descarte ou 20% de
+    desejo de mover). Ele mandou fazer agora; os eventos `design_edit_wish` seguem medindo e decidem a ordem entre E3 e E4, não se o
+    Estúdio existe.
+11. **O Estúdio substitui o painel de ajuste rápido.** Em Aprovar fica só o card **Imagem** (versão em uso, resumo e o botão
+    **Editar imagem**; **Ver versões** para o leitor). Texto, cor, logo, layout, versões, desfazer, refazer e Padrão moram no Estúdio.
+    As mesmas rotas e o mesmo desenho do servidor valem nos dois. O "Pedir ajuste" em texto livre continua em Aprovar (legenda
+    fica lá) e aparece no Estúdio como **Pedir à Ekoai**, só para imagem.
+12. **Quatro entregas, na ordem:** E1 tela própria só com o que o motor já faz (BEZ-315, esta PR); E2 tamanho do texto, fonte da lista
+    curada, formato e fundo liso, com campos novos no design (BEZ-316); E3 posição em grade 3x3 e arrastar (BEZ-317, junto do BEZ-194);
     E4 variações do logo e foto própria no post de atmosfera (BEZ-318).
-13. **O círculo do protótipo v9 não existe no motor.** O Estúdio da v9 desenha um elemento (círculo) que as famílias de layout de
-    hoje não têm. **Recomendação:** tirar o círculo do protótipo e tratar "mover elementos" como reposição dos slots reais (E3).
-    **(Matheus)**
-14. **Nada no Estúdio chama o modelo de imagem**, exceto "Gerar outro visual" (conta no limite, como hoje).
+13. **Implementar e melhorar depois.** O círculo do protótipo v9 não existe no motor e não entra; o E1 usa o que o motor tem.
+    "Mover elementos" volta como reposição dos slots reais no E3.
+14. **Nada no Estúdio chama o modelo de imagem**, exceto "Gerar outro visual" (conta no limite, como hoje; o E1 leva a Outra direção).
+
+**E1 (implementado).** Rota `/aprovar/[pendingId]/estudio`, em tela cheia (sem a barra lateral do app). Elementos: Título, Selo,
+Subtítulo, Itens (na lista numerada), Logo (canto, esconder) e Layout (miniaturas do servidor). Cor própria para título, selo,
+subtítulo e itens, com o contraste medido (o revisor trava abaixo do mínimo). Itens editáveis, com até 4. No celular os elementos viram
+chips acima do painel e as ações vão para a barra de baixo. Leitor vê só as versões. A frase de "o que mudou" na tela é igual à que
+o servidor grava, item por item e por cor de cada texto (teste).
 
 ## Contrato do patch (entrega a)
 
@@ -139,7 +146,7 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | 0 | Esta spec | Revisão do Matheus | BEZ-193 |
 | a | Pedir ajuste: parser, serviço, rota, tela, evento | Critérios R1 a R8 | BEZ-193 |
-| b-E1 | Estúdio: tela própria sobre o que o motor já faz | Prints, prévia igual ao PNG, sem modelo de imagem | BEZ-315 |
+| b-E1 | Estúdio: tela própria sobre o que o motor já faz | Prints, E2E (24 casos), sem modelo de imagem | BEZ-315 |
 | b-E2 | Tamanho do texto, fonte, formato e fundo liso | Parser, revisor, render | BEZ-316 |
 | b-E3 | Posição em grade e arrastar | A definir com a SPEC 020 | BEZ-317 |
 | b-E4 | Variações do logo e foto própria | Depende do BEZ-209 | BEZ-318 |
