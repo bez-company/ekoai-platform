@@ -4,12 +4,14 @@
 
 import type { CompanyProfile } from './company-profile-model';
 import type { Issue } from './design/review';
-import type { PostKind } from './generation-model';
+import type { PostFormat, PostKind } from './generation-model';
 import type { WriterHints } from './directives-apply';
+import { MAX_SLIDES, MIN_SLIDES, roleAt, type SlideRole, type Texts } from './design/model';
 
 export type CopyInput = {
   idea: string;
   kind: PostKind | null; // null = o estrategista escolhe
+  format?: PostFormat; // single (padrão) ou carousel: escolha da pessoa (SPEC 023)
   goal?: string | null; // o objetivo do post em uma frase (SPEC 017 decisão 6)
   profile: CompanyProfile;
   facts: string[];
@@ -26,10 +28,14 @@ export type CopyInput = {
 // "nunca diga". Meta e números de acompanhamento nunca vão ao modelo.
 export type CopyCampaign = { name: string; objective: string | null; offering: string | null; audience: string | null; cta: string | null; restrictions: string[] };
 
+// Uma lâmina do carrossel como o redator a devolve: o papel (pela posição) e os textos, sem itens.
+export type CopySlide = { role: SlideRole; texts: Texts };
+
 export type Copy = {
   kind: PostKind;
   angle: string;
   texts: { kicker?: string; title: string; sub?: string; items?: string[] };
+  slides?: CopySlide[]; // só no carrossel; a primeira lâmina é a capa e `texts` é o da capa
   caption: string;
   hashtags: string[];
   visualPrompt: string | null; // só no post de atmosfera
@@ -106,6 +112,10 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('- Sem emoji no texto da imagem. Na legenda, no máximo 2, e só se combinar com o jeito de falar.');
   lines.push(`- title: até ${LIMITS.title} caracteres, o gancho. kicker: até ${LIMITS.kicker} caracteres, um selo curto (ex.: "Dica da casa"). sub: até ${LIMITS.sub} caracteres, opcional.`);
   lines.push(`- items: de 2 a ${LIMITS.items} itens curtos (até ${LIMITS.item} caracteres cada), só no informativo em lista. Em "atmosfera", sem items e sem sub.`);
+  if (input.format === 'carousel') {
+    lines.push(`- CARROSSEL: o post tem de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas que se leem deslizando. Devolva "slides" no lugar de "texts" e "items". A primeira lâmina é a capa (o gancho, com selo e título; a capa tem até 12 palavras), as do meio levam UM item cada (título curto e um subtítulo opcional que explica) e a última é a chamada (título e subtítulo com o convite).`);
+    lines.push(`- Em cada lâmina: title até ${LIMITS.title} caracteres, sub até ${LIMITS.sub}, kicker até ${LIMITS.kicker} só na capa e, se quiser, nas do meio. Nada de items. Cada título é diferente dos outros. Se o tema é uma lista (ex.: "3 sinais"), cada item vira uma lâmina.`);
+  }
   lines.push(`- caption: a legenda, até 900 caracteres, com a chamada no fim. hashtags: de 3 a 8, sem o #, minúsculas, sem acento.`);
   lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa identificável. No informativo, null.');
   lines.push('- angle: uma frase com o ângulo escolhido (para a equipe ver por que).');
@@ -114,11 +124,13 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push('');
     lines.push('## A versão anterior foi recusada pelo revisor. Corrija SÓ o que está abaixo, copie o resto igual e não acrescente fato, prazo nem número novo:');
     lines.push(input.feedback.map((i) => `- ${i.where === 'image' ? 'Na imagem' : 'Na legenda'}: ${i.message}`).join('\n'));
-    if (input.previous) lines.push(`Versão anterior: ${JSON.stringify({ texts: input.previous.texts, caption: input.previous.caption, hashtags: input.previous.hashtags })}`);
+    if (input.previous) lines.push(`Versão anterior: ${JSON.stringify({ ...(input.previous.slides ? { slides: input.previous.slides } : { texts: input.previous.texts }), caption: input.previous.caption, hashtags: input.previous.hashtags })}`);
   }
   lines.push('');
   lines.push('## Formato da resposta (JSON)');
-  lines.push('{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}');
+  lines.push(input.format === 'carousel'
+    ? '{"kind":"informativo|atmosfera","angle":"...","slides":[{"role":"cover","texts":{"kicker":"...","title":"...","sub":"..."}},{"role":"content","texts":{"title":"...","sub":"..."}},{"role":"cta","texts":{"title":"...","sub":"..."}}],"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}'
+    : '{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}');
   return lines.join('\n');
 }
 
@@ -132,11 +144,17 @@ function str(v: unknown, max: number): string | null {
 
 // O que volta do modelo, no formato que o resto do motor espera. Corta o que passa do limite em
 // vez de recusar: o revisor por regra decide se o texto cabe na imagem.
-export function parseCopy(json: unknown, requested: PostKind | null): Parsed {
+export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single'): Parsed {
   const o = json && typeof json === 'object' && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
   if (!o) return { ok: false, error: 'O modelo não devolveu um objeto.' };
   const kind: PostKind = requested ?? (o.kind === 'atmosfera' ? 'atmosfera' : 'informativo');
-  const texts = o.texts && typeof o.texts === 'object' ? (o.texts as Record<string, unknown>) : {};
+  let slides: CopySlide[] | undefined;
+  if (format === 'carousel') {
+    const parsed = parseSlides(o.slides);
+    if (!parsed.ok) return parsed;
+    slides = parsed.value;
+  }
+  const texts = slides ? (slides[0].texts as Record<string, unknown>) : o.texts && typeof o.texts === 'object' ? (o.texts as Record<string, unknown>) : {};
   const title = str(texts.title, LIMITS.title);
   if (!title) return { ok: false, error: 'O modelo não devolveu o título.' };
   const caption = typeof o.caption === 'string' ? o.caption.trim().slice(0, LIMITS.caption) : '';
@@ -145,16 +163,17 @@ export function parseCopy(json: unknown, requested: PostKind | null): Parsed {
     .map((h) => String(h).trim().replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}_]/gu, ''))
     .filter((h, i, arr) => h && arr.indexOf(h) === i)
     .slice(0, LIMITS.hashtags);
-  const items = kind === 'informativo' && Array.isArray(texts.items) ? texts.items.map((x) => str(x, LIMITS.item)).filter((x): x is string => !!x).slice(0, LIMITS.items) : [];
+  const items = !slides && kind === 'informativo' && Array.isArray(texts.items) ? texts.items.map((x) => str(x, LIMITS.item)).filter((x): x is string => !!x).slice(0, LIMITS.items) : [];
   const copy: Copy = {
     kind,
     angle: str(o.angle, LIMITS.angle) ?? '',
     texts: {
       title,
       ...(str(texts.kicker, LIMITS.kicker) ? { kicker: str(texts.kicker, LIMITS.kicker)! } : {}),
-      ...(kind === 'informativo' && str(texts.sub, LIMITS.sub) ? { sub: str(texts.sub, LIMITS.sub)! } : {}),
+      ...((slides || kind === 'informativo') && str(texts.sub, LIMITS.sub) ? { sub: str(texts.sub, LIMITS.sub)! } : {}),
       ...(items.length >= 2 ? { items } : {}),
     },
+    ...(slides ? { slides } : {}),
     caption,
     hashtags,
     visualPrompt: kind === 'atmosfera' ? str(o.visual_prompt, LIMITS.visualPrompt) : null,
@@ -163,6 +182,25 @@ export function parseCopy(json: unknown, requested: PostKind | null): Parsed {
   copy.altText = cleanAltText(o.alt_text) ?? '';
   if (kind === 'atmosfera' && !copy.visualPrompt) return { ok: false, error: 'O modelo não descreveu o visual do post de atmosfera.' };
   return { ok: true, value: copy };
+}
+
+// As lâminas do carrossel (SPEC 023): de 2 a 6, o papel vem da posição (capa, itens, chamada) e não do que o modelo
+// escreveu, e cada uma precisa de título. Item solto não existe na lâmina: ela é o item. Fora da faixa ou sem título
+// volta ao modelo como motivo da recusa, como as outras falhas de formato.
+function parseSlides(raw: unknown): { ok: true; value: CopySlide[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw)) return { ok: false, error: 'O modelo não devolveu as lâminas do carrossel (slides).' };
+  if (raw.length < MIN_SLIDES || raw.length > MAX_SLIDES) return { ok: false, error: `O carrossel precisa de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas, e vieram ${raw.length}.` };
+  const slides: CopySlide[] = [];
+  for (const [i, item] of raw.entries()) {
+    const t = (item && typeof item === 'object' ? (item as Record<string, unknown>).texts : null) as Record<string, unknown> | null;
+    const title = str(t?.title, LIMITS.title);
+    if (!title) return { ok: false, error: `A lâmina ${i + 1} veio sem título.` };
+    const role = roleAt(i, raw.length);
+    const kicker = role === 'cta' ? null : str(t?.kicker, LIMITS.kicker);
+    const sub = str(t?.sub, LIMITS.sub);
+    slides.push({ role, texts: { title, ...(kicker ? { kicker } : {}), ...(sub ? { sub } : {}) } });
+  }
+  return { ok: true, value: slides };
 }
 
 // Texto alternativo (BEZ-203): o que o Instagram lê para quem usa leitor de tela. O que vem do modelo é
@@ -212,13 +250,13 @@ export function keepWhatPassed(previous: Copy, next: Copy, feedback: Issue[]): C
   if (feedback.some((i) => i.rule === 'format')) return next;
   const sides = new Set(feedback.map((i) => i.where));
   if (sides.size !== 1) return next;
-  if (sides.has('caption')) return { ...next, kind: previous.kind, angle: previous.angle, texts: previous.texts, visualPrompt: previous.visualPrompt, altText: previous.altText };
+  if (sides.has('caption')) return { ...next, kind: previous.kind, angle: previous.angle, texts: previous.texts, ...(previous.slides ? { slides: previous.slides } : {}), visualPrompt: previous.visualPrompt, altText: previous.altText };
   return { ...next, caption: previous.caption, hashtags: previous.hashtags };
 }
 
 export function imageTextsOf(copy: Copy): string[] {
-  const t = copy.texts;
-  return [t.kicker, t.title, t.sub, ...(t.items ?? [])].filter((x): x is string => !!x);
+  const all = copy.slides ? copy.slides.map((s) => s.texts) : [copy.texts];
+  return all.flatMap((t) => [t.kicker, t.title, t.sub, ...(t.items ?? [])]).filter((x): x is string => !!x);
 }
 
 // Atalhos de ajuste da legenda (SPEC 012, decisão 2): uma chamada curta, só sobre a legenda. O texto

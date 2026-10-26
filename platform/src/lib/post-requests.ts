@@ -5,7 +5,7 @@
 import type { TenantDb } from './tenant-db';
 import type { SessionUser } from './accounts';
 import { UserError } from './errors';
-import { DEFAULT_RATIO, isPostGoal, isPostKind, isRatio, kindForGoal, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
+import { DEFAULT_FORMAT, DEFAULT_RATIO, isPostFormat, isPostGoal, isPostKind, isRatio, kindForGoal, type PostFormat, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
 import { runsOfBrief } from './generation-db';
 import { log } from './log';
 import { IDEA_MAX } from './post-limits';
@@ -16,7 +16,8 @@ import { canUseInPost } from './media-asset-model';
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
 // photo: foto do banco anexada e como usá-la (SPEC 017 decisão 7, BEZ-237).
-export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; photo?: { assetId: string; usage: PhotoUsage } | null };
+// format: uma imagem ou carrossel, escolha da pessoa (SPEC 023); sem ele, uma imagem.
+export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; photo?: { assetId: string; usage: PhotoUsage } | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -30,12 +31,15 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   if (b.kind != null && b.kind !== '' && !isPostKind(b.kind)) return { ok: false, error: 'Escolha informativo ou atmosfera, ou deixe a Ekoai decidir.', field: 'kind' };
   if (b.goal != null && b.goal !== '' && !isPostGoal(b.goal)) return { ok: false, error: 'Escolha um dos objetivos da lista, ou deixe a Ekoai escolher.', field: 'goal' };
   if (b.ratio != null && b.ratio !== '' && !isRatio(b.ratio)) return { ok: false, error: 'Escolha o formato retrato (4:5) ou quadrado (1:1).', field: 'ratio' };
+  if (b.format != null && b.format !== '' && !isPostFormat(b.format)) return { ok: false, error: 'Escolha uma imagem ou carrossel.', field: 'format' };
   const photo = parsePhotoChoice(b);
   if (!photo.ok) return photo;
+  if (photo.value && b.format === 'carousel') return { ok: false, error: 'O carrossel não usa foto anexada. Escolha uma imagem ou tire a foto.', field: 'format' };
   const goal = isPostGoal(b.goal) ? b.goal : null;
   // Com a foto à mostra, a imagem manda: o post é de atmosfera (foto com título, ou a foto como está).
   const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
   const value: PostRequestInput = { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO };
+  if (b.format === 'carousel') value.format = 'carousel';
   if (photo.value) value.photo = photo.value;
   return { ok: true, value };
 }
@@ -58,6 +62,7 @@ export async function createPostRequest(t: TenantDb, actor: SessionUser | null, 
       post_kind: input.kind,
       goal: input.goal ?? null,
       ratio: input.ratio ?? DEFAULT_RATIO,
+      format: input.format ?? DEFAULT_FORMAT,
       asset_id: photo?.assetId ?? null,
       photo_usage: photo?.usage ?? null,
       campaign_id: input.campaignId ?? null,

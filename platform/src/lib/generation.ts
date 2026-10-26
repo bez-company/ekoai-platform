@@ -18,13 +18,15 @@ import { factsForPrompt } from './company-facts-model';
 import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
-import { DEFAULT_RATIO, GOALS, inputHash, isPostGoal, isRatio, LIMIT_MESSAGE, type PostGoal, type PostKind, type Ratio } from './generation-model';
+import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGoal, isRatio, LIMIT_MESSAGE, type PostFormat, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
+import { inSlide, layoutForRole, reviewSlides, storedSlides } from './design/carousel';
+import { renderCarousel, type RenderedCarousel } from './generation-carousel';
 import { notify } from './notifications';
 import { applyDesignRulesToSpec } from './design-rules';
 import { NotFoundError, UserError, userMessage } from './errors';
@@ -44,10 +46,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -62,6 +64,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     photoUsage: isPhotoUsage(data.photo_usage) ? data.photo_usage : null,
     campaignId: (data.campaign_id as string | null) ?? null,
     directives: directivesFromStored(data.directives),
+    format: isPostFormat(data.format) ? data.format : DEFAULT_FORMAT,
   };
 }
 
@@ -140,13 +143,16 @@ const copyCampaign = (c: Campaign | null) => (c ? { name: c.name, objective: c.o
 
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 
+// O formato que vale: a foto anexada é sempre uma imagem só (o carrossel não tem foto por lâmina, SPEC 023).
+const formatOf = (brief: Brief, photo: BriefPhoto | null): PostFormat => (photo ? 'single' : brief.format);
+
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
 async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null, campaign: Campaign | null = null, plan: Plan | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -163,13 +169,15 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
         throw e;
       }
     }
-    const parsed = parseCopy(json, plan?.kind ?? brief.kind);
+    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo));
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
     }
     const copy: Copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
+    const textIssues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
+    // Carrossel: cada achado de texto diz a lâmina, e valem as regras entre lâminas (capa curta, título que não se repete).
+    const issues = copy.slides ? [...textIssues.map((i) => inSlide(i, copy.slides!)), ...reviewSlides(copy.slides)] : textIssues;
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) return { copy, issues };
@@ -267,13 +275,15 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const campaign = await campaignOf(t, brief.campaignId);
     // Com foto anexada o pedido segue o fluxo da foto: as instruções de composição não se aplicam.
     const situation = { kind: brief.kind, hasLogo: !!logo, hasHandle: !!profile.instagramHandle, brandName: account?.name ?? null };
-    const plan = !photo && directives.status === 'ok' && hasDirectives(directives.directives) ? planDirectives(directives.directives, situation) : null;
+    const plan = !photo && brief.format !== 'carousel' && directives.status === 'ok' && hasDirectives(directives.directives) ? planDirectives(directives.directives, situation) : null;
     const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign, plan);
     const pieces = plan ? composeDesign(directives.directives, plan, copy, situation) : null;
     const directed = !!pieces?.applied.length;
     // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.
     const kind: PostKind = photo ? 'atmosfera' : copy.kind;
     if (brief.kind !== kind) await setBrief(t, brief.id, { post_kind: kind });
+    // Carrossel (SPEC 023): o redator devolveu as lâminas. O visual é um só, o da capa.
+    const carousel = !!copy.slides && formatOf(brief, photo) === 'carousel';
 
     // A foto da pessoa no lugar do visual por IA ("como está", "de fundo", "no layout"): não chama o
     // modelo de imagem, então não conta no limite do plano. "Inspiração" gera, com a foto de referência.
@@ -297,7 +307,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       kind,
       ratio: brief.ratio,
       // Foto "dentro do layout da marca" (BEZ-251): Janela ou Arco, alternando a cada outra direção.
-      layout: photo?.usage === 'layout' ? brandPhotoLayout(brief.direction) : (pieces?.layout ?? defaultLayout(kind, copy.texts)),
+      layout: carousel ? layoutForRole('cover', kind, !!visualKey) : photo?.usage === 'layout' ? brandPhotoLayout(brief.direction) : (pieces?.layout ?? defaultLayout(kind, copy.texts)),
       texts: pieces?.texts ?? copy.texts,
       brand,
       logo,
@@ -314,7 +324,14 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     if (ruled?.applied.length) Object.assign(spec, ruled.spec);
     // "Como está": a foto cortada é a imagem do post, sem texto, logo nem véu por cima.
     let rendered: { png: Buffer; issues: Issue[] };
-    if (photo?.usage === 'as_is' && photoPng) {
+    let carouselRendered: RenderedCarousel | null = null;
+    if (carousel) {
+      // Todas as lâminas pela mesma marca e o mesmo logo; só a capa leva o visual. A capa sem subtítulo (se não coube) vale.
+      const { kind: _k, layout: _l, texts: _t, slide: _s, ...common } = spec;
+      carouselRendered = renderCarousel(copy.slides!, { ...common, kind }, deps.fontDir ? { fontDir: deps.fontDir } : {});
+      rendered = { png: carouselRendered.slides[0].png, issues: carouselRendered.issues };
+      spec.texts = carouselRendered.slides[0].spec.texts;
+    } else if (photo?.usage === 'as_is' && photoPng) {
       rendered = { png: photoPng, issues: [] };
     } else {
       rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
@@ -325,12 +342,14 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         rendered = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {});
       }
     }
-    const pngKey = `images/${randomUUID()}.png`;
-    await store.put(pngKey, rendered.png, 'image/png');
+    // Uma chave por lâmina (a primeira é a capa e o png_key do post).
+    const keys = carouselRendered ? carouselRendered.slides.map(() => `images/${randomUUID()}.png`) : [`images/${randomUUID()}.png`];
+    const pngKey = keys[0];
+    await Promise.all(keys.map((key, i) => store.put(key, carouselRendered ? carouselRendered.slides[i].png : rendered.png, 'image/png')));
 
     const directiveIssues = plan && pieces ? reviewComposed(directives.directives, plan, pieces) : [];
     const allIssues = [...issues, ...rendered.issues, ...directiveIssues];
-    const stored = { ...storedDesignOf(spec), ...(photo ? { photo: { assetId: photo.asset.id, usage: photo.usage } } : {}), ...(ruled?.applied.length ? { rules: ruled.applied } : {}) };
+    const stored = { ...storedDesignOf(spec), ...(carouselRendered ? { slides: storedSlides(carouselRendered.slides.map((x) => x.spec), carouselRendered.roles, keys) } : {}), ...(photo ? { photo: { assetId: photo.asset.id, usage: photo.usage } } : {}), ...(ruled?.applied.length ? { rules: ruled.applied } : {}) };
     const design = await t
       .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: spec.layout, design: stored, visual_key: visualKey, png_key: pngKey, review: { issues: allIssues } })
       .select('id')
@@ -349,7 +368,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         goal: brief.goal,
         ratio: brief.ratio,
         angle: copy.angle || null,
-        variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: 'single' }],
+        variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: carousel ? 'carousel' : 'single', ...(carousel ? { slideUrls: keys.map((key) => mediaUrl(key, deps.mediaBaseUrl)) } : {}) }],
         model: deps.model.config.textModel,
         // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a
         // descrição do banco de imagens quando o redator não mandou.
@@ -360,7 +379,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         judge_reason: allIssues.length ? allIssues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: contraste, tamanho do texto, acentos, palavras proibidas e fatos da base.',
       },
       top_id: 1,
-      images: [{ id: 1, url: mediaUrl(pngKey, deps.mediaBaseUrl), path: pngKey }],
+      images: keys.map((key, i) => ({ id: i + 1, url: mediaUrl(key, deps.mediaBaseUrl), path: key })),
       seed: {
         brief_id: brief.id,
         mother_channel: 'instagram',
@@ -369,6 +388,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         ratio: brief.ratio,
         idea: brief.idea,
         layout: spec.layout,
+        format: carousel ? 'carousel' : 'single',
+        ...(carousel ? { slides: keys.length } : {}),
         review: allIssues,
         // Foto do banco à mostra: ao aprovar, o agendado leva a foto e o publish a marca como usada.
         ...(photo ? { photo_usage: photo.usage, ...(usageShowsPhoto(photo.usage) ? { media_asset_id: photo.asset.id } : {}) } : {}),

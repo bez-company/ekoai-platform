@@ -10,6 +10,15 @@ export type Step = (typeof STEPS)[number];
 export const POST_KINDS = ['informativo', 'atmosfera'] as const;
 export type PostKind = (typeof POST_KINDS)[number];
 
+// O tipo do post pelo número de imagens (SPEC 023): uma imagem ou carrossel de 2 a 6 lâminas. Quem escolhe é a pessoa.
+export const POST_FORMATS = ['single', 'carousel'] as const;
+export type PostFormat = (typeof POST_FORMATS)[number];
+export const DEFAULT_FORMAT: PostFormat = 'single';
+
+export function isPostFormat(value: unknown): value is PostFormat {
+  return typeof value === 'string' && (POST_FORMATS as readonly string[]).includes(value);
+}
+
 export const RATIOS = ['1:1', '4:5'] as const;
 export type Ratio = (typeof RATIOS)[number];
 export const DEFAULT_RATIO: Ratio = '4:5'; // retrato ocupa mais tela no feed (SPEC 017 decisão 5)

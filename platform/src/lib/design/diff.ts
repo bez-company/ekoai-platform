@@ -47,6 +47,7 @@ const LAYOUT_NAME: Record<Layout, string> = {
   'foto-janela': 'foto na janela',
   'foto-arco': 'foto no arco',
   marca: 'cartão de marca',
+  'lamina-item': 'lâmina de item',
 };
 const TEXT_NAME: Record<string, string> = { 'texts.kicker': 'selo', 'texts.title': 'título', 'texts.sub': 'subtítulo' };
 const COLOR_NAME: Record<string, string> = { 'colors.title': 'título', 'colors.sub': 'subtítulo', 'colors.kicker': 'selo', 'colors.items': 'itens' };

@@ -58,7 +58,7 @@ function candidateOf(e: DiffEntry, kind: PostKind): Candidate | null {
 export type EditedPost = { designId: string; initial: StoredDesign; current: StoredDesign; ctx: DiffContext; lastEditAt: string; revisionIds: string[] };
 export type Proposal = { field: RuleField; scope: RuleScope; value: RuleValue; ruleKey: string; posts: number; firstAt: string; lastAt: string; revisionIds: string[]; explanation: string };
 
-const LAYOUT_NAME: Record<Layout, string> = { 'lista-numerada': 'lista numerada', 'titulo-destaque': 'título em destaque', 'foto-titulo': 'foto com título', 'foto-janela': 'foto na janela', 'foto-arco': 'foto no arco', marca: 'cartão de marca' };
+const LAYOUT_NAME: Record<Layout, string> = { 'lista-numerada': 'lista numerada', 'titulo-destaque': 'título em destaque', 'foto-titulo': 'foto com título', 'foto-janela': 'foto na janela', 'foto-arco': 'foto no arco', marca: 'cartão de marca', 'lamina-item': 'lâmina de item' };
 const CORNER_NAME: Record<LogoCorner, string> = { tl: 'superior esquerdo', tr: 'superior direito', bl: 'inferior esquerdo', br: 'inferior direito' };
 const KIND_PLURAL: Record<PostKind, string> = { informativo: 'informativos', atmosfera: 'de atmosfera' };
 

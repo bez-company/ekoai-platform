@@ -441,6 +441,65 @@ function marca(spec: DesignSpec): Composed {
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 
+// Lâmina de conteúdo do carrossel (SPEC 023): o número do item num círculo da marca, o selo ao lado ("Sinal 1 de 3"
+// ou o que o redator escreveu), o título grande e o subtítulo. Fundo claro da marca, assinatura como nas outras
+// famílias e uma barra de progresso das lâminas embaixo, para a pessoa ver quanto falta.
+function laminaItem(spec: DesignSpec): Composed {
+  const H = HEIGHT[spec.ratio];
+  const P = paletteFor(spec);
+  const b = spec.brand;
+  const heading = b.fontHeading;
+  const body = b.fontBody;
+  const pos = spec.slide;
+  const boxes: TextBox[] = [];
+  const overflow: string[] = [];
+  const inner = WIDTH - MARGIN * 2;
+  const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
+  parts.push(`<circle cx="${WIDTH - 40}" cy="60" r="250" fill="${mix(b.primary, P.bg, 0.86)}"/>`);
+
+  let y = MARGIN + 36;
+  const r = 84;
+  const cx = MARGIN + r;
+  const cy = y + r;
+  const badgeText = contrast(P.kicker, '#FFFFFF') >= 3 ? '#FFFFFF' : P.bg;
+  parts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${P.kicker}"/>`);
+  if (pos?.item) parts.push(`<text x="${cx}" y="${cy + 38}" font-size="112" text-anchor="middle" fill="${badgeText}" ${fontFace(heading, true)}>${pos.item}</text>`);
+
+  const label = (spec.texts.kicker?.trim() || (pos?.item && pos.items ? `${pos.item} de ${pos.items}` : '')).toUpperCase();
+  if (label) {
+    const size = 28;
+    const lx = cx + r + 32;
+    parts.push(`<text x="${lx}" y="${cy + size / 2 - 4}" font-size="${size}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(label)}</text>`);
+    boxes.push({ id: 'kicker', x: lx, y: cy - size / 2 - 8, w: Math.min(WIDTH - MARGIN - lx, textWidth(label, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: P.bg, bold: true });
+  }
+  y = cy + r + 72;
+
+  const title = fitText(spec.texts.title, { family: heading, maxWidth: inner, maxLines: 4, start: 96, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+  if (title.overflow) overflow.push('title');
+  parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
+  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
+  y += title.height + 36;
+
+  const sub = spec.texts.sub?.trim();
+  if (sub) {
+    const fit = fitText(sub, { family: body, maxWidth: 860, maxLines: 4, start: 40, min: 26, step: 2, lineHeight: 1.3 });
+    if (fit.overflow) overflow.push('sub');
+    parts.push(textLines(fit, MARGIN, y, fit.size, P.sub, body, false));
+    boxes.push({ id: 'sub', x: MARGIN, y, w: fit.width, h: fit.height, size: fit.size, color: P.sub, bg: P.bg });
+  }
+
+  if (pos && pos.of > 1) {
+    const gap = 10;
+    const seg = Math.min(96, Math.floor((inner - gap * (pos.of - 1)) / pos.of));
+    const by = H - MARGIN - LOGO_H - 44;
+    for (let i = 0; i < pos.of; i += 1) {
+      parts.push(`<rect x="${MARGIN + i * (seg + gap)}" y="${by}" width="${seg}" height="8" rx="4" fill="${i + 1 === pos.n ? P.kicker : mix(b.primary, P.bg, 0.78)}"/>`);
+    }
+  }
+  signature(spec, P, H, null, parts, boxes);
+  return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
+}
+
 function wrap(parts: string[], H: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${H}" viewBox="0 0 ${WIDTH} ${H}">${parts.join('')}</svg>`;
 }
@@ -451,6 +510,7 @@ export function compose(spec: DesignSpec): Composed {
   if (spec.layout === 'foto-janela') return fotoJanela(spec);
   if (spec.layout === 'foto-arco') return fotoArco(spec);
   if (spec.layout === 'marca') return marca(spec);
+  if (spec.layout === 'lamina-item') return laminaItem(spec);
   return fotoTitulo(spec);
 }
 
