@@ -65,6 +65,7 @@ const EXPECTED = {
   'posts/[id]/design/revisions/[version]/restore': ['content.edit'],
   'posts/[id]/design/signal': ['content.edit'],
   'design-rules': ['profile.view'],
+  'learning/observations': ['brand.manage'],
   'design-rules/[id]/[action]': ['brand.manage'],
   'instagram/grid': ['content.view'],
   'instagram/connect': ['channels.manage'],

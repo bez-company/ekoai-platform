@@ -313,10 +313,11 @@ export function commemorativeDates(year: number): CommemorativeDate[] {
 export type IdeaCampaign = { name: string; objective: string | null; offering: string | null; audience: string | null; restrictions: readonly string[] };
 export type IdeaItem = { i: number; goal: PostGoal; photo: string | null; date: string | null; campaign?: boolean };
 
-export function ideasPrompt(input: { niche: string | null; offering: string | null; items: IdeaItem[]; campaign?: IdeaCampaign | null; facts?: readonly string[]; never?: readonly string[] }): string {
+export function ideasPrompt(input: { niche: string | null; offering: string | null; items: IdeaItem[]; campaign?: IdeaCampaign | null; facts?: readonly string[]; never?: readonly string[]; hints?: readonly string[] }): string {
   const camp = input.campaign ?? null;
   const facts = input.facts ?? [];
   const never = [...(input.never ?? []), ...(camp?.restrictions ?? [])];
+  const hints = input.hints ?? [];
   return [
     'Você é o coordenador de conteúdo do Instagram de uma empresa brasileira.',
     input.niche ? `Ramo: ${input.niche}.` : '',
@@ -324,6 +325,8 @@ export function ideasPrompt(input: { niche: string | null; offering: string | nu
     camp ? `Campanha ativa: ${camp.name}.${camp.objective ? ` Resultado que a empresa quer: ${camp.objective}.` : ''}${camp.offering ? ` O que entra nos posts: ${camp.offering}.` : ''}${camp.audience ? ` Para quem: ${camp.audience}.` : ''} Os itens marcados com "campanha: sim" servem a ela; os outros seguem a rotação normal.` : '',
     facts.length ? `Fatos que a empresa pode afirmar (número, preço e prazo só valem se estiverem aqui${camp?.offering ? ' ou na oferta da campanha' : ''}):\n${facts.map((f) => `- ${f}`).join('\n')}` : 'Não há fatos cadastrados: não use número, preço nem prazo.',
     never.length ? `Nunca diga:\n${never.map((f) => `- ${f}`).join('\n')}` : '',
+    // SPEC 022: observações do público que a pessoa ligou. Peso leve: nunca mudam os itens, os fatos nem o que não se diz.
+    hints.length ? `O que os números desta conta mostram (use só como pista de tom e de assunto, sem mudar os itens abaixo):\n${hints.map((h) => `- ${h}`).join('\n')}` : '',
     `Para cada item, escreva a ideia de um post em uma frase curta (até ${IDEA_MAX} caracteres), em português do Brasil, concreta e sem inventar preço, prazo, desconto, meta, depoimento nem nome de cliente. Nada de travessão.`,
     'Itens:',
     ...input.items.map((it) => `${it.i}. objetivo: ${GOALS[it.goal].hint || GOALS[it.goal].label}${it.date ? `; data: ${it.date}` : ''}${it.photo ? `; foto: ${it.photo}` : ''}${it.campaign ? '; campanha: sim' : ''}`),

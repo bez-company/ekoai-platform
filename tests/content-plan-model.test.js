@@ -234,6 +234,16 @@ describe('ideia da sugestão com campanha e fatos (SPEC 018)', () => {
     expect(ideasPrompt({ niche: null, offering: null, items: [] })).toContain('Não há fatos cadastrados: não use número, preço nem prazo.');
   });
 
+  it('dicas do público (SPEC 022): entram como pista leve, depois dos fatos e do que não se diz, e somem sem dica', () => {
+    const items = [{ i: 0, goal: 'ensinar', photo: null, date: null }];
+    const withHints = ideasPrompt({ niche: 'Confeitaria', offering: 'Bolos', items, never: ['garantia'], hints: ['Posts informativos renderam 1,8 vez o engajamento dos de atmosfera.', 'Seu público tem 67% entre 25 e 44 anos.'] });
+    expect(withHints).toContain('O que os números desta conta mostram (use só como pista de tom e de assunto, sem mudar os itens abaixo):');
+    expect(withHints).toContain('- Posts informativos renderam 1,8 vez o engajamento dos de atmosfera.');
+    expect(withHints.indexOf('Nunca diga:')).toBeLessThan(withHints.indexOf('O que os números desta conta mostram'));
+    expect(withHints.indexOf('O que os números desta conta mostram')).toBeLessThan(withHints.indexOf('Itens:'));
+    for (const none of [undefined, []]) expect(ideasPrompt({ niche: null, offering: null, items, hints: none })).not.toContain('O que os números desta conta mostram');
+  });
+
   it('a ideia com número fora dos fatos, "nunca afirmar", palavra proibida ou travessão é barrada; a oferta da campanha libera o número dela', () => {
     const ctx = { facts: ['Entregamos no mesmo dia'], never: ['sem açúcar'], banned: ['imperdível'], inactive: [{ text: 'Bolo de pote por R$ 18', reason: 'expired', validUntil: '2026-10-15' }] };
     expect(ideaProblems('Mostre o forno aceso logo cedo', ctx)).toEqual([]);
