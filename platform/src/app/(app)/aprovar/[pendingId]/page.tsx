@@ -32,7 +32,8 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
     // O ajuste rápido e as versões (SPEC 019): só para post com design. Falhar aqui nunca derruba a tela.
-    const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
+    // Carrossel: o ajuste por lâmina é da entrega seguinte (SPEC 023); até lá a tela não oferece ajuste de design.
+    const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' && p.generation?.variations?.[0]?.format !== 'carousel' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
     const brand = brandFromProfile(profile);
     const swatches = [
       { label: 'Cor principal da marca', hex: brand.primary },

@@ -25,7 +25,7 @@ import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWh
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
-import { inSlide, layoutForRole, reviewSlides, storedSlides } from './design/carousel';
+import { inSlide, layoutForRole, reviewSlides, slideAltText, storedSlides } from './design/carousel';
 import { renderCarousel, type RenderedCarousel } from './generation-carousel';
 import { notify } from './notifications';
 import { applyDesignRulesToSpec } from './design-rules';
@@ -373,6 +373,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a
         // descrição do banco de imagens quando o redator não mandou.
         alt_text: finalAltText({ fromWriter: copy.altText, photoDescription: photo?.usage === 'as_is' ? photo.asset.description : null, texts: copy.texts, banned: profile.bannedWords }),
+        ...(carousel ? { slide_alts: copy.slides!.map((sl, k) => slideAltText(sl.texts, k, copy.slides!.length)) } : {}),
         guardrail_flags: allIssues.map((i) => i.rule),
         // O que a pessoa pediu sobre a imagem e o que o código fez (SPEC 020): a tela Aprovar mostra os dois.
         ...(directives.status === 'failed' || pieces ? { directives: { status: directives.status, read: describeEach(directives.directives).map((x) => x.text), applied: (pieces?.applied ?? []).map((x) => x.text), notApplied: (pieces?.notApplied ?? []).map((x) => ({ what: x.what, why: x.why })) } } : {}),
@@ -389,7 +390,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         idea: brief.idea,
         layout: spec.layout,
         format: carousel ? 'carousel' : 'single',
-        ...(carousel ? { slides: keys.length } : {}),
+        ...(carousel ? { slides: keys.length, slide_titles: copy.slides!.map((s) => s.texts.title) } : {}),
         review: allIssues,
         // Foto do banco à mostra: ao aprovar, o agendado leva a foto e o publish a marca como usada.
         ...(photo ? { photo_usage: photo.usage, ...(usageShowsPhoto(photo.usage) ? { media_asset_id: photo.asset.id } : {}) } : {}),

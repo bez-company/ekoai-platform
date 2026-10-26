@@ -36,6 +36,7 @@ export type Generation = {
   guardrail_flags?: string[];
   heuristic_scores?: Record<string, number>;
   alt_text?: string; // texto alternativo da imagem, enviado ao Instagram (BEZ-203)
+  slide_alts?: string[]; // o de cada lâmina do carrossel, na ordem das lâminas (SPEC 023)
 };
 
 export type PendingApproval = {

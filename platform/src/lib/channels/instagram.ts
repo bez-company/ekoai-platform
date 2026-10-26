@@ -140,13 +140,19 @@ export async function publishSingle(creds: InstagramCredentials, imageUrl: strin
   return { ...published, channel: 'instagram', alt_text: container.altText };
 }
 
-export async function publishCarousel(creds: InstagramCredentials, imageUrls: string[], caption: string, hooks: PublishHooks = {}): Promise<{ id: string; channel: 'instagram'; slides: number; rehearsal?: true }> {
+// Carrossel (SPEC 023): cada lâmina vira um container filho, com o texto alternativo dela quando houver (a Meta aceita
+// `alt_text` em imagem de carrossel; recusado, o filho é criado sem ele e o resultado conta quantos não levaram).
+export async function publishCarousel(creds: InstagramCredentials, imageUrls: string[], caption: string, hooks: PublishHooks = {}, altTexts: readonly string[] = []): Promise<{ id: string; channel: 'instagram'; slides: number; alt_text: { sent: number; dropped: number }; rehearsal?: true }> {
   if (!imageUrls || imageUrls.length < 2) throw new Error('Carousel precisa 2+ imagens');
   if (imageUrls.length > 10) throw new Error('Carousel suporta no máximo 10 slides');
 
   const childIds: string[] = [];
-  for (const url of imageUrls) {
-    const child = await apiPost(creds, `/${creds.accountId}/media`, { image_url: url, is_carousel_item: 'true' });
+  const alt = { sent: 0, dropped: 0 };
+  for (const [i, url] of imageUrls.entries()) {
+    const text = altTexts[i]?.trim() || null;
+    const child = await createImageContainer(creds, { image_url: url, is_carousel_item: 'true' }, text);
+    if (child.altText === 'sent') alt.sent += 1;
+    if (child.altText === 'dropped') alt.dropped += 1;
     childIds.push(child.id);
   }
   for (const id of childIds) await waitContainerReady(creds, id);
@@ -159,5 +165,5 @@ export async function publishCarousel(creds: InstagramCredentials, imageUrls: st
   await hooks.onContainer?.(container.id);
   await waitContainerReady(creds, container.id);
   const published = await finishPublish(creds, container.id, hooks);
-  return { ...published, channel: 'instagram', slides: imageUrls.length };
+  return { ...published, channel: 'instagram', slides: imageUrls.length, alt_text: alt };
 }

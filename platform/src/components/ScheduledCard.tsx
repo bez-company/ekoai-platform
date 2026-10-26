@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isoToLocalInput, localInputToIso } from '@/lib/format';
+import { carouselBadge } from '@/lib/carousel-view';
 import type { ScheduledPost } from '@/lib/types';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -66,6 +67,7 @@ export default function ScheduledCard({ post, time }: { post: ScheduledLike; tim
           <span className="chip">{CHANNEL_LABEL[post.channel] ?? post.channel}</span>
           <span className={`chip ${STATUS_STYLE[post.status] ?? ''}`}>{STATUS_LABEL[post.status] ?? post.status}</span>
           {post.pillar && <span className="chip">{post.pillar}</span>}
+          {post.variation?.format === 'carousel' && <span className="chip">{carouselBadge(post.variation.slideUrls?.length ?? 0)}</span>}
         </div>
         <p className="mt-1 line-clamp-2 text-sm">{post.variation?.hook || post.caption_final.slice(0, 100)}</p>
         {post.last_error && <p className="mt-1 line-clamp-2 text-xs text-danger">Motivo: {post.last_error}</p>}

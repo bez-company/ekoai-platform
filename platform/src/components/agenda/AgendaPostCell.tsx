@@ -36,6 +36,7 @@ export default function AgendaPostCell({ post, time }: { post: ScheduledLike; ti
           <span className="font-mono font-semibold text-accent-text md:order-first">{time}</span>
           <span className="line-clamp-2 text-fg">{text}</span>
           <span className={`chip max-w-full self-start truncate ${status.tone}`}>{status.label}</span>
+          {post.variation?.format === 'carousel' && <span className="chip max-w-full self-start truncate">Carrossel</span>}
         </span>
       </button>
       {open && (

@@ -124,6 +124,9 @@ describe('carrossel informativo', () => {
     expect(pending.generation.variations[0]).toMatchObject({ id: 1, format: 'carousel', hook: 'Seu bolo está pronto?' });
     expect(pending.generation.variations[0].slideUrls).toEqual(pending.images.map((i) => i.url));
     expect(pending.seed).toMatchObject({ format: 'carousel', slides: 5 });
+    expect(pending.seed.slide_titles).toEqual(SLIDES.map((sl) => sl.texts.title));
+    expect(pending.generation.slide_alts).toHaveLength(5);
+    expect(pending.generation.slide_alts[1]).toMatch(/^Lâmina 2 de 5: A massa desgruda da borda\./);
 
     const design = await one('select * from post_designs where id = $1', [pending.post_design_id]);
     expect(design).toMatchObject({ kind: 'informativo', layout: 'titulo-destaque', visual_key: null, png_key: pending.images[0].path });

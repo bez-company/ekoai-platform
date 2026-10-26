@@ -56,6 +56,9 @@ export default function FeedFrame({
   imagePosition,
   emptyLabel = 'Sem imagem',
   cropGuide = false,
+  slides,
+  slide = 0,
+  onSlide,
 }: {
   handle: string;
   accountName: string;
@@ -67,10 +70,19 @@ export default function FeedFrame({
   emptyLabel?: string;
   // O corte da miniatura do perfil, desenhado sobre o post (SPEC 023): o que fica nas faixas escuras some na grade.
   cropGuide?: boolean;
+  // Carrossel (SPEC 023): as imagens das lâminas e a que está à mostra; setas, pontos e contador mudam a lâmina.
+  slides?: string[];
+  slide?: number;
+  onSlide?: (index: number) => void;
 }) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const [expanded, setExpanded] = useState(false);
   const [body, ...rest] = caption.split(/\n\n/);
+  const carousel = !busy && !!slides && slides.length >= 2;
+  const total = slides?.length ?? 0;
+  const current = Math.min(Math.max(slide, 0), Math.max(total - 1, 0));
+  const shown = carousel ? slides![current] : imageUrl;
+  const go = (next: number) => onSlide?.(Math.min(Math.max(next, 0), total - 1));
   return (
     <figure className="w-full max-w-[420px] overflow-hidden rounded-xl border border-line bg-raised text-fg" aria-label="Prévia do post no feed do Instagram">
       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -81,13 +93,35 @@ export default function FeedFrame({
         </div>
         <span className="ml-auto text-muted" aria-hidden="true">···</span>
       </div>
-      {busy || !imageUrl ? (
+      {busy || !shown ? (
         <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ASPECT[ratio]}`}>{busy ? 'Desenhando o post…' : emptyLabel}</div>
       ) : (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
-          {cropGuide && <CropGuide ratio={ratio} />}
+          <img src={shown} alt={carousel ? `Lâmina ${current + 1} de ${total}` : 'Imagem do post'} className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
+          {cropGuide && current === 0 && <CropGuide ratio={ratio} />}
+          {carousel && (
+            <>
+              <span className="absolute right-2.5 top-2.5 rounded-full bg-ink/70 px-2.5 py-0.5 text-xs font-semibold text-paper" aria-live="polite">{current + 1}/{total}</span>
+              {current > 0 && (
+                <button type="button" aria-label="Lâmina anterior" onClick={() => go(current - 1)} className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-paper/90 text-lg text-ink shadow">
+                  &lsaquo;
+                </button>
+              )}
+              {current < total - 1 && (
+                <button type="button" aria-label="Próxima lâmina" onClick={() => go(current + 1)} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-paper/90 text-lg text-ink shadow">
+                  &rsaquo;
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {carousel && (
+        <div className="flex justify-center gap-1.5 pt-2" aria-hidden="true">
+          {slides!.map((_, i) => (
+            <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === current ? 'bg-accent' : 'bg-line-strong'}`} />
+          ))}
         </div>
       )}
       <div className="flex items-center gap-3 px-3 py-2 text-fg">
