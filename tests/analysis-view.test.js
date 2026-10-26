@@ -69,7 +69,7 @@ describe('estado da tela de Analytics', () => {
     expect(v.peakHours(new Array(24).fill(0.5))).toEqual([0, 1, 2]);
   });
 
-  it('texto e link da recomendação', () => {
+  it('texto da recomendação e link para os Horários', () => {
     const ok = recommendSlots(
       [
         ...Array.from({ length: 4 }, (_, i) => post({ publishedAt: `2026-10-${13 + i * 7 > 31 ? 27 : 13 + i * 7}T22:00:00.000Z`, engagement: 0.09 })),
@@ -80,9 +80,8 @@ describe('estado da tela de Analytics', () => {
     );
     expect(ok.ok).toBe(true);
     expect(v.recommendationText(ok)).toMatch(/^Ter 19h/);
-    expect(v.suggestionHref(ok)).toMatch(/^\/agenda\?edit=slots&sugestao=2-19,/);
+    expect(v.suggestionHref()).toBe('/agenda?edit=slots');
     const few = recommendSlots(posts(5), { tzOffsetHours: -3 });
     expect(v.recommendationText(few)).toBe('Faltam 7 posts para recomendar horários.');
-    expect(v.suggestionHref(few)).toBe('/agenda?edit=slots');
   });
 });

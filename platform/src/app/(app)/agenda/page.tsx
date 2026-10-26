@@ -11,6 +11,8 @@ import { campaignInEffect, todayLocal } from '@/lib/campaign-model';
 import { shortCampaignName } from '@/lib/campaign-view';
 import { campaignProgress, listCampaigns } from '@/lib/campaigns';
 import { agendaCounts, agendaTitle, dayOfMonth, parseAgendaQuery, WEEKDAY_SHORT, type Agenda, type AgendaDay } from '@/lib/agenda-model';
+import { loadRecommendation } from '@/lib/content-analysis';
+import type { Recommendation } from '@/lib/content-analysis-model';
 import { getActiveSlots, tzOffsetHours } from '@/lib/slots';
 import { can, pageSession } from '@/lib/session';
 import { pageError } from '@/lib/api';
@@ -40,6 +42,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     err = pageError(e, 'page/calendar');
   }
   const slotList = slots.map((s) => ({ weekday: s.weekday, hour: s.hour, minute: s.minute }));
+  // SPEC 022: o diálogo de Horários recomenda os melhores horários; sem a leitura, abre como sempre.
+  let recommendation: Recommendation | null = null;
+  if (canManage) {
+    try {
+      recommendation = await loadRecommendation(t);
+    } catch (e) {
+      pageError(e, 'page/calendar/recommendation');
+    }
+  }
   // Campanhas (SPEC 018): a Agenda segue sem elas se a leitura falhar.
   let campaignNames = new Map<string, string>();
   let strip: { campaign: Campaign; progress: CampaignProgress } | null = null;
@@ -69,7 +80,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           </nav>
           {canManage && (
             <Suspense>
-              <SlotsButton slots={slotList} />
+              <SlotsButton slots={slotList} recommendation={recommendation} />
             </Suspense>
           )}
         </div>

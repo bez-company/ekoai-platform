@@ -205,7 +205,7 @@ export function HoursBlock({ view }: { view: HoursView }) {
           {!rec.ok && <p className="mt-0.5 text-sm text-muted">A recomendação usa o desempenho dos seus posts e precisa de 12 com alcance.</p>}
         </div>
         {rec.ok && (
-          <Link href={suggestionHref(rec)} className="btn-ghost">
+          <Link href={suggestionHref()} className="btn-ghost">
             Ver horários sugeridos
           </Link>
         )}

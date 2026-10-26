@@ -94,8 +94,7 @@ export function recommendationText(r: Recommendation): string {
   return r.reason === 'few_posts' ? `Faltam ${r.need - r.have} ${r.need - r.have === 1 ? 'post' : 'posts'} para recomendar horários.` : `Os posts saíram em poucos horários diferentes: faltam ${r.need - r.have} para comparar.`;
 }
 
-// Link da Agenda com as sugestões, que o diálogo de Horários marca (entrega d): "?edit=slots&sugestao=2-19,5-11".
-export function suggestionHref(r: Recommendation): string {
-  if (!r.ok) return '/agenda?edit=slots';
-  return `/agenda?edit=slots&sugestao=${r.slots.map((s) => `${s.weekday}-${s.hour}`).join(',')}`;
+// O link da análise abre o diálogo de Horários da Agenda, que já traz a recomendação (entrega d).
+export function suggestionHref(): string {
+  return '/agenda?edit=slots';
 }
