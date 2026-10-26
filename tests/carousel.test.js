@@ -81,10 +81,12 @@ describe('prompt', () => {
   it('pede as lâminas só no carrossel', () => {
     const carousel = buildCopyPrompt({ ...input, format: 'carousel' });
     expect(carousel).toContain('CARROSSEL');
+    expect(carousel).toContain('UMA foto só, para a capa');
     expect(carousel).toContain('"slides":[');
     expect(carousel).not.toContain('"texts":{"kicker":"...","title":"...","sub":"...","items"');
     const single = buildCopyPrompt(input);
     expect(single).not.toContain('CARROSSEL');
+    expect(single).not.toContain('UMA foto só, para a capa');
     expect(single).toContain('"items":["...","..."]');
   });
 });
