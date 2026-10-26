@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import SlotsDialog from './SlotsDialog';
+import type { Recommendation } from '@/lib/content-analysis-model';
 import { defaultSlots, POSTS_PER_WEEK } from '@/lib/onboarding';
 
 type Slot = { weekday: number; hour: number; minute: number };
@@ -36,7 +37,7 @@ function useSlotsDialog() {
   };
 }
 
-export function SlotsButton({ slots }: { slots: Slot[] }) {
+export function SlotsButton({ slots, recommendation = null }: { slots: Slot[]; recommendation?: Recommendation | null }) {
   const d = useSlotsDialog();
   return (
     <>
@@ -48,7 +49,7 @@ export function SlotsButton({ slots }: { slots: Slot[] }) {
           {d.notice}
         </span>
       )}
-      {d.open && <SlotsDialog initial={slots} onClose={d.close} onSaved={d.saved} />}
+      {d.open && <SlotsDialog initial={slots} recommendation={recommendation} onClose={d.close} onSaved={d.saved} />}
     </>
   );
 }

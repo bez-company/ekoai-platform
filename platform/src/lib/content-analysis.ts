@@ -113,3 +113,9 @@ export async function loadAnalysis(t: TenantDb, nowMs = Date.now()): Promise<Ana
     ownHours: ownHourly(posts, tz),
   };
 }
+
+// Só a recomendação de horários, para o diálogo de Horários da Agenda: não precisa da análise inteira.
+export async function loadRecommendation(t: TenantDb, nowMs = Date.now()): Promise<Recommendation> {
+  const [posts, audience] = await Promise.all([listAnalysisPosts(t, nowMs), latestAudience(t)]);
+  return recommendSlots(posts, { tzOffsetHours: tzOffsetHours(), onlineHours: audience?.onlineHours ?? null });
+}
