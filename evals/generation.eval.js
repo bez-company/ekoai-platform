@@ -36,7 +36,7 @@ function loadMade(dir, company) {
   const t = JSON.parse(readFileSync(join(dir, 'trace.json'), 'utf8'));
   const saved = existsSync(join(dir, 'made.json')) ? JSON.parse(readFileSync(join(dir, 'made.json'), 'utf8')) : {};
   const imageTexts = saved.imageTexts ?? [t.copy.texts.kicker, t.copy.texts.title, t.copy.texts.sub, ...(t.copy.texts.items ?? []), `@${company.handle}`].filter(Boolean);
-  return { copy: t.copy, spec: { layout: t.layout }, png: readFileSync(join(dir, 'post.png')), imageTexts, textIssues: t.textIssues, layoutIssues: t.layoutIssues, trace: t.rounds, costUsd: saved.costUsd ?? 0, visualPng: null, visualPrompt: t.visualPrompt };
+  return { copy: t.copy, spec: { layout: t.layout }, png: readFileSync(join(dir, 'post.png')), imageTexts, textIssues: t.textIssues, layoutIssues: t.layoutIssues, trace: t.rounds, costUsd: saved.costUsd ?? 0, visualPng: null, visualPrompt: t.visualPrompt, directives: t.directives ?? null, applied: t.applied ?? [], notApplied: t.notApplied ?? [] };
 }
 
 const write = (path, data) => writeFileSync(path, typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data, null, 2));
