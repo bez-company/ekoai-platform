@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import PublishedTabs from '@/components/analysis/PublishedTabs';
 import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
@@ -71,6 +72,7 @@ export default async function HistoryPage() {
         <h1 className="text-xl font-semibold">Publicados</h1>
         <p className="text-sm text-muted">O que já saiu no Instagram e como foi. Abra um post para ver os números e dizer o que achou.</p>
       </div>
+      <PublishedTabs active="posts" />
 
       {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
 
