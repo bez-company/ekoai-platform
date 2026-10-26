@@ -10,7 +10,9 @@ import type { Background, Element, Place } from '../directives';
 // sempre sobre a cor da marca (uso "Dentro do layout da marca" da foto anexada).
 // marca (SPEC 020): o cartão de marca, fundo liso com logo, nome, @ e uma frase onde o pedido mandar (grade 3x3).
 // Só nasce de instrução do pedido; não entra na lista de trocas do ajuste rápido de quem não é dele.
-export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo', 'foto-janela', 'foto-arco', 'marca'] as const;
+// lamina-item (SPEC 023): a lâmina de conteúdo do carrossel, com o número do item em destaque. Só nasce no carrossel;
+// como o cartão de marca, não é opção de troca para os outros posts.
+export const LAYOUTS = ['lista-numerada', 'titulo-destaque', 'foto-titulo', 'foto-janela', 'foto-arco', 'marca', 'lamina-item'] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
 export type PostKind = 'informativo' | 'atmosfera';
@@ -68,9 +70,31 @@ export type DesignSpec = {
   background?: Background;
   placements?: Placements;
   brandName?: string | null;
+  slide?: SlidePosition; // a posição da lâmina no carrossel (família lamina-item)
 };
 
 export type Placements = Partial<Record<Element, Place | 'off'>>;
+
+// Carrossel (SPEC 023, ADR 0025): o post é uma lista de lâminas dentro do design. A primeira é a capa, a última a
+// chamada e as do meio levam um item cada. O que o post guarda no nível de cima (layout, texts, png_key) é o da capa.
+export const SLIDE_ROLES = ['cover', 'content', 'cta'] as const;
+export type SlideRole = (typeof SLIDE_ROLES)[number];
+export const MIN_SLIDES = 2;
+export const MAX_SLIDES = 6;
+
+export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string };
+
+// Onde a lâmina está no carrossel: `n` de `of` no total e, nas de conteúdo, o número do item entre os itens.
+export type SlidePosition = { n: number; of: number; item?: number; items?: number };
+
+export function slidePositions(roles: readonly SlideRole[]): SlidePosition[] {
+  const items = roles.filter((r) => r === 'content').length;
+  let item = 0;
+  return roles.map((role, i) => ({ n: i + 1, of: roles.length, ...(role === 'content' ? { item: ++item, items } : {}) }));
+}
+
+// O papel de cada posição: a primeira é a capa, a última a chamada e as do meio levam um item cada.
+export const roleAt = (index: number, count: number): SlideRole => (index === 0 ? 'cover' : index === count - 1 ? 'cta' : 'content');
 
 export type ProfileLike = {
   colorPrimary: string | null;
@@ -119,7 +143,7 @@ export function isLayout(value: unknown): value is Layout {
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
 // `rules`: os ids das regras de marca aplicadas quando o post nasceu (SPEC 019); só para medir e explicar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string };
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string; slides?: Slide[] };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
   return {
@@ -152,7 +176,7 @@ export function markBackground(b: Brand, background: Background | undefined): He
 export function compatibleLayouts(kind: PostKind, texts: Texts, hasVisual: boolean, current?: Layout): Layout[] {
   const base: Layout[] = kind === 'informativo' ? (texts.items && texts.items.length >= 2 ? ['lista-numerada', 'titulo-destaque'] : ['titulo-destaque']) : hasVisual ? ['foto-titulo', 'foto-janela', 'foto-arco'] : [];
   // O cartão de marca nasce do pedido: quem já está nele continua nele, mas ele não é opção para os outros posts.
-  return current === 'marca' ? [...base, 'marca'] : base;
+  return current === 'marca' || current === 'lamina-item' ? [...base, current] : base;
 }
 
 // Garante que a marca lê bem onde o layout a usa; devolve as cores de texto de cada layout.

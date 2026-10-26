@@ -49,4 +49,13 @@ describe('foto do banco no pedido (BEZ-237)', () => {
     expect(parsePostRequest({ idea: 'x', asset_id: ID })).toMatchObject({ ok: false, field: 'photo_usage' });
     expect(parsePostRequest({ idea: 'x', photo_usage: 'as_is' })).toMatchObject({ ok: false, field: 'asset_id' });
   });
+
+  it('o formato do carrossel (SPEC 023): só entra no valor quando é carrossel, e não vale com foto anexada', () => {
+    expect(parsePostRequest({ idea: 'x', format: 'carousel' }).value).toMatchObject({ format: 'carousel' });
+    expect(parsePostRequest({ idea: 'x', format: 'single' }).value.format).toBeUndefined();
+    expect(parsePostRequest({ idea: 'x', format: '' }).value.format).toBeUndefined();
+    expect(parsePostRequest({ idea: 'x', format: 'video' })).toMatchObject({ ok: false, field: 'format' });
+    const withPhoto = parsePostRequest({ idea: 'x', format: 'carousel', asset_id: '11111111-2222-4333-8444-555555555555', photo_usage: 'as_is' });
+    expect(withPhoto.ok).toBe(false);
+  });
 });

@@ -153,6 +153,8 @@ export function reviewLayout(boxes: TextBox[], height: number, overflow: string[
 export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'deadline_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
 // As regras das instruções do pedido (SPEC 020) entram à parte, para o conjunto acima não ter dono único.
 for (const rule of ['directive_text_missing', 'directive_extra_text', 'directive_count']) BLOCKING.add(rule);
+// As regras entre lâminas do carrossel (SPEC 023).
+for (const rule of ['cover_long', 'slide_duplicate']) BLOCKING.add(rule);
 
 export function blocking(issues: Issue[]): Issue[] {
   return issues.filter((i) => BLOCKING.has(i.rule));
