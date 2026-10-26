@@ -20,6 +20,7 @@ export type NotApplied = { key: string; what: string; why: string };
 
 export type Plan = {
   brandCard: boolean; // família `marca`
+  familyBackground: Directives['background'] | null; // fundo pedido sem cartão: vale nas famílias de lista e de título
   kind: PostKind | null; // o tipo que o redator recebe (o cartão de marca nunca tem foto)
   skipVisual: boolean; // não chama o modelo de imagem
   itemsCount: number | null;
@@ -28,6 +29,9 @@ export type Plan = {
   textOnly: boolean;
   notApplied: NotApplied[];
 };
+
+// O máximo de itens que uma imagem de lista leva (a família lista-numerada tem 4 posições).
+export const MAX_ITEMS = 4;
 
 const CORNERS: readonly string[] = ['tl', 'tr', 'bl', 'br'];
 const isCorner = (p: string): p is LogoCorner => CORNERS.includes(p);
@@ -71,9 +75,15 @@ export function planDirectives(d: Directives, s: Situation): Plan {
   const photoPost = s.kind === 'atmosfera' && !d.noPhoto && !d.background;
   const wantsName = el.name !== undefined && el.name !== 'off';
   const logoOffCorner = !!el.logo && el.logo !== 'off' && !isCorner(el.logo);
-  const wantsComposition = !!d.background || wantsName || el.handle !== undefined || el.title !== undefined || logoOffCorner || (!!d.noPhoto && s.kind === 'atmosfera');
+  // Posição pedida de nome, @, título ou logo fora dos cantos, ou "sem foto" num post de atmosfera: só o cartão de marca desenha.
+  const positionTrigger = wantsName || el.handle !== undefined || el.title !== undefined || logoOffCorner || (!!d.noPhoto && s.kind === 'atmosfera');
+  // A pessoa não deixou texto livre para o redator (frase exata ou "mais nada"): o fundo pedido vira cartão de marca.
+  // Com assunto livre ou lista, o fundo vale nas famílias de sempre (um cartão sem texto jogaria o conteúdo fora).
+  const contentFreeExact = !!d.textOnly && (d.exactTexts?.length ?? 0) > 0;
+  const contentFree = !!d.textOnly || (d.exactTexts?.length ?? 0) > 0;
+  const wantsComposition = positionTrigger || (!!d.background && contentFree && !d.itemsCount);
   const brandCard = wantsComposition && !photoPost;
-
+  const familyBackground = !brandCard && !photoPost && d.background ? d.background : null;
   if (photoPost && wantsComposition) {
     const why = 'Um post com foto não tem posição livre para isso. Peça fundo liso para ter o cartão de marca.';
     if (wantsName) skip('elements.name', `${ELEMENT_TEXT.name}`, why);
@@ -91,13 +101,17 @@ export function planDirectives(d: Directives, s: Situation): Plan {
     if ((d.exactTexts?.length ?? 0) > 1) skip('exactTexts', 'Mais de um texto exato', 'O cartão de marca tem uma frase só; vale a primeira.');
   } else if (photoPost && d.itemsCount) {
     skip('itemsCount', `${d.itemsCount} itens`, 'Post com foto não tem lista.');
+  } else if ((d.itemsCount ?? 0) > MAX_ITEMS) {
+    skip('itemsCount', `${d.itemsCount} itens`, `A lista leva no máximo ${MAX_ITEMS} itens por imagem. O post saiu com ${MAX_ITEMS}.`);
   }
 
   return {
     brandCard,
-    kind: brandCard ? 'informativo' : s.kind,
-    skipVisual: brandCard || !!d.noPhoto,
-    itemsCount: brandCard || photoPost ? null : (d.itemsCount ?? null),
+    familyBackground,
+    // Frase exata com "mais nada" e tipo em aberto: o agente não pode escolher foto de fundo ("só isso" é só isso).
+    kind: brandCard || (familyBackground && s.kind === 'atmosfera') || (s.kind === null && d.textOnly && contentFreeExact) ? 'informativo' : s.kind,
+    skipVisual: brandCard || !!d.noPhoto || (!!familyBackground && s.kind === 'atmosfera'),
+    itemsCount: brandCard || photoPost || !d.itemsCount ? null : Math.min(MAX_ITEMS, d.itemsCount),
     avoid: d.avoid ?? [],
     exactTexts: d.exactTexts ?? [],
     textOnly: !!d.textOnly,
@@ -164,6 +178,7 @@ export function composeDesign(d: Directives, plan: Plan, copy: CopyTexts, s: Sit
     } else {
       texts = { ...base, title, ...(sub ? { sub } : {}), ...(items ? { items } : exact.length > 2 ? { items: undefined } : {}) };
     }
+    if (plan.familyBackground) out.background = plan.familyBackground;
     if (el.logo === 'off') out.logoHidden = true;
     else if (el.logo && isCorner(el.logo) && s.hasLogo) out.logoCorner = el.logo;
     else if (el.logo && isCorner(el.logo)) notApplied.push({ key: 'elements.logo', what: ELEMENT_TEXT.logo, why: 'A conta não tem logo cadastrado. Envie o logo no perfil da empresa.' });

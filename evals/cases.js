@@ -88,7 +88,7 @@ export const COMPANIES = {
       220,
       220,
     ),
-    logoLooks: 'um círculo âmbar com um sol marrom',
+    logoLooks: 'um círculo âmbar com um sol marrom (o grafismo de círculos concêntricos marrom e cinza no canto superior direito de algumas imagens NÃO é o logo)',
   },
   vertice: {
     name: 'Vértice Engenharia',
@@ -158,13 +158,13 @@ export const COMPANIES = {
       200,
       200,
     ),
-    logoLooks: 'um quadrado arredondado verde com um dente branco',
+    logoLooks: 'um dente branco, em geral sobre um quadrado arredondado verde (que some quando o fundo também é verde: então só o dente aparece)',
   },
 };
 
 // A régua de ofício: vale para todo caso, e diz se o post é bom, não só se cumpre o pedido.
 export const CRAFT = [
-  { id: 'ofc-portugues', in: 'image', text: 'Todo texto da imagem e a legenda estão em português do Brasil correto, com acentos nos lugares certos e sem erro de digitação.' },
+  { id: 'ofc-portugues', in: 'image', text: 'Todo texto da imagem e a legenda estão em português do Brasil correto, com acentos nos lugares certos e sem erro de digitação. Frase que a pessoa ditou em outro idioma não conta.' },
   { id: 'ofc-sem-cliche', in: 'caption', text: 'O texto não usa clichê de vendedor nem de IA (por exemplo "transforme", "descubra", "jornada", "essência", "mergulhe", "no mundo de hoje") nem superlativo vazio.' },
   { id: 'ofc-voz', in: 'caption', text: 'O jeito de falar combina com a voz da empresa descrita acima (formalidade, tom técnico e seriedade).' },
   { id: 'ofc-gancho', in: 'image', text: 'O texto principal da imagem promete algo específico a quem lê (um benefício, uma pergunta, um fato concreto do negócio; em post de atmosfera, uma cena concreta). Rótulo de tema, como "Segurança técnica em projetos", ou elogio genérico reprova. Vale como cumprida quando a pessoa ditou o texto ou a composição (frase exata, só o nome e o logo, só uma palavra): aí o texto não é do post, é dela.' },
@@ -172,7 +172,7 @@ export const CRAFT = [
   { id: 'ofc-coerencia', in: 'caption', text: 'A legenda e a imagem falam da mesma coisa, e a legenda acrescenta algo em vez de repetir o texto da imagem.' },
   { id: 'ofc-legibilidade', in: 'image', text: 'O texto da imagem é legível no celular: contraste bom, nada cortado, nada sobreposto, fonte grande o bastante.' },
   { id: 'ofc-composicao', in: 'image', text: 'A composição é equilibrada e profissional: hierarquia clara, respiro, nada amontoado nem jogado num canto sem razão.' },
-  { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho. Falta de gancho não conta contra um texto ou uma composição que a própria pessoa ditou.' },
+  { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho. Falta de gancho não conta contra um texto ou uma composição que a própria pessoa ditou. O que a plataforma não consegue cumprir por regra (mais de 4 itens numa lista, logo ou @ que a conta não tem) não conta contra o post.' },
 ];
 
 export const CASES = [

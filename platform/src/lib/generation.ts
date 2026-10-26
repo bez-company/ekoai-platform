@@ -19,6 +19,7 @@ import { getRules } from './feedback';
 import { readLogo, defaultStore, type BlobStore } from './brand-logo';
 import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGoal, isRatio, LIMIT_MESSAGE, type PostFormat, type PostGoal, type PostKind, type Ratio } from './generation-model';
+import { clicheIssues, offTopicFacts, requestNumbersMissing } from './off-topic-facts';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
@@ -146,6 +147,17 @@ const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media'
 // O formato que vale: a foto anexada é sempre uma imagem só (o carrossel não tem foto por lâmina, SPEC 023).
 const formatOf = (brief: Brief, photo: BriefPhoto | null): PostFormat => (photo ? 'single' : brief.format);
 
+// As três checagens do texto que o prompt não segura (off-topic-facts.ts). Com o texto da imagem ditado pela pessoa
+// (frase exata ou cartão de marca), o que o redator escreveu para a imagem é descartado: só a legenda conta.
+function textChecks(input: { copy: Copy; idea: string; facts: string[]; dictated: boolean }): Issue[] {
+  const imageTexts = input.dictated ? [] : imageTextsOf(input.copy);
+  return [
+    ...(input.dictated ? [] : offTopicFacts({ imageTexts, facts: input.facts, topic: [input.idea, input.copy.angle, input.copy.texts.title].join(' ') })),
+    ...(input.dictated ? [] : requestNumbersMissing({ request: input.idea, imageTexts, caption: input.copy.caption })),
+    ...clicheIssues({ imageTexts, caption: input.copy.caption }),
+  ];
+}
+
 // A chamada de texto, com o revisor por regra devolvendo o motivo ao modelo.
 async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, photo: BriefPhoto | null = null, campaign: Campaign | null = null, plan: Plan | null = null): Promise<{ copy: Copy; issues: Issue[] }> {
   let previous: Copy | null = null;
@@ -175,7 +187,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       continue;
     }
     const copy: Copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const textIssues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
+    const textIssues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: facts.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
     // Carrossel: cada achado de texto diz a lâmina, e valem as regras entre lâminas (capa curta, título que não se repete).
     const issues = copy.slides ? [...textIssues.map((i) => inSlide(i, copy.slides!)), ...reviewSlides(copy.slides)] : textIssues;
     const hard = blocking(issues);

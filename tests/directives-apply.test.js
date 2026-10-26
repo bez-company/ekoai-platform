@@ -14,26 +14,50 @@ const copy = (extra = {}) => ({ kind: 'informativo', texts: { kicker: 'Dica', ti
 const FONT_DIR = join(import.meta.dirname, '../platform/fonts');
 
 describe('plano antes do redator', () => {
-  it('fundo, nome ou logo fora do canto pedem o cartão de marca, que não tem foto nem lista', () => {
-    for (const d of [{ background: 'dark' }, { elements: { name: 'bc' } }, { elements: { logo: 'c' } }, { elements: { handle: 'off' } }, { elements: { title: 'c' } }]) {
+  it('nome, @, título ou logo fora dos cantos, e fundo sem texto livre, pedem o cartão de marca, que não tem foto nem lista', () => {
+    for (const d of [{ background: 'dark', textOnly: true }, { background: 'light', exactTexts: ['Olá'] }, { elements: { name: 'bc' } }, { elements: { logo: 'c' } }, { elements: { handle: 'off' } }, { elements: { title: 'c' } }]) {
       const p = planDirectives(d, S);
       expect(p.brandCard, JSON.stringify(d)).toBe(true);
       expect(p.kind).toBe('informativo');
       expect(p.skipVisual).toBe(true);
     }
-    expect(planDirectives({ background: 'dark', itemsCount: 3 }, S).notApplied.map((n) => n.key)).toEqual(['itemsCount']);
+    expect(planDirectives({ elements: { name: 'bc' }, itemsCount: 3 }, S).notApplied.map((n) => n.key)).toEqual(['itemsCount']);
+  });
+
+  it('só o fundo, com assunto livre ou com lista, vale nas famílias de sempre: um cartão sem texto jogaria o conteúdo fora', () => {
+    for (const d of [{ background: 'dark' }, { background: 'light', itemsCount: 3 }, { background: 'brand', elements: { logo: 'tr' } }]) {
+      const p = planDirectives(d, S);
+      expect(p.brandCard, JSON.stringify(d)).toBe(false);
+      expect(p.familyBackground).toBe(d.background);
+    }
+    expect(planDirectives({ background: 'dark', itemsCount: 3 }, S)).toMatchObject({ itemsCount: 3, notApplied: [] });
+    // atmosfera com fundo e assunto livre: não há foto, então o post é de título ou lista, com o fundo pedido
+    expect(planDirectives({ background: 'dark' }, { ...S, kind: 'atmosfera' })).toMatchObject({ brandCard: false, kind: 'informativo', skipVisual: true, familyBackground: 'dark' });
+  });
+
+  it('frase exata com "mais nada" e tipo em aberto vira post informativo: nada de foto de fundo', () => {
+    expect(planDirectives({ exactTexts: ['Olá'], textOnly: true }, S).kind).toBe('informativo');
+    expect(planDirectives({ exactTexts: ['Olá'] }, S).kind).toBeNull();
+    expect(planDirectives({ exactTexts: ['Olá'], textOnly: true }, { ...S, kind: 'atmosfera' }).kind).toBe('atmosfera');
+  });
+
+  it('mais de 4 itens: a lista leva 4 e o resto fica dito como não aplicado', () => {
+    const p = planDirectives({ itemsCount: 5 }, S);
+    expect(p.itemsCount).toBe(4);
+    expect(p.notApplied).toEqual([{ key: 'itemsCount', what: '5 itens', why: 'A lista leva no máximo 4 itens por imagem. O post saiu com 4.' }]);
+    expect(planDirectives({ itemsCount: 4 }, S).notApplied).toEqual([]);
   });
 
   it('logo no canto, logo fora, texto exato, quantidade e "mais nada" ficam nas famílias de sempre', () => {
     const p = planDirectives({ elements: { logo: 'tr' }, exactTexts: ['Olá'], textOnly: true, itemsCount: 3, avoid: ['gíria'] }, S);
-    expect(p).toMatchObject({ brandCard: false, kind: null, skipVisual: false, itemsCount: 3, avoid: ['gíria'], exactTexts: ['Olá'], textOnly: true, notApplied: [] });
+    expect(p).toMatchObject({ brandCard: false, kind: 'informativo', skipVisual: false, itemsCount: 3, avoid: ['gíria'], exactTexts: ['Olá'], textOnly: true, notApplied: [] });
     expect(planDirectives({ elements: { logo: 'off' }, elements2: 1 }, S).brandCard).toBe(false);
     expect(planDirectives({ elements: { name: 'off' } }, S).brandCard).toBe(false);
   });
 
   it('atmosfera: com fundo ou "sem foto" vira cartão; só com posição, mantém a foto e diz o que não deu', () => {
     const photo = { ...S, kind: 'atmosfera' };
-    expect(planDirectives({ background: 'dark' }, photo)).toMatchObject({ brandCard: true, kind: 'informativo', skipVisual: true });
+    expect(planDirectives({ background: 'dark', textOnly: true }, photo)).toMatchObject({ brandCard: true, kind: 'informativo', skipVisual: true });
     expect(planDirectives({ noPhoto: true }, photo)).toMatchObject({ brandCard: true, skipVisual: true });
     const kept = planDirectives({ elements: { name: 'bc', logo: 'c', handle: 'br' }, itemsCount: 3 }, photo);
     expect(kept).toMatchObject({ brandCard: false, kind: 'atmosfera', skipVisual: false, itemsCount: null });
@@ -52,7 +76,7 @@ describe('plano antes do redator', () => {
     const p = planDirectives({ exactTexts: ['Aberto de terça a sábado'], itemsCount: 3, avoid: ['gíria', 'emoji'], textOnly: true }, S);
     const prompt = buildCopyPrompt({ idea: 'x', kind: p.kind, profile, facts: [], never: [], rules: [], directives: writerHints(p) });
     for (const piece of ['"Aberto de terça a sábado"', 'EXATAMENTE 3 itens', 'NÃO colocar: gíria; emoji']) expect(prompt).toContain(piece);
-    const card = buildCopyPrompt({ idea: 'x', kind: 'informativo', profile, facts: [], never: [], rules: [], directives: writerHints(planDirectives({ background: 'dark' }, S)) });
+    const card = buildCopyPrompt({ idea: 'x', kind: 'informativo', profile, facts: [], never: [], rules: [], directives: writerHints(planDirectives({ background: 'dark', textOnly: true }, S)) });
     expect(card).toContain('cartão de marca liso, sem foto');
     expect(buildCopyPrompt({ idea: 'x', kind: null, profile, facts: [], never: [], rules: [] })).not.toContain('A pessoa ditou');
   });
@@ -122,6 +146,22 @@ describe('composição depois do redator', () => {
       const out = composeDesign(d, planDirectives(d, S), copy(), S);
       const spec = { kind: 'informativo', ratio, layout: out.layout, texts: out.texts, brand: brandFromProfile(c.profile), logo: c.logo, background: out.background, placements: out.placements, brandName: out.brandName };
       expect(renderPng(spec, { fontDir: FONT_DIR }).issues).toEqual([]);
+    }
+  });
+});
+
+describe('fundo pedido nas famílias de sempre', () => {
+  it('a lista fica e ganha o fundo; o título também; o logo ganha placa branca no escuro', () => {
+    const d = { background: 'dark', itemsCount: 3 };
+    const out = composeDesign(d, planDirectives(d, S), copy(), S);
+    expect(out).toMatchObject({ layout: 'lista-numerada', background: 'dark', texts: { items: ['a', 'b', 'c'] } });
+    expect(out.applied.map((a) => a.key)).toEqual(['background', 'itemsCount']);
+    const c = COMPANIES.aurora;
+    for (const background of ['dark', 'brand', 'light']) {
+      for (const layout of ['lista-numerada', 'titulo-destaque']) {
+        const spec = { kind: 'informativo', ratio: '4:5', layout, texts: copy().texts, brand: brandFromProfile(c.profile), logo: c.logo, background };
+        expect(renderPng(spec, { fontDir: FONT_DIR }).issues, `${layout} ${background}`).toEqual([]);
+      }
     }
   });
 });

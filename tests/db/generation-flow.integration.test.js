@@ -322,7 +322,7 @@ describe('instruções do pedido (SPEC 020)', () => {
   it('lidas uma vez, no contrato; o texto literal que não está no pedido cai; ficam no pedido e não são lidas de novo', async () => {
     const t = tenantDb(A);
     const id = await brief('Capa: fundo escuro, logo no centro e a frase "Aberto de terça a sábado". Mais nada.', 'informativo');
-    const read = { background: 'dark', elements: { logo: 'c', rodape: 'br', handle: 'xx' }, exact_texts: ['Aberto de terça a sábado', 'Frase que não está no pedido'], text_only: true, items_count: 9, extra: 'x' };
+    const read = { background: 'dark', elements: { logo: 'c', rodape: 'br', handle: 'xx' }, exact_texts: ['Aberto de terça a sábado', 'Frase que não está no pedido'], text_only: true, items_count: 12, extra: 'x' };
     const model = fakeModel({ text: [INFO], image: [], directives: [read] });
     const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
     expect(out.status).toBe('ready');
