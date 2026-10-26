@@ -6,9 +6,9 @@
 - **Depende de:** [SPEC 012](012-agentes-instagram-fase-2.md) (agentes e revisor por regra),
   [SPEC 019](019-estudio-incremental-e-aprendizado-com-a-edicao.md) (ajuste rápido e revisão imutável),
   [ADR 0017](../adr/0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md) (motor híbrido),
-  [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md) (revisão), [ADR 0024](../adr/0024-carrossel-como-lista-de-laminas-dentro-do-design.md) (decisão desta spec)
+  [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md) (revisão), [ADR 0025](../adr/0025-carrossel-como-lista-de-laminas-dentro-do-design.md) (decisão desta spec)
 - **Em paralelo (conflito provável):** SPEC 020 (PRs #184 e #185) mexe em `generation.ts` e em `families.ts`
-- **Protótipo:** [v14 no Claude Design](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz) (grupo "Fase 6: carrossel e grade"), aguardando a aprovação do Matheus
+- **Protótipo:** [v16 no Claude Design](https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz) (grupo "Fase 6: carrossel e grade")
 
 ## Problema
 
@@ -41,7 +41,7 @@
    tabela nova nem vários posts. **Lista no design**: a revisão imutável (ADR 0021), o conflito por versão e o
    diff por campo continuam valendo sem migration. `post_designs.png_key` guarda a capa, então agenda, publicados
    e miniaturas seguem funcionando. Alternativa: tabela `post_design_slides`, mais limpa para consulta e mais cara
-   (migration, RLS, revisão por lâmina). Ver [ADR 0024](../adr/0024-carrossel-como-lista-de-laminas-dentro-do-design.md).
+   (migration, RLS, revisão por lâmina). Ver [ADR 0025](../adr/0025-carrossel-como-lista-de-laminas-dentro-do-design.md).
 2. **2 a 6 lâminas** (o Instagram aceita até 10). Seis é o teto do card e mantém o gancho forte; o contrato recusa
    fora da faixa. Papéis: `cover` (primeira), `content` (do meio) e `cta` (última). Carrossel de 2 lâminas é
    capa e chamada.
@@ -125,7 +125,7 @@ Ajuste rápido do carrossel (5), Agenda e Publicados e Criar post (2). Estados e
 
 | Card | Entrega | Depende de |
 | --- | --- | --- |
-| BEZ-308 | esta spec, o ADR 0024 e o protótipo | |
+| BEZ-308 | esta spec, o ADR 0025 e o protótipo | |
 | BEZ-309 | grade: leitura da Meta, parser, rota e a aba Grade em Aprovar | protótipo aprovado |
 | BEZ-310 | carrossel: contrato, famílias, render, revisor e `design.slides` | protótipo aprovado; SPEC 020 mergeada |
 | BEZ-311 | carrossel: Aprovar com lâminas, agenda e publicação (ensaio) | 310 |
