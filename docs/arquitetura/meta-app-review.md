@@ -47,8 +47,8 @@
 | 11 | Texto para o revisor: passo a passo, quando cada permissão é usada, credenciais de teste | Claude escreve, Matheus revisa | 8 | rascunho abaixo |
 | 12 | Ambiente que o revisor consiga abrir sem VPN nem convite | Código | URL estável, ver risco 1 | a decidir |
 | 13 | Vídeo de `instagram_business_manage_insights`: Analytics, Aprendizado e Horários com dados da conta de teste (roteiro abaixo) | Matheus | 8 e 14 | a gravar |
-| 14 | Conta de teste com posts publicados e alcance lido; para ver faixa etária e gênero, 100 seguidores ou mais (risco 7) | Matheus | 7 | a conferir quantos seguidores o `@ekoai.app` tem |
-| 15 | Uma chamada de API bem-sucedida de insights (alcance de um post e, se a conta tiver 100 seguidores, `follower_demographics`), registrada no BEZ-326 | Código e Matheus | 14 | a fazer, depende do BEZ-326 |
+| 14 | Conta de teste com posts publicados e alcance lido; para ver faixa etária e gênero, 100 seguidores ou mais (risco 7) | Matheus | 7 | `@ekoai.app` tem 2 seguidores (lido no staging em 26/10/2026) e 4 posts com alcance lido. Decisão: o vídeo vai sem demografia |
+| 15 | Uma chamada de API bem-sucedida de insights | Código | 14 | feito para alcance e salvamentos por post (staging, 26/10/2026). `follower_demographics` e `online_followers` ficam no BEZ-326, adiado até haver conta com 100 seguidores |
 
 ## Riscos
 
@@ -72,9 +72,10 @@
    `online_followers` não consta na tabela de métricas da documentação atual (conferido em 23/10/2026).
    Com menos de 100 seguidores o revisor só vê alcance, salvamentos e compartilhamentos por post, que não
    têm mínimo. O app trata o caso (a tela diz "faltam N seguidores" e a coleta guarda o estado), mas o
-   vídeo não pode prometer demografia sem uma conta que a mostre. Se o `@ekoai.app` não chega a 100,
-   usar um perfil profissional de teste que chegue, adicionado como testador, ou gravar o vídeo só com
-   as métricas por post e mostrar o estado "faltam N seguidores" como comportamento esperado.
+   vídeo não pode prometer demografia sem uma conta que a mostre. O `@ekoai.app` tem 2 seguidores
+   (26/10/2026), e a decisão foi gravar o vídeo só com as métricas por post e mostrar o estado "Faltam
+   N seguidores" como comportamento esperado da Meta. A demografia é verificada depois, no BEZ-326,
+   quando uma conta com 100 seguidores ou mais conectar.
 8. **Insights sem uso visível.** O revisor reprova permissão que o vídeo não mostra sendo usada. Cada
    tela que lê insights precisa aparecer no vídeo, com a legenda dizendo qual dado vem da Meta.
 
@@ -126,9 +127,10 @@ cliente. Um vídeo só para esta permissão, uns 3 minutos.
    "Access and manage insights" sendo concedido (se a conta já concedeu, reconectar para mostrar).
 2. Published, Analytics: abrir a aba. Legenda: "Reach and engagement come from `/{media-id}/insights`".
    Mostrar "O que funciona" (tipo, formato, objetivo) e dizer que compara os posts da própria conta.
-3. Mesma tela, "Seu público": mostrar faixa etária e gênero. Legenda: "Age and gender come from
-   `follower_demographics`, aggregate only". Sem 100 seguidores, mostrar a mensagem "Faltam N seguidores"
-   e dizer que é o comportamento esperado da Meta.
+3. Mesma tela, "Seu público": com a conta de teste atual (menos de 100 seguidores), mostrar a mensagem
+   "Faltam N seguidores". Legenda: "Meta returns age and gender only from 100 followers; the app reads
+   them with `follower_demographics`, aggregate only, as soon as the account reaches it". Se houver uma
+   conta com 100+, mostrar faixa etária e gênero no lugar.
 4. Mesma tela, "Quando seu público está ativo": mostrar o gráfico por hora e a faixa de recomendação.
 5. Schedule, Hours: abrir o diálogo, mostrar a recomendação e clicar em "Usar estes horários". Legenda:
    "The person confirms; nothing changes until they save".
