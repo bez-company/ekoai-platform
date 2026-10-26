@@ -22,8 +22,8 @@
 
 ## Resultado esperado
 
-1. O estrategista decide entre carrossel e imagem única; a pessoa pode forçar um deles antes (Criar post) ou
-   trocar depois (Aprovar).
+1. **A pessoa escolhe** entre imagem única e carrossel ao criar o post (decisão do Matheus, 26/10/2026); a Ekoai não
+   escolhe o tipo. Dá para trocar depois, em Aprovar.
 2. Carrossel de 2 a 6 lâminas: gancho, conteúdo (um item por lâmina) e chamada com o logo. Todas desenhadas pelo
    mesmo código, na mesma família e com a mesma marca.
 3. Aprovar mostra as lâminas (setas, pontos, miniaturas); o ajuste rápido edita lâmina a lâmina; a publicação sai
@@ -45,8 +45,8 @@
 2. **2 a 6 lâminas** (o Instagram aceita até 10). Seis é o teto do card e mantém o gancho forte; o contrato recusa
    fora da faixa. Papéis: `cover` (primeira), `content` (do meio) e `cta` (última). Carrossel de 2 lâminas é
    capa e chamada.
-3. **Contrato do redator.** A mesma chamada de texto (estrategista, redator e diretor de arte) passa a devolver
-   `format` (`single` ou `carousel`) e, no carrossel, `slides` com `role`, `title`, e `kicker`, `sub` ou `items`
+3. **Contrato do redator.** A mesma chamada de texto (estrategista, redator e diretor de arte) recebe o formato escolhido
+   no pedido (`single` ou `carousel`) e, no carrossel, devolve `slides` com `role`, `title`, e `kicker`, `sub` ou `items`
    conforme o papel. Os limites de palavras de hoje valem por lâmina e a legenda é uma só. Resposta inválida entra
    nas 3 voltas de hoje, com o motivo devolvido ao modelo.
 4. **Famílias.** Reaproveita a capa e a chamada nas famílias atuais (`titulo-destaque` ou `foto-titulo` para a
@@ -65,8 +65,8 @@
 8. **Ajuste rápido por lâmina.** Seletor de lâmina com miniaturas; o diff ganha o prefixo `slides.<n>.` no campo e
    a revisão guarda o design inteiro, como hoje. **Trocar layout vale para a lâmina selecionada** dentro das
    famílias compatíveis com o papel dela. Reordenar, apagar e acrescentar lâmina fica para depois (ver "Fora").
-9. **Formato escolhido pela pessoa.** Criar post ganha "Formato": **Deixar a Ekoai escolher** (padrão), Imagem
-   única, Carrossel. Em Aprovar, **trocar o formato custa uma chamada de texto e nenhuma imagem**: de imagem única
+9. **Formato escolhido pela pessoa.** Criar post ganha o campo "Imagens do post" ("Formato" já é a proporção 4:5
+   ou 1:1), com duas opções e **Uma imagem** já marcada: Uma imagem ou Carrossel. A Ekoai decide só o número de lâminas (2 a 6). Em Aprovar, **trocar o formato custa uma chamada de texto e nenhuma imagem**: de imagem única
    para carrossel o redator escreve as lâminas e o visual existente vira a capa; de carrossel para imagem única
    fica a capa (a legenda não muda). A troca cria uma revisão nova, então desfaz.
 10. **Publicação.** Já existe; esta spec só a valida de ponta a ponta. O texto alternativo (BEZ-203) passa a ir
@@ -98,7 +98,7 @@
 Parte da v13 aprovada; a v14 acrescenta a fase 6 no mesmo artifact. Telas: Aprovar carrossel (7 estados), Aprovar aba Grade (8),
 Ajuste rápido do carrossel (5), Agenda e Publicados e Criar post (2). Estados em todas: vazio, carregando, erro e cheio.
 
-- **Criar post**: campo Imagens do post (3 opções), abaixo do objetivo.
+- **Criar post**: campo Imagens do post (2 opções, Uma imagem marcada), abaixo do objetivo.
 - **Aprovar, carrossel**: visualizador com setas e pontos, miniaturas, avisos do revisor por lâmina, botão "Trocar
   para imagem única".
 - **Aprovar, aba Grade**: 9 células em 3 colunas (o novo no topo à esquerda), chave 3:4 e 1:1, aviso de
