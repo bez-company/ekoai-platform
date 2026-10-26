@@ -44,7 +44,7 @@ async function writeCopy({ model, brief, company, plan }) {
 // O leitor de instruções (SPEC 020): uma chamada curta antes do redator. Duas tentativas; falhou, segue sem instruções
 // (igual ao readDirectives do generatePost).
 async function readDirectives({ model, brief, company }) {
-  const prompt = buildDirectivesPrompt(brief.idea, { name: company.name, hasLogo: true, handle: company.handle });
+  const prompt = buildDirectivesPrompt(brief.idea, { name: company.name, hasLogo: !!company.logo, handle: company.handle });
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const out = await model.generateJson({ prompt, labels: { step: 'eval-directives', case: brief.id }, maxOutputTokens: 1024, temperature: 0 });
@@ -70,7 +70,7 @@ function drawnTexts(spec) {
 export async function produce({ model, brief, fontDir }) {
   const company = COMPANIES[brief.company];
   const read = await readDirectives({ model, brief, company });
-  const situation = { kind: brief.kind, hasLogo: true, hasHandle: true, brandName: company.name };
+  const situation = { kind: brief.kind, hasLogo: !!company.logo, hasHandle: !!company.handle, brandName: company.name };
   const plan = read.status === 'ok' && hasDirectives(read.directives) ? planDirectives(read.directives, situation) : null;
   const { copy, issues, trace } = await writeCopy({ model, brief, company, plan });
   const pieces = plan ? composeDesign(read.directives, plan, copy, situation) : null;

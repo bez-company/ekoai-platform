@@ -7,7 +7,7 @@ export function buildJudgePrompt({ idea, requirements, caption, company }) {
   const about = company
     ? [
         '## A empresa (o que o post pode afirmar e como ela fala)',
-        `- ${company.name}, @${company.handle}. Voz: ${company.voice}.`,
+        `- ${company.name}, ${company.handle ? `@${company.handle}` : 'sem @ cadastrado'}. Voz: ${company.voice}.`,
         `- Base de fatos (o que pode afirmar): ${company.facts.join('; ')}.`,
         `- Nunca afirma: ${company.never.join('; ')}.`,
         `- Palavras proibidas: ${company.profile.bannedWords.join(', ')}.`,

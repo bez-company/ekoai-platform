@@ -5,7 +5,8 @@
 import { afterAll, describe, it } from 'vitest';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
 import { buildDirectivesPrompt, parseDirectives } from '../platform/src/lib/directives.ts';
-import { CASES, COMPANIES } from './cases.js';
+import { COMPANIES } from './cases.js';
+import { ALL_CASES as CASES } from './all-cases.js';
 import { compareDirectives } from './metrics.js';
 
 const live = process.env.EVAL_LIVE === '1';
@@ -21,7 +22,7 @@ describe.skipIf(!live)('leitor de instruções', () => {
       for (let run = 1; run <= runs; run += 1) {
         it(`${brief.id} #${run}`, { timeout: 120_000 }, async () => {
           const company = COMPANIES[brief.company];
-          const prompt = buildDirectivesPrompt(brief.idea, { name: company.name, hasLogo: true, handle: company.handle });
+          const prompt = buildDirectivesPrompt(brief.idea, { name: company.name, hasLogo: !!company.logo, handle: company.handle });
           const out = await model.generateJson({ prompt, labels: { step: 'eval-directives', case: brief.id }, maxOutputTokens: 1024, temperature: 0 });
           const parsed = parseDirectives(out.json, brief.idea);
           const verdict = compareDirectives(brief.directives, parsed.directives);

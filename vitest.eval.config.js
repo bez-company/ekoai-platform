@@ -5,5 +5,5 @@ import { defineConfig } from 'vitest/config';
 // normal. Só roda com EVAL_LIVE=1: npm run eval.
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./platform/src', import.meta.url)) } },
-  test: { include: ['evals/**/*.eval.js'], testTimeout: 300_000, fileParallelism: false },
+  test: { include: ['evals/**/*.eval.js'], testTimeout: 600_000, fileParallelism: false, maxConcurrency: 8 },
 });
