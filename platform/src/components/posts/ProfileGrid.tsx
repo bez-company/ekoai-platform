@@ -2,55 +2,12 @@
 
 // ProfileGrid.tsx: o post novo na grade do perfil, ao lado dos últimos posts da conta (SPEC 023, BEZ-200).
 // O novo entra no topo à esquerda, no lugar em que vai ficar. Os outros vêm de /api/instagram/grid (Instagram,
-// com o que foi publicado à mão; sem ele, os posts da Ekoai). O corte é o da miniatura do perfil: vertical 3:4
-// ou quadrado 1:1, à escolha da pessoa (o padrão é o que a conta real mostra). Não chama o modelo de imagem.
+// com o que foi publicado à mão; sem ele, os posts da Ekoai). O corte é o da miniatura do perfil, vertical 3:4.
+// Não chama o modelo de imagem.
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_GRID_CROP, GRID_CROPS, GRID_LIMIT, gridNotice, isGridCrop, type GridCrop, type GridItem, type GridView } from '@/lib/instagram-grid-model';
-
-const STORAGE_KEY = 'ekoai.grid-crop';
-const CROP_LABEL: Record<GridCrop, string> = { '3:4': 'Vertical (3:4)', '1:1': 'Quadrada (1:1)' };
-
-// O corte que a pessoa escolheu, lembrado neste navegador. Sem escolha, o padrão da spec.
-export function useGridCrop(): [GridCrop, (crop: GridCrop) => void] {
-  const [crop, setCrop] = useState<GridCrop>(DEFAULT_GRID_CROP);
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (isGridCrop(saved)) setCrop(saved);
-    } catch {
-      // Sem armazenamento (navegação privada): fica no padrão.
-    }
-  }, []);
-  const choose = useCallback((next: GridCrop) => {
-    setCrop(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Idem: a escolha vale só nesta tela.
-    }
-  }, []);
-  return [crop, choose];
-}
-
-export function CropSwitch({ crop, onChange }: { crop: GridCrop; onChange: (crop: GridCrop) => void }) {
-  return (
-    <div role="group" aria-label="Corte da grade" className="inline-flex gap-1 rounded-full border border-line bg-inset p-0.5 text-sm">
-      {GRID_CROPS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          aria-pressed={crop === c}
-          onClick={() => onChange(c)}
-          className={`rounded-full px-3 py-1 font-semibold ${crop === c ? 'bg-raised text-fg shadow-sm' : 'text-muted hover:text-fg'}`}
-        >
-          {CROP_LABEL[c]}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { useEffect, useState } from 'react';
+import { GRID_LIMIT, gridNotice, type GridItem, type GridView } from '@/lib/instagram-grid-model';
 
 const ICON_CLASS = 'absolute right-1.5 top-1.5 h-[18px] w-[18px] text-paper drop-shadow';
 
@@ -97,15 +54,11 @@ export default function ProfileGrid({
   newIsCarousel = false,
   handle,
   accountName,
-  crop,
-  onCropChange,
 }: {
   newImageUrl: string | null;
   newIsCarousel?: boolean;
   handle: string;
   accountName: string;
-  crop: GridCrop;
-  onCropChange: (crop: GridCrop) => void;
 }) {
   const [view, setView] = useState<GridView | null>(null);
   const [failed, setFailed] = useState(false);
@@ -124,7 +77,7 @@ export default function ProfileGrid({
     return () => controller.abort();
   }, [attempt]);
 
-  const aspect = crop === '3:4' ? 'aspect-[3/4]' : 'aspect-square';
+  const aspect = 'aspect-[3/4]';
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const notice = view ? gridNotice(view) : null;
   const items = view?.items ?? [];
@@ -132,10 +85,6 @@ export default function ProfileGrid({
 
   return (
     <div className="w-full max-w-[420px]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <CropSwitch crop={crop} onChange={onCropChange} />
-      </div>
-
       {(notice || failed) && (
         <div className={`mb-3 rounded-lg border px-3 py-2.5 text-sm ${notice?.tone === 'info' ? 'border-line bg-inset' : 'border-warning/30 bg-warning/10'}`} role="status">
           {failed ? 'Não foi possível montar a grade. O post não foi alterado.' : notice?.text}{' '}
