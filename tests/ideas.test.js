@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupIdeas, roleOf, motherOf, parseApproveIdea, parseRework } from '../platform/src/lib/ideas-model.ts';
+import { groupIdeas, roleOf, motherOf, parseApproveIdea, parseRework, reviewHref, hasPostScreen } from '../platform/src/lib/ideas-model.ts';
 
 const BRIEF = 'b-1';
 const plan = {
@@ -76,5 +76,27 @@ describe('parseRework', () => {
     expect(parseRework({ pendingId: 'p', mode: 'reuse', sourceVariationId: '3' }).value.sourceVariationId).toBe(3);
     expect(parseRework({ pendingId: 'p', mode: 'apagar' }).ok).toBe(false);
     expect(parseRework({ mode: 'own' }).ok).toBe(false);
+  });
+});
+
+describe('reviewHref: para onde a lista Aprovar leva o cartão', () => {
+  const withBrief = (extra) => pending('instagram', { brief_id: BRIEF, seed: { brief_id: BRIEF }, ...extra });
+
+  it('post com design da Ekoai abre a tela do post (imagem, Estúdio e ajuste), mesmo com brief_id', () => {
+    const [idea] = groupIdeas([withBrief({ post_design_id: 'd-1' })]);
+    expect(reviewHref(idea)).toBe('/aprovar/instagram-x');
+    expect(hasPostScreen(idea.pendings[0])).toBe(true);
+  });
+
+  it('foto do banco abre a tela do post', () => {
+    const [idea] = groupIdeas([pending('instagram', { seed: { source: 'photo' } })]);
+    expect(reviewHref(idea)).toBe('/aprovar/instagram-x');
+  });
+
+  it('pendência por rede (sem design) segue na tela por ideia; avulsa abre a própria', () => {
+    const [idea] = groupIdeas([withBrief({})]);
+    expect(reviewHref(idea)).toBe('/aprovar/ideia/b-1');
+    const [alone] = groupIdeas([pending('instagram', { seed: {} })]);
+    expect(reviewHref(alone)).toBe('/aprovar/instagram-x');
   });
 });

@@ -49,6 +49,17 @@ export function groupIdeas(pendings: PendingApproval[]): Idea[] {
   return [...map.values()];
 }
 
+// Post feito pela Ekoai (design) ou foto do banco: a tela do post (PostReview) tem o card Imagem, o Estúdio e o pedido
+// de ajuste. A tela por ideia (IdeaForm, SPEC 003) é a das redes e só edita a legenda.
+export const hasPostScreen = (p: PendingApproval): boolean => !!p.post_design_id || p.seed?.source === 'photo';
+
+// Para onde a lista Aprovar leva o cartão: o post com design vai para a tela do post, nunca para a tela por ideia.
+export function reviewHref(idea: Idea): string {
+  const lead = idea.pendings[0];
+  if (hasPostScreen(lead) || !idea.briefId) return `/aprovar/${encodeURIComponent(lead.pending_id)}`;
+  return `/aprovar/ideia/${encodeURIComponent(idea.briefId)}`;
+}
+
 export function motherOf(idea: Idea): PendingApproval | null {
   return idea.pendings.find((p) => roleOf(p) === 'mother') || null;
 }

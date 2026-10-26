@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getPendings } from '@/lib/queries';
 import { fmtDateTime } from '@/lib/format';
-import { groupIdeas, roleOf } from '@/lib/ideas-model';
+import { groupIdeas, reviewHref, roleOf } from '@/lib/ideas-model';
 import type { PendingApproval } from '@/lib/types';
 import { can, pageTenant } from '@/lib/session';
 import { pageError } from '@/lib/api';
@@ -81,9 +81,7 @@ export default async function InboxPage() {
           const lead = idea.pendings[0];
           const top = lead.generation?.variations?.find((v) => v.id === lead.top_id) || lead.generation?.variations?.[0];
           const cover = idea.pendings.flatMap((p) => p.images || []).find((i) => i.url)?.url || null;
-          const href = idea.briefId
-            ? `/aprovar/ideia/${encodeURIComponent(idea.briefId)}`
-            : `/aprovar/${encodeURIComponent(lead.pending_id)}`;
+          const href = reviewHref(idea);
           return (
             <Link key={idea.key} href={href} className="card flex gap-4 hover:border-line-strong">
               {cover ? (
