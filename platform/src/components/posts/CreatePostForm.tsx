@@ -213,7 +213,7 @@ export default function CreatePostForm({
               );
             })}
           </div>
-          {carousel && <p className="text-xs text-muted">A Ekoai escolhe o número de lâminas. Conta 1 no limite do mês, como uma imagem. Dá para trocar depois em Aprovar.</p>}
+          {carousel && <p className="text-xs text-muted">A Ekoai escolhe o número de lâminas. Só conta no limite do mês se a capa precisar de uma imagem gerada, como num post de uma imagem. Dá para trocar depois em Aprovar.</p>}
         </fieldset>
 
         {/* No celular a prévia fica embaixo do formulário: o formato vem aqui, antes de criar. */}
