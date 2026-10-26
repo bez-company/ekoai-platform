@@ -197,21 +197,33 @@ describe('cartão de marca: grade inteira, sem sobreposição', () => {
 });
 
 describe('cartão de marca: logo que some no fundo', () => {
-  it('o logo da clínica (quadrado verde) some no fundo verde da marca; o da padaria e o da engenharia não somem nos fundos que usam', () => {
+  // Logo de tile escuro com a marca clara dentro (como o da BEZ): sobre o fundo escuro o tile some e a marca fica.
+  const tile = (fill, mark) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="${fill}"/>${mark ? `<path d="M70 150c10-40 30-70 70-100-10 40-30 80-70 100z" fill="${mark}"/>` : ''}</svg>`;
+    return { dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, width: 200, height: 200 };
+  };
+
+  it('o logo que some por inteiro (tinta da cor do fundo) ganha placa; o que tem marca legível não', () => {
     const sorriso = brandFromProfile(COMPANIES.sorriso.profile);
-    expect(logoBlendsWith(COMPANIES.sorriso.logo, markBackground(sorriso, 'brand'))).toBe(true);
+    const aurora = brandFromProfile(COMPANIES.aurora.profile);
+    const bg = markBackground(aurora, 'dark');
+    expect(logoBlendsWith(tile(bg, null), bg)).toBe(true); // tudo da cor do fundo: nada se lê
+    expect(logoBlendsWith(tile('#111111', '#F5F5F0'), bg)).toBe(false); // tile some, a marca clara aparece
     expect(logoBlendsWith(COMPANIES.sorriso.logo, markBackground(sorriso, 'dark'))).toBe(false);
-    expect(logoBlendsWith(COMPANIES.aurora.logo, markBackground(brandFromProfile(COMPANIES.aurora.profile), 'dark'))).toBe(false);
+    expect(logoBlendsWith(COMPANIES.aurora.logo, bg)).toBe(false);
     expect(logoBlendsWith(COMPANIES.vertice.logo, markBackground(brandFromProfile(COMPANIES.vertice.profile), 'dark'))).toBe(false);
     expect(logoAverageColor({ dataUri: 'data:image/png;base64,AAAA', width: 1, height: 1 })).toBeNull(); // imagem ilegível: não decide
+    expect(logoBlendsWith({ dataUri: 'data:image/png;base64,AAAA', width: 1, height: 1 }, bg)).toBe(false);
   });
 
-  it('o logo grande que some ganha placa clara; o que aparece fica sem placa', () => {
-    const plated = compose(specFor('sorriso', { background: 'brand', placements: { logo: 'c' } })).svg;
+  it('o logo grande que some ganha placa clara; o que aparece fica sem moldura branca', () => {
+    const bg = markBackground(brandFromProfile(COMPANIES.aurora.profile), 'dark');
+    const plated = compose(specFor('aurora', { logo: tile(bg, null), background: 'dark', placements: { logo: 'c' } })).svg;
     const bare = compose(specFor('aurora', { background: 'dark', placements: { logo: 'c' } })).svg;
+    const withMark = compose(specFor('aurora', { logo: tile('#111111', '#F5F5F0'), background: 'dark', placements: { logo: 'c' } })).svg;
     expect(plated).toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
     expect(bare).not.toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
-    const issues = (svg) => svg;
-    expect(issues(plated)).toContain('<image');
+    expect(withMark).not.toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
+    expect(plated).toContain('<image');
   });
 });

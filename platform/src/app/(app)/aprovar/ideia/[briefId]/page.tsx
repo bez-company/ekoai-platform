@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getIdeaPendings } from '@/lib/ideas';
-import { groupIdeas } from '@/lib/ideas-model';
+import { groupIdeas, hasPostScreen } from '@/lib/ideas-model';
 import { nextFreeSlot } from '@/lib/slots';
 import { composeCaption } from '@/lib/caption';
 import IdeaForm from '@/components/IdeaForm';
@@ -15,6 +15,8 @@ export default async function IdeaPage({ params }: { params: Promise<{ briefId: 
   const pendings = await getIdeaPendings(t, decodeURIComponent(briefId));
   const idea = groupIdeas(pendings)[0];
   if (!idea) notFound();
+  // Link antigo (e-mail, favorito) de um post com design: a tela dele tem a imagem e o Estúdio.
+  if (hasPostScreen(idea.pendings[0])) redirect(`/aprovar/${encodeURIComponent(idea.pendings[0].pending_id)}`);
 
   const channels = idea.pendings.map((p) => p.channel);
   const slots = await Promise.all(channels.map((c) => nextFreeSlot(t, c).catch(() => null)));
