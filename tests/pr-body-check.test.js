@@ -61,10 +61,10 @@ describe('check', () => {
     expect(check({ body: '## Why\n<!-- The problem -->', files: [] }).errors.join(' ')).toMatch(/comentário do modelo/);
   });
 
-  it('avisa lógica grande sem infográfico nem diagrama; imagem ou mermaid calam o aviso', () => {
+  it('avisa lógica grande sem diagrama; só o Mermaid cala o aviso (imagem de tela não explica lógica)', () => {
     const files = [{ filename: 'platform/src/lib/directives.ts', additions: 208 }];
-    expect(check({ body: 'Texto.', files }).warnings.join(' ')).toMatch(/infográfico/);
-    expect(check({ body: `![](${RAW})`, files }).warnings).toEqual([]);
+    expect(check({ body: 'Texto.', files }).warnings.join(' ')).toMatch(/diagrama/);
+    expect(check({ body: `![](${RAW})`, files }).warnings.join(' ')).toMatch(/diagrama/);
     expect(check({ body: '```mermaid\nflowchart TD\n```', files }).warnings).toEqual([]);
     expect(check({ body: 'Texto.', files: [{ filename: 'platform/src/lib/x.ts', additions: 20 }] }).warnings).toEqual([]);
   });
@@ -72,6 +72,8 @@ describe('check', () => {
   it('avisa corpo longo e ignora imagem, linha do card e atribuição na conta', () => {
     const long = 'palavra '.repeat(Math.ceil(BODY_LIMIT / 8) + 5);
     expect(check({ body: long, files: [] }).warnings.join(' ')).toMatch(/caracteres/);
+    const withDiagram = `Curto.\n\n\`\`\`mermaid\n${'A-->B\n'.repeat(BODY_LIMIT)}\`\`\``;
+    expect(check({ body: withDiagram, files: [] }).warnings).toEqual([]);
     const short = `ClickUp: [card](https://app.clickup.com/t/x)\n\n![](${RAW})\n\nCurto.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
     expect(check({ body: short, files: [] }).warnings).toEqual([]);
   });

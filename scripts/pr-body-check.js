@@ -2,7 +2,7 @@
 //
 //   erro:  imagem do GitHub sem `?raw=true` (não renderiza); comentário do modelo esquecido;
 //          mudança visual sem imagem e sem a linha `No visual change: <motivo>`.
-//   aviso: lógica grande sem imagem nem diagrama; corpo longo demais.
+//   aviso: lógica grande sem diagrama Mermaid; corpo longo demais.
 //
 // Roda pelo workflow .github/workflows/pr-body.yml. Lê o corpo do evento e a lista de arquivos da API.
 import { readFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ const VISUAL = [
   /^platform\/public\//,
   /^platform\/src\/app\/globals\.css$/,
 ];
-// Regra, dado e fluxo: quem lê precisa de um infográfico.
+// Regra, dado e fluxo: quem lê precisa de um diagrama.
 const LOGIC = [/^platform\/src\/lib\//, /^platform\/src\/app\/api\//, /^supabase\/migrations\//, /^scripts\//];
 
 export const BODY_LIMIT = 2500;
@@ -36,10 +36,11 @@ export function imageUrls(body) {
 /** Imagem de blob do GitHub sem `raw=true`: o navegador recebe a página HTML, não o PNG. */
 export const isBrokenBlob = (url) => /^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\//.test(url) && !/[?&]raw=true\b/.test(url);
 
-/** Texto que o leitor vê: sem imagem, sem comentário HTML, sem a linha do card. */
+/** Texto que o leitor lê: sem imagem, diagrama, comentário HTML nem a linha do card. */
 function readable(body) {
   return (body ?? '')
     .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/```mermaid[\s\S]*?```/g, '')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/^ClickUp:.*$/m, '')
     .replace(/🤖 Generated with.*$/m, '')
@@ -74,12 +75,12 @@ export function check({ body, files }) {
   }
 
   const logicLines = files.filter((f) => isLogic(f.filename)).reduce((sum, f) => sum + f.additions, 0);
-  if (logicLines >= LOGIC_LINES && !hasImage && !hasDiagram) {
-    warnings.push(`A PR adiciona ${logicLines} linhas de lógica e o corpo não tem infográfico nem diagrama. Uma imagem que explique a mudança poupa a leitura do diff.`);
+  if (logicLines >= LOGIC_LINES && !hasDiagram) {
+    warnings.push(`A PR adiciona ${logicLines} linhas de lógica e o corpo não tem diagrama. Desenhe o fluxo em Mermaid no corpo (sequenceDiagram, flowchart TD...): poupa a leitura do diff.`);
   }
 
   const size = readable(text).length;
-  if (size > BODY_LIMIT) warnings.push(`O corpo tem ${size} caracteres de texto (alvo: até ${BODY_LIMIT}). Troque parágrafo por imagem.`);
+  if (size > BODY_LIMIT) warnings.push(`O corpo tem ${size} caracteres de texto (alvo: até ${BODY_LIMIT}). Troque parágrafo por imagem ou diagrama.`);
 
   return { errors, warnings };
 }

@@ -46,7 +46,7 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
   Sem a tag, o card some dessas views.
 - **Corpo curto, entendido em segundos** ([padrão da BEZ](docs/adr/0024-corpo-de-pr-curto-e-visual.md)):
   título e corpo bastam para um humano entender a mudança sem abrir o diff. Texto até 2500
-  caracteres; quem explica é a imagem. O corpo segue `.github/pull_request_template.md`: linha do
+  caracteres; quem explica é a imagem (tela) ou o diagrama (lógica). O corpo segue `.github/pull_request_template.md`: linha do
   card, 1 ou 2 frases (o que muda para quem, e por quê), a imagem, e **Verified / Not verified /
   Rollback**. Apague a seção que não se aplica e todo comentário do modelo.
 - **Mudança visual: UMA imagem com antes e depois lado a lado** (`pr-visual compare antes.png
@@ -55,14 +55,18 @@ Duas branches de longa vida ([ADR 0013](docs/adr/0013-esteira-feature-staging-pr
   imagem; claro e escuro quando mexe no tema; os estados que importam (vazio, carregando, erro e
   cheio). Dado fictício: este repo é público. Sem mudança na tela, mas em arquivo visual: a linha
   `No visual change: <motivo>`.
-- **Mudança de lógica, dado ou fluxo: UM infográfico** (`pr-visual render info.html`): o que entra, o
-  que acontece, o que sai e o que acontece na falha, com antes e depois quando muda uma regra. Mermaid
-  só quando a imagem seria exagero (até uns 10 nós). Rota nova: tabela Rota, Permissão, Corpo,
-  Respostas; variável nova: Variável, Onde se define, Padrão.
+- **Mudança de lógica, dado ou fluxo: fluxograma desenhado no corpo, em Mermaid** (o GitHub
+  renderiza; nunca como imagem), pequeno (até uns 10 nós), mostrando o que entra, o que acontece, o
+  que sai e o que acontece na falha:
+  - passos entre sistemas ou pessoas (login, convite, webhook, job): `sequenceDiagram`
+  - regra de decisão: `flowchart TD`; estados de um registro: `stateDiagram-v2`
+  - tabela nova ou alterada: `erDiagram` só das tabelas tocadas, mais a lista das restrições novas
+  - rota: tabela Rota, Permissão, Corpo, Respostas; variável de ambiente: Variável, Onde se define, Padrão
+  - sem diagrama que esclareça, não force um: uma tabela antes e depois resolve.
 - **Subir imagem:** `scripts/pr-assets.sh <pasta> <png>...` e colar o markdown que ele imprime, sem
   mexer na URL: o `?raw=true` no fim é o que faz o GitHub mostrar a imagem (sem ele aparece a página,
   não o print). O workflow `PR body` (`scripts/pr-body-check.js`) reprova blob sem `raw=true`, arquivo
-  de tela sem imagem e comentário do modelo; avisa lógica grande sem infográfico e corpo longo.
+  de tela sem imagem e comentário do modelo; avisa lógica grande sem diagrama Mermaid e corpo longo.
 - **Verificação honesta:** diga o que foi exercitado de verdade (teste, navegador real, banco real) e o
   que NÃO foi. Aprovação de UI com dublê não vale como teste do serviço real.
 - PR com conflito não roda o CI. A `staging` anda sozinha (deploy e infra): rebasear antes de abrir.
