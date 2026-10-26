@@ -4,8 +4,8 @@
   "private": true,
   "description": "Cockpit web do post-automation: aprovar, escolher legenda/arte, agendar e publicar, com avisos da conta.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "check:db": "node scripts/check-db.mjs"
