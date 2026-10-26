@@ -20,9 +20,18 @@ export function initSentry(): void {
     release: process.env.K_REVISION,
     defaultIntegrations: false,
     integrations: [Sentry.linkedErrorsIntegration(), Sentry.dedupeIntegration()],
-    registerEsmLoaderHooks: false, // sem auto-instrumentação, não precisa do hook (e o standalone não o traz)
     tracesSampleRate: 0,
-    sendDefaultPii: false,
+    // Sem dado pessoal: na v11 o padrão coleta usuário, cookie, cabeçalho, corpo e variáveis locais.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      databaseQueryData: false,
+      queues: false,
+      stackFrameVariables: false,
+    },
   });
   started = true;
 }
