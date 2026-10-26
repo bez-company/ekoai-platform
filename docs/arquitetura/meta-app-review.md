@@ -3,6 +3,11 @@
 > Preparação de 20/10/2026 (cartão BEZ-78). A publicação em contas de terceiros ([SPEC 011 R5](../specs/011-plataforma-generica-fase-1.md))
 > só funciona sem restrição depois que a Meta aprova o app. Até lá, só contas com papel no app
 > (tester) conectam. O prazo da revisão decide a data do primeiro cliente de fora.
+>
+> Atualização de 26/10/2026 (cartão BEZ-332): o app passou a pedir também `instagram_business_manage_insights`
+> (BEZ-264), usada pelas telas Analytics, Aprendizado e Horários (SPEC 022). Ela está em acesso padrão,
+> que já vale para contas com papel no app. O acesso avançado, para clientes de fora, entra neste mesmo
+> pedido. O documento foi escrito antes e dizia "nada de insights"; as seções abaixo já refletem as três permissões.
 
 ## O que foi verificado e o que não foi
 
@@ -22,7 +27,7 @@
 | --- | --- |
 | Tipo de login | Instagram Login (a SPEC 011 R5 já diz). Não precisa de Página do Facebook |
 | Tipo de conta | Profissional (empresa ou criador). Conta pessoal não publica |
-| Permissões pedidas | `instagram_business_basic` e `instagram_business_content_publish`. Nada de insights, comentários ou mensagens nesta rodada: pedir a mais reprova |
+| Permissões pedidas | `instagram_business_basic`, `instagram_business_content_publish` e `instagram_business_manage_insights`. Nada de comentários ou mensagens: pedir a mais reprova. Os insights entram porque três telas dependem deles e cada uma é demonstrada no vídeo |
 | Plataforma | Web (a única que o Instagram Login aceita) |
 
 ## Lista do que a Meta pede
@@ -32,8 +37,8 @@
 | 1 | Conta de desenvolvedor Meta e portfólio empresarial da BEZ (Meta Business) | Matheus | e-mail da BEZ | a fazer |
 | 2 | Business Verification do portfólio, com CNPJ, contrato social ou cartão CNPJ, site e domínio da BEZ | Matheus | domínio e e-mail (BEZ-28), site da BEZ no ar | a fazer, é o item mais lento e o que mais reprova por divergência de nome ou endereço |
 | 3 | Criar o app (tipo empresa) com o produto "Instagram" e login Instagram | Matheus | 1 | a fazer |
-| 4 | Política de privacidade e termos publicados em URL pública | Matheus e advogada | BEZ-32 | bloqueia o envio |
-| 5 | Instruções de exclusão de dados e callback de desautorização (a tela do app na Meta pede os dois URLs antes do envio) | Código (R5.4) | R5 | falta: duas rotas públicas com `signed_request` verificado (HMAC com o segredo do app) |
+| 4 | Política de privacidade e termos publicados em URL pública | Matheus e advogada | BEZ-32 | política publicada em 22/10/2026 (BEZ-222) e gravada nos apps; termos dependem da advogada |
+| 5 | Instruções de exclusão de dados e callback de desautorização (a tela do app na Meta pede os dois URLs antes do envio) | Código (R5.4) | R5 | feito: rotas com `signed_request` verificado (BEZ-215) e URLs registradas no app em 23/10/2026 (BEZ-255) |
 | 6 | Ícone 1024x1024 (gotas da Ekoai), categoria do app, e-mail comercial | Matheus | 3 | a fazer |
 | 7 | Conta de teste: perfil profissional de Instagram da BEZ adicionado como tester no app | Matheus | 3 | a fazer |
 | 8 | Fluxo R5 funcionando em staging: login, token cifrado, status da conexão, desconectar | Código | Cloud KMS em staging (SPEC 010, fase 3) | construído em 22/10/2026 (BEZ-212), falta exercitar no staging com um testador |
@@ -41,6 +46,9 @@
 | 10 | Vídeo por permissão: login completo, escolha da conta, e criação do post com legenda e hashtags até a publicação | Matheus | 8 e 9 | a gravar |
 | 11 | Texto para o revisor: passo a passo, quando cada permissão é usada, credenciais de teste | Claude escreve, Matheus revisa | 8 | rascunho abaixo |
 | 12 | Ambiente que o revisor consiga abrir sem VPN nem convite | Código | URL estável, ver risco 1 | a decidir |
+| 13 | Vídeo de `instagram_business_manage_insights`: Analytics, Aprendizado e Horários com dados da conta de teste (roteiro abaixo) | Matheus | 8 e 14 | a gravar |
+| 14 | Conta de teste com posts publicados e alcance lido; para ver faixa etária e gênero, 100 seguidores ou mais (risco 7) | Matheus | 7 | a conferir quantos seguidores o `@ekoai.app` tem |
+| 15 | Uma chamada de API bem-sucedida de insights (alcance de um post e, se a conta tiver 100 seguidores, `follower_demographics`), registrada no BEZ-326 | Código e Matheus | 14 | a fazer, depende do BEZ-326 |
 
 ## Riscos
 
@@ -59,6 +67,16 @@
 6. **Projeto Fé e crianças:** conteúdo com menores entra na política de uso da Meta e na LGPD.
    Registrar na política de privacidade que a plataforma não publica rosto de criança sem
    autorização (a regra está na SPEC 012).
+
+7. **Conta de teste pequena.** A Meta só devolve `follower_demographics` com 100 seguidores ou mais, e
+   `online_followers` não consta na tabela de métricas da documentação atual (conferido em 23/10/2026).
+   Com menos de 100 seguidores o revisor só vê alcance, salvamentos e compartilhamentos por post, que não
+   têm mínimo. O app trata o caso (a tela diz "faltam N seguidores" e a coleta guarda o estado), mas o
+   vídeo não pode prometer demografia sem uma conta que a mostre. Se o `@ekoai.app` não chega a 100,
+   usar um perfil profissional de teste que chegue, adicionado como testador, ou gravar o vídeo só com
+   as métricas por post e mostrar o estado "faltam N seguidores" como comportamento esperado.
+8. **Insights sem uso visível.** O revisor reprova permissão que o vídeo não mostra sendo usada. Cada
+   tela que lê insights precisa aparecer no vídeo, com a legenda dizendo qual dado vem da Meta.
 
 ## Ordem recomendada
 
@@ -87,5 +105,36 @@
 > Data deletion: Settings, Data and privacy, delete the account, or use the data deletion callback
 > configured in the app. Disconnecting removes the stored token.
 
+> `instagram_business_manage_insights`: we read, for the connected account only, the reach, saves,
+> shares and views of each post we published (`/{media-id}/insights`) and, when the account has at
+> least 100 followers, the age and gender breakdown of the followers (`follower_demographics`, in
+> aggregate fractions). We never read or store data about individual followers. The numbers are shown in
+> "Published, Analytics" (what worked, who the audience is, when it is active) and in "Learning, Audience".
+> They also feed the suggestion of publishing hours in the "Schedule, Hours" dialog. The person decides
+> whether an observation is used as a hint for new post ideas; nothing is published because of an
+> insight, and nothing leaves the account.
+
 Credenciais e segredo do TOTP do revisor **não entram neste arquivo** (repositório público): vão
 só no formulário da Meta.
+
+## Roteiro do vídeo de `instagram_business_manage_insights` (item 13)
+
+Gravar em inglês ou com legenda em inglês sobre cada passo. Dado fictício ou da conta de teste, nunca de
+cliente. Um vídeo só para esta permissão, uns 3 minutos.
+
+1. Settings, Instagram: mostrar a conta conectada e, na tela de consentimento do Instagram, o item
+   "Access and manage insights" sendo concedido (se a conta já concedeu, reconectar para mostrar).
+2. Published, Analytics: abrir a aba. Legenda: "Reach and engagement come from `/{media-id}/insights`".
+   Mostrar "O que funciona" (tipo, formato, objetivo) e dizer que compara os posts da própria conta.
+3. Mesma tela, "Seu público": mostrar faixa etária e gênero. Legenda: "Age and gender come from
+   `follower_demographics`, aggregate only". Sem 100 seguidores, mostrar a mensagem "Faltam N seguidores"
+   e dizer que é o comportamento esperado da Meta.
+4. Mesma tela, "Quando seu público está ativo": mostrar o gráfico por hora e a faixa de recomendação.
+5. Schedule, Hours: abrir o diálogo, mostrar a recomendação e clicar em "Usar estes horários". Legenda:
+   "The person confirms; nothing changes until they save".
+6. Learning, Audience: mostrar as observações e ligar uma. Legenda: "A turned-on observation is a hint for
+   new ideas, never a rule and never a publication".
+7. Encerrar mostrando Settings, Data and privacy (exclusão) e o botão de desconectar, que apaga o token.
+
+Antes de gravar, rodar o BEZ-326 para confirmar no staging o que a Meta devolve de verdade (formato,
+`timeframe` aceito, existência e fuso de `online_followers`) e ajustar as legendas ao que apareceu.
