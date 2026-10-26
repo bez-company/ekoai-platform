@@ -241,13 +241,13 @@ export async function markReauthRequired(target: Pick<RefreshTarget, 'id' | 'ten
 
 // ── Métricas (BEZ-183): job de sistema, atravessa as contas de propósito ─────────────────────
 
-export type MetricsAccount = { id: string; tenantId: string; scopes: string[] };
+export type MetricsAccount = { id: string; tenantId: string; externalId: string; scopes: string[] };
 
 // Contas de Instagram ativas, com as permissões que a pessoa concedeu (a de insights é opcional).
 export async function listMetricsAccounts(): Promise<MetricsAccount[]> {
   const { data, error } = await system()
     .from('social_accounts')
-    .select('id,tenant_id,scopes')
+    .select('id,tenant_id,external_id,scopes')
     .eq('channel', 'instagram')
     .eq('status', 'active')
     .order('connected_at', { ascending: false })
@@ -260,7 +260,7 @@ export async function listMetricsAccounts(): Promise<MetricsAccount[]> {
     const tenantId = String(r.tenant_id);
     if (seen.has(tenantId)) continue;
     seen.add(tenantId);
-    out.push({ id: String(r.id), tenantId, scopes: Array.isArray(r.scopes) ? (r.scopes as unknown[]).map(String) : [] });
+    out.push({ id: String(r.id), tenantId, externalId: String(r.external_id), scopes: Array.isArray(r.scopes) ? (r.scopes as unknown[]).map(String) : [] });
   }
   return out;
 }

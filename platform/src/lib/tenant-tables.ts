@@ -2,6 +2,7 @@
 // com as migrations, então tabela nova com tenant_id que não entrar aqui reprova o CI.
 export const TENANT_TABLES = [
   'assets',
+  'audience_snapshots',
   'audit_events',
   'bandit_snapshots',
   'brand_assets',
