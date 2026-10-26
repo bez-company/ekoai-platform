@@ -59,6 +59,7 @@ const EXPECTED = {
   'posts/[id]/direction': ['content.edit'],
   'posts/[id]/caption': ['content.edit'],
   'posts/[id]/design/ask': ['content.edit'],
+  'posts/[id]/design/format': ['content.edit'],
   'posts/[id]/design/preview': ['content.edit'],
   'posts/[id]/design/revisions': ['content.view', 'content.edit'],
   'posts/[id]/design/revisions/[version]/png': ['content.view'],

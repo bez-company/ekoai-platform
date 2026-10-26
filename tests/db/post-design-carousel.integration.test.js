@@ -19,6 +19,7 @@ const profile = await import('../../platform/src/lib/company-profile.ts');
 const facts = await import('../../platform/src/lib/company-facts.ts');
 const revs = await import('../../platform/src/lib/post-design-revisions.ts');
 const ask = await import('../../platform/src/lib/post-design-ask.ts');
+const { writeCarouselSlides } = await import('../../platform/src/lib/generation.ts');
 const { pngSize } = await import('../../platform/src/lib/design/render.ts');
 
 const A = 'it-cae-a';
@@ -229,5 +230,96 @@ describe('ajuste rápido por lâmina', () => {
   it('o pedido em texto livre ainda não vale para o carrossel', async () => {
     const t = tenantDb(A);
     await expect(ask.askAdjust(t, briefId, { instruction: 'tira o subtítulo', aspect: null, baseVersion: 5, caption: 'x', hashtags: [], userId: ANA.id }, { ...DEPS, model: fakeModel({ text: [], image: [] }) })).rejects.toThrow(/não vale para carrossel/);
+  });
+});
+
+describe('trocar o formato em Aprovar', () => {
+  let id;
+  const state = async () => revs.designState(tenantDb(A), id, DEPS);
+  const fresh = async (idea, format) => {
+    const t = tenantDb(A);
+    const parsed = requests.parsePostRequest({ idea, kind: 'informativo', ...(format ? { format } : {}) });
+    const made = (await requests.createPostRequest(t, ANA, parsed.value)).id;
+    const text = format ? CAROUSEL : { kind: 'informativo', angle: 'dica', texts: { title: 'Seu bolo está pronto?', sub: 'Três sinais, sem abrir o forno' }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo'], alt_text: 'Post sobre bolo.' };
+    const out = await generatePost(t, made, { model: fakeModel({ text: [text], image: [] }), store, fontDir: FONT_DIR });
+    expect(out.status, JSON.stringify(out)).toBe('ready');
+    return made;
+  };
+
+  it('de carrossel para uma imagem: fica a capa, as outras lâminas saem e a versão guarda o antes', async () => {
+    const t = tenantDb(A);
+    id = await fresh('três sinais, para trocar de formato', 'carousel');
+    briefId = id;
+    const before = await ctx();
+    const slideKeys = before.design.design.slides.map((x) => x.pngKey);
+    const saved = await revs.switchFormat(t, id, { baseVersion: 1, to: 'single', userId: ANA.id }, DEPS);
+    expect(saved).toMatchObject({ version: 2, summary: 'Trocou para uma imagem' });
+    expect(saved.diff).toMatchObject([{ field: 'format', before: 'carousel', after: 'single' }]);
+
+    const after = await ctx();
+    expect(after.design.design.slides).toBeUndefined();
+    expect(after.design.png_key).toBe(before.design.png_key);
+    expect(after.pending.images).toHaveLength(1);
+    expect(after.pending.images[0].path).toBe(slideKeys[0]);
+    expect(after.pending.generation.variations[0].format).toBe('single');
+    expect(after.pending.generation.variations[0].slideUrls).toBeUndefined();
+    expect(after.pending.generation.slide_alts).toBeUndefined();
+    expect(after.pending.seed.format).toBe('single');
+    expect(after.pending.seed.slides).toBeUndefined();
+    expect(slideKeys.slice(1).some((k) => objects.has(k))).toBe(false);
+    expect(objects.has(slideKeys[0])).toBe(true);
+    expect((await one('select format from briefs where id = $1', [id])).format).toBe('single');
+    const v1 = await one('select design from post_design_revisions where post_design_id = $1 and version = 1', [after.design.id]);
+    expect(v1.design.slides).toHaveLength(5);
+    expect((await revs.designState(t, id, DEPS)).slides).toBeUndefined();
+  });
+
+  it('de volta para carrossel: as lâminas de antes voltam sem chamar o modelo', async () => {
+    const t = tenantDb(A);
+    let calls = 0;
+    const saved = await revs.switchFormat(t, id, { baseVersion: 2, to: 'carousel', userId: ANA.id }, { ...DEPS, writeSlides: async () => { calls += 1; return []; } });
+    expect(calls).toBe(0);
+    expect(saved).toMatchObject({ version: 3, summary: 'Voltou ao carrossel' });
+    const after = await ctx();
+    expect(after.design.design.slides.map((x) => x.texts.title)).toEqual(SLIDES.map((x) => x.texts.title));
+    expect(after.pending.images).toHaveLength(5);
+    expect(after.pending.generation.variations[0]).toMatchObject({ format: 'carousel' });
+    expect(after.pending.generation.variations[0].slideUrls).toEqual(after.pending.images.map((i) => i.url));
+    expect(after.pending.generation.slide_alts).toHaveLength(5);
+    expect(after.pending.seed).toMatchObject({ format: 'carousel', slides: 5 });
+    expect(after.design.png_key).toBe(after.design.design.slides[0].pngKey);
+    expect((await one('select format from briefs where id = $1', [id])).format).toBe('carousel');
+  });
+
+  it('de uma imagem para carrossel sem lâminas de antes: uma chamada de texto, nenhuma de imagem, nada do limite', async () => {
+    const t = tenantDb(A);
+    const single = await fresh('um post de uma imagem para virar carrossel');
+    const model = fakeModel({ text: [CAROUSEL], image: [] });
+    const used = async () => (await one("select count(*)::int as n from generation_runs where step = 'visual' and brief_id = $1", [single])).n;
+    const saved = await revs.switchFormat(t, single, { baseVersion: 1, to: 'carousel', userId: ANA.id }, { ...DEPS, writeSlides: async () => (await writeCarouselSlides(t, single, { model })).slides });
+    expect(saved).toMatchObject({ version: 2, summary: 'Transformou em carrossel' });
+    expect(model.calls.map((c) => c.step)).toEqual(['writer']);
+    expect(model.calls[0].prompt).toContain('CARROSSEL');
+    expect(await used()).toBe(0);
+    const pending = await one('select * from pending_approvals where brief_id = $1', [single]);
+    const design = await one('select * from post_designs where id = $1', [pending.post_design_id]);
+    expect(design.design.slides).toHaveLength(5);
+    expect(pending.images).toHaveLength(5);
+    expect(design.png_key).toBe(pending.images[0].path);
+    expect(design.design.items).toBeUndefined();
+    expect((await one('select format from briefs where id = $1', [single])).format).toBe('carousel');
+  });
+
+  it('recusa o formato que o post já tem, versão velha e voltar a versão de outro formato', async () => {
+    const t = tenantDb(A);
+    await expect(revs.switchFormat(t, id, { baseVersion: 3, to: 'carousel', userId: ANA.id }, DEPS)).rejects.toThrow(/já é um carrossel/);
+    await expect(revs.switchFormat(t, id, { baseVersion: 1, to: 'single', userId: ANA.id }, DEPS)).rejects.toThrow(/salvou a versão 3/);
+    await revs.switchFormat(t, id, { baseVersion: 3, to: 'single', userId: ANA.id }, DEPS);
+    await expect(revs.switchFormat(t, id, { baseVersion: 4, to: 'single', userId: ANA.id }, DEPS)).rejects.toThrow(/já é de uma imagem/);
+    await expect(revs.restoreVersion(t, id, { version: 1, baseVersion: 4, userId: ANA.id }, DEPS)).rejects.toThrow(/outro formato/);
+    // sem lâminas de antes e sem quem as escreva, a troca para carrossel para sem mudar nada
+    const single = await fresh('outro post de uma imagem, sem escritor de lâminas');
+    await expect(revs.switchFormat(t, single, { baseVersion: 1, to: 'carousel', userId: ANA.id }, DEPS)).rejects.toThrow(/Não foi possível escrever as lâminas/);
+    expect((await one('select version from post_designs where brief_id = $1', [single])).version).toBe(1);
   });
 });
