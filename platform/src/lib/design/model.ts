@@ -200,6 +200,14 @@ export function paletteFor(spec: DesignSpec) {
 
 function basePalette(spec: DesignSpec) {
   const b = spec.brand;
+  // Fundo pedido (SPEC 020) nas famílias de lista e de título: só pela paleta da marca, texto claro no escuro e tinta no claro.
+  if ((spec.layout === 'lista-numerada' || spec.layout === 'titulo-destaque') && spec.background) {
+    const bg = markBackground(b, spec.background);
+    const light = spec.background === 'light';
+    const text = light ? b.ink : '#FFFFFF';
+    const kicker = light ? (contrast(b.primary, bg) >= 4.5 ? b.primary : b.ink) : contrast(b.accent, bg) >= 4.5 ? b.accent : text;
+    return { bg, title: text, sub: softened(text, bg), kicker, items: text };
+  }
   if (spec.layout === 'marca') {
     const bg = markBackground(b, spec.background);
     const light = spec.background === 'light';

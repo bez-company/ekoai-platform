@@ -17,7 +17,7 @@ export type Directives = {
   elements?: Partial<Record<Element, Place | 'off'>>; // 'off' = tirar o elemento
   exactTexts?: string[]; // frases que saem como estão, na ordem: título, subtítulo, itens
   textOnly?: boolean; // "mais nada na imagem": sem selo, subtítulo, itens nem frase extra
-  itemsCount?: 2 | 3 | 4; // "três dicas"
+  itemsCount?: number; // "três dicas" (2 a 9; a imagem leva no máximo 4, o resto vira "não aplicado")
   noPhoto?: boolean; // "sem foto": não gera visual por IA
   avoid?: string[]; // o que não colocar
 };
@@ -93,8 +93,8 @@ function normalize(o: Record<string, unknown>, idea: string | null): ParsedDirec
 
   if (o.itemsCount != null) {
     const n = Number(o.itemsCount);
-    if (n === 2 || n === 3 || n === 4) out.itemsCount = n;
-    else dropped.push(`quantidade de itens fora de 2 a 4: ${String(o.itemsCount).slice(0, 10)}`);
+    if (Number.isInteger(n) && n >= 2 && n <= 9) out.itemsCount = n;
+    else dropped.push(`quantidade de itens fora de 2 a 9: ${String(o.itemsCount).slice(0, 10)}`);
   }
 
   if (o.noPhoto === true) out.noPhoto = true;
@@ -157,11 +157,11 @@ export function buildDirectivesPrompt(idea: string, ctx: DirectivesContext): str
     idea,
     '',
     '## O que anotar (omita a chave quando a pessoa não disse nada sobre ela; nunca deduza)',
-    '- background: "dark" (fundo escuro), "light" (fundo claro) ou "brand" (a cor da marca). Só se ela pediu fundo liso ou de cor.',
+    '- background: "dark" (fundo escuro), "light" (fundo claro) ou "brand" (a cor da marca). Só se ela falou do fundo DA IMAGEM (liso, escuro, claro, da cor da marca). Cena ou ambiente descrito ("consultório limpo e claro", "sala escura") NÃO é fundo.',
     '- elements: onde fica cada elemento ou "off" para tirar. Chaves: logo, name (o nome da empresa escrito), handle (o @), title (o texto principal). Posições: tl tc tr (topo esquerda, centro, direita), ml c mr (meio), bl bc br (base). "centralizado" é "c"; "em um canto" sem dizer qual é "br" para o @ e "tr" para o logo; "embaixo do logo" é "bc" para o nome.',
     '- exact_texts: frases que ela escreveu e quer EXATAMENTE como estão, só quando ela marcou isso: aspas, "a frase exata", "a palavra", "escrito". Copie letra por letra do pedido, na ordem em que devem aparecer. Descrever o assunto do post NÃO é texto exato. O nome da empresa e o @ não entram aqui: são os elementos name e handle.',
-    '- text_only: true se ela disse "mais nada", "só isso", "sem mais texto", "sem nenhuma frase", "apenas". Vale só para TEXTO: não tire logo, nome nem @ por causa dele, a menos que ela tenha pedido para tirar cada um.',
-    '- items_count: 2, 3 ou 4 se ela pediu essa quantidade de dicas, passos ou itens.',
+    '- text_only: true se ela disse "mais nada", "só isso", "sem mais texto", "sem nenhuma frase", "apenas". Vale só para TEXTO: não tire logo, nome nem @ por causa dele, a menos que ela tenha pedido para tirar cada um. Também é true quando o pedido só descreve a composição (logo, fundo, nome) e não traz assunto nenhum para escrever. Pedido que descreve uma cena ou uma foto TEM assunto (a cena): nesse caso não é text_only.',
+    '- items_count: de 2 a 9, se ela pediu essa quantidade de dicas, passos ou itens.',
     '- no_photo: true se ela pediu fundo liso ou disse "sem foto".',
     '- avoid: o que ela pediu para NÃO colocar e que não cabe nas chaves acima (até 5 itens curtos). Logo, nome, @ e título tirados são elements "off"; "sem frase" é text_only. Não repita em avoid o que já está em outra chave.',
     '',
@@ -172,6 +172,8 @@ export function buildDirectivesPrompt(idea: string, ctx: DirectivesContext): str
     'JSON: {"exact_texts":["Aberto de terça a sábado"],"text_only":true}',
     'Pedido: Dois passos para limpar o forno, sem o logo.',
     'JSON: {"items_count":2,"elements":{"logo":"off"}}',
+    'Pedido: Foto de uma sala de espera clara e acolhedora, sem logo e sem texto.',
+    'JSON: {"elements":{"logo":"off"},"text_only":true}',
     'Pedido: Um post sobre o nosso atendimento.',
     'JSON: {}',
     '',

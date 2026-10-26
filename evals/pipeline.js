@@ -5,6 +5,7 @@
 
 import { buildDirectivesPrompt, hasDirectives, parseDirectives } from '../platform/src/lib/directives.ts';
 import { composeDesign, planDirectives, reviewComposed, reviewCount, writerHints } from '../platform/src/lib/directives-apply.ts';
+import { clicheIssues, offTopicFacts, requestNumbersMissing } from '../platform/src/lib/off-topic-facts.ts';
 import { markPlacements } from '../platform/src/lib/design/families.ts';
 import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy, visualPromptFor } from '../platform/src/lib/agents.ts';
 import { brandFromProfile, defaultLayout, imageDataUri } from '../platform/src/lib/design/model.ts';
@@ -13,6 +14,16 @@ import { blocking, reviewText } from '../platform/src/lib/design/review.ts';
 import { COMPANIES } from './cases.js';
 
 const MAX_COPY_ROUNDS = 3;
+
+// As três checagens do texto (iguais às do generatePost): fato fora do assunto, número do pedido que sumiu e clichê.
+function textChecks({ copy, idea, facts, dictated }) {
+  const imageTexts = dictated ? [] : imageTextsOf(copy);
+  return [
+    ...(dictated ? [] : offTopicFacts({ imageTexts, facts, topic: [idea, copy.angle, copy.texts.title].join(' ') })),
+    ...(dictated ? [] : requestNumbersMissing({ request: idea, imageTexts, caption: copy.caption })),
+    ...clicheIssues({ imageTexts, caption: copy.caption }),
+  ];
+}
 
 // Texto: até 3 rodadas, o revisor por regra devolvendo o motivo ao modelo (igual ao writeCopy).
 async function writeCopy({ model, brief, company, plan }) {
@@ -30,7 +41,7 @@ async function writeCopy({ model, brief, company, plan }) {
       continue;
     }
     const copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: [...company.profile.bannedWords, ...(plan?.avoid ?? [])], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : [])];
+    const issues = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: [...company.profile.bannedWords, ...(plan?.avoid ?? [])], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: company.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) break;

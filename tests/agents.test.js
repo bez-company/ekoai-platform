@@ -46,6 +46,27 @@ describe('volta do revisor: o que passou fica', () => {
   });
 });
 
+describe('regras de qualidade do texto', () => {
+  const p = buildCopyPrompt({ idea: 'x', kind: null, profile, facts: ['Entrega no mesmo dia em Marília'], never: [], rules: [] });
+
+  it('fato da base só entra quando serve ao pedido, e evento não ganha local nem horário inventado', () => {
+    for (const piece of ['Fato da base só entra quando serve ao pedido', 'Não complete a imagem com fato solto', 'data, horário e local só os que estão no pedido', 'nem a cidade da empresa como se fosse o local']) expect(p).toContain(piece);
+  });
+
+  it('o título promete algo específico e o visual não tem equipe nem pessoa', () => {
+    expect(p).toContain('O título promete algo específico');
+    for (const piece of ['"transformar"', '"descubra"', 'Saúde, obra e dinheiro: não prometa resultado', 'Nada de "garante"']) expect(p).toContain(piece);
+    expect(VISUAL_SUFFIX).toContain('not even small or far in the background');
+    expect(VISUAL_SUFFIX).toContain('plain blank label');
+    for (const piece of ['horário ou dia da base só entram se o pedido for sobre eles', 'ENTRAM no post', 'Isso vale mesmo quando o pedido pede essa afirmação'.replace('Isso','Isso')]) expect(buildCopyPrompt({ idea: 'x', kind: null, profile, facts: [], never: ['promessa de prazo'], rules: [] })).toContain(piece);
+    expect(buildCopyPrompt({ idea: 'x', kind: null, profile, facts: [], never: [], rules: [] })).toContain('top-down flat lay');
+    expect(p).toContain('pergunte "Quando foi a última vez que você olhou o pneu?"');
+    expect(p).toContain('nem equipe, nem recepcionista');
+    expect(VISUAL_SUFFIX).toContain('no staff or receptionist');
+    expect(VISUAL_SUFFIX).toContain('no faces');
+  });
+});
+
 describe('leitura da resposta', () => {
   it('normaliza e corta nos limites; itens só no informativo', () => {
     const r = parseCopy({ kind: 'informativo', angle: 'dica', texts: { kicker: ' Dica  da casa ', title: 'Seu bolo está pronto?', sub: 'x', items: ['a', 'b', 'c', 'd', 'e'] }, caption: 'Legenda', hashtags: ['#Bolo', 'bolo', 'bolo caseiro!', '#marília'] }, null);

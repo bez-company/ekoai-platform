@@ -83,6 +83,7 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push('');
     lines.push('## O que a empresa NUNCA afirma');
     lines.push(input.never.map((f) => `- ${f}`).join('\n'));
+    lines.push('Isso vale mesmo quando o pedido pede essa afirmação: nesse caso escreva sobre o tema sem afirmar.');
   }
   if (p.bannedWords.length) {
     lines.push('');
@@ -108,7 +109,11 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('');
   lines.push('## Regras do texto');
   lines.push('- Frase curta, voz ativa, sentence case (só a primeira letra maiúscula). Nada de travessão (— ou –): use vírgula, ponto ou dois-pontos.');
-  lines.push('- Nada de "imperdível", "garantido", "melhor da cidade", superlativo vazio, jargão de IA nem clichê de vendedor.');
+  lines.push('- Fato da base só entra quando serve ao pedido. Não complete a imagem com fato solto (o horário da fornada num post sobre outro assunto). Se o pedido já traz o conteúdo, use só ele.');
+  lines.push('- Evento, aviso ou convite: data, horário e local só os que estão no pedido; horário ou dia da base só entram se o pedido for sobre eles. Faltou algum, não escreva (nem a cidade da empresa como se fosse o local) e, na legenda, mande a pessoa perguntar pela chamada padrão. Data, horário e valor que o pedido traz ENTRAM no post, na imagem ou na legenda, do jeito que foram escritos.');
+  lines.push('- O título promete algo específico: um benefício, uma pergunta ou um fato do negócio. Nada de rótulo de tema ("Segurança técnica em projetos") nem frase que serviria a qualquer empresa. No post de atmosfera, uma cena concreta. Em vez de "Cuidados com o pneu", pergunte "Quando foi a última vez que você olhou o pneu?".');
+  lines.push('- Nada de "imperdível", "garantido", "melhor da cidade", superlativo vazio, jargão de IA nem clichê de vendedor: nada de "transformar", "descubra", "mergulhe", "jornada", "essência", "experiência única" nem "o segredo é".');
+  lines.push('- Saúde, obra e dinheiro: não prometa resultado. Nada de "garante", "evita", "elimina" nem "resolve de vez"; diga o que a empresa faz, não o que o cliente vai conseguir.');
   lines.push('- Sem emoji no texto da imagem. Na legenda, no máximo 2, e só se combinar com o jeito de falar.');
   lines.push(`- title: até ${LIMITS.title} caracteres, o gancho. kicker: até ${LIMITS.kicker} caracteres, um selo curto (ex.: "Dica da casa"). sub: até ${LIMITS.sub} caracteres, opcional.`);
   lines.push(`- items: de 2 a ${LIMITS.items} itens curtos (até ${LIMITS.item} caracteres cada), só no informativo em lista. Em "atmosfera", sem items e sem sub.`);
@@ -118,7 +123,7 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push('- Em "atmosfera", o visual_prompt descreve UMA foto só, para a capa: uma cena, sem colagem, sem painéis, sem sequência de momentos. As outras lâminas não levam foto.');
   }
   lines.push(`- caption: a legenda, até 900 caracteres, com a chamada no fim. hashtags: de 3 a 8, sem o #, minúsculas, sem acento.`);
-  lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa identificável. No informativo, null.');
+  lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. Se o pedido diz o ângulo (de cima, de perto, de frente), comece pelo ângulo (ex.: "top-down flat lay, camera directly above"). SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa (nem equipe, nem recepcionista: ambiente vazio; só mãos, se o pedido pedir). No informativo, null.');
   lines.push('- angle: uma frase com o ângulo escolhido (para a equipe ver por que).');
   lines.push('- alt_text: o texto alternativo da imagem, para quem usa leitor de tela. Em português, de 1 a 3 frases (até 600 caracteres): o que a imagem mostra e o texto escrito nela. Sem hashtag, sem link, sem chamada para ação e sem "imagem de" no começo.');
   if (input.feedback?.length) {
@@ -238,7 +243,7 @@ export function finalAltText(input: { fromWriter: string; photoDescription?: str
 
 // O pedido ao modelo de imagem: a descrição do agente mais o que vale sempre (nada de texto, logo
 // nem rosto). Fica no código, não no prompt do redator, para o modelo não "esquecer".
-export const VISUAL_SUFFIX = 'Photographic, natural light, high quality, subtle, with empty space in the lower third for text. No text, no letters, no typography, no logo, no watermark, no brand, no children faces, no identifiable person.';
+export const VISUAL_SUFFIX = 'Photographic, natural light, high quality, subtle, with empty space in the lower third for text. No text, no letters, no typography, no logo, no watermark, no brand, no faces, no children, no staff or receptionist, no identifiable person anywhere in the frame, not even small or far in the background (hands only when the scene asks for them). Any jar, bottle, box or sign has a plain blank label.';
 
 export function visualPromptFor(copy: Copy): string {
   return `${copy.visualPrompt ?? ''} ${VISUAL_SUFFIX}`.trim();

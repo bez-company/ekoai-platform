@@ -8,6 +8,7 @@ import { contrast, mix, over, untilContrast, type Hex } from './color';
 import { HEIGHT, MARGIN, WIDTH, paletteFor, type DesignSpec, type Logo, type LogoCorner } from './model';
 import { escapeXml, fitText, textWidth, type Fit } from './text';
 import type { TextBox } from './review';
+import { logoBlendsWith } from './logo-blend';
 import type { Element, Place } from '../directives';
 
 export type Composed = { svg: string; boxes: TextBox[]; overflow: string[]; width: number; height: number };
@@ -71,7 +72,10 @@ function listaNumerada(spec: DesignSpec): Composed {
     y += size + 36;
   } else y += 40;
 
-  const title = fitText(spec.texts.title, { family: heading, maxWidth: 760, maxLines: 3, start: 100, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
+  // Em 3 linhas; se a fonte for larga e o título comprido, uma quarta linha em vez de estourar (negrito real de Poppins e Montserrat).
+  const titleOpts = { family: heading, maxWidth: 760, maxLines: 3, start: 100, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 };
+  let title = fitText(spec.texts.title, titleOpts);
+  if (title.overflow) title = fitText(spec.texts.title, { ...titleOpts, maxLines: 4 });
   if (title.overflow) overflow.push('title');
   parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
   boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
@@ -105,7 +109,7 @@ function listaNumerada(spec: DesignSpec): Composed {
   });
 
   const corner = spec.logoCorner ?? 'bl';
-  const logo = logoAt(spec.logo, corner, H, null);
+  const logo = logoAt(spec.logo, corner, H, spec.background && spec.background !== 'light' ? '#FFFFFF' : null);
   parts.push(logo.svg);
   const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
   const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
@@ -358,7 +362,9 @@ function marca(spec: DesignSpec): Composed {
     const logo = spec.logo;
     const h = large ? Math.round(H * 0.3) : LOGO_H;
     const w = Math.min(inner, Math.round((h * logo.width) / Math.max(1, logo.height)));
-    const pad = large ? 0 : PLATE_PAD;
+    // O logo grande some quando tem a cor do fundo: nesse caso ganha uma placa clara, como os pequenos.
+    const blends = large && !light && logoBlendsWith(logo, P.bg);
+    const pad = large && !blends ? 0 : large ? PLATE_PAD * 2 : PLATE_PAD;
     take(where.logo, w + pad * 2);
     items.push({
       id: 'logo',

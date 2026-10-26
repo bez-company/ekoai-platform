@@ -8,6 +8,7 @@ import { compose, markPlacements } from '../platform/src/lib/design/families.ts'
 import { brandFromProfile, compatibleLayouts, markBackground, paletteFor, storedDesignOf } from '../platform/src/lib/design/model.ts';
 import { applyRule } from '../platform/src/lib/design/rules-model.ts';
 import { reviewLayout } from '../platform/src/lib/design/review.ts';
+import { logoAverageColor, logoBlendsWith } from '../platform/src/lib/design/logo-blend.ts';
 import { contrast } from '../platform/src/lib/design/color.ts';
 import { COMPANIES } from '../evals/cases.js';
 
@@ -192,5 +193,25 @@ describe('cartão de marca: grade inteira, sem sobreposição', () => {
     }
     expect(count).toBe(4 * 2 * 3 * 9 * 9);
     expect(bad.slice(0, 12)).toEqual([]);
+  });
+});
+
+describe('cartão de marca: logo que some no fundo', () => {
+  it('o logo da clínica (quadrado verde) some no fundo verde da marca; o da padaria e o da engenharia não somem nos fundos que usam', () => {
+    const sorriso = brandFromProfile(COMPANIES.sorriso.profile);
+    expect(logoBlendsWith(COMPANIES.sorriso.logo, markBackground(sorriso, 'brand'))).toBe(true);
+    expect(logoBlendsWith(COMPANIES.sorriso.logo, markBackground(sorriso, 'dark'))).toBe(false);
+    expect(logoBlendsWith(COMPANIES.aurora.logo, markBackground(brandFromProfile(COMPANIES.aurora.profile), 'dark'))).toBe(false);
+    expect(logoBlendsWith(COMPANIES.vertice.logo, markBackground(brandFromProfile(COMPANIES.vertice.profile), 'dark'))).toBe(false);
+    expect(logoAverageColor({ dataUri: 'data:image/png;base64,AAAA', width: 1, height: 1 })).toBeNull(); // imagem ilegível: não decide
+  });
+
+  it('o logo grande que some ganha placa clara; o que aparece fica sem placa', () => {
+    const plated = compose(specFor('sorriso', { background: 'brand', placements: { logo: 'c' } })).svg;
+    const bare = compose(specFor('aurora', { background: 'dark', placements: { logo: 'c' } })).svg;
+    expect(plated).toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
+    expect(bare).not.toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
+    const issues = (svg) => svg;
+    expect(issues(plated)).toContain('<image');
   });
 });

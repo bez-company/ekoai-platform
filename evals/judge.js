@@ -11,6 +11,7 @@ export function buildJudgePrompt({ idea, requirements, caption, company }) {
         `- Base de fatos (o que pode afirmar): ${company.facts.join('; ')}.`,
         `- Nunca afirma: ${company.never.join('; ')}.`,
         `- Palavras proibidas: ${company.profile.bannedWords.join(', ')}.`,
+        `- Região: ${company.profile.region ?? 'não informada'}. Diferenciais da empresa (valem como afirmados): ${company.profile.differentiators.join('; ')}.`,
         `- O logo é ${company.logoLooks}.`,
         '',
       ]
