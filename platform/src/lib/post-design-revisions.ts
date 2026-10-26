@@ -18,7 +18,9 @@ import { logoDimensions } from './generation';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { log } from './log';
 import { brandFromProfile, compatibleLayouts, imageDataUri, slidePositions, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type SlideRole, type StoredDesign } from './design/model';
-import { inSlideAt, reviewSlides, slideLayouts } from './design/carousel';
+import { inSlideAt, reviewSlides, slideAltText, slideLayouts, storedSlides } from './design/carousel';
+import type { CopySlide } from './agents';
+import { renderCarousel } from './generation-carousel';
 import { changedSlides, flatSlide, putSlide, slideDiffs, slideSummary, slidesOf } from './design/slide-edit';
 import { renderPng } from './design/render';
 import { editBlocking, reviewText, type Issue } from './design/review';
@@ -261,7 +263,7 @@ async function swapPendingSlides(t: TenantDb, target: Target, design: StoredDesi
   const images = slides.map((slide, i) => (changed.includes(i) || !target.images[i] ? { id: i + 1, url: mediaUrl(slide.pngKey!, mediaBaseUrl), path: slide.pngKey } : target.images[i]));
   const variations = Array.isArray(target.generation.variations) ? (target.generation.variations as Array<Record<string, unknown>>) : [];
   const generation = variations.length
-    ? { ...target.generation, variations: variations.map((v, k) => (k === 0 ? { ...v, slideUrls: images.map((x) => x.url), hook: slides[0].texts.title } : v)) }
+    ? { ...target.generation, slide_alts: slides.map((x, i) => slideAltText(x.texts, i, slides.length)), variations: variations.map((v, k) => (k === 0 ? { ...v, format: 'carousel', slideUrls: images.map((x) => x.url), hook: slides[0].texts.title } : v)) }
     : target.generation;
   const mine = (m: string) => /^Lâmina (\d+):/.exec(m);
   // Os achados das lâminas que não mudaram ficam; os das que mudaram e os das regras entre lâminas (capa curta, título
@@ -270,7 +272,7 @@ async function swapPendingSlides(t: TenantDb, target: Target, design: StoredDesi
     const n = mine(x.message);
     return !(x.rule === 'cover_long' || x.rule === 'slide_duplicate') && !(n && changed.includes(Number(n[1]) - 1));
   });
-  const seed = { ...target.seed, layout: design.layout, slide_titles: slides.map((x) => x.texts.title), review: dedupe([...kept, ...issues]) };
+  const seed = { ...target.seed, layout: design.layout, format: 'carousel', slides: slides.length, slide_titles: slides.map((x) => x.texts.title), review: dedupe([...kept, ...issues]) };
   const { error } = await t.update('pending_approvals', { images, generation, seed }).eq('pending_id', target.pendingId);
   if (error) throw new Error(`pendências: ${error.message}`);
 }
@@ -408,6 +410,106 @@ async function commitCarousel(t: TenantDb, target: Target, store: BlobStore, nex
   return { version, summary, diff, issues: built.issues, source: o.source, renderMs };
 }
 
+// ── Trocar o formato do post em Aprovar (SPEC 023, BEZ-313) ──────────────────────────────────────
+
+export type FormatDeps = Deps & { writeSlides?: () => Promise<CopySlide[]> };
+
+// Para uma imagem: fica a capa; as outras lâminas saem do post (a versão com elas continua no histórico).
+async function toSingle(t: TenantDb, target: Target, store: BlobStore, o: { baseVersion: number; userId: string | null }): Promise<SavedRevision> {
+  const { slides: old, ...rest } = target.design;
+  const next = rest as StoredDesign;
+  const ctx = contextOf(target, next);
+  const diff: DiffEntry[] = [{ field: 'format', op: 'set', before: 'carousel', after: 'single', context: ctx }];
+  const summary = 'Trocou para uma imagem';
+  const version = o.baseVersion + 1;
+  await ensureInitial(t, target);
+  const ins = await t.insert('post_design_revisions', { post_design_id: target.designId, version, parent_version: o.baseVersion, source: 'edit', author_id: o.userId, design: next, diff, summary });
+  if (ins.error) {
+    if (ins.error.code === '23505') throw await conflict(t, target);
+    throw new Error(`post_design_revisions: ${ins.error.message}`);
+  }
+  const upd = await t.update('post_designs', { design: next, version }).eq('id', target.designId).eq('version', o.baseVersion).select('id');
+  if (upd.error) throw new Error(`post_designs: ${upd.error.message}`);
+
+  const variations = Array.isArray(target.generation.variations) ? (target.generation.variations as Array<Record<string, unknown>>) : [];
+  const { slide_alts: _alts, ...generation } = target.generation;
+  const { slides: _n, slide_titles: _t, format: _f, ...seed } = target.seed;
+  const kept = (Array.isArray(seed.review) ? (seed.review as Issue[]) : []).filter((x) => !/^Lâmina \d+:/.test(x.message) && x.rule !== 'cover_long' && x.rule !== 'slide_duplicate');
+  const pend = await t.update('pending_approvals', {
+    images: target.images.slice(0, 1),
+    generation: { ...generation, variations: variations.map((v, k) => { if (k !== 0) return v; const { slideUrls: _u, ...one } = v; return { ...one, format: 'single' }; }) },
+    seed: { ...seed, format: 'single', review: kept },
+  }).eq('pending_id', target.pendingId);
+  if (pend.error) throw new Error(`pendências: ${pend.error.message}`);
+  await t.update('briefs', { format: 'single' }).eq('id', target.briefId);
+  await Promise.all((old ?? []).slice(1).map((x) => (x.pngKey ? store.remove(x.pngKey).catch(() => undefined) : undefined)));
+  await prune(t, target.designId, version);
+  return { version, summary, diff, issues: [], source: 'edit', renderMs: 0 };
+}
+
+// Para carrossel: as lâminas vêm da última versão que já foi carrossel (sem chamar o modelo) ou de uma chamada de texto.
+// O visual é o do post (a capa) e nenhuma imagem nova é pedida.
+async function toCarousel(t: TenantDb, target: Target, store: BlobStore, o: { baseVersion: number; userId: string | null }, deps: FormatDeps): Promise<SavedRevision> {
+  if ((target.design as { photo?: unknown }).photo) throw new UserError('Um post com foto anexada fica numa imagem só. Peça outra direção sem foto para fazer um carrossel.');
+  const earlier = (await revisions(t, target.designId)).find((r) => slidesOf(r.design));
+  let content: CopySlide[];
+  if (earlier) content = slidesOf(earlier.design)!.map((x) => ({ role: x.role, texts: x.texts }));
+  else {
+    if (!deps.writeSlides) throw new UserError('Não foi possível escrever as lâminas agora. Tente de novo.');
+    content = await deps.writeSlides();
+  }
+  const inputs = await loadInputs(t, target, store);
+  const started = Date.now();
+  const d = target.design;
+  const out = renderCarousel(content, { ratio: target.ratio, brand: inputs.brand, logo: inputs.logo, visual: inputs.visual, kind: target.kind, ...(d.logoCorner ? { logoCorner: d.logoCorner } : {}), ...(d.logoHidden ? { logoHidden: true } : {}) }, deps.fontDir ? { fontDir: deps.fontDir } : {});
+  const blocked = dedupe(editBlocking(out.issues));
+  if (blocked.length) throw new RevisionBlocked(blocked[0].message, blocked);
+
+  const keys = out.slides.map(() => `images/${randomUUID()}.png`);
+  const { layout: _l, texts: _t, logoCorner: _c, logoHidden: _h, colors: _col, ...rest } = d;
+  const cover = out.slides[0].spec;
+  const next: StoredDesign = {
+    ...rest,
+    layout: cover.layout,
+    texts: cover.texts,
+    ...(d.logoCorner ? { logoCorner: d.logoCorner } : {}),
+    ...(d.logoHidden ? { logoHidden: true } : {}),
+    slides: storedSlides(out.slides.map((x) => x.spec), out.roles, keys),
+  };
+  const ctx = contextOf(target, next);
+  const diff: DiffEntry[] = [{ field: 'format', op: 'set', before: 'single', after: 'carousel', context: ctx }];
+  const summary = earlier ? 'Voltou ao carrossel' : 'Transformou em carrossel';
+  const version = o.baseVersion + 1;
+  await ensureInitial(t, target);
+  const ins = await t.insert('post_design_revisions', { post_design_id: target.designId, version, parent_version: o.baseVersion, source: 'edit', author_id: o.userId, design: withoutKeys(next), diff, summary });
+  if (ins.error) {
+    if (ins.error.code === '23505') throw await conflict(t, target);
+    throw new Error(`post_design_revisions: ${ins.error.message}`);
+  }
+  await Promise.all(keys.map((key, i) => store.put(key, out.slides[i].png, 'image/png')));
+  const upd = await t.update('post_designs', { design: next, layout: next.layout, png_key: keys[0], review: { issues: out.issues }, version }).eq('id', target.designId).eq('version', o.baseVersion).select('id');
+  if (upd.error) throw new Error(`post_designs: ${upd.error.message}`);
+  await swapPendingSlides(t, target, next, out.slides.map((_, i) => i), out.issues, deps.mediaBaseUrl);
+  await t.update('briefs', { format: 'carousel' }).eq('id', target.briefId);
+  if (target.pngKey) await store.remove(target.pngKey).catch(() => undefined);
+  await prune(t, target.designId, version);
+  return { version, summary, diff, issues: out.issues, source: 'edit', renderMs: Date.now() - started };
+}
+
+// Trocar entre uma imagem e carrossel não chama o modelo de imagem nem gasta do limite do mês. De carrossel para uma
+// imagem fica a capa; de uma imagem para carrossel, uma chamada de texto escreve as lâminas (ou volta as de antes).
+export async function switchFormat(t: TenantDb, briefId: string, input: { baseVersion: number; to: 'single' | 'carousel'; userId: string | null }, deps: FormatDeps = {}): Promise<SavedRevision> {
+  const { target, store } = await prepare(t, briefId, deps, true);
+  if (target.version !== input.baseVersion) throw await conflict(t, target);
+  const isCarousel = !!slidesOf(target.design);
+  if (input.to === 'single') {
+    if (!isCarousel) throw new UserError('Este post já é de uma imagem.');
+    return toSingle(t, target, store, input);
+  }
+  if (isCarousel) throw new UserError('Este post já é um carrossel.');
+  return toCarousel(t, target, store, input, deps);
+}
+
 // No máximo 20 revisões por post: apaga a mais antiga que não seja a v1 nem a versão em uso.
 async function prune(t: TenantDb, designId: string, inUse: number): Promise<void> {
   const all = (await revisions(t, designId, 'version')).map((r) => r.version).sort((a, b) => a - b);
@@ -438,6 +540,7 @@ export async function restoreVersion(t: TenantDb, briefId: string, input: { vers
   if (!data) throw new NotFoundError('Essa versão não existe mais. Recarregue a lista de versões.');
   const old = data.design as StoredDesign;
   const slides = slidesOf(target.design);
+  if (!!slidesOf(old) !== !!slides) throw new UserError('Essa versão é de outro formato. Para voltar a ele, use Trocar para uma imagem ou Trocar para carrossel.');
   if (slides) {
     // Carrossel: volta o carrossel inteiro, lâmina a lâmina; as chaves dos PNG são as de agora (as que mudarem se redesenham).
     const before = slidesOf(old);

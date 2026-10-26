@@ -162,6 +162,15 @@ export function parseEditBody(body: unknown): Parsed<{ baseVersion: number; edit
   return { ok: true, value: { baseVersion: baseVersion.value, edit: edit.value, editMs, ...(slide !== undefined ? { slide } : {}) } };
 }
 
+// Trocar entre uma imagem e carrossel (SPEC 023): a versão de onde a pessoa partiu e o formato de destino.
+export function parseFormatBody(body: unknown): Parsed<{ baseVersion: number; to: 'single' | 'carousel' }> {
+  if (!isObject(body)) return fail('Corpo inválido: mande baseVersion e to.');
+  const baseVersion = parseVersion(body.baseVersion);
+  if (!baseVersion.ok) return baseVersion;
+  if (body.to !== 'single' && body.to !== 'carousel') return fail('Escolha uma imagem ou carrossel.', 'to');
+  return { ok: true, value: { baseVersion: baseVersion.value, to: body.to } };
+}
+
 export function parseRestoreBody(body: unknown): Parsed<{ baseVersion: number }> {
   if (!isObject(body)) return fail('Corpo inválido: mande baseVersion.');
   const baseVersion = parseVersion(body.baseVersion);

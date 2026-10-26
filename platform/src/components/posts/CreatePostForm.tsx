@@ -16,6 +16,13 @@ import { GOALS, POST_GOALS, type PostGoal } from '@/lib/post-goals';
 import { IDEA_MAX } from '@/lib/post-limits';
 
 type Ratio = '4:5' | '1:1';
+type Format = 'single' | 'carousel';
+
+// O tipo do post pelo número de imagens (SPEC 023): a pessoa escolhe; a Ekoai só decide quantas lâminas (2 a 6).
+const FORMATS: [Format, string, string][] = [
+  ['single', 'Uma imagem', 'Um post só, com uma imagem.'],
+  ['carousel', 'Carrossel', 'De 2 a 6 lâminas: gancho, conteúdo e chamada. Bom para listas e passo a passo.'],
+];
 type Idea = { id: string; idea: string; goal: PostGoal; goalLabel: string; reason: string };
 
 const RATIOS: [Ratio, string][] = [
@@ -40,6 +47,7 @@ export default function CreatePostForm({
   const [idea, setIdea] = useState('');
   const [goal, setGoal] = useState<PostGoal>('auto');
   const [ratio, setRatio] = useState<Ratio>('4:5');
+  const [format, setFormat] = useState<Format>('single');
   const [photo, setPhoto] = useState<AttachedPhoto | null>(null);
   const [attaching, setAttaching] = useState(!!initialAssetId);
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
@@ -50,6 +58,8 @@ export default function CreatePostForm({
   const [busy, setBusy] = useState(false);
   const atLimit = usage.used >= usage.max;
   const photoAsIs = photo?.usage === 'as_is';
+  // Com foto anexada o post é de uma imagem só: o carrossel não leva foto em cada lâmina.
+  const carousel = format === 'carousel' && !photo;
   const waitingPhoto = attaching && !!photo && !photo.ready;
 
   async function suggest() {
@@ -76,7 +86,7 @@ export default function CreatePostForm({
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, ...photoRequestFields(photo) }),
+      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, ...(carousel ? { format: 'carousel' } : {}), ...photoRequestFields(photo) }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
@@ -180,6 +190,30 @@ export default function CreatePostForm({
               </button>
             ))}
           </div>
+        </fieldset>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">Imagens do post</legend>
+          <div role="radiogroup" aria-label="Imagens do post" className="grid gap-2 sm:grid-cols-2">
+            {FORMATS.map(([id, label, hint]) => {
+              const off = id === 'carousel' && !!photo;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={(id === 'carousel') === carousel}
+                  disabled={off}
+                  onClick={() => setFormat(id)}
+                  className={`rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${(id === 'carousel') === carousel ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
+                >
+                  <strong className="block text-sm">{label}</strong>
+                  <small className="mt-0.5 block text-xs leading-snug text-muted">{off ? 'Com foto anexada, o post é de uma imagem só.' : hint}</small>
+                </button>
+              );
+            })}
+          </div>
+          {carousel && <p className="text-xs text-muted">A Ekoai escolhe o número de lâminas. Conta 1 no limite do mês, como uma imagem. Dá para trocar depois em Aprovar.</p>}
         </fieldset>
 
         {/* No celular a prévia fica embaixo do formulário: o formato vem aqui, antes de criar. */}

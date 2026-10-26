@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
 import { SlideList, SlideStrip } from './CarouselSlides';
+import FormatSwitch from './FormatSwitch';
 import { carouselOf } from '@/lib/carousel-view';
 import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
@@ -205,6 +206,20 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                 {canEdit && !design.state.decided ? (carousel ? 'Editar esta lâmina' : 'Editar imagem') : 'Ver versões'}
               </Link>
             </section>
+          )}
+
+          {canEdit && design && briefId && designVersion !== undefined && !design.state.decided && !pending.seed?.photo_usage && (
+            <FormatSwitch
+              briefId={briefId}
+              version={designVersion}
+              slides={carousel?.slides.length ?? 0}
+              blockedReason={null}
+              disabled={!!busy}
+              onChanged={(v) => {
+                setSlide(0);
+                designChanged(v);
+              }}
+            />
           )}
 
           <section className="card space-y-3">

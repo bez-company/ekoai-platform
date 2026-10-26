@@ -10,7 +10,7 @@ import { blocking } from '../platform/src/lib/design/review.ts';
 import { profileFromRow } from '../platform/src/lib/company-profile-model.ts';
 import { changedSlides, flatSlide, putSlide, slideDiffs, slideSummary, slidesOf } from '../platform/src/lib/design/slide-edit.ts';
 import { slideLayouts } from '../platform/src/lib/design/carousel.ts';
-import { parseEditBody } from '../platform/src/lib/design/edit-model.ts';
+import { parseEditBody, parseFormatBody } from '../platform/src/lib/design/edit-model.ts';
 import { fieldKeys } from '../platform/src/lib/design-edit-events.ts';
 
 const FONT_DIR = join(import.meta.dirname, '../platform/fonts');
@@ -244,5 +244,15 @@ describe('ajuste por lâmina (puro)', () => {
     expect(parseEditBody(body(0)).value.slide).toBe(0);
     expect(parseEditBody(body()).value.slide).toBeUndefined();
     for (const bad of [-1, 10, 1.5, '2']) expect(parseEditBody(body(bad))).toMatchObject({ ok: false, field: 'slide' });
+  });
+});
+
+describe('trocar de formato (corpo)', () => {
+  it('pede a versão de partida e o formato de destino', () => {
+    expect(parseFormatBody({ baseVersion: 2, to: 'single' })).toEqual({ ok: true, value: { baseVersion: 2, to: 'single' } });
+    expect(parseFormatBody({ baseVersion: '3', to: 'carousel' }).value).toEqual({ baseVersion: 3, to: 'carousel' });
+    expect(parseFormatBody({ baseVersion: 2, to: 'video' })).toMatchObject({ ok: false, field: 'to' });
+    expect(parseFormatBody({ to: 'single' })).toMatchObject({ ok: false, field: 'baseVersion' });
+    expect(parseFormatBody('x').ok).toBe(false);
   });
 });

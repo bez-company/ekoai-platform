@@ -21,7 +21,7 @@ import { completeRun, failRun, reserveRun } from './generation-db';
 import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGoal, isRatio, LIMIT_MESSAGE, type PostFormat, type PostGoal, type PostKind, type Ratio } from './generation-model';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
-import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type RewriteMode } from './agents';
+import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -411,6 +411,19 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     await notify(t, { kind: 'post.failed', level: 'error', title: 'Não deu para gerar o post', body: message.slice(0, 160), link: `/aprovar`, audience: 'team' }).catch(() => undefined);
     return { status: 'failed', briefId, error: message };
   }
+}
+
+// As lâminas de um post que nasceu de uma imagem (SPEC 023, trocar de formato em Aprovar): uma chamada de texto, com o
+// pedido original e o formato carrossel. Passa pelo mesmo revisor e pelas mesmas voltas da geração; não gera imagem.
+export async function writeCarouselSlides(t: TenantDb, briefId: string, deps: Pick<GenerationDeps, 'model'>): Promise<{ slides: CopySlide[]; issues: Issue[] }> {
+  const brief = await loadBrief(t, briefId);
+  if (!brief) throw new NotFoundError('Pedido não encontrado. Recarregue a página.');
+  const [account, profile, factRows, ruleRows] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t)]);
+  if (!profile) throw new UserError('Preencha o perfil da empresa antes.');
+  const campaign = await campaignOf(t, brief.campaignId);
+  const { copy, issues } = await writeCopy(t, deps as GenerationDeps, { ...brief, format: 'carousel' }, profile, factsForPrompt(factRows), ruleRows.filter((r) => r.active).map((r) => r.rule), account?.plan.maxPostsPerMonth ?? 20, null, campaign, null);
+  if (!copy.slides) throw new UserError('A Ekoai não conseguiu escrever as lâminas agora. Tente de novo.');
+  return { slides: copy.slides, issues };
 }
 
 export { profileFromRow };
