@@ -12,4 +12,5 @@ export const ROUTES = {
   slots: '/agenda?edit=slots',
   inbox: '/aprovar',
   history: '/historico',
+  company: '/configuracoes/empresa',
 } as const;

@@ -16,6 +16,8 @@ import { SlideList, SlideStrip } from './CarouselSlides';
 import FormatSwitch from './FormatSwitch';
 import { carouselOf } from '@/lib/carousel-view';
 import AskAdjust from './AskAdjust';
+import RequestPanel from './RequestPanel';
+import { requestPanelOf } from '@/lib/request-panel';
 import FeedbackForm from '@/components/FeedbackForm';
 import { Spinner } from '@/components/auth/ui';
 import { fmtDateTime } from '@/lib/format';
@@ -66,6 +68,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   // Carrossel (SPEC 023): as lâminas e a que está à mostra.
   const carousel = useMemo(() => carouselOf(pending), [pending]);
   const [slide, setSlide] = useState(0);
+  // O que a pessoa pediu sobre a imagem e o que foi aplicado (SPEC 020): antes da legenda.
+  const requestPanel = useMemo(() => requestPanelOf(pending), [pending]);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -222,6 +226,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             />
           )}
 
+          {requestPanel && <RequestPanel panel={requestPanel} onAskAdjust={() => document.getElementById('pedir-ajuste')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />}
+
           <section className="card space-y-3">
             <h2 className="text-base font-semibold">Legenda</h2>
             <label className="block space-y-1.5">
@@ -260,7 +266,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           </section>
 
           {canEdit && (briefId || photoAssetId) && (
-            <section className="card space-y-3">
+            <section className="card space-y-3" id="pedir-ajuste">
               <h2 className="text-base font-semibold">{design && briefId && !carousel ? 'Pedir ajuste' : 'Ajustes rápidos'}</h2>
               {design && briefId && !carousel && designVersion !== undefined && (
                 <AskAdjust

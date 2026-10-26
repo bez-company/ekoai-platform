@@ -130,6 +130,7 @@ export default function CreatePostForm({
           ) : (
             <p id="idea-help" className="text-xs text-muted">
               Uma frase basta: o assunto, o que destacar e, se tiver, uma data ou oferta.
+              <span className="mt-1 block">Também dá para pedir: fundo claro ou escuro, onde fica o logo, uma frase exata ou quantos itens. A Ekoai desenha o que você pedir.</span>
             </p>
           )}
         </div>
