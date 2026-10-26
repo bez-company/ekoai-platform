@@ -82,7 +82,8 @@ export type SlideRole = (typeof SLIDE_ROLES)[number];
 export const MIN_SLIDES = 2;
 export const MAX_SLIDES = 6;
 
-export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string };
+// O que a pessoa ajusta numa lâmina (SPEC 023): layout, texto, canto do logo e cor do texto, como no post de uma imagem.
+export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };
 
 // Onde a lâmina está no carrossel: `n` de `of` no total e, nas de conteúdo, o número do item entre os itens.
 export type SlidePosition = { n: number; of: number; item?: number; items?: number };

@@ -31,6 +31,8 @@ export type AskResult = {
 
 export async function askAdjust(t: TenantDb, briefId: string, input: AskInput & { userId: string | null }, deps: Deps & { model: ModelClient }): Promise<AskResult> {
   const state = await designState(t, briefId, deps);
+  // Carrossel: o ajuste por lâmina é o do painel; o pedido em texto livre vale para o post de uma imagem (SPEC 023).
+  if (state.slides) throw new UserError('O pedido em texto livre ainda não vale para carrossel. Use o ajuste rápido de cada lâmina.');
   if (state.decided) throw new ConflictError('Este post já foi decidido ou usa a sua foto como está. Peça outra direção para criar um novo.');
   if (state.version !== input.baseVersion) {
     const latest = state.revisions[0];

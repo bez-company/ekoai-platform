@@ -31,8 +31,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
     // As versões do design e o atalho para o Estúdio (SPEC 019 e 024): só para post com design. Falhar aqui nunca derruba a tela.
-    // Carrossel: o ajuste por lâmina é da entrega seguinte (SPEC 023); até lá a tela não oferece ajuste de design.
-    const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' && p.generation?.variations?.[0]?.format !== 'carousel' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
+    const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
     const handle = profile?.instagramHandle ? `@${profile.instagramHandle}` : (account?.name ?? 'sua conta');
     return (
       <PostReview

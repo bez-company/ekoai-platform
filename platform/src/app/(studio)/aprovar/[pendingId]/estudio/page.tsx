@@ -12,15 +12,15 @@ import Studio from '@/components/studio/Studio';
 export const dynamic = 'force-dynamic';
 
 // O Estúdio de edição do post (SPEC 024, BEZ-315): a imagem grande, os elementos e as propriedades. Só para
-// post de imagem única com design da Ekoai; foto do banco, carrossel e post sem design voltam para Aprovar.
-export default async function StudioPage({ params }: { params: Promise<{ pendingId: string }> }) {
+// post com design da Ekoai (uma imagem ou, com ?lamina=n, uma lâmina do carrossel); foto do banco e post sem design voltam para Aprovar.
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ pendingId: string }>; searchParams: Promise<{ lamina?: string }> }) {
   const { pendingId } = await params;
+  const { lamina } = await searchParams;
   const { t } = await pageSession();
   const id = decodeURIComponent(pendingId);
   const p = await getPending(t, id);
   if (!p) notFound();
-  // Carrossel: o ajuste por lâmina é da SPEC 023; até lá o Estúdio não abre para ele.
-  if (!p.post_design_id || !p.brief_id || p.seed?.source === 'photo' || p.generation?.variations?.[0]?.format === 'carousel') redirect(`/aprovar/${encodeURIComponent(id)}`);
+  if (!p.post_design_id || !p.brief_id || p.seed?.source === 'photo') redirect(`/aprovar/${encodeURIComponent(id)}`);
 
   const [account, profile, canEdit, canManage, state] = await Promise.all([accountOf(t.tenantId), getProfile(t), can('content.edit'), can('brand.manage'), designState(t, p.brief_id)]);
   const usage = await monthlyUsage(t, account?.plan.maxPostsPerMonth ?? 20);
@@ -33,6 +33,11 @@ export default async function StudioPage({ params }: { params: Promise<{ pending
     { label: 'Quase preto', hex: '#1F1A19' },
   ].filter((s, i, all) => all.findIndex((x) => x.hex.toLowerCase() === s.hex.toLowerCase()) === i);
   const kind = p.post_kind ?? (p.seed?.kind as string | undefined) ?? 'informativo';
+  // Carrossel: a lâmina vem de ?lamina=n (a partir de 1); fora da faixa, a primeira. Uma imagem ignora o parâmetro.
+  const urls = (p.images ?? []).map((i) => i.url).filter((u): u is string => !!u);
+  const carousel = !!state.slides && urls.length === state.slides.length;
+  const asked = Number(lamina);
+  const slide = carousel ? (Number.isInteger(asked) && asked >= 1 && asked <= urls.length ? asked - 1 : 0) : undefined;
 
   return (
     <Studio
@@ -41,7 +46,9 @@ export default async function StudioPage({ params }: { params: Promise<{ pending
       title={p.generation?.variations?.[0]?.hook ?? 'Post'}
       kind={kind === 'atmosfera' ? 'atmosfera' : 'informativo'}
       ratio={ratioOf(p.seed?.ratio)}
-      imageUrl={p.images?.find((i) => i.url)?.url ?? null}
+      imageUrl={slide !== undefined ? urls[slide] : (p.images?.find((i) => i.url)?.url ?? null)}
+      slide={slide}
+      slideUrls={carousel ? urls : undefined}
       state={state}
       swatches={swatches}
       usage={usage}

@@ -193,16 +193,16 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
           {carousel && <SlideList view={carousel} current={slide} onSelect={setSlide} />}
 
-          {design && briefId && !carousel && (
+          {design && briefId && (
             <section className="card space-y-3" aria-label="Imagem do post">
               <div>
-                <h2 className="text-base font-semibold">Imagem</h2>
+                <h2 className="text-base font-semibold">{carousel ? `Lâmina ${slide + 1} de ${carousel.slides.length}` : 'Imagem'}</h2>
                 <p className="mt-1 text-sm text-muted">
                   {design.state.revisions[0] ? `${design.state.version === 1 ? 'Versão inicial' : `Versão ${design.state.version}`} em uso: ${design.state.revisions[0].summary}.` : 'Versão inicial em uso.'} Texto, cor, logo e layout mudam sem gerar de novo e sem gastar do limite do mês ({usage.used} de {usage.max}).
                 </p>
               </div>
-              <Link href={`/aprovar/${encodeURIComponent(pending.pending_id)}/estudio`} className="btn-primary">
-                {canEdit && !design.state.decided ? 'Editar imagem' : 'Ver versões'}
+              <Link href={`/aprovar/${encodeURIComponent(pending.pending_id)}/estudio${carousel ? `?lamina=${slide + 1}` : ''}`} className="btn-primary">
+                {canEdit && !design.state.decided ? (carousel ? 'Editar esta lâmina' : 'Editar imagem') : 'Ver versões'}
               </Link>
             </section>
           )}
@@ -246,8 +246,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
           {canEdit && (briefId || photoAssetId) && (
             <section className="card space-y-3">
-              <h2 className="text-base font-semibold">{design && briefId ? 'Pedir ajuste' : 'Ajustes rápidos'}</h2>
-              {design && briefId && designVersion !== undefined && (
+              <h2 className="text-base font-semibold">{design && briefId && !carousel ? 'Pedir ajuste' : 'Ajustes rápidos'}</h2>
+              {design && briefId && !carousel && designVersion !== undefined && (
                 <AskAdjust
                   briefId={briefId}
                   version={designVersion}
@@ -264,7 +264,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   onDirection={anotherDirection}
                 />
               )}
-              {design && briefId && <span className="label block border-t border-line pt-3">Atalhos</span>}
+              {design && briefId && !carousel && <span className="label block border-t border-line pt-3">Atalhos</span>}
               <div className="flex flex-wrap gap-2">
                 {SHORTCUTS.map((s) => (
                   <button key={s.mode} type="button" className="btn-ghost" disabled={!!busy} onClick={() => shortcut(s.mode)}>

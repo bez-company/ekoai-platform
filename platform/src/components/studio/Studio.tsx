@@ -88,6 +88,8 @@ export default function Studio({
   usage,
   canEdit,
   canManage,
+  slide,
+  slideUrls,
 }: {
   pendingId: string;
   briefId: string;
@@ -100,13 +102,17 @@ export default function Studio({
   usage: { used: number; max: number };
   canEdit: boolean;
   canManage: boolean;
+  // Carrossel (SPEC 023): a lâmina que o Estúdio edita (a partir de 0) e as imagens de todas, para trocar de lâmina.
+  slide?: number;
+  slideUrls?: string[];
 }) {
   const router = useRouter();
+  const pick = (s: DesignState) => (slide !== undefined && s.slides?.[slide] ? s.slides[slide] : s);
   const [version, setVersion] = useState(state.version);
-  const [base, setBase] = useState<EditableDesign>(state.editable);
-  const [hist, setHist] = useState<History>(() => startHistory(state.editable));
+  const [base, setBase] = useState<EditableDesign>(pick(state).editable);
+  const [hist, setHist] = useState<History>(() => startHistory(pick(state).editable));
   const [versions, setVersions] = useState<RevisionView[]>(state.revisions);
-  const [layouts, setLayouts] = useState<string[]>(state.layouts);
+  const [layouts, setLayouts] = useState<string[]>(pick(state).layouts);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -133,8 +139,8 @@ export default function Studio({
   const hasItems = !!cur.texts.items?.length;
   // Itens só aparecem onde o layout os desenha (lista numerada) ou onde o post já tem.
   const els: El[] = ['title', 'kicker', 'sub', ...(cur.layout === 'lista-numerada' || hasItems ? (['items'] as El[]) : []), 'logo', 'layout'];
-  const call = useCallback((path: string, body: unknown) => api(`/api/posts/${briefId}/design/${path}`, { method: 'POST', body: JSON.stringify(body) }), [briefId]);
-  const shown = viewing !== null ? `/api/posts/${briefId}/design/revisions/${viewing}/png` : (preview?.image ?? imageUrl);
+  const call = useCallback((path: string, body: Record<string, unknown>) => api(`/api/posts/${briefId}/design/${path}`, { method: 'POST', body: JSON.stringify(slide !== undefined ? { ...body, slide } : body) }), [briefId, slide]);
+  const shown = viewing !== null ? `/api/posts/${briefId}/design/revisions/${viewing}/png${slide !== undefined ? `?slide=${slide}` : ''}` : (preview?.image ?? imageUrl);
 
   // Prévia do servidor: só quando há mudança, com espera para não desenhar a cada tecla.
   useEffect(() => {
@@ -205,9 +211,9 @@ export default function Studio({
     const s = r.body as unknown as DesignState;
     setVersion(s.version);
     setVersions(s.revisions);
-    setLayouts(s.layouts);
-    setBase(s.editable);
-    if (!keepEdit) setHist(startHistory(s.editable));
+    setLayouts(pick(s).layouts);
+    setBase(pick(s).editable);
+    if (!keepEdit) setHist(startHistory(pick(s).editable));
     setConflict(null);
   }
 
@@ -481,7 +487,7 @@ export default function Studio({
           ← {dirty ? 'Sair sem salvar' : 'Voltar ao post'}
         </Link>
         <div className="min-w-[200px] grow">
-          <strong className="block text-sm">Estúdio · {title}</strong>
+          <strong className="block text-sm">Estúdio · {title}{slide !== undefined ? ` · lâmina ${slide + 1} de ${state.slides?.length ?? slideUrls?.length ?? 1}` : ''}</strong>
           <span className="text-xs text-muted">
             A partir da {from} · {kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'} · {RATIO_LABEL[ratio] ?? ratio}
           </span>
@@ -508,6 +514,26 @@ export default function Studio({
         </aside>
 
         <main className="min-w-0 space-y-4 px-4 pt-6 md:col-start-2 md:row-start-1">
+          {slideUrls && slideUrls.length > 1 && slide !== undefined && (
+            <div className="mx-auto max-w-[620px] space-y-1.5" aria-label="Lâminas do carrossel">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Lâminas do carrossel">
+                {slideUrls.map((url, i) => (
+                  <button
+                    key={url}
+                    type="button"
+                    aria-current={i === slide}
+                    aria-label={`Lâmina ${i + 1}`}
+                    onClick={() => (dirty ? setMessage('Confirme ou descarte o ajuste desta lâmina antes de abrir outra.') : router.push(`/aprovar/${encodeURIComponent(pendingId)}/estudio?lamina=${i + 1}`))}
+                    className={`relative w-[56px] overflow-hidden rounded-lg border-2 bg-raised ${i === slide ? 'border-accent' : 'border-line'}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="block aspect-[4/5] w-full object-cover" />
+                    <span className="absolute bottom-0.5 left-0.5 rounded-full bg-ink/75 px-1.5 text-[10px] font-bold text-paper">{i + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {saved && (
             <div className="mx-auto max-w-[620px] space-y-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm" role="status">
               <p>
@@ -627,7 +653,7 @@ export default function Studio({
         </aside>
 
         <div className="min-w-0 space-y-4 px-4 pb-6 md:col-start-2 md:row-start-2">
-          {canEdit && !state.decided && (
+          {canEdit && !state.decided && slide === undefined && (
             <section className="card mx-auto max-w-[620px] space-y-3" aria-label="Pedir à Ekoai">
                 <h2 className="text-base font-semibold">Pedir à Ekoai</h2>
                 <AskAdjust

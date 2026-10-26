@@ -8,6 +8,10 @@ import { brandFromProfile, compatibleLayouts, isLayout, roleAt, slidePositions }
 import { renderPng } from '../platform/src/lib/design/render.ts';
 import { blocking } from '../platform/src/lib/design/review.ts';
 import { profileFromRow } from '../platform/src/lib/company-profile-model.ts';
+import { changedSlides, flatSlide, putSlide, slideDiffs, slideSummary, slidesOf } from '../platform/src/lib/design/slide-edit.ts';
+import { slideLayouts } from '../platform/src/lib/design/carousel.ts';
+import { parseEditBody } from '../platform/src/lib/design/edit-model.ts';
+import { fieldKeys } from '../platform/src/lib/design-edit-events.ts';
 
 const FONT_DIR = join(import.meta.dirname, '../platform/fonts');
 const slide = (title, extra = {}) => ({ texts: { title, ...extra } });
@@ -176,5 +180,69 @@ describe('modelo', () => {
     expect(isLayout('lamina-item')).toBe(true);
     expect(compatibleLayouts('informativo', { title: 'x' }, false)).toEqual(['titulo-destaque']);
     expect(compatibleLayouts('informativo', { title: 'x' }, false, 'lamina-item')).toEqual(['titulo-destaque', 'lamina-item']);
+  });
+});
+
+describe('ajuste por lâmina (puro)', () => {
+  const slide = (role, layout, title, extra = {}) => ({ role, layout, texts: { title }, pngKey: `k-${title}`, ...extra });
+  const design = {
+    layout: 'titulo-destaque',
+    texts: { title: 'Capa' },
+    rules: ['r1'],
+    slides: [slide('cover', 'titulo-destaque', 'Capa'), slide('content', 'lamina-item', 'Item um', { logoCorner: 'br' }), slide('cta', 'titulo-destaque', 'Fim')],
+  };
+  const ctx = { kind: 'informativo', layout: 'titulo-destaque', ratio: '4:5', goal: null };
+
+  it('a lâmina vira um design plano que o painel já entende; o resto do design fica', () => {
+    const flat = flatSlide(design, 1);
+    expect(flat).toMatchObject({ layout: 'lamina-item', texts: { title: 'Item um' }, logoCorner: 'br', rules: ['r1'] });
+    expect(flat.slides).toBeUndefined();
+    expect(flatSlide({ layout: 'titulo-destaque', texts: { title: 'x' } }, 0)).toEqual({ layout: 'titulo-destaque', texts: { title: 'x' } });
+    expect(slidesOf(design)).toHaveLength(3);
+    expect(slidesOf({ layout: 'titulo-destaque', texts: { title: 'x' } })).toBeNull();
+  });
+
+  it('voltar ao carrossel troca só a lâmina e guarda a chave do PNG; a capa acompanha o nível de cima', () => {
+    const next = putSlide(design, 1, { ...flatSlide(design, 1), texts: { title: 'Item dois' }, logoHidden: true });
+    expect(next.slides[1]).toEqual({ role: 'content', layout: 'lamina-item', texts: { title: 'Item dois' }, pngKey: 'k-Item um', logoCorner: 'br', logoHidden: true });
+    expect(next.slides[0]).toBe(design.slides[0]);
+    expect(next.texts).toEqual({ title: 'Capa' });
+    const cover = putSlide(design, 0, { ...flatSlide(design, 0), texts: { title: 'Capa nova' }, colors: { title: '#112233' } });
+    expect(cover.texts).toEqual({ title: 'Capa nova' });
+    expect(cover.colors).toEqual({ title: '#112233' });
+    expect(cover.slides[0].colors).toEqual({ title: '#112233' });
+    expect(cover.rules).toEqual(['r1']);
+    expect(putSlide(design, 7, flatSlide(design, 0))).toBe(design);
+  });
+
+  it('acha as lâminas que mudaram sem contar a chave do PNG', () => {
+    const same = { ...design, slides: design.slides.map((s) => ({ ...s, pngKey: 'outra' })) };
+    expect(changedSlides(design, same)).toEqual([]);
+    const edited = putSlide(design, 2, { ...flatSlide(design, 2), texts: { title: 'Fim de novo' } });
+    expect(changedSlides(design, edited)).toEqual([2]);
+    expect(changedSlides(design, { ...design, slides: design.slides.slice(0, 2) })).toEqual([2]);
+  });
+
+  it('o diff leva a lâmina no campo e o resumo diz qual', () => {
+    const edited = putSlide(design, 1, { ...flatSlide(design, 1), texts: { title: 'Item dois' }, layout: 'titulo-destaque' });
+    expect(slideDiffs(design, edited, [1], ctx).map((d) => d.field)).toEqual(['layout', 'texts.title', 'logoCorner'].map((f) => `slides.1.${f}`).filter((f) => f !== 'slides.1.logoCorner'));
+    expect(slideSummary(design, edited, [1], ctx)).toBe('Lâmina 2: 2 ajustes: layout trocado para título em destaque, título alterado');
+    expect(slideSummary(design, edited, [0, 1], ctx)).toBe('2 lâminas ajustadas (1, 2)');
+    expect(fieldKeys(slideDiffs(design, edited, [1], ctx))).toBe('layout,title');
+  });
+
+  it('os layouts de cada papel', () => {
+    expect(slideLayouts('cover', 'informativo', false)).toEqual(['titulo-destaque']);
+    expect(slideLayouts('cover', 'atmosfera', true)).toEqual(['foto-titulo', 'titulo-destaque']);
+    expect(slideLayouts('content', 'informativo', false)).toEqual(['lamina-item', 'titulo-destaque']);
+    expect(slideLayouts('cta', 'atmosfera', true)).toEqual(['titulo-destaque']);
+  });
+
+  it('o corpo do ajuste aceita a lâmina de 0 a 9 e recusa o resto', () => {
+    const body = (slide) => ({ baseVersion: 1, design: { layout: 'titulo-destaque', texts: { title: 'x' } }, ...(slide === undefined ? {} : { slide }) });
+    expect(parseEditBody(body(3)).value.slide).toBe(3);
+    expect(parseEditBody(body(0)).value.slide).toBe(0);
+    expect(parseEditBody(body()).value.slide).toBeUndefined();
+    for (const bad of [-1, 10, 1.5, '2']) expect(parseEditBody(body(bad))).toMatchObject({ ok: false, field: 'slide' });
   });
 });

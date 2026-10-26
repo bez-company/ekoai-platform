@@ -61,7 +61,15 @@ export function slideSpecs(slides: readonly CopySlide[], common: Omit<DesignSpec
 
 // O que o design guarda de cada lâmina: papel, layout, texto e a chave do PNG. Marca e logo entram na hora de desenhar.
 export function storedSlides(specs: readonly DesignSpec[], roles: readonly SlideRole[], pngKeys: readonly string[]): Slide[] {
-  return specs.map((spec, i) => ({ role: roles[i], layout: spec.layout, texts: spec.texts as Texts, pngKey: pngKeys[i] }));
+  return specs.map((spec, i) => ({
+    role: roles[i],
+    layout: spec.layout,
+    texts: spec.texts as Texts,
+    pngKey: pngKeys[i],
+    ...(spec.logoCorner ? { logoCorner: spec.logoCorner } : {}),
+    ...(spec.logoHidden ? { logoHidden: true } : {}),
+    ...(spec.colors && Object.keys(spec.colors).length ? { colors: spec.colors } : {}),
+  }));
 }
 
 // O texto alternativo de uma lâmina (BEZ-203, estendido ao carrossel): qual lâmina é e o que está escrito nela. Vai no
@@ -69,4 +77,12 @@ export function storedSlides(specs: readonly DesignSpec[], roles: readonly Slide
 export function slideAltText(texts: Texts, index: number, count: number): string {
   const said = [texts.title, texts.sub].filter((x): x is string => !!x).map((x) => x.replace(/\.+$/, '')).join('. ');
   return cleanAltText(`Lâmina ${index + 1} de ${count}: ${said}${/[?!]$/.test(said) ? '' : '.'}`) ?? `Lâmina ${index + 1} de ${count}`;
+}
+
+// Os layouts que servem a cada papel (a troca de layout do ajuste rápido lê daqui): a capa é a foto com título (se há
+// visual) ou o título em destaque; a lâmina de item, o número em destaque ou o título em destaque; a chamada, o título.
+export function slideLayouts(role: SlideRole, kind: PostKind, hasVisual: boolean): Layout[] {
+  if (role === 'content') return ['lamina-item', 'titulo-destaque'];
+  if (role === 'cover' && kind === 'atmosfera' && hasVisual) return ['foto-titulo', 'titulo-destaque'];
+  return ['titulo-destaque'];
 }

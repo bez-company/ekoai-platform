@@ -10,13 +10,14 @@ import { revisionPng } from '@/lib/post-design-revisions';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string; version: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string; version: string }> }) {
   try {
     const t = await requirePermission('content.view');
     const { id, version } = await params;
     const v = parseVersion(version);
     if (!isUuid(id) || !v.ok) return NextResponse.json({ error: 'Versão não encontrada. Recarregue a lista de versões.' }, { status: 404 });
-    const png = await revisionPng(t, id, v.value);
+    const slide = Number(new URL(req.url).searchParams.get('slide') ?? 0);
+    const png = await revisionPng(t, id, v.value, {}, Number.isInteger(slide) && slide >= 0 && slide <= 9 ? slide : 0);
     return new NextResponse(new Uint8Array(png), { headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=60' } });
   } catch (e) {
     return designEditError(e, 'api/posts/[id]/design/revisions/[version]/png');
