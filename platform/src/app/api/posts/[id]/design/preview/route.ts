@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!parsed.ok) return NextResponse.json({ error: parsed.error, field: parsed.field }, { status: 400 });
     const limited = await hit(RULES.designPreview, t.tenantId);
     if (!limited.allowed) return tooMany(limited, 'api/posts/design/preview', RULES.designPreview.bucket);
-    const out = await previewEdit(t, id, { baseVersion: parsed.value.baseVersion, edit: parsed.value.edit });
+    const out = await previewEdit(t, id, { baseVersion: parsed.value.baseVersion, edit: parsed.value.edit, slide: parsed.value.slide });
     return NextResponse.json(out);
   } catch (e) {
     return designEditError(e, 'api/posts/[id]/design/preview');

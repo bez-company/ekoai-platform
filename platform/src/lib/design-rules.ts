@@ -106,7 +106,8 @@ export async function proposeDesignRules(t: TenantDb, now: Date = new Date()): P
   for (const d of (designs.data ?? []) as Row[]) {
     const id = String(d.id);
     const first = initial.get(id);
-    if (!first || !(d.approved_at || waiting.has(id))) continue;
+    // A regra de marca nasce de post de uma imagem; o carrossel não entra na conta (SPEC 023).
+    if (!first || (d.design as StoredDesign).slides || !(d.approved_at || waiting.has(id))) continue;
     const mine = rows.filter((r) => String(r.post_design_id) === id);
     posts.push({
       designId: id,

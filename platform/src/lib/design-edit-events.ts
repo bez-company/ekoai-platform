@@ -10,7 +10,8 @@ export type Wish = (typeof WISHES)[number];
 export type EventProps = Record<string, string | number | boolean | null>;
 
 // O nome curto do campo do diff: `texts.items.2` e `texts.title` viram `items` e `title`; as cores, `color`.
-const LABEL = (field: string): string => (field.startsWith('texts.items') ? 'items' : field.startsWith('texts.') ? field.slice(6) : field.startsWith('colors.') ? 'color' : field);
+const LABEL = (raw: string): string => labelOf(raw.replace(/^slides\.\d+\./, ''));
+const labelOf = (field: string): string => (field.startsWith('texts.items') ? 'items' : field.startsWith('texts.') ? field.slice(6) : field.startsWith('colors.') ? 'color' : field);
 
 export function fieldKeys(diff: readonly Pick<DiffEntry, 'field'>[]): string {
   return [...new Set(diff.map((d) => LABEL(d.field)))].join(',');

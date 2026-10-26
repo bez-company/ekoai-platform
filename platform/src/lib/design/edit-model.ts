@@ -142,7 +142,7 @@ export function parseVersion(value: unknown, label = 'A versão'): Parsed<number
 
 // Prévia e Confirmar: a versão de onde a pessoa partiu e o design editado. `editMs` (tempo da sessão de
 // ajuste, só para medir) é opcional e limitado a 1 hora.
-export function parseEditBody(body: unknown): Parsed<{ baseVersion: number; edit: EditableDesign; editMs: number | null }> {
+export function parseEditBody(body: unknown): Parsed<{ baseVersion: number; edit: EditableDesign; editMs: number | null; slide?: number }> {
   if (!isObject(body)) return fail('Corpo inválido: mande baseVersion e design.');
   const baseVersion = parseVersion(body.baseVersion);
   if (!baseVersion.ok) return baseVersion;
@@ -153,7 +153,13 @@ export function parseEditBody(body: unknown): Parsed<{ baseVersion: number; edit
     if (typeof body.editMs !== 'number' || !Number.isFinite(body.editMs) || body.editMs < 0) return fail('O tempo de edição é inválido.', 'editMs');
     editMs = Math.min(Math.round(body.editMs), 3_600_000);
   }
-  return { ok: true, value: { baseVersion: baseVersion.value, edit: edit.value, editMs } };
+  // Carrossel: a lâmina que o ajuste toca (a partir de 0). O servidor confere se ela existe.
+  let slide: number | undefined;
+  if (body.slide !== undefined && body.slide !== null) {
+    if (typeof body.slide !== 'number' || !Number.isInteger(body.slide) || body.slide < 0 || body.slide > 9) return fail('Escolha uma das lâminas do carrossel.', 'slide');
+    slide = body.slide;
+  }
+  return { ok: true, value: { baseVersion: baseVersion.value, edit: edit.value, editMs, ...(slide !== undefined ? { slide } : {}) } };
 }
 
 export function parseRestoreBody(body: unknown): Parsed<{ baseVersion: number }> {

@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const parsed = parseEditBody(await req.json().catch(() => null));
     if (!parsed.ok) return NextResponse.json({ error: parsed.error, field: parsed.field }, { status: 400 });
     const userId = (await requireSession()).user?.id ?? null;
-    const saved = await saveEdit(t, id, { baseVersion: parsed.value.baseVersion, edit: parsed.value.edit, userId });
+    const saved = await saveEdit(t, id, { baseVersion: parsed.value.baseVersion, edit: parsed.value.edit, userId, slide: parsed.value.slide });
     await track(t.tenantId, 'design_revision_saved', revisionSavedProps({ briefId: id, version: saved.version, source: saved.source, diff: saved.diff, renderMs: saved.renderMs, editMs: parsed.value.editMs }));
     // A regra que se repete em 3 posts: nunca derruba o Confirmar, que já foi gravado.
     const proposed = await proposeDesignRules(t).catch((e) => (log('warn', 'design-rules', 'não propôs regra', { error: e instanceof Error ? e.message : String(e) }), []));
