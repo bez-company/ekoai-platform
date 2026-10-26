@@ -6,6 +6,7 @@
 // 1.91:1 (paisagem) só vem do Publicar foto; `imagePosition` mostra o corte escolhido na prévia.
 
 import { useState } from 'react';
+import { cropBands, type GridCrop } from '@/lib/instagram-grid-model';
 
 function Icon({ d }: { d: string }) {
   return (
@@ -26,6 +27,25 @@ export type FeedRatio = '1:1' | '4:5' | '1.91:1';
 
 const ASPECT: Record<FeedRatio, string> = { '1:1': 'aspect-square', '4:5': 'aspect-[4/5]', '1.91:1': 'aspect-[1.91/1]' };
 
+// As faixas escuras são o que o perfil corta da miniatura; a linha tracejada marca a borda do corte.
+function CropGuide({ ratio, crop }: { ratio: FeedRatio; crop: GridCrop }) {
+  const { axis, percent } = cropBands(ratio, crop);
+  if (!axis) return null;
+  const size = `${percent}%`;
+  const band = 'pointer-events-none absolute bg-ink/50';
+  return axis === 'x' ? (
+    <>
+      <span className={`${band} inset-y-0 left-0 border-r border-dashed border-paper`} style={{ width: size }} aria-hidden="true" />
+      <span className={`${band} inset-y-0 right-0 border-l border-dashed border-paper`} style={{ width: size }} aria-hidden="true" />
+    </>
+  ) : (
+    <>
+      <span className={`${band} inset-x-0 top-0 border-b border-dashed border-paper`} style={{ height: size }} aria-hidden="true" />
+      <span className={`${band} inset-x-0 bottom-0 border-t border-dashed border-paper`} style={{ height: size }} aria-hidden="true" />
+    </>
+  );
+}
+
 export default function FeedFrame({
   handle,
   accountName,
@@ -35,6 +55,7 @@ export default function FeedFrame({
   busy = false,
   imagePosition,
   emptyLabel = 'Sem imagem',
+  cropGuide = null,
 }: {
   handle: string;
   accountName: string;
@@ -44,6 +65,8 @@ export default function FeedFrame({
   busy?: boolean;
   imagePosition?: string;
   emptyLabel?: string;
+  // O corte da miniatura do perfil, desenhado sobre o post (SPEC 023): o que fica nas faixas escuras some na grade.
+  cropGuide?: GridCrop | null;
 }) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const [expanded, setExpanded] = useState(false);
@@ -61,8 +84,11 @@ export default function FeedFrame({
       {busy || !imageUrl ? (
         <div className={`flex items-center justify-center bg-inset text-sm text-muted ${ASPECT[ratio]}`}>{busy ? 'Desenhando o post…' : emptyLabel}</div>
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
+          {cropGuide && <CropGuide ratio={ratio} crop={cropGuide} />}
+        </div>
       )}
       <div className="flex items-center gap-3 px-3 py-2 text-fg">
         <Icon d={ICONS.heart} />

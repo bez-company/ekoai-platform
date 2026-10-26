@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
+import ProfileGrid, { useGridCrop } from './ProfileGrid';
 import DesignAdjust, { type Swatch } from './DesignAdjust';
 import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
@@ -62,6 +63,10 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   // "Pedir ajuste" (BEZ-193): grava uma versão por fora do painel de ajuste rápido, que recarrega quando a chave muda.
   const [askKey, setAskKey] = useState(0);
   const [designDirty, setDesignDirty] = useState(false);
+  // Feed ou Grade (SPEC 023): a mesma imagem vista na moldura do feed ou entre os últimos posts do perfil.
+  const [preview, setPreview] = useState<'feed' | 'grid'>('feed');
+  const [gridCrop, setGridCrop] = useGridCrop();
+  const [showCropGuide, setShowCropGuide] = useState(false);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
   const kind = pending.post_kind ?? (pending.seed?.kind as string | undefined) ?? 'informativo';
@@ -162,7 +167,24 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <div>
-          <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} />
+          <div role="tablist" aria-label="Como ver o post" className="mb-3 inline-flex gap-1 rounded-full border border-line bg-inset p-0.5 text-sm">
+            {([['feed', 'Feed'], ['grid', 'Grade']] as const).map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={preview === id} onClick={() => setPreview(id)} className={`rounded-full px-4 py-1 font-semibold ${preview === id ? 'bg-raised text-fg shadow-sm' : 'text-muted hover:text-fg'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {preview === 'feed' ? (
+            <>
+              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide ? gridCrop : null} />
+              <label className="mt-3 flex max-w-[420px] items-center gap-2 text-sm text-muted">
+                <input type="checkbox" checked={showCropGuide} onChange={(e) => setShowCropGuide(e.target.checked)} />
+                Mostrar o corte da grade sobre o post
+              </label>
+            </>
+          ) : (
+            <ProfileGrid newImageUrl={imageOverride ?? image} handle={handle} accountName={accountName} crop={gridCrop} onCropChange={setGridCrop} />
+          )}
         </div>
 
         <div className="space-y-4">
