@@ -14,11 +14,20 @@ export function initSentry(env = process.env) {
     dsn,
     environment: env.SENTRY_ENVIRONMENT || 'local',
     release: env.CLOUD_RUN_EXECUTION || undefined,
-    registerEsmLoaderHooks: false,
     defaultIntegrations: false,
     integrations: [Sentry.linkedErrorsIntegration(), Sentry.dedupeIntegration()],
     tracesSampleRate: 0,
-    sendDefaultPii: false,
+    // Sem dado pessoal: na v11 o padrão coleta usuário, cookie, cabeçalho, corpo e variáveis locais.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      databaseQueryData: false,
+      queues: false,
+      stackFrameVariables: false,
+    },
   });
   started = true;
   return true;
