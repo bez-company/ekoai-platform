@@ -1,7 +1,7 @@
 // A lógica da tela de ajuste rápido (SPEC 019, BEZ-268) sem navegador: desfazer e refazer da sessão, o resumo
 // do que mudou, o selo de contraste e o canto padrão (que precisa ser o mesmo do motor de render).
 import { describe, it, expect } from 'vitest';
-import { changesOf, summaryOf, startHistory, edit, undo, redo, resetTo, contrastTone, fmtRatio, withTitle, withSub, withCorner, withHidden, withTitleColor, withLayout, sameDesign, defaultCornerOf, cornerOf, LAYOUT_LABEL } from '../platform/src/lib/design-edit-view.ts';
+import { changesOf, summaryOf, startHistory, edit, undo, redo, resetTo, contrastTone, fmtRatio, withTitle, withSub, withCorner, withHidden, withTitleColor, withColor, withKicker, withItems, withLayout, sameDesign, defaultCornerOf, cornerOf, LAYOUT_LABEL } from '../platform/src/lib/design-edit-view.ts';
 import { defaultCorner, LAYOUTS } from '../platform/src/lib/design/model.ts';
 import { parseEditable } from '../platform/src/lib/design/edit-model.ts';
 import { summarize, diffDesigns } from '../platform/src/lib/design/diff.ts';
@@ -29,6 +29,37 @@ describe('o que mudou, antes de confirmar', () => {
     expect(parsed.ok).toBe(true);
     const ctx = { kind: 'informativo', layout: next.layout, ratio: '1:1', goal: null };
     expect(summaryOf(changesOf(base, next))).toBe(summarize(diffDesigns(base, next, ctx)));
+  });
+
+  // O Estúdio (SPEC 024) edita a cor de cada texto, o selo e os itens: o resumo da tela segue igual ao do servidor.
+  it.each([
+    ['cor do subtítulo', withColor(base, 'sub', '#B83262')],
+    ['cor do selo', withColor(base, 'kicker', '#1F1A19')],
+    ['cor dos itens', withColor(base, 'items', '#B83262')],
+    ['selo removido', withKicker(base, null)],
+    ['selo alterado', withKicker(base, 'Dica da casa')],
+    ['item alterado', withItems(base, ['a', 'bb', 'c'])],
+    ['item removido', withItems(base, ['a', 'b'])],
+    ['item adicionado', withItems(base, ['a', 'b', 'c', 'd'])],
+  ])('%s: o resumo da tela é o mesmo do servidor', (_n, next) => {
+    expect(parseEditable(next).ok).toBe(true);
+    const ctx = { kind: 'informativo', layout: next.layout, ratio: '1:1', goal: null };
+    expect(summaryOf(changesOf(base, next))).toBe(summarize(diffDesigns(base, next, ctx)));
+  });
+
+  it('cor que volta à da marca sai do design e vira frase própria', () => {
+    const colored = withColor(base, 'sub', '#B83262');
+    expect(withColor(colored, 'sub', null).colors).toBeUndefined();
+    expect(changesOf(colored, withColor(colored, 'sub', null))).toEqual(['cor do subtítulo voltou à da marca']);
+    expect(withColor(withColor(base, 'sub', '#B83262'), 'title', '#1F1A19').colors).toEqual({ sub: '#B83262', title: '#1F1A19' });
+  });
+
+  it('lista vazia e selo vazio tiram o campo, sem deixar chave sobrando', () => {
+    expect(withItems(base, []).texts).not.toHaveProperty('items');
+    expect(withItems(base, null).texts).not.toHaveProperty('items');
+    expect(withKicker(base, '').texts).not.toHaveProperty('kicker');
+    expect(withItems(base, ['x']).texts.items).toEqual(['x']);
+    expect(base.texts.items).toEqual(['a', 'b', 'c']);
   });
 
   it('escolher o canto que já era o padrão não é mudança', () => {

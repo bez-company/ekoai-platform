@@ -14,7 +14,6 @@ import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
 import { SlideList, SlideStrip } from './CarouselSlides';
 import { carouselOf } from '@/lib/carousel-view';
-import DesignAdjust, { type Swatch } from './DesignAdjust';
 import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
 import { Spinner } from '@/components/auth/ui';
@@ -45,7 +44,7 @@ const RATIO_LABEL: Record<FeedRatio, string> = { '4:5': 'Retrato 4:5', '1:1': 'Q
 
 const joinCaption = (body: string, hashtags: string[]) => (hashtags.length ? `${body.trim()}\n\n${hashtags.map((h) => `#${h}`).join(' ')}` : body.trim());
 
-export type DesignProps = { state: DesignState; swatches: Swatch[] };
+export type DesignProps = { state: DesignState };
 
 export default function PostReview({ pending, suggested, nextSlot, handle, accountName, usage, facts, canApprove, canEdit, canManage = false, design = null }: { pending: PendingApproval; suggested: string; nextSlot: string | null; handle: string; accountName: string; usage: { used: number; max: number }; facts: Fact[]; canApprove: boolean; canEdit: boolean; canManage?: boolean; design?: DesignProps | null }) {
   const router = useRouter();
@@ -58,13 +57,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [rejecting, setRejecting] = useState(false);
   const [directionAsked, setDirectionAsked] = useState(false);
   const [publishAsked, setPublishAsked] = useState(false);
-  // A imagem que a tela mostra no lugar da salva: a prévia do ajuste ou uma versão antiga (SPEC 019).
-  const [imageOverride, setImageOverride] = useState<string | null>(null);
-  // A versão do design que a pessoa está vendo: aprovar leva esta versão e para se outra pessoa salvou uma nova.
+  // A versão do design em uso: aprovar leva esta versão e para se outra pessoa salvou uma nova (SPEC 019).
   const [designVersion, setDesignVersion] = useState<number | undefined>(design?.state.version);
-  // "Pedir ajuste" (BEZ-193): grava uma versão por fora do painel de ajuste rápido, que recarrega quando a chave muda.
-  const [askKey, setAskKey] = useState(0);
-  const [designDirty, setDesignDirty] = useState(false);
   // Feed ou Grade (SPEC 023): a mesma imagem vista na moldura do feed ou entre os últimos posts do perfil.
   const [preview, setPreview] = useState<'feed' | 'grid'>('feed');
   const [showCropGuide, setShowCropGuide] = useState(false);
@@ -138,11 +132,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     }
   }
 
-  // O pedido de ajuste gravou (ou desfez) uma versão: a prévia sai, o painel recarrega e a página traz o PNG novo.
+  // O pedido de ajuste gravou (ou desfez) uma versão: a página traz o PNG novo e o aprovar passa a levar a versão atual.
   function designChanged(version: number) {
     setDesignVersion(version);
-    setImageOverride(null);
-    setAskKey((k) => k + 1);
     router.refresh();
   }
 
@@ -180,7 +172,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           </div>
           {preview === 'feed' ? (
             <>
-              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide} slides={carousel?.slides.map((s) => s.url)} slide={slide} onSlide={setSlide} />
+              <FeedFrame handle={handle} accountName={accountName} imageUrl={image} caption={caption} ratio={ratio} cropGuide={showCropGuide} slides={carousel?.slides.map((s) => s.url)} slide={slide} onSlide={setSlide} />
               {carousel && <SlideStrip view={carousel} current={slide} onSelect={setSlide} />}
               <label className="mt-3 flex max-w-[420px] items-center gap-2 text-sm text-muted">
                 <input type="checkbox" checked={showCropGuide} onChange={(e) => setShowCropGuide(e.target.checked)} />
@@ -188,7 +180,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
               </label>
             </>
           ) : (
-            <ProfileGrid newImageUrl={imageOverride ?? image} newIsCarousel={!!carousel} handle={handle} accountName={accountName} />
+            <ProfileGrid newImageUrl={image} newIsCarousel={!!carousel} handle={handle} accountName={accountName} />
           )}
         </div>
 
@@ -202,7 +194,17 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           {carousel && <SlideList view={carousel} current={slide} onSelect={setSlide} />}
 
           {design && briefId && !carousel && (
-            <DesignAdjust briefId={briefId} state={design.state} swatches={design.swatches} usage={usage} canEdit={canEdit} canManage={canManage} onPreview={setImageOverride} onVersion={setDesignVersion} refreshKey={askKey} onDirty={setDesignDirty} />
+            <section className="card space-y-3" aria-label="Imagem do post">
+              <div>
+                <h2 className="text-base font-semibold">Imagem</h2>
+                <p className="mt-1 text-sm text-muted">
+                  {design.state.revisions[0] ? `${design.state.version === 1 ? 'Versão inicial' : `Versão ${design.state.version}`} em uso: ${design.state.revisions[0].summary}.` : 'Versão inicial em uso.'} Texto, cor, logo e layout mudam sem gerar de novo e sem gastar do limite do mês ({usage.used} de {usage.max}).
+                </p>
+              </div>
+              <Link href={`/aprovar/${encodeURIComponent(pending.pending_id)}/estudio`} className="btn-primary">
+                {canEdit && !design.state.decided ? 'Editar imagem' : 'Ver versões'}
+              </Link>
+            </section>
           )}
 
           <section className="card space-y-3">
@@ -252,7 +254,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   body={body}
                   hashtags={hashtags}
                   usage={usage}
-                  blockedReason={designDirty ? 'Confirme ou descarte as mudanças da imagem acima antes de pedir um ajuste.' : null}
+                  blockedReason={null}
                   busyElsewhere={!!busy}
                   onCaption={(b, h) => {
                     setBody(b);

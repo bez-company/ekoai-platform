@@ -201,6 +201,16 @@ describe('serviço', () => {
     expect(json.notApplied).toEqual([{ what: 'Legenda', why: expect.stringContaining('imperdível') }]);
   });
 
+  it('sem legenda na tela (Estúdio): o patch de legenda não entra, avisa e o resto do pedido segue', async () => {
+    modelMock.json = { image: { texts: { sub: null } }, caption: { caption: 'Legenda nova.' } };
+    const res = await ASK(post(body({ caption: '', hashtags: [] })), params());
+    const json = await res.json();
+    expect(res.status).toBe(201);
+    expect(json.caption).toBeNull();
+    expect(json.notApplied).toEqual([{ what: 'Legenda', why: expect.stringContaining('Aprovar') }]);
+    expect(saves).toHaveLength(1);
+  });
+
   it('nada aplicável vira erro com o motivo do modelo, sem gravar', async () => {
     modelMock.json = { notApplied: [{ what: 'Fonte', why: 'A fonte vem da marca da empresa. Mude em Configurações › Empresa.' }] };
     const res = await ASK(post(body({ instruction: 'Troca a fonte para Comic Sans' })), params());

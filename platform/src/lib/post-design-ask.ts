@@ -78,6 +78,11 @@ export async function askAdjust(t: TenantDb, briefId: string, input: AskInput & 
   const notApplied = [...outcome.notApplied];
   // A legenda passa pelo mesmo revisor do atalho de legenda. Reprovada, não vai: o resto do pedido segue.
   let caption = outcome.caption;
+  // Sem legenda na tela (o Estúdio), o patch de legenda não tem onde entrar: avisa e segue com o resto.
+  if (caption && !input.caption) {
+    notApplied.push({ what: 'Legenda', why: 'A legenda se ajusta na tela Aprovar. Volte ao post para mudá-la.' });
+    caption = null;
+  }
   if (caption) {
     const issues = blocking(reviewText({ imageTexts: [], caption: caption.caption, hashtags: caption.hashtags, facts: facts.facts, never: facts.never, inactive: facts.inactive, banned: profile.bannedWords }));
     if (issues.length) {

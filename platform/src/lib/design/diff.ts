@@ -50,14 +50,14 @@ const LAYOUT_NAME: Record<Layout, string> = {
   'lamina-item': 'lâmina de item',
 };
 const TEXT_NAME: Record<string, string> = { 'texts.kicker': 'selo', 'texts.title': 'título', 'texts.sub': 'subtítulo' };
-const COLOR_NAME: Record<string, string> = { 'colors.title': 'título', 'colors.sub': 'subtítulo', 'colors.kicker': 'selo', 'colors.items': 'itens' };
+const COLOR_NAME: Record<string, string> = { 'colors.title': 'do título', 'colors.sub': 'do subtítulo', 'colors.kicker': 'do selo', 'colors.items': 'dos itens' };
 
 // Uma frase por campo. O gênero fica fixo por campo para a frase soar certa.
 function phrase(e: DiffEntry): string {
   if (e.field === 'layout') return `layout trocado para ${LAYOUT_NAME[e.after as Layout] ?? 'outra família'}`;
   if (e.field === 'logoCorner') return `logo movido para o canto ${CORNER_NAME[e.after as LogoCorner] ?? 'novo'}`;
   if (e.field === 'logoHidden') return e.after ? 'logo escondido' : 'logo de volta';
-  if (e.field.startsWith('colors.')) return e.op === 'remove' ? `cor do ${COLOR_NAME[e.field]} voltou à da marca` : `cor do ${COLOR_NAME[e.field]} alterada`;
+  if (e.field.startsWith('colors.')) return e.op === 'remove' ? `cor ${COLOR_NAME[e.field]} voltou à da marca` : `cor ${COLOR_NAME[e.field]} alterada`;
   if (e.field.startsWith('texts.items.')) return e.op === 'remove' ? `item ${Number(e.field.split('.')[2]) + 1} removido` : e.op === 'add' ? `item ${Number(e.field.split('.')[2]) + 1} adicionado` : `item ${Number(e.field.split('.')[2]) + 1} alterado`;
   const name = TEXT_NAME[e.field] ?? 'texto';
   if (e.op === 'remove') return `${name} removido`;
