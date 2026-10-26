@@ -60,12 +60,22 @@ async function demographics(fetchFn: typeof fetch, igUserId: string, token: stri
   throw new GraphFailed('other', last);
 }
 
-export type AudienceReading = { audience: Audience; raw: Record<string, unknown> };
+// O que a Meta respondeu de errado em cada campo, para o log: nunca leva token (a Meta não o devolve) e a
+// mensagem é cortada. Serve para o BEZ-326: saber, com conta real, o que a Meta devolve de verdade.
+export type FieldFailure = { field: 'followers' | 'age' | 'gender' | 'online_followers'; kind: string; code: number | null; message: string | null };
+
+export type AudienceReading = { audience: Audience; raw: Record<string, unknown>; failures: FieldFailure[] };
+
+function failureOf(field: FieldFailure['field'], e: GraphFailed): FieldFailure {
+  const err = e.body && typeof e.body === 'object' ? (e.body as { error?: { code?: unknown; message?: unknown } }).error : null;
+  return { field, kind: e.kind, code: typeof err?.code === 'number' ? err.code : null, message: typeof err?.message === 'string' ? err.message.slice(0, 200) : null };
+}
 
 // Lê tudo o que a Meta entrega do público. Erro de token sobe para quem chama; permissão e poucos
 // seguidores viram estado; qualquer outro erro de um campo deixa só aquele campo nulo.
 export async function readAudience(fetchFn: typeof fetch, igUserId: string, token: string, insights: boolean): Promise<AudienceReading> {
   const raw: Record<string, unknown> = {};
+  const failures: FieldFailure[] = [];
   let followers: number | null = null;
   try {
     const me = await graphGet(fetchFn, igUserId, { fields: 'followers_count' }, token);
@@ -73,6 +83,7 @@ export async function readAudience(fetchFn: typeof fetch, igUserId: string, toke
   } catch (e) {
     if (e instanceof GraphFailed && e.kind === 'token') throw e;
     raw.followers_error = e instanceof GraphFailed ? e.kind : 'other';
+    if (e instanceof GraphFailed) failures.push(failureOf('followers', e));
   }
   const audience: Audience = { followers, age: null, gender: null, onlineHours: null, status: 'unavailable' };
   let tooFew = followers !== null && followers < MIN_FOLLOWERS;
@@ -90,6 +101,7 @@ export async function readAudience(fetchFn: typeof fetch, igUserId: string, toke
         if (e.kind === 'too_few_followers') tooFew = true;
         if (e.kind === 'permission') denied = true;
         raw[`${breakdown}_error`] = e.kind;
+        failures.push(failureOf(breakdown, e));
       }
     }
     if (!tooFew) {
@@ -101,12 +113,13 @@ export async function readAudience(fetchFn: typeof fetch, igUserId: string, toke
         if (!(e instanceof GraphFailed)) throw e;
         if (e.kind === 'token') throw e;
         raw.online_followers_error = e.kind;
+        failures.push(failureOf('online_followers', e));
       }
     }
   }
   // A pessoa pode ter retirado a permissão no Instagram depois de concedê-la: a Meta responde "permissão".
   audience.status = resolveStatus(audience, insights && !denied, tooFew);
-  return { audience, raw };
+  return { audience, raw, failures };
 }
 
 const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -128,7 +141,17 @@ async function collectAccount(account: MetricsAccount, deps: Required<Pick<Deps,
     return;
   }
   const token = await openAccountToken(account.id, deps.box);
-  const { audience, raw } = await readAudience(deps.fetchFn, account.externalId, token, account.scopes.includes(INSIGHTS_SCOPE));
+  const { audience, raw, failures } = await readAudience(deps.fetchFn, account.externalId, token, account.scopes.includes(INSIGHTS_SCOPE));
+  // Uma linha por conta e leitura: o estado do dia e o que a Meta recusou, sem dado de seguidor nenhum.
+  log('info', 'audience', 'leitura do público', {
+    account: account.id,
+    status: audience.status,
+    followers: audience.followers,
+    hasAge: audience.age !== null,
+    hasGender: audience.gender !== null,
+    hasOnlineHours: audience.onlineHours !== null,
+    failures,
+  });
   const { error } = await t.upsert(
     'audience_snapshots',
     {
