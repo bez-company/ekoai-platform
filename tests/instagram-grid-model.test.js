@@ -62,15 +62,13 @@ describe('parser da grade', () => {
 });
 
 describe('corte da miniatura', () => {
-  it('4:5 na miniatura vertical perde 3,13% de cada lado; na quadrada, 10% em cima e embaixo', () => {
-    expect(cropBands('4:5', '3:4')).toEqual({ axis: 'x', percent: 3.13 });
-    expect(cropBands('4:5', '1:1')).toEqual({ axis: 'y', percent: 10 });
+  it('o 4:5 perde 3,13% de cada lado na miniatura 3:4; o quadrado perde 12,5%', () => {
+    expect(cropBands('4:5')).toEqual({ axis: 'x', percent: 3.13 });
+    expect(cropBands('1:1')).toEqual({ axis: 'x', percent: 12.5 });
   });
 
-  it('quadrado na miniatura vertical perde 12,5% de cada lado; sem corte quando as proporções coincidem', () => {
-    expect(cropBands('1:1', '3:4')).toEqual({ axis: 'x', percent: 12.5 });
-    expect(cropBands('1:1', '1:1')).toEqual({ axis: null, percent: 0 });
-    expect(cropBands('desconhecido', '3:4')).toEqual({ axis: null, percent: 0 });
+  it('proporção desconhecida não corta', () => {
+    expect(cropBands('desconhecido')).toEqual({ axis: null, percent: 0 });
   });
 });
 

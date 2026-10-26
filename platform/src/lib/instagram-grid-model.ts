@@ -77,24 +77,19 @@ export function parseGridMedia(json: unknown, limit = GRID_LIMIT): GridItem[] {
 }
 
 // ── Corte da miniatura ───────────────────────────────────────────────────────────────────────────
-// O perfil mostra cada post recortado ao centro. O Instagram passou a usar miniaturas verticais (3:4);
-// contas que ainda mostram quadrado (1:1) escolhem na tela. Quem decide o padrão é a conta real da pessoa.
-export const GRID_CROPS = ['3:4', '1:1'] as const;
-export type GridCrop = (typeof GRID_CROPS)[number];
-export const DEFAULT_GRID_CROP: GridCrop = '3:4';
+// O perfil mostra cada post recortado ao centro numa miniatura vertical 3:4 (confirmado no perfil do Matheus
+// em 26/10/2026). A razão fica aqui, num lugar só, caso o Instagram mude de novo.
+export const GRID_THUMB_RATIO = 3 / 4;
 
-export const isGridCrop = (v: unknown): v is GridCrop => typeof v === 'string' && (GRID_CROPS as readonly string[]).includes(v);
-
-const RATIO: Record<string, number> = { '1:1': 1, '4:5': 4 / 5, '3:4': 3 / 4, '1.91:1': 1.91 };
+const RATIO: Record<string, number> = { '1:1': 1, '4:5': 4 / 5, '1.91:1': 1.91 };
 
 // Quanto de cada lado o corte tira do post, em porcentagem do lado cortado: `x` corta esquerda e direita,
-// `y` corta em cima e embaixo. Post mais estreito que a miniatura perde em cima e embaixo; mais largo, dos lados.
-export function cropBands(postRatio: string, crop: GridCrop): { axis: 'x' | 'y' | null; percent: number } {
+// `y` corta em cima e embaixo. Post mais largo que a miniatura perde dos lados; mais estreito, em cima e embaixo.
+export function cropBands(postRatio: string): { axis: 'x' | 'y' | null; percent: number } {
   const post = RATIO[postRatio];
-  const thumb = RATIO[crop];
-  if (!post || !thumb || Math.abs(post - thumb) < 1e-9) return { axis: null, percent: 0 };
-  if (post > thumb) return { axis: 'x', percent: round(((1 - thumb / post) / 2) * 100) };
-  return { axis: 'y', percent: round(((1 - post / thumb) / 2) * 100) };
+  if (!post || Math.abs(post - GRID_THUMB_RATIO) < 1e-9) return { axis: null, percent: 0 };
+  if (post > GRID_THUMB_RATIO) return { axis: 'x', percent: round(((1 - GRID_THUMB_RATIO / post) / 2) * 100) };
+  return { axis: 'y', percent: round(((1 - post / GRID_THUMB_RATIO) / 2) * 100) };
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

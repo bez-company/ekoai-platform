@@ -86,12 +86,11 @@
     **Sem conexão ou com falha da Meta**: a grade mostra o post novo e os publicados pela Ekoai (que temos em
     `listPublished`), com o aviso "Mostrando só os posts feitos pela Ekoai. Reconecte o Instagram para ver a
     grade completa" e o botão para reconectar. Conta sem posts: só o post novo, com "Primeiro post da conta".
-12. **Corte da grade.** O card pede corte 1:1. O Instagram mudou o perfil para miniaturas verticais 3:4 em 2025,
-    então o 4:5 do post perde menos do que no 1:1. **Mostrar os dois com uma chave "Grade: vertical (3:4) /
-    quadrada (1:1)", com o padrão que a conta real mostrar** (confirmar no perfil conectado do Matheus antes de
-    fixar o padrão; esta spec não o fixa por memória). O corte é centralizado, como o Instagram faz. No ajuste
-    rápido, uma guia opcional ("Mostrar o corte da grade") desenha a área cortada sobre o post, para a pessoa
-    manter o título dentro dela (as margens de segurança do BEZ-196).
+12. **Corte da grade: só 3:4.** O card pedia 1:1, mas o perfil do Matheus mostra miniaturas verticais 3:4 (confirmado
+    em 26/10/2026), então não há chave. O corte é centralizado, como o Instagram faz; a razão fica numa constante
+    (`GRID_THUMB_RATIO`) caso o Instagram mude de novo. No Feed, uma guia opcional ("Mostrar o corte da grade")
+    desenha a área cortada sobre o post (3,13% de cada lado no 4:5), para a pessoa manter o título dentro dela
+    (as margens de segurança do BEZ-196).
 
 ## Telas (a prototipar no Claude Design, desktop e mobile)
 
@@ -101,7 +100,7 @@ Ajuste rápido do carrossel (5), Agenda e Publicados e Criar post (2). Estados e
 - **Criar post**: campo Imagens do post (2 opções, Uma imagem marcada), abaixo do objetivo.
 - **Aprovar, carrossel**: visualizador com setas e pontos, miniaturas, avisos do revisor por lâmina, botão "Trocar
   para imagem única".
-- **Aprovar, aba Grade**: 9 células em 3 colunas (o novo no topo à esquerda), chave 3:4 e 1:1, aviso de
+- **Aprovar, aba Grade**: 9 células em 3 colunas (o novo no topo à esquerda), corte 3:4, aviso de
   leitura parcial, carrossel com ícone.
 - **Ajuste rápido, carrossel**: seletor de lâminas e a guia do corte da grade.
 - **Agenda e Publicados**: capa com a marca de carrossel e "4 lâminas".
@@ -119,7 +118,7 @@ Ajuste rápido do carrossel (5), Agenda e Publicados e Criar post (2). Estados e
 | Publicação do carrossel na Meta | ensaio na conta de staging conectada; sem conta, **não verificado** e dito na PR |
 | Parser da grade (mídia vídeo, carrossel, campo ausente, host estranho) | teste puro |
 | Grade com e sem conexão, e falha da Meta | teste da rota com `fetch` falso e teste de tela |
-| Corte 3:4 e 1:1 fiel ao Instagram | **conferir no perfil real**; teste só garante a conta do corte |
+| Corte 3:4 fiel ao Instagram | conferido no perfil do Matheus (26/10/2026); teste garante a conta do corte |
 
 ## Entregas
 
@@ -146,5 +145,5 @@ Ekoai não opina; Reels e vídeo; carrossel com foto da pessoa em cada lâmina; 
   chegar ao cliente; a lâmina sai sem texto alternativo e o aviso diz isso.
 - **Grade sem os posts fixados**: a API da Meta não diz quais estão fixados, então a ordem é por data. A aba avisa.
 - **Conflito com a SPEC 020** em `generation.ts` e `families.ts`: a entrega 310 só começa depois do merge das
-  PRs #184 e #185, e rebaseia sobre elas.
-- **O corte do Instagram muda sem aviso**: por isso a chave 3:4 e 1:1, em vez de fixar um.
+  PRs #184, #185 e #193, e rebaseia sobre elas.
+- **O corte do Instagram muda sem aviso**: a razão fica numa constante só, fácil de trocar.

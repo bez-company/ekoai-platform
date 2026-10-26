@@ -6,7 +6,7 @@
 // 1.91:1 (paisagem) só vem do Publicar foto; `imagePosition` mostra o corte escolhido na prévia.
 
 import { useState } from 'react';
-import { cropBands, type GridCrop } from '@/lib/instagram-grid-model';
+import { cropBands } from '@/lib/instagram-grid-model';
 
 function Icon({ d }: { d: string }) {
   return (
@@ -28,8 +28,8 @@ export type FeedRatio = '1:1' | '4:5' | '1.91:1';
 const ASPECT: Record<FeedRatio, string> = { '1:1': 'aspect-square', '4:5': 'aspect-[4/5]', '1.91:1': 'aspect-[1.91/1]' };
 
 // As faixas escuras são o que o perfil corta da miniatura; a linha tracejada marca a borda do corte.
-function CropGuide({ ratio, crop }: { ratio: FeedRatio; crop: GridCrop }) {
-  const { axis, percent } = cropBands(ratio, crop);
+function CropGuide({ ratio }: { ratio: FeedRatio }) {
+  const { axis, percent } = cropBands(ratio);
   if (!axis) return null;
   const size = `${percent}%`;
   const band = 'pointer-events-none absolute bg-ink/50';
@@ -55,7 +55,7 @@ export default function FeedFrame({
   busy = false,
   imagePosition,
   emptyLabel = 'Sem imagem',
-  cropGuide = null,
+  cropGuide = false,
 }: {
   handle: string;
   accountName: string;
@@ -66,7 +66,7 @@ export default function FeedFrame({
   imagePosition?: string;
   emptyLabel?: string;
   // O corte da miniatura do perfil, desenhado sobre o post (SPEC 023): o que fica nas faixas escuras some na grade.
-  cropGuide?: GridCrop | null;
+  cropGuide?: boolean;
 }) {
   const initials = accountName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
   const [expanded, setExpanded] = useState(false);
@@ -87,7 +87,7 @@ export default function FeedFrame({
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt="Imagem do post" className={`block w-full object-cover ${ASPECT[ratio]}`} style={imagePosition ? { objectPosition: imagePosition } : undefined} />
-          {cropGuide && <CropGuide ratio={ratio} crop={cropGuide} />}
+          {cropGuide && <CropGuide ratio={ratio} />}
         </div>
       )}
       <div className="flex items-center gap-3 px-3 py-2 text-fg">

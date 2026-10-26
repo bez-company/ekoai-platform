@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
-import ProfileGrid, { useGridCrop } from './ProfileGrid';
+import ProfileGrid from './ProfileGrid';
 import DesignAdjust, { type Swatch } from './DesignAdjust';
 import AskAdjust from './AskAdjust';
 import FeedbackForm from '@/components/FeedbackForm';
@@ -65,7 +65,6 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [designDirty, setDesignDirty] = useState(false);
   // Feed ou Grade (SPEC 023): a mesma imagem vista na moldura do feed ou entre os últimos posts do perfil.
   const [preview, setPreview] = useState<'feed' | 'grid'>('feed');
-  const [gridCrop, setGridCrop] = useGridCrop();
   const [showCropGuide, setShowCropGuide] = useState(false);
 
   const image = pending.images?.find((i) => i.url)?.url ?? null;
@@ -176,14 +175,14 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
           </div>
           {preview === 'feed' ? (
             <>
-              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide ? gridCrop : null} />
+              <FeedFrame handle={handle} accountName={accountName} imageUrl={imageOverride ?? image} caption={caption} ratio={ratio} cropGuide={showCropGuide} />
               <label className="mt-3 flex max-w-[420px] items-center gap-2 text-sm text-muted">
                 <input type="checkbox" checked={showCropGuide} onChange={(e) => setShowCropGuide(e.target.checked)} />
                 Mostrar o corte da grade sobre o post
               </label>
             </>
           ) : (
-            <ProfileGrid newImageUrl={imageOverride ?? image} handle={handle} accountName={accountName} crop={gridCrop} onCropChange={setGridCrop} />
+            <ProfileGrid newImageUrl={imageOverride ?? image} handle={handle} accountName={accountName} />
           )}
         </div>
 
