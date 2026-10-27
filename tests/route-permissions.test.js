@@ -56,6 +56,7 @@ const EXPECTED = {
   'posts/photo-questions': ['content.create'],
   'posts/[id]': ['content.view'],
   'published/[id]': ['content.approve'],
+  'me/notifications': ['content.view'],
   'posts/[id]/retry': ['content.create'],
   'posts/[id]/direction': ['content.edit'],
   'posts/[id]/caption': ['content.edit'],

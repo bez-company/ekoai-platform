@@ -6,6 +6,8 @@ import type { TenantDb } from './tenant-db';
 import { log } from './log';
 import type { Role } from './permissions';
 import { AUDIENCES_BY_ROLE, type Audience, type NoticeRow } from './notice-view';
+import { isMuted } from './notification-prefs-model';
+import { mutedCategories } from './notification-prefs';
 
 export type NoticeLevel = 'info' | 'warning' | 'error';
 
@@ -65,26 +67,37 @@ export async function noticesSeenAt(t: TenantDb, userId: string | null): Promise
 }
 
 // Os avisos do público deste papel, do mais novo para o mais velho.
+// As categorias que a pessoa desligou em Seu perfil (BEZ-366) ficam de fora. O filtro roda aqui, depois da leitura, e
+// por isso lê mais linhas do que `limit`: sem categoria desligada o resultado é o mesmo de antes.
 export async function listNotices(t: TenantDb, role: Role, userId: string | null, limit = 50): Promise<NoticeRow[]> {
-  const seen = await noticesSeenAt(t, userId);
+  const [seen, muted] = await Promise.all([noticesSeenAt(t, userId), mutedCategories(userId)]);
   const res = await t
     .select('notifications', 'id,kind,level,title,body,link,created_at')
     .in('audience', [...AUDIENCES_BY_ROLE[role]])
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(muted.size ? limit * 4 : limit);
   if (res.error) throw new Error(`avisos: ${res.error.message}`);
-  return (res.data ?? []).map((r) => toRow(r, seen));
+  return (res.data ?? [])
+    .filter((r) => !isMuted(String(r.kind), muted))
+    .slice(0, limit)
+    .map((r) => toRow(r, seen));
 }
 
 export async function unreadCount(t: TenantDb, role: Role, userId: string | null): Promise<number> {
   const seen = await noticesSeenAt(t, userId);
   if (seen === null) return 0;
-  const res = await t
-    .select('notifications', 'id', { count: 'exact', head: true })
-    .in('audience', [...AUDIENCES_BY_ROLE[role]])
-    .gt('created_at', new Date(seen).toISOString());
+  const since = new Date(seen).toISOString();
+  const audiences = [...AUDIENCES_BY_ROLE[role]];
+  const muted = await mutedCategories(userId);
+  if (!muted.size) {
+    const res = await t.select('notifications', 'id', { count: 'exact', head: true }).in('audience', audiences).gt('created_at', since);
+    if (res.error) throw new Error(`avisos: ${res.error.message}`);
+    return res.count ?? 0;
+  }
+  // Com categoria desligada, conta só o que a pessoa ainda recebe (o sino mostra até 99).
+  const res = await t.select('notifications', 'kind').in('audience', audiences).gt('created_at', since).limit(500);
   if (res.error) throw new Error(`avisos: ${res.error.message}`);
-  return res.count ?? 0;
+  return (res.data ?? []).filter((r) => !isMuted(String(r.kind), muted)).length;
 }
 
 // "Marcar todos como lidos": a pessoa passa a ter visto tudo até agora.

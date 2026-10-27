@@ -10,18 +10,22 @@ import { signOut } from 'firebase/auth';
 import Modal from '../Modal';
 import { ErrorLine, Field, Spinner } from '../auth/ui';
 import MfaCard from './MfaCard';
+import NotificationPrefs from './NotificationPrefs';
 import { firebaseAuth, type FirebaseWebConfig } from '@/lib/firebase-client';
 import { NAME_MAX, PHONE_ERROR, formatPhone, normalizePhone, type MfaState } from '@/lib/person-profile-model';
+import type { CategoryPref } from '@/lib/notification-prefs-model';
 
 type Props = {
   name: string;
   email: string;
   phone: string | null;
+  prefs: CategoryPref[];
+  mailReady: boolean;
   mfa: { state: MfaState; required: boolean };
   config: FirebaseWebConfig;
 };
 
-export default function PersonProfile({ name, email, phone, mfa, config }: Props) {
+export default function PersonProfile({ name, email, phone, prefs, mailReady, mfa, config }: Props) {
   const router = useRouter();
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const [draft, setDraft] = useState(name);
@@ -131,7 +135,7 @@ export default function PersonProfile({ name, email, phone, mfa, config }: Props
                 </button>
                 {saved && !dirty && (
                   <span role="status" className="text-sm text-success">
-                    Nome salvo.
+                    Dados salvos.
                   </span>
                 )}
               </div>
@@ -143,8 +147,9 @@ export default function PersonProfile({ name, email, phone, mfa, config }: Props
               <h2 id="perfil-avisos" className="text-lg font-semibold">
                 Notificações
               </h2>
-              <p className="text-sm text-muted">Veja o que aconteceu na conta e o que espera por você. Avisos críticos, como falha ao publicar, sempre chegam.</p>
+              <p className="text-sm text-muted">Escolha o que chega no app e por e-mail, por categoria. Vale para todas as suas contas.</p>
             </div>
+            <NotificationPrefs initial={prefs} mailReady={mailReady} />
             <Link href="/notificacoes" className="btn-ghost">
               Ver avisos
             </Link>
