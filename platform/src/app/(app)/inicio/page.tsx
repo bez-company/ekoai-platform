@@ -1,4 +1,3 @@
-import CoachMark from '@/components/onboarding/CoachMark';
 import Guide from '@/components/onboarding/Guide';
 import StaleApprovals from '@/components/onboarding/StaleApprovals';
 import { LastPublishedCard, NextStepBar, Shortcuts, ThisWeek, type Shortcut } from '@/components/home/Panel';
@@ -13,7 +12,7 @@ import { ROUTES } from '@/lib/app-routes';
 import { listSuggestions, planningState, type Suggestion } from '@/lib/content-coordinator';
 import { slotParts, slotsSummary, todayLine } from '@/lib/home-model';
 import { homeSummary } from '@/lib/home-summary';
-import { guideSummary } from '@/lib/onboarding';
+import { guideSummary, pendingDetail } from '@/lib/onboarding';
 import { loadGuide } from '@/lib/onboarding-data';
 import { can, pageTenant, requireSession } from '@/lib/session';
 import { getActiveSlots, tzOffsetHours } from '@/lib/slots';
@@ -123,9 +122,9 @@ export default async function HomePage() {
           <h1 className="text-2xl font-semibold">{hello}</h1>
           <p className="text-sm text-muted">{todayLine(nowMs, tz)}</p>
         </div>
-        <CoachMark id="home-panel" title="Este é o painel da semana." body="O próximo passo aparece em cima; as sugestões da Ekoai seguem os horários livres da agenda." />
-        <StaleApprovals pending={view.pending} />
-        <NextStepBar step={summary.next} />
+        {/* "Aprovar posts" já leva o aviso de post esquecido; o aviso solto só aparece quando outro passo vem antes. */}
+        {summary.next?.id !== 'pending' && <StaleApprovals pending={view.pending} />}
+        <NextStepBar step={summary.next?.id === 'pending' ? { ...summary.next, detail: pendingDetail(summary.next.detail, view.pending) } : summary.next} />
         <Shortcuts items={shortcuts} />
         {plan.failed && sugg.length === 0 && <PlanBanner kind="failed" canRetry={canAct} withCampaign={!!active} />}
         {!plan.failed && plan.simple && sugg.length > 0 && <PlanBanner kind="simple" canRetry={false} withCampaign={!!active} />}

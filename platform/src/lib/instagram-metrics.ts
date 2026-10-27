@@ -83,6 +83,7 @@ async function collectAccount(account: MetricsAccount, deps: Required<Pick<Deps,
     .select('posts', 'id,channels,published_at')
     .eq('channel', 'instagram')
     .eq('is_dry_run', false)
+    .is('removed_at', null)
     .gte('published_at', since)
     .order('published_at', { ascending: false })
     .limit(POSTS_PER_ACCOUNT);
@@ -121,7 +122,10 @@ async function collectAccount(account: MetricsAccount, deps: Required<Pick<Deps,
         return;
       }
       if (e instanceof GraphError && e.kind === 'gone') {
+        // Apagado no Instagram: sai de Publicados (a linha e o histórico ficam).
         summary.gone += 1;
+        const removed = await t.update('posts', { removed_at: new Date(deps.nowMs).toISOString() }).eq('id', p.id).is('removed_at', null);
+        if (removed.error) log('warn', 'instagram-metrics', 'não marcou o post apagado no Instagram', { post: p.id, reason: removed.error.message });
         continue;
       }
       summary.failed += 1;

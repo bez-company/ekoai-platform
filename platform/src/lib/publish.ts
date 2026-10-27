@@ -576,10 +576,16 @@ export async function hasPendingPublishes(): Promise<boolean> {
   return rows[0]?.pending === true;
 }
 
-// Publicar agora: trava o post (agendado, na fila ou que falhou) e publica na hora, fora do ciclo
-// do cron. Conta pausada não publica nem assim: a pausa é o freio de emergência.
+// Conta pausada não publica nem agendado nem "publicar agora": a pausa é o freio de emergência. Quem vai aprovar
+// e publicar na mesma ação confere ANTES de aprovar, para o erro não deixar o post aprovado e agendado para sair
+// sozinho quando a pausa acabar (BEZ-360).
+export async function assertPublishingOn(t: TenantDb): Promise<void> {
+  if ((await getPauseState(t)).paused) throw new UserError('A publicação está pausada. Retome em Configurações para publicar agora. Nada foi aprovado.');
+}
+
+// Publicar agora: trava o post (agendado, na fila ou que falhou) e publica na hora, fora do ciclo do cron.
 export async function publishNow(t: TenantDb, id: string): Promise<{ ok: boolean; error?: string }> {
-  if ((await getPauseState(t)).paused) throw new UserError('A publicação está pausada. Retome em Configurações para publicar agora.');
+  await assertPublishingOn(t);
   const { data: locked, error } = await t
     .update('scheduled_posts', { ...openLease(), scheduled_for: new Date().toISOString() })
     .eq('id', id)

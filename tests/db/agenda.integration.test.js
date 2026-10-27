@@ -37,6 +37,28 @@ afterAll(async () => {
   await admin.end();
 });
 
+describe('agenda: publicado tirado da lista', () => {
+  it('o publicado que saiu da lista (ou foi apagado no Instagram) some da agenda', async () => {
+    const C = 'it-agenda-c';
+    await resetTenantData(admin, [C]);
+    await admin.query('insert into tenants (id, name) values ($1, $1)', [C]);
+    const tc = tenantDb(C);
+    const post = async (removed) =>
+      (await admin.query(`insert into posts (tenant_id, pillar, channel, is_dry_run, published_at, removed_at) values ($1, 'post', 'instagram', false, '2026-10-22T21:00:00Z', $2) returning id`, [C, removed])).rows[0].id;
+    const keep = await post(null);
+    const gone = await post('2026-10-23T10:00:00Z');
+    for (const [id, postId, at] of [['aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa', keep, '2026-10-22T21:00:00Z'], ['bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb', gone, '2026-10-22T22:00:00Z']]) {
+      await admin.query(
+        `insert into scheduled_posts (id, tenant_id, channel, variation, caption_final, status, scheduled_for, post_id) values ($1, $2, 'instagram', '{}'::jsonb, 'x', 'published', $3, $4)`,
+        [id, C, at, postId],
+      );
+    }
+    const agenda = await getAgenda(tc, { view: 'week', date: '2026-10-22' }, { nowMs: Date.parse('2026-10-24T15:00:00Z') });
+    expect(agenda.days.flatMap((d) => d.cells).map((c) => c.post?.id).filter(Boolean)).toEqual(['aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa']);
+    await resetTenantData(admin, [C]);
+  });
+});
+
 describe('agenda por período', () => {
   it('a semana traz os horários, o post do horário, a fila, e nada de outra semana ou de outra conta', async () => {
     await addSlot(t, { channel: 'instagram', weekday: 4, hour: 18, minute: 0 });

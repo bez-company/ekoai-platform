@@ -33,14 +33,15 @@ afterAll(async () => {
 const one = async (sql, params) => (await admin.query(sql, params)).rows[0];
 
 describe('createAccount', () => {
-  it('cria conta de empresa com o administrador, o plano inicial, pausada e auditada', async () => {
+  it('cria conta de empresa com o administrador, o plano inicial, publicação ligada e auditada', async () => {
     const id = await createAccount({ userId: OWNER, name: 'It Conta Doce Ponto', kind: 'empresa' });
     expect(id).toBe('it-conta-doce-ponto');
     expect(await one('select name, kind, plan_id, status from tenants where id = $1', [id])).toEqual({
       name: 'It Conta Doce Ponto', kind: 'empresa', plan_id: 'inicial', status: 'active',
     });
     expect(await one('select role from tenant_members where tenant_id = $1 and user_id = $2', [id, OWNER])).toEqual({ role: 'admin' });
-    expect((await one('select paused from publishing_controls where tenant_id = $1', [id])).paused).toBe(true);
+    // Quem cria a própria conta começa com a publicação ligada (BEZ-361); o gatilho da 0013 pausa e a criação liga.
+    expect(await one('select paused, reason, paused_at from publishing_controls where tenant_id = $1', [id])).toEqual({ paused: false, reason: null, paused_at: null });
     expect(await one("select actor_user_id, action, target_id, metadata from audit_events where tenant_id = $1", [id])).toEqual({
       actor_user_id: OWNER, action: 'account.created', target_id: id, metadata: { kind: 'empresa' },
     });

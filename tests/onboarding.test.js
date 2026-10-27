@@ -167,3 +167,18 @@ describe('posts esquecidos em Aprovar (decisão 12)', () => {
     expect(o.pendingAge([], now)).toEqual({ waiting: 0, stale: 0, archive: 0 });
   });
 });
+
+describe('pendingDetail (um aviso só para o post esperando aprovação)', () => {
+  const BASE = 'Aprovado, ele entra no próximo horário da agenda.';
+  it('sem post esquecido, devolve o texto de sempre', () => {
+    expect(o.pendingDetail(BASE, { stale: 0, archive: 0 })).toBe(BASE);
+  });
+  it('com post esquecido, diz quantos esperam e mantém o texto', () => {
+    expect(o.pendingDetail(BASE, { stale: 1, archive: 0 })).toBe(`1 espera há mais de 3 dias. ${BASE}`);
+    expect(o.pendingDetail(BASE, { stale: 2, archive: 0 })).toBe(`2 esperam há mais de 3 dias. ${BASE}`);
+  });
+  it('com post chegando ao limite de arquivar, pede aprovar ou arquivar', () => {
+    expect(o.pendingDetail(BASE, { stale: 3, archive: 1 })).toBe(`3 esperam há mais de 3 dias. ${BASE} Um está há mais de 14 dias: aprove ou arquive.`);
+    expect(o.pendingDetail(BASE, { stale: 3, archive: 2 })).toContain('2 estão há mais de 14 dias');
+  });
+});

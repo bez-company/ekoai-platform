@@ -207,7 +207,7 @@ export function buildGuide(input: GuideInput): Guide | null {
       { kind: 'link', label: 'Revisar o post', href: '/aprovar' }, approvers),
     step('slots', 'Horários de publicação', 'Quando a Ekoai publica.', input.hasSlots, input.can.publishing,
       { kind: 'link', label: 'Escolher horários', href: '/agenda?edit=slots' }, admins),
-    step('publishing', 'Ligar a publicação', 'A conta nasce pausada: nada sai até você ligar.', !input.paused, input.can.publishing,
+    step('publishing', 'Ligar a publicação', 'Se a publicação estiver pausada, nada sai até você ligar.', !input.paused, input.can.publishing,
       { kind: 'resume', label: 'Ligar a publicação' }, admins),
     step('publish', 'Primeira publicação', 'Sai no primeiro horário depois de aprovar.', input.published, input.can.approve,
       { kind: 'link', label: 'Ver a agenda', href: '/agenda' }, approvers),
@@ -244,6 +244,15 @@ export function guideSummary(guide: Guide): string {
 // pergunta se arquiva. `savedAt` é o pending_approvals.saved_at de cada post esperando.
 export const STALE_DAYS = 3;
 export const ARCHIVE_DAYS = 14;
+
+// Quando o próximo passo do Início já é "aprovar posts", ele leva também o aviso de post esquecido: um aviso só, em
+// vez de dois dizendo o mesmo (BEZ-363). `base` é o texto de sempre do passo.
+export function pendingDetail(base: string, age: { stale: number; archive: number }): string {
+  if (!age.stale) return base;
+  const waiting = age.stale === 1 ? '1 espera' : `${age.stale} esperam`;
+  const archive = age.archive ? ` ${age.archive === 1 ? 'Um está' : `${age.archive} estão`} há mais de ${ARCHIVE_DAYS} dias: aprove ou arquive.` : '';
+  return `${waiting} há mais de ${STALE_DAYS} dias. ${base}${archive}`;
+}
 
 export function pendingAge(savedAt: readonly string[], nowMs = Date.now()): { waiting: number; stale: number; archive: number } {
   const day = 86400000;
