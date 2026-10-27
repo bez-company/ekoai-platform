@@ -6,7 +6,7 @@
 - **Origem:** teste do Matheus em produção: "quero subir variações da logo aqui também"
 - **Depende de:** [SPEC 011](011-plataforma-generica-fase-1.md) R3 e [ADR 0014](../adr/0014-logo-da-empresa-por-rota-autenticada.md) (o logo no bucket privado,
   só por rota com sessão), `lib/design/logo-blend.ts` (a conta de contraste entre o logo e o fundo)
-- **Protótipo:** artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, tela **Visual: logo e variações** no grupo "Fase 7"
+- **Protótipo:** artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, versão 20 (`version_id` 1793120759-07c8), tela **Visual: logo e variações** no grupo "Fase 7"
   (estados: só a principal, com variações, ampliar, enviar arquivo, arquivo recusado, sem logo), desktop e celular. Fonte em
   `.context/proto-025` (`phase9.js`, `phase9.css`)
 
