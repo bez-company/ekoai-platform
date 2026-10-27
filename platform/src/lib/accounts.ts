@@ -111,6 +111,18 @@ export async function renameUser(userId: string, name: string): Promise<void> {
   if (error) throw new Error(`renomear pessoa: ${error.message}`);
 }
 
+// Celular de contato da pessoa (cadastro e Seu perfil). null apaga.
+export async function setUserPhone(userId: string, phone: string | null): Promise<void> {
+  const { error } = await db().from('users').update({ phone }).eq('id', userId);
+  if (error) throw new Error(`gravar celular: ${error.message}`);
+}
+
+export async function userPhone(userId: string): Promise<string | null> {
+  const { data, error } = await db().from('users').select('phone').eq('id', userId).maybeSingle();
+  if (error) throw new Error(`ler celular: ${error.message}`);
+  return (data?.phone as string | null | undefined) ?? null;
+}
+
 // "Sair de todos os dispositivos": toda sessão com a versão anterior deixa de valer.
 export async function bumpSessionVersion(user: SessionUser): Promise<void> {
   const { error } = await db()

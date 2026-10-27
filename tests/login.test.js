@@ -80,16 +80,17 @@ describe('regras do login', () => {
 
   it('sem conta não entra; administrador precisa de segundo fator', () => {
     expect(policy.membershipRefusal(identity(), []).code).toBe('no_access');
-    expect(policy.membershipRefusal(identity(), [member('acme', 'admin')]).code).toBe('mfa_required');
-    expect(policy.membershipRefusal(identity({ secondFactor: 'totp' }), [member('acme', 'admin')])).toBeNull();
-    expect(policy.membershipRefusal(identity(), [member('acme', 'creator'), member('beta', 'viewer')])).toBeNull();
+    expect(policy.membershipRefusal(identity(), [member('acme', 'admin')], 'required').code).toBe('mfa_required');
+    expect(policy.membershipRefusal(identity({ secondFactor: 'totp' }), [member('acme', 'admin')], 'required')).toBeNull();
+    expect(policy.membershipRefusal(identity(), [member('acme', 'creator'), member('beta', 'viewer')], 'required')).toBeNull();
+    expect(policy.membershipRefusal(identity(), [member('acme', 'admin')])).toBeNull();
   });
 
-  it('MFA_MODE: sem valor ou desconhecido exige o segundo fator; só `optional` solta', () => {
-    expect(policy.mfaMode({})).toBe('required');
+  it('MFA_MODE: sem valor ou desconhecido não exige o segundo fator; só `required` exige', () => {
+    expect(policy.mfaMode({})).toBe('optional');
     expect(policy.mfaMode({ MFA_MODE: 'required' })).toBe('required');
-    expect(policy.mfaMode({ MFA_MODE: 'OPTIONAL' })).toBe('required');
-    expect(policy.mfaMode({ MFA_MODE: 'off' })).toBe('required');
+    expect(policy.mfaMode({ MFA_MODE: 'REQUIRED' })).toBe('optional');
+    expect(policy.mfaMode({ MFA_MODE: 'off' })).toBe('optional');
     expect(policy.mfaMode({ MFA_MODE: 'optional' })).toBe('optional');
   });
 

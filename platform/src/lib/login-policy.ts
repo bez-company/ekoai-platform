@@ -6,14 +6,14 @@ import type { Role } from './permissions';
 
 export const MAX_LOGIN_AGE_S = 5 * 60;
 
-// `required` (padrão): administrador entra, cria conta e exclui conta só com segundo fator.
-// `optional`: o segundo fator não é exigido em lugar nenhum; quem ativou o app autenticador
-// continua recebendo o desafio no login (o Identity Platform decide, não esta regra). Qualquer
-// valor desconhecido também fica em `required` (falha segura).
+// `optional` (padrão, decisão de 27/10/2026): o segundo fator não é exigido em lugar nenhum; quem
+// ativou o app autenticador em Perfil continua recebendo o desafio no login (o Identity Platform
+// decide, não esta regra). `required`: administrador entra, cria conta e exclui conta só com segundo
+// fator; só vale quando o ambiente pede por MFA_MODE=required.
 export type MfaMode = 'required' | 'optional';
 
 export function mfaMode(env: Record<string, string | undefined> = process.env): MfaMode {
-  return env.MFA_MODE === 'optional' ? 'optional' : 'required';
+  return env.MFA_MODE === 'required' ? 'required' : 'optional';
 }
 
 export type LoginRefusal = { status: 401 | 403; code: string; error: string };

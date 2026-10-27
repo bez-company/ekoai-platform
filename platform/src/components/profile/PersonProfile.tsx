@@ -11,19 +11,21 @@ import Modal from '../Modal';
 import { ErrorLine, Field, Spinner } from '../auth/ui';
 import MfaCard from './MfaCard';
 import { firebaseAuth, type FirebaseWebConfig } from '@/lib/firebase-client';
-import { NAME_MAX, type MfaState } from '@/lib/person-profile-model';
+import { NAME_MAX, PHONE_ERROR, formatPhone, normalizePhone, type MfaState } from '@/lib/person-profile-model';
 
 type Props = {
   name: string;
   email: string;
+  phone: string | null;
   mfa: { state: MfaState; required: boolean };
   config: FirebaseWebConfig;
 };
 
-export default function PersonProfile({ name, email, mfa, config }: Props) {
+export default function PersonProfile({ name, email, phone, mfa, config }: Props) {
   const router = useRouter();
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const [draft, setDraft] = useState(name);
+  const [phoneDraft, setPhoneDraft] = useState(formatPhone(phone));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [nameError, setNameError] = useState('');
@@ -31,20 +33,23 @@ export default function PersonProfile({ name, email, mfa, config }: Props) {
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState('');
 
-  const dirty = draft.trim() !== name.trim();
+  const phoneFilled = phoneDraft.trim() !== '';
+  const phoneOk = !phoneFilled || normalizePhone(phoneDraft) !== null;
+  const dirty = draft.trim() !== name.trim() || (phoneFilled ? normalizePhone(phoneDraft) : null) !== phone;
 
   async function saveName() {
     setSaving(true);
     setSaved(false);
     setNameError('');
     try {
-      const res = await fetch('/api/me', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: draft }) });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; name?: string };
+      const res = await fetch('/api/me', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: draft, phone: phoneDraft }) });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; name?: string; phone?: string | null };
       if (!res.ok) {
         setNameError(body.error ?? 'Não deu para salvar o nome agora. Tente de novo em instantes.');
         return;
       }
       setDraft(body.name ?? draft.trim());
+      setPhoneDraft(formatPhone(body.phone) || '');
       setSaved(true);
       router.refresh();
     } catch {
@@ -90,7 +95,7 @@ export default function PersonProfile({ name, email, mfa, config }: Props) {
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (dirty && draft.trim() && !saving) void saveName();
+                if (dirty && draft.trim() && phoneOk && !saving) void saveName();
               }}
             >
               <Field
@@ -104,9 +109,23 @@ export default function PersonProfile({ name, email, mfa, config }: Props) {
                 error={nameError}
                 disabled={saving}
               />
+              <Field
+                label="Celular"
+                type="tel"
+                value={phoneDraft}
+                onChange={(v) => {
+                  setPhoneDraft(v.slice(0, 20));
+                  setSaved(false);
+                }}
+                autoComplete="tel-national"
+                placeholder="(11) 91234-5678"
+                help="Só para contato da equipe da Ekoai."
+                error={phoneOk ? '' : PHONE_ERROR}
+                disabled={saving}
+              />
               <Field label="E-mail" value={email} onChange={() => undefined} readOnly help="O e-mail é o do seu login e não muda por aqui." />
               <div className="flex flex-wrap items-center gap-3">
-                <button type="submit" className="btn-primary" disabled={!dirty || !draft.trim() || saving}>
+                <button type="submit" className="btn-primary" disabled={!dirty || !draft.trim() || !phoneOk || saving}>
                   {saving && <Spinner />}
                   Salvar
                 </button>

@@ -16,6 +16,31 @@ export function parsePersonName(body: unknown): Parsed<{ name: string }> {
   return { ok: true, value: { name } };
 }
 
+// Celular de contato: aceita "(11) 91234-5678", "11912345678" ou "+55 11 91234-5678" e guarda em E.164
+// (+5511912345678). Só celular brasileiro: DDD de dois dígitos e o 9 na frente. Vazio vira null.
+export function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  const national = digits.length >= 12 && digits.startsWith('55') ? digits.slice(2) : digits;
+  return /^[1-9][1-9]9\d{8}$/.test(national) ? `+55${national}` : null;
+}
+
+export const PHONE_ERROR = 'Digite o celular com DDD, como (11) 91234-5678.';
+
+// "+5511912345678" para "(11) 91234-5678".
+export function formatPhone(e164: string | null | undefined): string {
+  const m = /^\+55(\d{2})(\d{5})(\d{4})$/.exec(e164 ?? '');
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : '';
+}
+
+// Campo opcional de um corpo de rota: ausente ou vazio vale null; preenchido e inválido é erro.
+export function parseOptionalPhone(raw: unknown): Parsed<string | null> {
+  if (raw === undefined || raw === null) return { ok: true, value: null };
+  if (typeof raw !== 'string') return { ok: false, error: PHONE_ERROR };
+  if (!raw.trim()) return { ok: true, value: null };
+  const phone = normalizePhone(raw);
+  return phone ? { ok: true, value: phone } : { ok: false, error: PHONE_ERROR };
+}
+
 // `unknown`: o provedor de login não respondeu; a tela não finge saber.
 export type MfaState = 'on' | 'off' | 'unknown';
 

@@ -60,12 +60,16 @@ com login por pessoa, um leitor conseguiria aprovar post pela API.
 ## Atualização de 21/10/2026: MFA configurável por ambiente (BEZ-169)
 
 Decisão do Matheus: o app começa sem segundo fator obrigatório. `MFA_MODE` vale `required` (padrão do
-código, é o que esta SPEC descreve) ou `optional`. Com `optional`, ninguém precisa do app autenticador
+código até 27/10/2026, é o que esta SPEC descreve) ou `optional`. Com `optional`, ninguém precisa do app autenticador
 para entrar, criar conta, aceitar convite como administrador nem excluir a conta (a exclusão pede só a
 senha de agora). Quem ativou o app por conta própria continua recebendo o desafio no login, porque
 isso é do Identity Platform. O staging roda `optional`; produção segue `required` (o Terraform tem
 `mfa_mode`, padrão `required`). A tela para ativar o MFA depois fica para uma entrega própria.
 Qualquer valor desconhecido de `MFA_MODE` cai em `required`.
+
+Atualização de 27/10/2026 (BEZ-357): o padrão passou a `optional`, no código e na produção. O segundo
+fator nasce desligado; quem quiser liga e desliga em Perfil. Valor desconhecido de `MFA_MODE` agora
+cai em `optional`; só `required` exato exige o app autenticador.
 
 ## Fora do escopo
 

@@ -34,6 +34,8 @@ export async function middleware(req: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+// O ícone da aba (`/icon.svg`, gerado pelo Next a partir de app/icon.svg) é público: a tela de entrada o pede
+// sem sessão, e com o gate ele voltava como redirecionamento para /entrar e a aba ficava sem ícone até o login.
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg).*)'],
 };

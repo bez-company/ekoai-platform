@@ -53,7 +53,7 @@ describe('reautenticação', () => {
     expect(m.reauthRefusal(id({ uid: 'idp-b' }), 'idp-a', NOW)).toBe('wrong_person');
     expect(m.reauthRefusal(id(), null, NOW)).toBe('wrong_person');
     expect(m.reauthRefusal(id({ emailVerified: false }), 'idp-a', NOW)).toBe('email_not_verified');
-    expect(m.reauthRefusal(id({ secondFactor: null }), 'idp-a', NOW)).toBe('no_second_factor');
+    expect(m.reauthRefusal(id({ secondFactor: null }), 'idp-a', NOW, 'required')).toBe('no_second_factor');
     expect(m.reauthRefusal(id({ authTime: NOW / 1000 - 301 }), 'idp-a', NOW)).toBe('stale');
     expect(m.reauthRefusal(id({ authTime: NOW / 1000 + 3600 }), 'idp-a', NOW)).toBe('stale');
   });

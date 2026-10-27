@@ -199,9 +199,9 @@ variable "signup_mode" {
 }
 
 variable "mfa_mode" {
-  description = "Segundo fator (env MFA_MODE): `required` (administrador entra, cria e exclui conta com app autenticador, SPEC 009) ou `optional` (não exigido em lugar nenhum; quem ativou continua com o desafio). Só vale com auth_provider = identity."
+  description = "Segundo fator (env MFA_MODE): `optional` (padrão: não exigido em lugar nenhum; quem ativou em Perfil continua com o desafio) ou `required` (administrador entra, cria e exclui conta com app autenticador, SPEC 009). Só vale com auth_provider = identity."
   type        = string
-  default     = "required"
+  default     = "optional"
 
   validation {
     condition     = contains(["required", "optional"], var.mfa_mode)

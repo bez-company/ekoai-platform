@@ -109,9 +109,9 @@ com `Retry-After` e a mensagem de quando tentar de novo; o log registra o balde,
 
 ## Segundo fator (MFA)
 
-`MFA_MODE` (Terraform `mfa_mode`): `required` exige o app autenticador do administrador para entrar,
-criar conta e excluir conta; `optional` não exige em lugar nenhum. Staging está em `optional` desde
-21/10/2026 (BEZ-169); produção em `required`. Para mudar, edite `mfa_mode` no `envs/<ambiente>/main.tf`
+`MFA_MODE` (Terraform `mfa_mode`): `optional` (padrão) não exige o app autenticador em lugar nenhum;
+`required` exige do administrador para entrar, criar conta e excluir conta. Staging está em `optional`
+desde 21/10/2026 (BEZ-169) e produção desde 27/10/2026 (BEZ-357): cada pessoa liga em Perfil. Para mudar, edite `mfa_mode` no `envs/<ambiente>/main.tf`
 e aplique o Terraform. Quem já ativou o app continua com o desafio no login nos dois modos.
 
 ## Modo ensaio de publicação

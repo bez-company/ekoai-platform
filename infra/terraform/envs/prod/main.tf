@@ -79,10 +79,10 @@ module "ekoai" {
 
   # Lançamento-base (23/10/2026): cada empresa cria a própria conta e entra por pessoa. O limite de taxa
   # no cadastro entrou com o BEZ-29 (migration 0035), a condição que este ambiente esperava para abrir.
-  # O segundo fator segue `required` (administrador entra, cria e exclui conta com app autenticador).
+  # Segundo fator desligado por padrão (27/10/2026): quem quiser liga em Perfil.
   auth_provider = "identity"
   signup_mode   = "open"
-  mfa_mode      = "required"
+  mfa_mode      = "optional"
 
   # Os posts agendados saem no horário, como no staging (BEZ-228). Os outros jobs seguem pausados.
   publish_paused = false

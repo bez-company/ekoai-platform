@@ -94,7 +94,7 @@ export default function MfaCard({ email, state, required, config }: Props) {
       setStep('enable-code');
     });
 
-  const finishEnable = () =>
+  const finishEnable = (otp: string = code) =>
     run(async () => {
       const user = enrolling.current;
       if (!user || !secret.current) {
@@ -102,12 +102,12 @@ export default function MfaCard({ email, state, required, config }: Props) {
         setError('A sessão de ativação venceu. Digite a senha para começar de novo.');
         return;
       }
-      await multiFactor(user).enroll(TotpMultiFactorGenerator.assertionForEnrollment(secret.current, code), 'App autenticador');
+      await multiFactor(user).enroll(TotpMultiFactorGenerator.assertionForEnrollment(secret.current, otp), 'App autenticador');
       close();
       router.refresh();
     });
 
-  const disable = () =>
+  const disable = (otp: string = code) =>
     run(async () => {
       let user: User;
       try {
@@ -120,7 +120,7 @@ export default function MfaCard({ email, state, required, config }: Props) {
           setError('Sua conta usa outro tipo de verificação. Fale com o suporte da Ekoai.');
           return;
         }
-        user = (await resolver.resolveSignIn(TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code))).user;
+        user = (await resolver.resolveSignIn(TotpMultiFactorGenerator.assertionForSignIn(hint.uid, otp))).user;
       }
       const factor = multiFactor(user).enrolledFactors.find((f) => f.factorId === TotpMultiFactorGenerator.FACTOR_ID) ?? multiFactor(user).enrolledFactors[0];
       if (factor) await multiFactor(user).unenroll(factor);
@@ -197,7 +197,7 @@ export default function MfaCard({ email, state, required, config }: Props) {
             </div>
             <div className="space-y-2">
               <p className="text-sm font-semibold">2. Digite o código de 6 dígitos que aparece no app</p>
-              <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy || !qr} />
+              <OtpInput value={code} onChange={setCode} onComplete={(otp) => !busy && void finishEnable(otp)} invalid={!!error} disabled={busy || !qr} />
               {error && <ErrorLine>{error}</ErrorLine>}
             </div>
             <div className="flex justify-end gap-2">
@@ -226,7 +226,7 @@ export default function MfaCard({ email, state, required, config }: Props) {
             <Field label="Sua senha" type="password" value={password} onChange={setPassword} autoComplete="current-password" autoFocus disabled={busy} />
             <div className="space-y-1.5">
               <p className="text-sm font-semibold">Código do app autenticador</p>
-              <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy} />
+              <OtpInput value={code} onChange={setCode} onComplete={(otp) => password && !busy && void disable(otp)} invalid={!!error} disabled={busy} />
             </div>
             {error && <ErrorLine>{error}</ErrorLine>}
             <div className="flex justify-end gap-2">
