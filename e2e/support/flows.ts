@@ -31,17 +31,15 @@ export async function resumePublishing(page: Page) {
   await expect(page.getByText(/Publicando normalmente/)).toBeVisible();
 }
 
-// Sem horários na Agenda, escolhe cinco (segunda a sexta, 18h) pelo diálogo Horários; cada horário é um post por semana.
+// Sem horários na Agenda, grava cinco (segunda a sexta, 18h) pela mesma rota que o diálogo Horários usa; cada horário é um
+// post por semana. O diálogo em si tem o teste da tela vazia; aqui o que importa é a conta ter ritmo para publicar.
 export async function pickRhythm(page: Page) {
   await page.goto('/agenda');
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeVisible();
-  await page.getByRole('button', { name: 'Escolher horários' }).click();
-  const dialog = page.getByRole('dialog');
-  for (let day = 0; day < 5; day += 1) {
-    await dialog.getByRole('button', { name: '+ horário' }).nth(day).click();
-    await dialog.getByRole('button', { name: 'Pôr' }).click();
-  }
-  await dialog.getByRole('button', { name: 'Salvar horários' }).click();
+  const slots = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, hour: 18, minute: 0 }));
+  const res = await page.request.put('/api/slots', { data: { channel: 'instagram', slots } });
+  expect(res.ok()).toBe(true);
+  await page.goto('/agenda');
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeHidden();
   await expect(page.getByText('5 horários na semana')).toBeVisible();
 }

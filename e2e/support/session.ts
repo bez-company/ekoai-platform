@@ -11,13 +11,14 @@ export async function login(page: Page, persona: Persona, next = '/inicio') {
   await expect(page).toHaveURL((url) => url.pathname === next);
 }
 
-// No desktop o botão fica na lateral; no celular, dentro do menu "Mais".
+// No desktop o Sair fica no menu do nome, no rodapé da lateral; no celular, dentro do menu "Mais".
 export async function logout(page: Page) {
   const more = page.getByRole('button', { name: 'Mais', exact: true });
   if (await more.isVisible()) {
     await more.click();
     await page.getByRole('dialog', { name: 'Mais opções' }).getByRole('button', { name: 'Sair' }).click();
   } else {
-    await page.getByRole('button', { name: 'Sair da conta' }).click();
+    await page.getByRole('button', { name: /^Menu de / }).click();
+    await page.getByRole('menuitem', { name: 'Sair' }).click();
   }
 }
