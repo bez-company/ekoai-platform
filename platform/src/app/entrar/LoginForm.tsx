@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthLayout from '@/components/AuthLayout';
+import { Field } from '@/components/auth/ui';
 import { safeNext } from '@/lib/auth-flow';
 
 export default function LoginForm() {
@@ -38,21 +39,7 @@ export default function LoginForm() {
           <h1 className="text-2xl font-semibold">Entrar</h1>
           <p className="mt-1 text-sm text-muted">Acesse a conta da sua empresa.</p>
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor="password" className="text-sm font-semibold">
-            Senha
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            autoComplete="current-password"
-            aria-invalid={error ? true : undefined}
-            className="w-full rounded-lg border border-line-strong bg-raised px-3 py-2.5 text-sm outline-none focus:border-accent-text focus:ring-2 focus:ring-accent/30"
-          />
-        </div>
+        <Field label="Senha" type="password" value={password} onChange={setPassword} autoComplete="current-password" autoFocus disabled={loading} />
         {error && (
           <p role="alert" className="text-sm text-danger">
             {error}

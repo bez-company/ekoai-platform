@@ -29,6 +29,16 @@ import { ChallengeView, CreateAccountView, ForgotSentView, ForgotView, InviteVie
 type Go = { error?: string; notice?: string };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const PHONE_KEY = 'ekoai.signup.phone';
+
+// Grava o celular do cadastro no perfil quando a sessão já existe (conta criada ou convite aceito). Falha não
+// trava a entrada: a pessoa preenche em Seu perfil.
+async function savePhone(user: User) {
+  const phone = sessionStorage.getItem(PHONE_KEY);
+  if (!phone) return;
+  sessionStorage.removeItem(PHONE_KEY);
+  await fetch('/api/me', { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ name: user.displayName || user.email, phone }) }).catch(() => undefined);
+}
 
 // Convite aberto pela página /convite/<token>: o token só segue para a rota de aceite; o e-mail é o
 // do convite e fica travado no cadastro.
@@ -120,6 +130,7 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
   async function apply(outcome: SessionOutcome, user: User) {
     switch (outcome.kind) {
       case 'done':
+        await savePhone(user);
         router.push(next);
         router.refresh();
         return;
@@ -187,10 +198,12 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
       await signInFlow(mail, password);
     });
 
-  const onSignup = (name: string, mail: string, password: string) =>
+  const onSignup = (name: string, mail: string, phone: string, password: string) =>
     run(async () => {
       const cred = await createUserWithEmailAndPassword(auth, mail, password);
       await updateProfile(cred.user, { displayName: name });
+      // O celular só vai para o nosso banco depois do login por pessoa (savePhone); até lá fica nesta aba.
+      sessionStorage.setItem(PHONE_KEY, phone);
       credentials.current = { email: mail, password };
       setEmail(mail);
       await sendVerification(cred.user);
@@ -294,6 +307,7 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
       }
       // conta nova: o perfil da empresa é o próximo passo
       if (outcome.kind === 'done') {
+        await savePhone(user);
         router.push('/boas-vindas');
         router.refresh();
         return;

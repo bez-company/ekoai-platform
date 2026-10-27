@@ -102,10 +102,11 @@ describe('corpo da criação de conta', () => {
 
 describe('quem pode criar conta', () => {
   it('exige e-mail verificado, login recente e segundo fator', () => {
-    expect(model.accountRefusal(identity(), now())).toBeNull();
-    expect(model.accountRefusal(identity({ emailVerified: false }), now()).code).toBe('email_not_verified');
-    expect(model.accountRefusal(identity({ authTime: now() - 3600 }), now()).code).toBe('login_stale');
-    expect(model.accountRefusal(identity({ secondFactor: null }), now()).code).toBe('mfa_required');
+    expect(model.accountRefusal(identity(), now(), 'required')).toBeNull();
+    expect(model.accountRefusal(identity({ emailVerified: false }), now(), 'required').code).toBe('email_not_verified');
+    expect(model.accountRefusal(identity({ authTime: now() - 3600 }), now(), 'required').code).toBe('login_stale');
+    expect(model.accountRefusal(identity({ secondFactor: null }), now(), 'required').code).toBe('mfa_required');
+    expect(model.accountRefusal(identity({ secondFactor: null }), now())).toBeNull();
   });
 
   it('com MFA opcional dispensa só o segundo fator, o resto continua exigido', () => {
@@ -162,13 +163,18 @@ describe('POST /api/account', () => {
     }
   });
 
-  it('sem segundo fator: 403 e nada é criado, nem a pessoa', async () => {
-    identityMock.result = identity({ secondFactor: null });
-    const res = await call(ok);
-    expect(res.status).toBe(403);
-    expect((await res.json()).code).toBe('mfa_required');
-    expect(accountsMock.touched).toBe(0);
-    expect(accountsMock.created).toEqual([]);
+  it('com MFA_MODE=required e sem segundo fator: 403 e nada é criado, nem a pessoa', async () => {
+    process.env.MFA_MODE = 'required';
+    try {
+      identityMock.result = identity({ secondFactor: null });
+      const res = await call(ok);
+      expect(res.status).toBe(403);
+      expect((await res.json()).code).toBe('mfa_required');
+      expect(accountsMock.touched).toBe(0);
+      expect(accountsMock.created).toEqual([]);
+    } finally {
+      delete process.env.MFA_MODE;
+    }
   });
 
   it('e-mail não verificado: 403', async () => {

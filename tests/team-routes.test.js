@@ -148,8 +148,10 @@ describe('POST /api/invitations/accept', () => {
   });
 
   it('administrador sem segundo fator: aceita, mas não abre sessão (202)', async () => {
+    process.env.MFA_MODE = 'required';
     accountsMock.memberships = [{ tenantId: 'acme', role: 'admin', createdAt: '' }];
     const res = await call();
+    delete process.env.MFA_MODE;
     expect(res.status).toBe(202);
     expect(await res.json()).toMatchObject({ accepted: true, tenantId: 'acme', role: 'admin', code: 'mfa_required' });
     expect(res.headers.get('set-cookie')).toBeNull();

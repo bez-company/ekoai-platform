@@ -16,11 +16,14 @@ vi.mock('@/lib/session', () => {
     },
   };
 });
-const dataMock = { renamed: [] };
-vi.mock('@/lib/accounts', () => ({ renameUser: async (id, name) => void dataMock.renamed.push([id, name]) }));
+const dataMock = { renamed: [], phones: [] };
+vi.mock('@/lib/accounts', () => ({
+  renameUser: async (id, name) => void dataMock.renamed.push([id, name]),
+  setUserPhone: async (id, phone) => void dataMock.phones.push([id, phone]),
+}));
 
 const { PUT } = await import('../platform/src/app/api/me/route.ts');
-const { NAME_MAX, mfaView, parsePersonName } = await import('@/lib/person-profile-model');
+const { NAME_MAX, PHONE_ERROR, formatPhone, mfaView, normalizePhone, parseOptionalPhone, parsePersonName } = await import('@/lib/person-profile-model');
 const { ForbiddenError, UnauthorizedError } = await import('@/lib/session');
 
 const put = (body) => PUT(new Request('http://app.test/api/me', { method: 'PUT', body: typeof body === 'string' ? body : JSON.stringify(body) }));
@@ -28,6 +31,7 @@ const put = (body) => PUT(new Request('http://app.test/api/me', { method: 'PUT',
 beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [] });
   dataMock.renamed = [];
+  dataMock.phones = [];
 });
 
 describe('parsePersonName', () => {
@@ -80,9 +84,25 @@ describe('PUT /api/me', () => {
   it('pede content.view e grava o nome da pessoa da sessão', async () => {
     const res = await put({ name: ' Ana  Ribeiro ' });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, name: 'Ana Ribeiro' });
+    expect(await res.json()).toEqual({ ok: true, name: 'Ana Ribeiro', phone: null });
     expect(sessionMock.calls).toEqual(['content.view']);
     expect(dataMock.renamed).toEqual([['u1', 'Ana Ribeiro']]);
+  });
+
+  it('grava o celular em E.164 e apaga quando vem vazio', async () => {
+    const res = await put({ name: 'Ana', phone: '(11) 91234-5678' });
+    expect(await res.json()).toEqual({ ok: true, name: 'Ana', phone: '+5511912345678' });
+    expect(dataMock.phones).toEqual([['u1', '+5511912345678']]);
+    await put({ name: 'Ana', phone: '  ' });
+    expect(dataMock.phones.at(-1)).toEqual(['u1', null]);
+  });
+
+  it('celular inválido volta 400 e não grava nada', async () => {
+    const res = await put({ name: 'Ana', phone: '1234' });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(PHONE_ERROR);
+    expect(dataMock.renamed).toEqual([]);
+    expect(dataMock.phones).toEqual([]);
   });
 
   it('ignora um id no corpo: o alvo é sempre a pessoa da sessão', async () => {
@@ -104,5 +124,25 @@ describe('PUT /api/me', () => {
     sessionMock.error = new ForbiddenError();
     expect((await put({ name: 'Ana' })).status).toBe(403);
     expect(dataMock.renamed).toEqual([]);
+  });
+});
+
+describe('celular', () => {
+  it('normaliza as formas comuns para E.164 e só aceita celular com DDD', () => {
+    for (const raw of ['(11) 91234-5678', '11912345678', '+55 11 91234-5678', '5511912345678']) expect(normalizePhone(raw)).toBe('+5511912345678');
+    for (const raw of ['', '1234', '(11) 1234-5678', '(01) 91234-5678', '+1 415 555 0100']) expect(normalizePhone(raw)).toBeNull();
+  });
+
+  it('mostra no formato brasileiro e devolve vazio sem número', () => {
+    expect(formatPhone('+5511912345678')).toBe('(11) 91234-5678');
+    expect(formatPhone(null)).toBe('');
+  });
+
+  it('campo opcional: ausente e vazio valem null, inválido é erro', () => {
+    expect(parseOptionalPhone(undefined)).toEqual({ ok: true, value: null });
+    expect(parseOptionalPhone('')).toEqual({ ok: true, value: null });
+    expect(parseOptionalPhone('11912345678')).toEqual({ ok: true, value: '+5511912345678' });
+    expect(parseOptionalPhone('abc')).toEqual({ ok: false, error: PHONE_ERROR });
+    expect(parseOptionalPhone(42)).toEqual({ ok: false, error: PHONE_ERROR });
   });
 });

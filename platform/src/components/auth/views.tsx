@@ -5,6 +5,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { PASSWORD_MIN, ROLE_COPY, countdown, daysLeft, groupSecret, isEmail, passwordOk, passwordRules } from '@/lib/auth-flow';
+import { PHONE_ERROR, normalizePhone } from '@/lib/person-profile-model';
 import type { Role } from '@/lib/permissions';
 import { ErrorLine, Field, OtpInput, Spinner, ViewShell } from './ui';
 
@@ -81,27 +82,31 @@ export function LoginView({ busy, error, signupOpen, initialEmail, notice, onSub
   );
 }
 
-export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Common & { lockedEmail?: string; onSubmit: (name: string, email: string, password: string) => void; onLogin: () => void }) {
+export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Common & { lockedEmail?: string; onSubmit: (name: string, email: string, phone: string, password: string) => void; onLogin: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState(lockedEmail ?? '');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [tried, setTried] = useState(false);
   const rules = passwordRules(password, email);
   const problems = {
     name: !name.trim() ? 'Digite seu nome.' : '',
     email: !isEmail(email) ? 'Digite um e-mail completo, como ana@empresa.com.br.' : '',
+    phone: normalizePhone(phone) ? '' : PHONE_ERROR,
     password: !passwordOk(password, email) ? `A senha precisa de pelo menos ${PASSWORD_MIN} caracteres, com letra e número.` : '',
+    confirm: confirm !== password ? 'As senhas não são iguais.' : '',
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setTried(true);
-    if (problems.name || problems.email || problems.password) return;
-    onSubmit(name.trim(), email.trim(), password);
+    if (Object.values(problems).some(Boolean)) return;
+    onSubmit(name.trim(), email.trim(), normalizePhone(phone) as string, password);
   };
   return (
     <ViewShell
       title="Criar acesso"
-      lead={lockedEmail ? 'Crie a senha para entrar na conta do convite.' : 'Depois você cria a conta da empresa e convida a equipe.'}
+      lead={lockedEmail ? 'Confirme seus dados e crie a senha para entrar na conta do convite.' : 'Depois você cria a conta da empresa e convida a equipe.'}
       foot={
         <>
           Já tem acesso? <LinkButton onClick={onLogin}>Entrar</LinkButton>
@@ -123,6 +128,7 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
           help={lockedEmail ? 'O convite é para este e-mail.' : undefined}
           error={tried ? problems.email : ''}
         />
+        <Field label="Celular" type="tel" value={phone} onChange={setPhone} autoComplete="tel-national" placeholder="(11) 91234-5678" help="Só para contato da equipe da Ekoai." disabled={busy} error={tried ? problems.phone : ''} />
         <Field
           label="Senha"
           type="password"
@@ -143,6 +149,7 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
             </ul>
           }
         />
+        <Field label="Confirme a senha" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={busy} error={tried ? problems.confirm : ''} />
         <Submit busy={busy} busyLabel="Criando">
           Criar acesso
         </Submit>
@@ -263,7 +270,7 @@ export function ChallengeView({ busy, error, notice, onSubmit, onCancel }: Commo
             {notice}
           </p>
         )}
-        <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy} />
+        <OtpInput value={code} onChange={setCode} onComplete={onSubmit} invalid={!!error} disabled={busy} />
         {error && <ErrorLine>{error}</ErrorLine>}
         <Submit busy={busy} busyLabel="Confirmando">
           Confirmar
@@ -311,7 +318,7 @@ export function SetupView({ busy, error, qr, secret, forCreator, onSubmit, onCan
         </div>
         <div className="space-y-2">
           <p className="text-sm font-semibold">2. Digite o código de 6 dígitos que aparece no app</p>
-          <OtpInput value={code} onChange={setCode} invalid={!!error} disabled={busy || !qr} />
+          <OtpInput value={code} onChange={setCode} onComplete={onSubmit} invalid={!!error} disabled={busy || !qr} />
           {error && <ErrorLine>{error}</ErrorLine>}
         </div>
         <Submit busy={busy} busyLabel="Ativando">

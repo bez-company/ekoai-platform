@@ -1,5 +1,5 @@
 import PersonProfile from '@/components/profile/PersonProfile';
-import { idpUidOf, membershipsOf, personProfiles } from '@/lib/accounts';
+import { idpUidOf, membershipsOf, personProfiles, userPhone } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { firebaseWebConfig } from '@/lib/firebase-config';
 import { hasSecondFactor } from '@/lib/identity';
@@ -14,13 +14,13 @@ export const dynamic = 'force-dynamic';
 export default async function ProfilePage() {
   const { user } = await pageContext('content.view');
   try {
-    const [profiles, memberships, uid] = await Promise.all([personProfiles([user.id]), membershipsOf(user.id), idpUidOf(user.id)]);
+    const [profiles, memberships, uid, phone] = await Promise.all([personProfiles([user.id]), membershipsOf(user.id), idpUidOf(user.id), userPhone(user.id)]);
     const email = profiles.get(user.id)?.email;
     if (!email) throw new Error('e-mail da pessoa não encontrado');
     const enrolled = uid ? await hasSecondFactor(uid) : null;
     const state: MfaState = enrolled === null ? 'unknown' : enrolled ? 'on' : 'off';
     const required = mfaMode() === 'required' && memberships.some((m) => m.role === 'admin');
-    return <PersonProfile name={user.name ?? ''} email={email} mfa={{ state, required }} config={firebaseWebConfig()} />;
+    return <PersonProfile name={user.name ?? ''} email={email} phone={phone} mfa={{ state, required }} config={firebaseWebConfig()} />;
   } catch (e) {
     return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/perfil')}</div>;
   }

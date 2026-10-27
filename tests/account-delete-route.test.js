@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Sessão, identidade e exclusão simuladas: aqui só a ligação da rota (as provas pedidas, em que
 // ordem, o que ela faz depois). A cascata de verdade tem teste em tests/db/account-deletion.integration.test.js.
@@ -52,7 +52,9 @@ const identity = (over = {}) => ({ uid: 'idp-a', email: 'ana@x.test', emailVerif
 const post = (body) => POST(new Request('http://app.test/api/account/delete', { method: 'POST', body: JSON.stringify(body) }));
 const GOOD = { confirmName: 'Doce Ponto Confeitaria', idToken: 'aaa.bbb.ccc' };
 
+// Esta rota é testada no modo que exige o segundo fator (o padrão do código é `optional`).
 beforeEach(() => {
+  process.env.MFA_MODE = 'required';
   Object.assign(sessionMock, { error: null, calls: [] });
   Object.assign(accountsMock, { account: { id: 'acme', name: 'Doce Ponto Confeitaria', kind: 'empresa' }, idp: 'idp-a' });
   Object.assign(identityMock, { result: identity(), calls: 0 });
@@ -61,6 +63,10 @@ beforeEach(() => {
   mailMock.getError = null;
   mailMock.mailer = { sendAccountDeleted: async (mail) => (mailMock.failFor === mail.to ? Promise.reject(new Error('smtp')) : void mailMock.sent.push(mail)) };
   mailMock.failFor = null;
+});
+
+afterEach(() => {
+  delete process.env.MFA_MODE;
 });
 
 describe('POST /api/account/delete', () => {

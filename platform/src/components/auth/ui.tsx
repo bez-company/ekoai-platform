@@ -4,7 +4,7 @@
 // de 6 dígitos do app autenticador e a casca de cada tela (o título recebe o foco ao abrir, para
 // leitor de tela e teclado saberem que a tela mudou).
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 export function ErrorLine({ children, id }: { children: ReactNode; id?: string }) {
   return (
@@ -33,29 +33,61 @@ type FieldProps = {
   below?: ReactNode;
 };
 
+// Todo campo de senha da plataforma passa por aqui: o olho mostra e oculta o que foi digitado.
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="m3 3 18 18" />}
+    </svg>
+  );
+}
+
 export function Field({ label, value, onChange, type = 'text', autoComplete, autoFocus, placeholder, help, error, disabled, readOnly, below }: FieldProps) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
+  const [shown, setShown] = useState(false);
+  const isPassword = type === 'password';
+  const input = (
+    <input
+      id={id}
+      type={isPassword && shown ? 'text' : type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      autoComplete={autoComplete}
+      autoFocus={autoFocus}
+      placeholder={placeholder}
+      disabled={disabled}
+      readOnly={readOnly}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={[help ? helpId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined}
+      className={isPassword ? 'input pr-11' : 'input'}
+    />
+  );
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="text-sm font-semibold">
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        placeholder={placeholder}
-        disabled={disabled}
-        readOnly={readOnly}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={[help ? helpId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined}
-        className="input"
-      />
+      {isPassword ? (
+        <div className="relative">
+          {input}
+          <button
+            type="button"
+            onClick={() => setShown((v) => !v)}
+            disabled={disabled}
+            aria-label={shown ? 'Ocultar senha' : 'Mostrar senha'}
+            aria-pressed={shown}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-muted hover:text-fg focus-visible:text-fg disabled:opacity-60"
+          >
+            <EyeIcon off={shown} />
+          </button>
+        </div>
+      ) : (
+        input
+      )}
       {below}
       {help && (
         <p id={helpId} className="text-sm text-muted">
@@ -68,7 +100,8 @@ export function Field({ label, value, onChange, type = 'text', autoComplete, aut
 }
 
 // Seis caixas, uma por dígito: avança sozinho, volta com Backspace e aceita colar o código inteiro.
-export function OtpInput({ value, onChange, invalid, disabled }: { value: string; onChange: (value: string) => void; invalid?: boolean; disabled?: boolean }) {
+// `onComplete` dispara quando o sexto dígito entra (digitado ou colado): quem usa envia sem esperar o clique, e o botão segue na tela.
+export function OtpInput({ value, onChange, onComplete, invalid, disabled }: { value: string; onChange: (value: string) => void; onComplete?: (code: string) => void; invalid?: boolean; disabled?: boolean }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
 
@@ -80,6 +113,7 @@ export function OtpInput({ value, onChange, invalid, disabled }: { value: string
     }
     const next = (value.slice(0, index) + typed + value.slice(index + 1)).slice(0, 6);
     onChange(next);
+    if (next.length === 6 && next !== value) onComplete?.(next);
     refs.current[Math.min(index + typed.length, 5)]?.focus();
   }
 
@@ -101,6 +135,7 @@ export function OtpInput({ value, onChange, invalid, disabled }: { value: string
             if (!pasted) return;
             e.preventDefault();
             onChange(pasted);
+            if (pasted.length === 6) onComplete?.(pasted);
             refs.current[Math.min(pasted.length, 5)]?.focus();
           }}
           inputMode="numeric"
