@@ -23,11 +23,11 @@ export async function connectInstagram(page: Page) {
   expect((await fakeCalls(/cloudkms/)).some((c) => c.path.endsWith(':encrypt'))).toBe(true);
 }
 
-// A conta nova nasce com a publicação pausada.
+// A conta criada pelo cadastro nasce com a publicação ligada (BEZ-361); a criada direto no banco nasce pausada
+// pelo gatilho da 0013. Retoma só quando estiver pausada.
 export async function resumePublishing(page: Page) {
   await page.goto('/configuracoes');
-  await expect(page.getByText(/Pausada desde/)).toBeVisible();
-  await page.getByRole('button', { name: 'Retomar publicação' }).click();
+  if (await page.getByText(/Pausada desde/).isVisible()) await page.getByRole('button', { name: 'Retomar publicação' }).click();
   await expect(page.getByText(/Publicando normalmente/)).toBeVisible();
 }
 

@@ -152,8 +152,11 @@ export async function createAccount(input: { userId: string; name: string; kind:
           targetId: id,
           metadata: { kind: input.kind },
         });
+        // O gatilho da 0013 pausa todo tenant novo; quem cria a própria conta começa com a publicação ligada
+        // (BEZ-361): sem Instagram conectado ou horário, nada sai. A conta criada pelo console segue pausada.
+        await tx.query('update publishing_controls set paused = false, reason = null, paused_at = null, updated_at = now() where tenant_id = $1', [id]);
         await tx.query(
-          "insert into notifications (tenant_id, kind, level, title, body, link, audience) values ($1, 'account.created', 'info', 'Conta criada', 'A publicação começa pausada até você revisar os horários.', '/configuracoes', 'admin')",
+          "insert into notifications (tenant_id, kind, level, title, body, link, audience) values ($1, 'account.created', 'info', 'Conta criada', 'Conecte o Instagram e escolha os horários na Agenda: os posts aprovados saem neles.', '/configuracoes', 'admin')",
           [id],
         );
       });

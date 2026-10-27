@@ -70,6 +70,7 @@ export async function listPublished(t: TenantDb, limit = 60): Promise<PublishedI
   const { data, error } = await t
     .select('posts', COLUMNS)
     .eq('is_dry_run', false)
+    .is('removed_at', null)
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(limit);
   if (error) throw new Error(`Falha ao ler os publicados: ${error.message}`);
@@ -77,7 +78,7 @@ export async function listPublished(t: TenantDb, limit = 60): Promise<PublishedI
 }
 
 export async function getPublished(t: TenantDb, id: string): Promise<PublishedItem | null> {
-  const query = (columns: string) => t.select('posts', columns).eq('id', id).eq('is_dry_run', false).limit(1);
+  const query = (columns: string) => t.select('posts', columns).eq('id', id).eq('is_dry_run', false).is('removed_at', null).limit(1);
   let { data, error } = await query(`${COLUMNS},funnel`);
   // Sem a 0010, posts.funnel não existe (42703): segue sem o funil.
   if (error?.code === '42703') ({ data, error } = await query(COLUMNS));
@@ -98,4 +99,12 @@ export function fmtCount(n: number | null | undefined): string {
 export function fmtRate(r: number | null | undefined): string {
   if (r === null || r === undefined) return 'sem dado';
   return `${(r * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+// Tira o post da lista de Publicados e das médias. Não apaga nada no Instagram (a API da Meta não deixa): a
+// pessoa apaga lá se quiser. A linha fica, com a data, para o aprendizado e a auditoria. false = não achou.
+export async function removePublished(t: TenantDb, id: string, nowIso = new Date().toISOString()): Promise<boolean> {
+  const { data, error } = await t.update('posts', { removed_at: nowIso }).eq('id', id).eq('is_dry_run', false).is('removed_at', null).select('id');
+  if (error) throw new Error(`Falha ao tirar o post da lista: ${error.message}`);
+  return (data ?? []).length > 0;
 }

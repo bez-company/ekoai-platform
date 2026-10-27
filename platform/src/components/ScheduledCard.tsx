@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isoToLocalInput, localInputToIso } from '@/lib/format';
 import { carouselBadge } from '@/lib/carousel-view';
@@ -25,7 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
 const CHANNEL_LABEL: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
 
 // O mínimo que o cartão usa: serve ao post completo da fila e à célula da Agenda (BEZ-247).
-export type ScheduledLike = Pick<ScheduledPost, 'id' | 'channel' | 'status' | 'scheduled_for' | 'caption_final' | 'image_url' | 'last_error'> & Partial<Pick<ScheduledPost, 'variation' | 'pillar'>>;
+export type ScheduledLike = Pick<ScheduledPost, 'id' | 'channel' | 'status' | 'scheduled_for' | 'caption_final' | 'image_url' | 'last_error'> & Partial<Pick<ScheduledPost, 'variation' | 'pillar' | 'post_id'>>;
 
 export default function ScheduledCard({ post, time }: { post: ScheduledLike; time: string }) {
   const router = useRouter();
@@ -73,7 +74,14 @@ export default function ScheduledCard({ post, time }: { post: ScheduledLike; tim
         {post.last_error && <p className="mt-1 line-clamp-2 text-xs text-danger">Motivo: {post.last_error}</p>}
         {error && <p className="mt-1 text-xs text-danger" role="alert">{error}</p>}
 
-        {editing ? (
+        {post.status === 'published' ? (
+          // Já está no ar: não há o que publicar nem reagendar. Tirar da lista fica no detalhe do publicado.
+          <div className="mt-2">
+            <Link href={post.post_id ? `/historico/${post.post_id}` : '/historico'} className="btn-ghost px-2 py-1 text-xs">
+              Ver em Publicados
+            </Link>
+          </div>
+        ) : editing ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
               type="datetime-local"

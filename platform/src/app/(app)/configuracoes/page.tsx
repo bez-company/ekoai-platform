@@ -29,15 +29,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Os horários de publicação foram para a Agenda (SPEC 017 decisão 13); aqui fica a pausa. */}
-      <div id="horarios" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm">
-        <p>
-          <strong>Os horários agora ficam na Agenda.</strong> Aqui você pausa e retoma a publicação.
-        </p>
-        <Link href="/agenda?edit=slots" className="btn-ghost min-h-9">
-          Abrir horários
-        </Link>
-      </div>
       {err && <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>}
 
       <div className="space-y-2">

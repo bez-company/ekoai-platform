@@ -90,6 +90,9 @@ describe('coleta', () => {
     expect(rows.find((r) => r.post_id === postB1)).toMatchObject({ tenant_id: B.tenant, likes: 30, reach: null, total_interactions: null, engagement_score: null });
     expect(calls.some((c) => c.token === 'tok-b' && c.path.endsWith('/insights'))).toBe(false);
     expect(calls.some((c) => c.path === '1000000003')).toBe(false);
+    // O apagado no Instagram sai de Publicados (BEZ-360); os outros ficam.
+    const removed = (await admin.query('select id from posts where removed_at is not null')).rows.map((r) => r.id);
+    expect(removed).toEqual([postA2]);
   });
 
   it('rodada logo depois não coleta de novo; 5 h depois coleta o post novo e espera o de 5 dias', async () => {

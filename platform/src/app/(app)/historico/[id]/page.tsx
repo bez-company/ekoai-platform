@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import FeedFrame from '@/components/posts/FeedFrame';
 import FeedbackForm from '@/components/FeedbackForm';
+import RemovePublished from '@/components/published/RemovePublished';
 import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
@@ -65,7 +66,7 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
   }
   if (err) return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>;
   if (!p) notFound();
-  const canFeedback = await can('content.feedback');
+  const [canFeedback, canRemove] = await Promise.all([can('content.feedback'), can('content.approve')]);
 
   return (
     <div className="space-y-4">
@@ -91,6 +92,13 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
               </p>
             )}
           </section>
+
+          {canRemove && (
+            <section className="card flex flex-wrap items-center justify-between gap-3">
+              <p className="min-w-0 flex-1 text-sm text-muted">Apagou o post no Instagram, ou não quer mais vê-lo aqui? Tire da lista. O post continua no Instagram até você apagá-lo lá.</p>
+              <RemovePublished id={p.id} />
+            </section>
+          )}
 
           {canFeedback && (
             <section className="card space-y-3">

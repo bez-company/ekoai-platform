@@ -31,8 +31,8 @@ export default function CoachMark({ id, title, body }: { id: string; title: stri
   }
 
   return (
-    <aside role="note" aria-label="Dica" className="flex items-start gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-fg">
-      <span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-info/20 text-xs font-bold text-info">
+    <aside role="note" aria-label="Dica" className="flex items-center gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-fg">
+      <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-info/20 text-xs font-bold text-info">
         i
       </span>
       <p className="flex-1">

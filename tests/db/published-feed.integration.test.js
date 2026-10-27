@@ -10,7 +10,7 @@ process.env.DATABASE_URL = url;
 
 const admin = new pg.Pool({ connectionString: url, max: 2 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
-const { listPublished, getPublished } = await import('../../platform/src/lib/published-feed.ts');
+const { listPublished, getPublished, removePublished } = await import('../../platform/src/lib/published-feed.ts');
 
 const A = 'it-published-a';
 const B = 'it-published-b';
@@ -63,8 +63,19 @@ describe('publicados', () => {
     expect(bare).toMatchObject({ title: 'Sem agendamento', imageUrl: null, caption: 'Sem agendamento\n\ncorpo', metrics: null });
   });
 
+  it('tirar da lista esconde o post, não toca em outra conta e não repete', async () => {
+    expect(await removePublished(tenantDb(B), ids.old)).toBe(false);
+    expect((await listPublished(tenantDb(A))).map((i) => i.id)).toContain(ids.old);
+    expect(await removePublished(tenantDb(A), ids.old)).toBe(true);
+    expect((await listPublished(tenantDb(A))).map((i) => i.id)).toEqual([ids.new, ids.bare]);
+    expect(await getPublished(tenantDb(A), ids.old)).toBeNull();
+    expect(await removePublished(tenantDb(A), ids.old)).toBe(false);
+    // a linha e o histórico ficam
+    expect((await admin.query('select removed_at from posts where id = $1', [ids.old])).rows[0].removed_at).not.toBeNull();
+  });
+
   it('o detalhe não abre post de outra conta nem simulação', async () => {
-    expect((await getPublished(tenantDb(A), ids.old)).title).toBe('Antigo');
+    expect((await getPublished(tenantDb(A), ids.bare)).title).toBe('Sem agendamento');
     expect(await getPublished(tenantDb(A), ids.other)).toBeNull();
     expect(await getPublished(tenantDb(A), ids.dry)).toBeNull();
   });
