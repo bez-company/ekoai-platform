@@ -17,15 +17,19 @@ vi.mock('@/lib/session', () => {
     requireUserPermission: async (permission) => (await gate(permission), { t: { tenantId: 'acme' }, user: { id: 'u1' } }),
   };
 });
-const logoMock = { saved: [], removed: 0, logo: null, saveError: null };
+const logoMock = { saved: [], removed: 0, logo: null, saveError: null, variants: [], removedVariants: [], read: [] };
 vi.mock('@/lib/brand-logo', () => ({
-  readLogo: async () => logoMock.logo,
-  saveLogo: async (_t, _u, logo) => {
+  defaultStore: () => ({}),
+  isLogoVariant: (v) => ['main', 'dark', 'light', 'symbol'].includes(v),
+  logoStatus: async () => ({ main: 'a1', dark: null, light: null, symbol: null }),
+  readLogo: async (_t, _s, variant) => (logoMock.read.push(variant), logoMock.logo),
+  saveLogo: async (_t, _u, logo, _s, variant) => {
     if (logoMock.saveError) throw logoMock.saveError;
     logoMock.saved.push(logo);
+    logoMock.variants.push(variant);
     return { assetId: 'asset-1' };
   },
-  removeLogo: async () => void (logoMock.removed += 1),
+  removeLogo: async (_t, _u, _s, variant) => (logoMock.removed += 1, void logoMock.removedVariants.push(variant)),
 }));
 
 const { GET, POST, DELETE } = await import('../platform/src/app/api/brand/logo/route.ts');
@@ -44,7 +48,7 @@ const upload = (bytes, name = 'logo.png', type = 'image/png', headers = {}) => {
 
 beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [] });
-  Object.assign(logoMock, { saved: [], removed: 0, logo: null, saveError: null });
+  Object.assign(logoMock, { saved: [], removed: 0, logo: null, saveError: null, variants: [], removedVariants: [], read: [] });
 });
 
 describe('GET /api/brand/logo', () => {
@@ -147,5 +151,42 @@ describe('DELETE /api/brand/logo', () => {
     sessionMock.error = new ForbiddenError();
     expect((await DELETE()).status).toBe(403);
     expect(logoMock.removed).toBe(0);
+  });
+});
+
+describe('variações da logo (SPEC 026)', () => {
+  const withVariant = (bytes, variant) => {
+    const form = new FormData();
+    form.set('file', new File([bytes], 'logo.png', { type: 'image/png' }));
+    if (variant !== undefined) form.set('variant', variant);
+    return POST(new Request('http://app.test/api/brand/logo', { method: 'POST', body: form }));
+  };
+
+  it('o envio sem variante é a principal; com variante válida vai para ela', async () => {
+    expect((await withVariant(PNG)).status).toBe(200);
+    expect((await withVariant(PNG, 'dark')).status).toBe(200);
+    expect((await withVariant(PNG, 'symbol')).status).toBe(200);
+    expect(logoMock.variants).toEqual(['main', 'dark', 'symbol']);
+  });
+
+  it('variante desconhecida volta 400 e não grava', async () => {
+    const res = await withVariant(PNG, 'neon');
+    expect(res.status).toBe(400);
+    expect(logoMock.saved).toHaveLength(0);
+  });
+
+  it('GET lê a variante pedida, recusa a inválida e devolve o status com ?status=1', async () => {
+    logoMock.logo = { bytes: PNG, contentType: 'image/png', assetId: 'x' };
+    expect((await GET(new Request('http://app.test/api/brand/logo?variant=light'))).status).toBe(200);
+    expect(logoMock.read).toEqual(['light']);
+    expect((await GET(new Request('http://app.test/api/brand/logo?variant=neon'))).status).toBe(400);
+    const status = await GET(new Request('http://app.test/api/brand/logo?status=1'));
+    expect(await status.json()).toEqual({ main: 'a1', dark: null, light: null, symbol: null });
+  });
+
+  it('DELETE tira a variante pedida e recusa a inválida', async () => {
+    expect((await DELETE(new Request('http://app.test/api/brand/logo?variant=dark', { method: 'DELETE' }))).status).toBe(200);
+    expect(logoMock.removedVariants).toEqual(['dark']);
+    expect((await DELETE(new Request('http://app.test/api/brand/logo?variant=x', { method: 'DELETE' }))).status).toBe(400);
   });
 });

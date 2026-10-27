@@ -20,7 +20,7 @@ import {
   type VoiceForm,
 } from '@/lib/company-profile-form';
 import type { CompanyProfile, FieldErrors, Section } from '@/lib/company-profile-model';
-import LogoField from './LogoField';
+import LogoField, { type LogoIds } from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
 const NONE = <span className="text-muted">Não informado</span>;
@@ -53,8 +53,9 @@ function Card({ title, sub, action, children }: { title: string; sub?: string; a
   );
 }
 
-export default function CompanyEditor({ initial, canEdit }: { initial: CompanyProfile | null; canEdit: boolean }) {
+export default function CompanyEditor({ initial, canEdit, logos }: { initial: CompanyProfile | null; canEdit: boolean; logos: LogoIds }) {
   const router = useRouter();
+  const [logoIds, setLogoIds] = useState<LogoIds>(logos);
   const [profile, setProfile] = useState(initial);
   const [editing, setEditing] = useState<Section | null>(null);
   const [about, setAbout] = useState<AboutForm>(aboutFromProfile(initial));
@@ -187,10 +188,11 @@ export default function CompanyEditor({ initial, canEdit }: { initial: CompanyPr
       <Card title="Visual" sub={profile && progress.missing.includes('visual') ? 'Sem logo, cores e fontes ainda.' : 'Usado nas artes da fase 2.'} action={editButton('visual')}>
         {profile && (
           <LogoField
-            assetId={profile.logoAssetId}
+            ids={logoIds}
             canEdit={canEdit}
-            onChange={(logoAssetId) => {
-              setProfile({ ...profile, logoAssetId });
+            onChange={(next) => {
+              setLogoIds(next);
+              setProfile({ ...profile, logoAssetId: next.main });
               router.refresh();
             }}
           />

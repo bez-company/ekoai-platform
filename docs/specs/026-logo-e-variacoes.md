@@ -1,6 +1,6 @@
 # SPEC 026: logo com variações para fundo claro, fundo escuro e símbolo
 
-- **Status:** rascunho com protótipo publicado (27/10/2026). Falta a aprovação do Matheus antes de qualquer código
+- **Status:** protótipo v20 aprovado pelo Matheus em 27/10/2026; implementada na PR do BEZ-369
 - **Data:** 2026-10-27
 - **Cards:** BEZ-369 (logo: caixa única, ampliar e variações); pai BEZ-354
 - **Origem:** teste do Matheus em produção: "quero subir variações da logo aqui também"
@@ -31,10 +31,10 @@ versão só com o símbolo, e hoje não há onde enviá-las.
 
 | Item | Mudança |
 |---|---|
-| `brand_assets` | coluna `variant text not null default 'main' check (variant in ('main','dark','light','symbol'))`; único por conta e variante. Aditiva e reaplicável |
+| `brand_assets` | coluna `variant text not null default 'main' check (variant in ('main','dark','light','symbol'))`; índice único por conta e variante só para as variações (a principal é uma só pelo ponteiro do perfil). Migration 0048, aditiva e reaplicável |
 | `company_profiles.logo_asset_id` | segue apontando para a Principal |
 | `GET/POST/DELETE /api/brand/logo?variant=` | `variant` opcional, padrão `main`; mesma permissão de hoje (`profile.view`, `brand.manage`) |
-| `lib/design/logo-pick.ts` (novo, puro) | `pickLogo(variants, background, size)` devolve a variante; coberto por teste |
+| `lib/design/logo-pick.ts` (novo, puro) | `pickLogo(logo, background, small)` escolhe a variante; o `compose` a aplica antes de desenhar. O "espaço pequeno" é a lâmina de carrossel (`lamina-item`); o canto de um post comum segue a regra de fundo |
 | Exportação (LGPD) e exclusão da conta | passam a incluir e apagar as quatro |
 
 ## Como verificar
