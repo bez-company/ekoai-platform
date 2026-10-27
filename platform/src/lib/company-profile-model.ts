@@ -26,8 +26,17 @@ export const NICHES = [
 ] as const;
 
 // Fontes com licença livre, a lista curada da SPEC: o servidor só aceita estas.
-export const HEADING_FONTS = ['Inter', 'Manrope', 'DM Sans', 'Poppins', 'Montserrat', 'Playfair Display', 'Lora', 'Space Grotesk'] as const;
-export const BODY_FONTS = ['Inter', 'Manrope', 'DM Sans', 'Poppins', 'Montserrat', 'Lora'] as const;
+// Ampliada em 27/10/2026 (BEZ-367): cada uma tem arquivo em platform/fonts e entrada em lib/design/fonts.ts. Título aceita
+// as de exibição (Bebas Neue, Pacifico...); texto, só as de leitura.
+export const HEADING_FONTS = [
+  'Inter', 'Manrope', 'DM Sans', 'Poppins', 'Montserrat', 'Playfair Display', 'Lora', 'Space Grotesk',
+  'Lato', 'Open Sans', 'Nunito', 'Raleway', 'Work Sans', 'Rubik', 'Outfit', 'Plus Jakarta Sans', 'Oswald',
+  'Merriweather', 'Libre Baskerville', 'Cormorant Garamond', 'DM Serif Display', 'Abril Fatface', 'Bebas Neue', 'Caveat', 'Pacifico',
+] as const;
+export const BODY_FONTS = [
+  'Inter', 'Manrope', 'DM Sans', 'Poppins', 'Montserrat', 'Lora',
+  'Lato', 'Open Sans', 'Nunito', 'Raleway', 'Work Sans', 'Rubik', 'Outfit', 'Plus Jakarta Sans', 'Merriweather', 'Libre Baskerville',
+] as const;
 
 export const CTAS = ['link_bio', 'whatsapp', 'dm'] as const;
 export type Cta = (typeof CTAS)[number];
