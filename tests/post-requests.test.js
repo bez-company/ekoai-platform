@@ -58,4 +58,14 @@ describe('foto do banco no pedido (BEZ-237)', () => {
     const withPhoto = parsePostRequest({ idea: 'x', format: 'carousel', asset_id: '11111111-2222-4333-8444-555555555555', photo_usage: 'as_is' });
     expect(withPhoto.ok).toBe(false);
   });
+
+  it('quantidade de lâminas (SPEC 025): de 2 a 10, só no carrossel; ausente = a Ekoai decide', () => {
+    expect(parsePostRequest({ idea: 'x', format: 'carousel', slide_count: 8 }).value).toMatchObject({ format: 'carousel', slideCount: 8 });
+    expect(parsePostRequest({ idea: 'x', format: 'carousel', slide_count: '5' }).value.slideCount).toBe(5);
+    expect(parsePostRequest({ idea: 'x', format: 'carousel' }).value.slideCount).toBeUndefined();
+    expect(parsePostRequest({ idea: 'x', format: 'carousel', slide_count: '' }).value.slideCount).toBeUndefined();
+    for (const bad of [1, 11, 2.5, 'x', -3]) expect(parsePostRequest({ idea: 'x', format: 'carousel', slide_count: bad }), String(bad)).toMatchObject({ ok: false, field: 'slide_count' });
+    expect(parsePostRequest({ idea: 'x', slide_count: 4 })).toMatchObject({ ok: false, field: 'slide_count' });
+    expect(parsePostRequest({ idea: 'x', format: 'single', slide_count: 4 })).toMatchObject({ ok: false, field: 'slide_count' });
+  });
 });

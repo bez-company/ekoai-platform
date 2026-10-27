@@ -161,6 +161,28 @@ describe('carrossel informativo', () => {
     expect(model.calls[1].prompt).toContain('O carrossel precisa de 2 a 10 lâminas, e vieram 1.');
   });
 
+  it('a quantidade escolhida (SPEC 025) vai gravada no pedido, o prompt a exige e a resposta com outra quantidade volta ao modelo', async () => {
+    const t = tenantDb(A);
+    const parsed = requests.parsePostRequest({ idea: 'três lâminas só', kind: 'informativo', format: 'carousel', slide_count: 3 });
+    expect(parsed).toMatchObject({ ok: true, value: { format: 'carousel', slideCount: 3 } });
+    const { id } = await requests.createPostRequest(t, ANA, parsed.value);
+    expect(await one('select format, slide_count from briefs where id = $1', [id])).toEqual({ format: 'carousel', slide_count: 3 });
+    const three = { ...CAROUSEL, slides: [SLIDES[0], SLIDES[1], SLIDES[4]] };
+    const model = fakeModel({ text: [CAROUSEL, three], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status, JSON.stringify(out)).toBe('ready');
+    expect(model.calls[0].prompt).toContain('EXATAMENTE 3 lâminas');
+    expect(model.calls[1].prompt).toContain('A pessoa pediu 3 lâminas, e vieram 5.');
+    const pending = await one('select p.images from pending_approvals p where p.brief_id = $1', [id]);
+    expect(pending.images).toHaveLength(3);
+  });
+
+  it('sem a quantidade, o pedido guarda null e a Ekoai decide', async () => {
+    const id = await carouselBrief('quantidade livre', 'informativo');
+    expect((await one('select slide_count from briefs where id = $1', [id])).slide_count).toBeNull();
+    await admin.query('delete from briefs where id = $1', [id]);
+  });
+
   it('ao aprovar, o agendamento leva as lâminas como carrossel', async () => {
     const t = tenantDb(A);
     const { pending_id: pendingId } = await one("select p.pending_id from pending_approvals p join briefs b on b.id = p.brief_id where b.format = 'carousel' and b.idea = 'três sinais de que o bolo está pronto'");

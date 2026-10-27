@@ -493,7 +493,10 @@ código atrás de propriedade com nome de dado pessoal.
 | Evento | Quando | Propriedades |
 |---|---|---|
 | `account_created` | conta criada | `kind` |
-| `post_requested` | pedido de post gravado (tela ou sugestão) | `source`, `brief_id`, `goal`, `kind`, `ratio`, `with_photo` |
+| `post_requested` | pedido de post gravado (tela ou sugestão) | `source`, `brief_id`, `goal`, `kind`, `ratio`, `with_photo`, `format` |
+| `plan_upgraded` | a conta passou de Individual para Time (SPEC 025) | `to` |
+| `plan_agency_requested` | pedido de contato da Agência (SPEC 025) | `brands` |
+| `ideas_suggested` | "Sugerir ideias" devolveu as ideias do Criar post (SPEC 025) | `count` |
 | `post_ready` | worker terminou o post | `brief_id`, `direction`, `regenerated`, `kind`, `goal`, `ratio`, `latency_ms`, `cost_usd` |
 | `post_generation_failed` | worker falhou ou bateu no limite do plano | as de `post_ready` mais `outcome` |
 | `cost_by_step` | um por etapa do pedido (`writer`, `visual`...) e um por chamada de visão (`vision_photo_caption`, `vision_media_describe`) | `step`, `calls`, `failed_calls`, `cost_usd`, `duration_ms`, tokens, `images` |
@@ -513,3 +516,7 @@ tentativa até a rede confirmar) e `published_failure` (`channel`, `attempts`, `
 
 **Teste de ponta a ponta (depois de aplicar `posthog-key`):** aprovar um post no staging e conferir no PostHog que
 `post_approved` chegou com `environment = staging`; forçar um erro e conferir o issue no Sentry (`environment = staging`).
+
+## Pedido de contato da Agência (SPEC 025)
+
+`POST /api/account/plan/agency` não cobra nada: grava `plan.agency_requested` na auditoria da conta (`audit_events`, com as marcas e o recado), avisa os administradores da conta e emite o evento `plan_agency_requested`. A equipe da Ekoai lê esses pedidos na auditoria ou no PostHog e responde pelo e-mail do administrador; ainda não há tela de console para eles.

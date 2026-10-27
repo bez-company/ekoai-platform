@@ -1,6 +1,6 @@
 # SPEC 025: criar post mais simples, ideias para quem começa e conta de time
 
-- **Status:** rascunho com protótipo publicado (27/10/2026). Falta a aprovação do Matheus antes de qualquer código de tela
+- **Status:** protótipo v19 aprovado pelo Matheus em 27/10/2026; implementada na PR do BEZ-372
 - **Data:** 2026-10-27
 - **Cards:** BEZ-372 (formato primeiro), BEZ-373 (quantas lâminas), BEZ-374 (foto e objetivo), BEZ-375 (ideias), BEZ-376 (upgrade); pai BEZ-354
 - **Origem:** teste do Matheus em produção, 27/10/2026

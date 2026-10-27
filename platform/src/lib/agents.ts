@@ -12,6 +12,7 @@ export type CopyInput = {
   idea: string;
   kind: PostKind | null; // null = o estrategista escolhe
   format?: PostFormat; // single (padrão) ou carousel: escolha da pessoa (SPEC 023)
+  slideCount?: number | null; // carrossel: quantas lâminas a pessoa escolheu (SPEC 025); null = a Ekoai decide
   goal?: string | null; // o objetivo do post em uma frase (SPEC 017 decisão 6)
   profile: CompanyProfile;
   facts: string[];
@@ -44,7 +45,7 @@ export type Copy = {
 
 export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120, altText: 1000 };
 
-function voiceLine(p: CompanyProfile): string {
+export function voiceLine(p: CompanyProfile): string {
   const scale = (v: number | null, low: string, high: string) => (v == null ? null : v <= 2 ? low : v >= 4 ? high : `entre ${low} e ${high}`);
   return [scale(p.voiceFormal, 'formal', 'descontraído'), scale(p.voiceTechnical, 'técnico', 'simples'), scale(p.voiceSerious, 'sério', 'bem-humorado')].filter(Boolean).join(', ') || 'direto e simples';
 }
@@ -118,7 +119,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(`- title: até ${LIMITS.title} caracteres, o gancho. kicker: até ${LIMITS.kicker} caracteres, um selo curto (ex.: "Dica da casa"). sub: até ${LIMITS.sub} caracteres, opcional.`);
   lines.push(`- items: de 2 a ${LIMITS.items} itens curtos (até ${LIMITS.item} caracteres cada), só no informativo em lista. Em "atmosfera", sem items e sem sub.`);
   if (input.format === 'carousel') {
-    lines.push(`- CARROSSEL: o post tem de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas que se leem deslizando. Devolva "slides" no lugar de "texts" e "items". A primeira lâmina é a capa (o gancho, com selo e título; a capa tem até 12 palavras), as do meio levam UM item cada (título curto e um subtítulo opcional que explica) e a última é a chamada (título e subtítulo com o convite).`);
+    lines.push(`- CARROSSEL: o post tem ${input.slideCount ? `EXATAMENTE ${input.slideCount} lâminas, nem mais nem menos,` : `de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas`} que se leem deslizando. Devolva "slides" no lugar de "texts" e "items". A primeira lâmina é a capa (o gancho, com selo e título; a capa tem até 12 palavras), as do meio levam UM item cada (título curto e um subtítulo opcional que explica) e a última é a chamada (título e subtítulo com o convite).`);
     lines.push(`- Em cada lâmina: title até ${LIMITS.title} caracteres, sub até ${LIMITS.sub}, kicker até ${LIMITS.kicker} só na capa e, se quiser, nas do meio. Nada de items. Cada título é diferente dos outros. Se o tema é uma lista (ex.: "3 sinais"), cada item vira uma lâmina.`);
     lines.push('- Em "atmosfera", o visual_prompt descreve UMA foto só, para a capa: uma cena, sem colagem, sem painéis, sem sequência de momentos. As outras lâminas não levam foto.');
   }
@@ -150,13 +151,13 @@ function str(v: unknown, max: number): string | null {
 
 // O que volta do modelo, no formato que o resto do motor espera. Corta o que passa do limite em
 // vez de recusar: o revisor por regra decide se o texto cabe na imagem.
-export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single'): Parsed {
+export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single', slideCount: number | null = null): Parsed {
   const o = json && typeof json === 'object' && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
   if (!o) return { ok: false, error: 'O modelo não devolveu um objeto.' };
   const kind: PostKind = requested ?? (o.kind === 'atmosfera' ? 'atmosfera' : 'informativo');
   let slides: CopySlide[] | undefined;
   if (format === 'carousel') {
-    const parsed = parseSlides(o.slides);
+    const parsed = parseSlides(o.slides, slideCount);
     if (!parsed.ok) return parsed;
     slides = parsed.value;
   }
@@ -193,8 +194,9 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
 // As lâminas do carrossel (SPEC 023): de 2 a 10, o papel vem da posição (capa, itens, chamada) e não do que o modelo
 // escreveu, e cada uma precisa de título. Item solto não existe na lâmina: ela é o item. Fora da faixa ou sem título
 // volta ao modelo como motivo da recusa, como as outras falhas de formato.
-function parseSlides(raw: unknown): { ok: true; value: CopySlide[] } | { ok: false; error: string } {
+function parseSlides(raw: unknown, exact: number | null = null): { ok: true; value: CopySlide[] } | { ok: false; error: string } {
   if (!Array.isArray(raw)) return { ok: false, error: 'O modelo não devolveu as lâminas do carrossel (slides).' };
+  if (exact && raw.length !== exact) return { ok: false, error: `A pessoa pediu ${exact} lâminas, e vieram ${raw.length}. Escreva exatamente ${exact}.` };
   if (raw.length < MIN_SLIDES || raw.length > MAX_SLIDES) return { ok: false, error: `O carrossel precisa de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas, e vieram ${raw.length}.` };
   const slides: CopySlide[] = [];
   for (const [i, item] of raw.entries()) {

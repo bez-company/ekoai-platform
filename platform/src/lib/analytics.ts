@@ -33,6 +33,9 @@ export type ProductEvent =
   // Scorecard (BEZ-260): ativação, qualidade e custo do post.
   | 'account_created'
   | 'post_requested'
+  | 'ideas_suggested'
+  | 'plan_upgraded'
+  | 'plan_agency_requested'
   | 'post_ready'
   | 'post_generation_failed'
   | 'suggestion_viewed'

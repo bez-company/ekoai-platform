@@ -18,6 +18,8 @@ export const RULES = {
   designPreview: { bucket: 'design.preview', windowS: 60, limit: 60 },
   // Pedir ajuste em texto livre (SPEC 024): uma chamada de modelo de texto por pedido, por conta.
   designAsk: { bucket: 'design.ask', windowS: HOUR, limit: 30 },
+  // Sugerir ideias no Criar post (SPEC 025): uma chamada de texto por clique, por conta.
+  starterIdeas: { bucket: 'ideas.starter', windowS: HOUR, limit: 12 },
 } as const satisfies Record<string, RateRule>;
 
 // O IP de quem chama atrás do Cloud Run: o front-end do Google acrescenta o IP real no FIM do
