@@ -1,9 +1,10 @@
 # SPEC 025: criar post mais simples, ideias para quem começa e conta de time
 
-- **Status:** rascunho. Falta o protótipo no Claude Design e a aprovação do Matheus antes de qualquer código de tela
+- **Status:** rascunho com protótipo publicado (27/10/2026). Falta a aprovação do Matheus antes de qualquer código de tela
 - **Data:** 2026-10-27
 - **Cards:** BEZ-372 (formato primeiro), BEZ-373 (quantas lâminas), BEZ-374 (foto e objetivo), BEZ-375 (ideias), BEZ-376 (upgrade); pai BEZ-354
 - **Origem:** teste do Matheus em produção, 27/10/2026
+- **Protótipo:** versão 19 (`version_id` 1793110087-f2e3) do artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz. No seletor, grupo "Fase 7: criar post, ideias e conta (SPEC 025)": **Criar post (mais simples)** (padrão, carrossel com quantidade, objetivo aberto, com foto, ideias cheio, carregando, erro e sem perfil) e **Conta e plano (upgrade)** (individual, confirmação de Time, Agência, pedido enviado, já é Time, sem permissão), em desktop e celular. Fonte em `.context/proto-025` (`phase8.js`, `phase8.css` sobre `base-live.html`, a v18)
 
 ## Problema
 
