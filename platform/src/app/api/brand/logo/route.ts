@@ -12,10 +12,10 @@ export const dynamic = 'force-dynamic';
 // `?variant=` escolhe a principal (padrão) ou uma variação (SPEC 026); `?status=1` devolve quais logos a conta tem.
 const variantOf = (v: unknown): LogoVariant | null => (v == null || v === '' ? 'main' : isLogoVariant(v) ? v : null);
 
-export async function GET(req?: Request) {
+export async function GET(req: Request) {
   try {
     const t = await requirePermission('profile.view');
-    const url = new URL(req?.url ?? 'http://localhost');
+    const url = new URL(req.url);
     if (url.searchParams.get('status')) return NextResponse.json(await logoStatus(t));
     const variant = variantOf(url.searchParams.get('variant'));
     if (!variant) return NextResponse.json({ error: 'Variação de logo inválida.' }, { status: 400 });
@@ -60,10 +60,10 @@ export async function POST(req: Request) {
 }
 
 // Tira o logo.
-export async function DELETE(req?: Request) {
+export async function DELETE(req: Request) {
   try {
     const { t, user } = await requireUserPermission('brand.manage');
-    const variant = variantOf(new URL(req?.url ?? 'http://localhost').searchParams.get('variant'));
+    const variant = variantOf(new URL(req.url).searchParams.get('variant'));
     if (!variant) return badRequest('Variação de logo inválida.');
     await removeLogo(t, user, defaultStore(), variant);
     return NextResponse.json({ ok: true });
