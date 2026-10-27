@@ -158,7 +158,7 @@ describe('carrossel informativo', () => {
     expect(out.status).toBe('failed');
     // a terceira volta repete o pedido da segunda (mesmo motivo): a reserva idempotente devolve a resposta gravada
     expect(model.calls).toHaveLength(2);
-    expect(model.calls[1].prompt).toContain('O carrossel precisa de 2 a 6 lâminas, e vieram 1.');
+    expect(model.calls[1].prompt).toContain('O carrossel precisa de 2 a 10 lâminas, e vieram 1.');
   });
 
   it('ao aprovar, o agendamento leva as lâminas como carrossel', async () => {
