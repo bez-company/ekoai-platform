@@ -245,13 +245,47 @@ jobs:
       - name: Consultas, módulos e executor de migrations contra o Postgres
         run: npm run test:db
 
+  # Diz se a PR toca o que o E2E exercita (BEZ-377). Push em staging e main e disparo manual sempre rodam o E2E:
+  # a release nunca sai sem ele. PR só de documentação, scripts ou infra não gasta 17 minutos de navegador.
+  changes:
+    name: O que mudou
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "e2e=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          echo "$files"
+          if echo "$files" | grep -qE '^(platform/|e2e/|supabase/|packages/|scripts/(create-tenant|grant-access|migrate)|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+            echo "nenhum arquivo do app, do banco ou do E2E mudou: E2E pulado"
+          fi
+
   # Jornada no navegador (BEZ-259): o app de verdade (Next em modo dev, que é o que aceita o emulador
   # de login) contra um Postgres com as migrations e o emulador do Firebase Auth. Nenhum serviço
   # externo real: IA e Meta ficam simulados nas frentes seguintes. Screenshots e trace saem como artefato.
   e2e:
-    name: E2E no navegador
+    name: E2E no navegador (${{ matrix.project }})
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Desktop e mobile em paralelo, cada um com o próprio Postgres, app e emulador: cerca de metade do tempo.
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop, mobile]
     services:
       postgres:
         image: postgres:17
@@ -268,6 +302,7 @@ jobs:
       PUPPETEER_SKIP_DOWNLOAD: "true"
       DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_e2e
       E2E_DATABASE_URL: postgresql://postgres:ci@localhost:5432/ekoai_e2e
+      E2E_PROJECT: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -301,7 +336,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-resultados
+          name: e2e-resultados-${{ matrix.project }}
           path: |
             e2e/test-results
             e2e/playwright-report
@@ -381,11 +416,16 @@ jobs:
   ci-ok:
     name: CI ok
     if: always()
-    needs: [test, identity-emulator, migrations-check, data-layer, e2e, containers, infra, security, flow]
+    needs: [test, identity-emulator, migrations-check, data-layer, changes, e2e, containers, infra, security, flow]
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
-            echo "::error::algum job do CI não passou"
+      # Todo job precisa ter passado. A única exceção é o E2E pulado de propósito (o job `changes` disse que a PR não
+      # toca o app): um job pulado por outro motivo continua contando como falha.
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | select((.key == "e2e" and .value.result == "skipped") | not) | "\(.key)=\(.value.result)"')
+          if [ -n "$bad" ]; then
+            echo "::error::algum job do CI não passou: $bad"
             exit 1
           fi

@@ -35,7 +35,8 @@ export default defineConfig({
   forbidOnly: CI,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  reporter: CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
+  // No CI o `list` também sai: a duração de cada teste fica no log, para decidir o timeout com dado (BEZ-377).
+  reporter: CI ? [['github'], ['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: BASE_URL,
     locale: 'pt-BR',
@@ -44,10 +45,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     navigationTimeout: 45_000,
   },
+  // `E2E_PROJECT` roda só um dos dois: o CI divide desktop e mobile em jobs paralelos, cada um com o próprio banco e app
+  // (cada spec zera a conta no `beforeAll`, então um projeto não depende do outro).
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
-  ],
+  ].filter((p) => !process.env.E2E_PROJECT || p.name === process.env.E2E_PROJECT),
   webServer: {
     command: `npm run dev -- --hostname 127.0.0.1 --port ${PORT}`,
     cwd: '../platform',
