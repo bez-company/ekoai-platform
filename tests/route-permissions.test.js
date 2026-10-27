@@ -42,6 +42,7 @@ const EXPECTED = {
   'auth/tenant': ['content.view'],
   'auth/logout-all': ['content.view'],
   me: ['content.view'],
+  'fonts/[file]': ['content.view'],
   'team/invitations': ['team.manage'],
   'team/invitations/[id]': ['team.manage'],
   'team/invitations/[id]/resend': ['team.manage'],

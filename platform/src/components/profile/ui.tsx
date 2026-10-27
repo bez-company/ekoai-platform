@@ -6,6 +6,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { ErrorLine } from '@/components/auth/ui';
 import Select from '@/components/ui/Select';
+import { fontFaces } from '@/lib/design/font-preview';
 
 type ShellProps = {
   label: string;
@@ -90,7 +91,10 @@ export function SelectField({ value, onChange, options, placeholder, fontPreview
   return (
     <FieldShell {...shell}>
       {({ id, describedBy, invalid }) => (
+        <>
+        {fontPreview && <style>{fontFaces(items.map((i) => i.value).filter(Boolean))}</style>}
         <Select id={id} value={value} onChange={onChange} options={items} placeholder={placeholder} describedBy={describedBy} invalid={invalid} disabled={shell.disabled} searchable={options.length > 10} />
+        </>
       )}
     </FieldShell>
   );
