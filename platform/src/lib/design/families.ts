@@ -5,6 +5,7 @@
 
 import { FONTS } from './fonts';
 import { contrast, mix, over, untilContrast, type Hex } from './color';
+import { pickLogo } from './logo-pick';
 import { HEIGHT, MARGIN, WIDTH, paletteFor, type DesignSpec, type Logo, type LogoCorner } from './model';
 import { escapeXml, fitText, textWidth, type Fit } from './text';
 import type { TextBox } from './review';
@@ -510,7 +511,14 @@ function wrap(parts: string[], H: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${H}" viewBox="0 0 ${WIDTH} ${H}">${parts.join('')}</svg>`;
 }
 
-export function compose(spec: DesignSpec): Composed {
+// Escolhe a variação da logo pelo fundo que o layout desenha (SPEC 026). Sem variações, a logo segue como veio.
+function withPickedLogo(spec: DesignSpec): DesignSpec {
+  if (!spec.logo?.variants) return spec;
+  return { ...spec, logo: pickLogo(spec.logo, paletteFor(spec).bg, spec.layout === 'lamina-item') };
+}
+
+export function compose(input: DesignSpec): Composed {
+  const spec = withPickedLogo(input);
   if (spec.layout === 'lista-numerada') return listaNumerada(spec);
   if (spec.layout === 'titulo-destaque') return tituloDestaque(spec);
   if (spec.layout === 'foto-janela') return fotoJanela(spec);

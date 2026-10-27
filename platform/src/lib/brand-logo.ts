@@ -73,6 +73,20 @@ export function defaultStore(env: Record<string, string | undefined> = process.e
 
 export type LogoAsset = { id: string; path: string; contentType: string; byteSize: number };
 
+// A principal mais três variações opcionais (SPEC 026): a Ekoai escolhe pelo fundo do post (design/logo-pick.ts).
+export const LOGO_VARIANTS = ['main', 'dark', 'light', 'symbol'] as const;
+export type LogoVariant = (typeof LOGO_VARIANTS)[number];
+export const isLogoVariant = (v: unknown): v is LogoVariant => typeof v === 'string' && (LOGO_VARIANTS as readonly string[]).includes(v);
+
+const assetOf = (row: Record<string, unknown>): LogoAsset => ({ id: String(row.id), path: String(row.storage_path), contentType: String(row.content_type), byteSize: Number(row.byte_size) });
+
+// A variação (não a principal) guardada em brand_assets, ou null.
+async function variantAsset(t: TenantDb, variant: Exclude<LogoVariant, 'main'>): Promise<LogoAsset | null> {
+  const row = await t.select('brand_assets', 'id,storage_path,content_type,byte_size').eq('variant', variant).maybeSingle();
+  if (row.error) throw new Error(`logo: ${row.error.message}`);
+  return row.data ? assetOf(row.data) : null;
+}
+
 async function currentAsset(t: TenantDb): Promise<{ hasProfile: boolean; asset: LogoAsset | null }> {
   const profile = await t.select('company_profiles', 'logo_asset_id').maybeSingle();
   if (profile.error) throw new Error(`perfil: ${profile.error.message}`);
@@ -95,41 +109,72 @@ async function dropAsset(t: TenantDb, asset: LogoAsset, store: BlobStore): Promi
   await store.remove(asset.path).catch((e) => log('error', 'brand-logo', 'não apagou o arquivo antigo do logo', { object: asset.path, error: e instanceof Error ? e.message : String(e) }));
 }
 
-// Troca (ou define) o logo. `logo` já passou por inspectLogo: tipo e bytes confiáveis.
-export async function saveLogo(t: TenantDb, actor: SessionUser, logo: Extract<InspectedLogo, { ok: true }>, store: BlobStore = defaultStore()): Promise<{ assetId: string }> {
-  const { hasProfile, asset: previous } = await currentAsset(t);
+// Troca (ou define) o logo. `logo` já passou por inspectLogo: tipo e bytes confiáveis. Sem `variant` é a principal; uma variação
+// só existe com a principal já enviada (é a que vale quando não há uma melhor para o fundo).
+export async function saveLogo(t: TenantDb, actor: SessionUser, logo: Extract<InspectedLogo, { ok: true }>, store: BlobStore = defaultStore(), variant: LogoVariant = 'main'): Promise<{ assetId: string }> {
+  const { hasProfile, asset: main } = await currentAsset(t);
   if (!hasProfile) throw new UserError('Preencha primeiro a seção Sobre o negócio.');
+  if (variant !== 'main' && !main) throw new UserError('Envie primeiro a logo principal. As outras versões vêm depois dela.');
+  const previous = variant === 'main' ? main : await variantAsset(t, variant);
 
   const id = randomUUID();
   const key = logoKey(t.tenantId, id, logo.ext);
   await store.put(key, logo.bytes, logo.contentType);
   try {
-    const inserted = await t.insert('brand_assets', { id, kind: 'logo', storage_path: key, content_type: logo.contentType, byte_size: logo.bytes.length, created_by: actor.id });
+    // Variação já enviada: sai antes (o índice só deixa uma por tipo); a principal troca o ponteiro e só então a antiga sai.
+    if (variant !== 'main' && previous) {
+      const gone = await t.delete('brand_assets').eq('id', previous.id);
+      if (gone.error) throw new Error(`logo: ${gone.error.message}`);
+    }
+    const inserted = await t.insert('brand_assets', { id, kind: 'logo', variant, storage_path: key, content_type: logo.contentType, byte_size: logo.bytes.length, created_by: actor.id });
     if (inserted.error) throw new Error(`logo: ${inserted.error.message}`);
-    const point = await t.update('company_profiles', { logo_asset_id: id, updated_by: actor.id });
-    if (point.error) throw new Error(`perfil: ${point.error.message}`);
+    if (variant === 'main') {
+      const point = await t.update('company_profiles', { logo_asset_id: id, updated_by: actor.id });
+      if (point.error) throw new Error(`perfil: ${point.error.message}`);
+    }
   } catch (e) {
     await t.delete('brand_assets').eq('id', id);
     await store.remove(key).catch(() => undefined);
     throw e;
   }
-  if (previous) await dropAsset(t, previous, store);
-  await auditTenant(t, { actorUserId: actor.id, action: 'profile.logo_changed', targetType: 'brand_asset', targetId: id, metadata: { type: logo.contentType, bytes: logo.bytes.length } });
+  if (previous) {
+    if (variant === 'main') await dropAsset(t, previous, store);
+    else await store.remove(previous.path).catch((err) => log('error', 'brand-logo', 'não apagou o arquivo antigo da variação', { object: previous.path, error: err instanceof Error ? err.message : String(err) }));
+  }
+  await auditTenant(t, { actorUserId: actor.id, action: 'profile.logo_changed', targetType: 'brand_asset', targetId: id, metadata: { type: logo.contentType, bytes: logo.bytes.length, variant } });
   return { assetId: id };
 }
 
-export async function removeLogo(t: TenantDb, actor: SessionUser, store: BlobStore = defaultStore()): Promise<void> {
+// Tira uma logo. A principal sai e as variações ficam guardadas (o post fica sem logo até enviar outra principal).
+export async function removeLogo(t: TenantDb, actor: SessionUser, store: BlobStore = defaultStore(), variant: LogoVariant = 'main'): Promise<void> {
+  if (variant !== 'main') {
+    const asset = await variantAsset(t, variant);
+    if (!asset) return;
+    await dropAsset(t, asset, store);
+    await auditTenant(t, { actorUserId: actor.id, action: 'profile.logo_removed', targetType: 'brand_asset', targetId: asset.id, metadata: { variant } });
+    return;
+  }
   const { asset } = await currentAsset(t);
   if (!asset) return;
   const point = await t.update('company_profiles', { logo_asset_id: null, updated_by: actor.id });
   if (point.error) throw new Error(`perfil: ${point.error.message}`);
   await dropAsset(t, asset, store);
-  await auditTenant(t, { actorUserId: actor.id, action: 'profile.logo_removed', targetType: 'brand_asset', targetId: asset.id });
+  await auditTenant(t, { actorUserId: actor.id, action: 'profile.logo_removed', targetType: 'brand_asset', targetId: asset.id, metadata: { variant: 'main' } });
 }
 
-// Lê o logo atual para a rota autenticada. null = a conta não tem logo.
-export async function readLogo(t: TenantDb, store: BlobStore = defaultStore()): Promise<{ bytes: Uint8Array; contentType: string; assetId: string } | null> {
-  const { asset } = await currentAsset(t);
+// Lê a logo (a principal, ou a variação pedida) para a rota autenticada. null = a conta não tem essa logo.
+export async function readLogo(t: TenantDb, store: BlobStore = defaultStore(), variant: LogoVariant = 'main'): Promise<{ bytes: Uint8Array; contentType: string; assetId: string } | null> {
+  const asset = variant === 'main' ? (await currentAsset(t)).asset : await variantAsset(t, variant);
   if (!asset) return null;
   return { bytes: await store.get(asset.path), contentType: asset.contentType, assetId: asset.id };
+}
+
+// Quais logos a conta tem, sem baixar os arquivos: a tela mostra o que já foi enviado.
+export async function logoStatus(t: TenantDb): Promise<Record<LogoVariant, string | null>> {
+  const out: Record<LogoVariant, string | null> = { main: null, dark: null, light: null, symbol: null };
+  out.main = (await currentAsset(t)).asset?.id ?? null;
+  const rows = await t.select('brand_assets', 'id,variant').neq('variant', 'main');
+  if (rows.error) throw new Error(`logo: ${rows.error.message}`);
+  for (const r of rows.data ?? []) if (isLogoVariant(r.variant) && r.variant !== 'main') out[r.variant] = String(r.id);
+  return out;
 }

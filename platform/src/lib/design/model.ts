@@ -37,7 +37,9 @@ export type Brand = {
 
 export type Texts = { kicker?: string; title: string; sub?: string; items?: string[] };
 
-export type Logo = { dataUri: string; width: number; height: number };
+export type LogoImage = { dataUri: string; width: number; height: number };
+// A logo da conta: a principal, mais as variações opcionais (SPEC 026). O motor escolhe uma por post (design/logo-pick.ts) antes de desenhar.
+export type Logo = LogoImage & { variants?: Partial<Record<'dark' | 'light' | 'symbol', LogoImage>> };
 
 // O data URI do visual com o tipo lido dos bytes, não do nome do arquivo: o modelo de imagem devolve
 // JPEG ou PNG e guardamos tudo em `.png`. O resvg decodifica pelo tipo declarado, então JPEG rotulado

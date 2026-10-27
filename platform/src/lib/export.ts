@@ -9,7 +9,7 @@ const REDACTED: Record<string, readonly string[]> = {
 
 import type { TenantDb } from './tenant-db';
 import { TENANT_TABLES } from './tenant-tables';
-import { defaultStore, readLogo, type BlobStore } from './brand-logo';
+import { defaultStore, readLogo, type BlobStore, type LogoVariant } from './brand-logo';
 import { log } from './log';
 
 const PAGE = 1000;
@@ -36,8 +36,8 @@ export type ExportedFile = { path: string; content_type: string; encoding: 'base
 
 // O arquivo do logo vai dentro do JSON, em base64 (até 2 MB), para o pacote ser tudo que a conta
 // guarda. Os tokens das redes nunca entram.
-async function logoFile(t: TenantDb, store: BlobStore): Promise<ExportedFile | null> {
-  const logo = await readLogo(t, store);
+async function logoFile(t: TenantDb, store: BlobStore, variant: LogoVariant = 'main'): Promise<ExportedFile | null> {
+  const logo = await readLogo(t, store, variant);
   if (!logo) return null;
   const asset = await t.select('brand_assets', 'storage_path').eq('id', logo.assetId).maybeSingle();
   if (asset.error) throw new Error(`Falha ao exportar o logo: ${asset.error.message}`);
@@ -48,7 +48,7 @@ export async function exportTenant(t: TenantDb, store: BlobStore = defaultStore(
   tenant: string;
   exported_at: string;
   tables: Record<string, unknown[]>;
-  files: { logo: ExportedFile | null };
+  files: { logo: ExportedFile | null; logoVariants: Partial<Record<'dark' | 'light' | 'symbol', ExportedFile>> };
 }> {
   const tables: Record<string, unknown[]> = {};
   for (const name of TENANT_TABLES) tables[name] = await readAll(t, name);
@@ -57,5 +57,14 @@ export async function exportTenant(t: TenantDb, store: BlobStore = defaultStore(
     log('error', 'export', 'não leu o logo para a exportação', { error: e instanceof Error ? e.message : String(e) });
     return null;
   });
-  return { tenant: t.tenantId, exported_at: new Date().toISOString(), tables, files: { logo } };
+  // As variações da logo (SPEC 026) vão junto; uma que sumiu do bucket não impede o resto.
+  const logoVariants: Partial<Record<'dark' | 'light' | 'symbol', ExportedFile>> = {};
+  for (const v of ['dark', 'light', 'symbol'] as const) {
+    const file = await logoFile(t, store, v).catch((e) => {
+      log('error', 'export', 'não leu uma variação do logo para a exportação', { variant: v, error: e instanceof Error ? e.message : String(e) });
+      return null;
+    });
+    if (file) logoVariants[v] = file;
+  }
+  return { tenant: t.tenantId, exported_at: new Date().toISOString(), tables, files: { logo, logoVariants } };
 }

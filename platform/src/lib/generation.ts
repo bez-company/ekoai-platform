@@ -23,7 +23,7 @@ import { clicheIssues, offTopicFacts, requestNumbersMissing } from './off-topic-
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
-import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo } from './design/model';
+import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
 import { inSlide, layoutForRole, reviewSlides, slideAltText, storedSlides } from './design/carousel';
@@ -107,14 +107,24 @@ async function setBrief(t: TenantDb, briefId: string, values: Record<string, unk
   if (error) throw new Error(`briefs: ${error.message}`);
 }
 
-async function logoFor(t: TenantDb, store: BlobStore): Promise<Logo | null> {
-  const logo = await readLogo(t, store).catch((e) => {
+const imageOf = (file: { bytes: Uint8Array; contentType: string }): LogoImage => ({ dataUri: `data:${file.contentType};base64,${Buffer.from(file.bytes).toString('base64')}`, ...logoDimensions(file.bytes, file.contentType) });
+
+// A logo da conta com as variações que ela tiver (SPEC 026). Falha ao ler a principal: o post sai sem logo; falha numa variação: sai só com a principal.
+export async function logoFor(t: TenantDb, store: BlobStore): Promise<Logo | null> {
+  const main = await readLogo(t, store).catch((e) => {
     log('warn', 'generation', 'não leu o logo; o post sai sem ele', { error: e instanceof Error ? e.message : String(e) });
     return null;
   });
-  if (!logo) return null;
-  const { width, height } = logoDimensions(logo.bytes, logo.contentType);
-  return { dataUri: `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString('base64')}`, width, height };
+  if (!main) return null;
+  const variants: NonNullable<Logo['variants']> = {};
+  for (const v of ['dark', 'light', 'symbol'] as const) {
+    const file = await readLogo(t, store, v).catch((e) => {
+      log('warn', 'generation', 'não leu uma variação do logo; o post usa a principal', { variant: v, error: e instanceof Error ? e.message : String(e) });
+      return null;
+    });
+    if (file) variants[v] = imageOf(file);
+  }
+  return { ...imageOf(main), ...(Object.keys(variants).length ? { variants } : {}) };
 }
 
 // Largura e altura do logo, para o render encaixar pela altura sem distorcer: do cabeçalho do PNG

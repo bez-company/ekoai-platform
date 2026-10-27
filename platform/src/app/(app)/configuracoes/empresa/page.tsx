@@ -1,5 +1,6 @@
 import CompanyEditor from '@/components/profile/CompanyEditor';
 import { getProfile } from '@/lib/company-profile';
+import { logoStatus } from '@/lib/brand-logo';
 import { pageError } from '@/lib/api';
 import { canAccess, pageContext } from '@/lib/session';
 
@@ -10,8 +11,8 @@ export const dynamic = 'force-dynamic';
 export default async function CompanyPage() {
   const { t } = await pageContext('profile.view');
   try {
-    const [profile, canEdit] = await Promise.all([getProfile(t), canAccess('brand.manage')]);
-    return <CompanyEditor initial={profile} canEdit={canEdit} />;
+    const [profile, canEdit, logos] = await Promise.all([getProfile(t), canAccess('brand.manage'), logoStatus(t)]);
+    return <CompanyEditor initial={profile} canEdit={canEdit} logos={logos} />;
   } catch (e) {
     return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/configuracoes/empresa')}</div>;
   }

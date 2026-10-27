@@ -14,6 +14,7 @@ const logos = await import('../../platform/src/lib/brand-logo.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 const model = await import('../../platform/src/lib/logo-model.ts');
 const { UserError } = await import('../../platform/src/lib/errors.ts');
+const profileModel = await import('../../platform/src/lib/company-profile-model.ts');
 
 const A = 'it-logo-a';
 const B = 'it-logo-b';
@@ -128,5 +129,84 @@ describe('logo da empresa', () => {
     expect(rows.map((r) => r.action)).toEqual(['profile.logo_changed', 'profile.logo_changed', 'profile.logo_removed']);
     expect(rows[0].metadata).toMatchObject({ type: 'image/png' });
     expect(JSON.stringify(rows)).not.toContain('<svg');
+  });
+});
+
+describe('variações da logo (SPEC 026)', () => {
+  const V = 'it-logo-v';
+  const tv = tenantDb(V);
+  const SVG2 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1"><rect fill="#F8D7E3"/></svg>';
+
+  beforeAll(async () => {
+    await resetTenantData(admin, [V]);
+    await admin.query("insert into users (id, email, name) values ($1, 'it-ana-logo@example.test', 'Ana') on conflict (id) do nothing", [ANA.id]);
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [V, 'It Logo V']);
+    await profile.saveSection(tv, ANA, parseAbout());
+  });
+  afterAll(async () => {
+    await resetTenantData(admin, [V]);
+  });
+
+  function parseAbout() {
+    const parsed = profileModel.parseProfileSection({ section: 'about', niche: 'Alimentação', offering: 'Bolos para festa', audience: 'Famílias de Marília' });
+    expect(parsed.ok, JSON.stringify(parsed)).toBe(true);
+    return parsed;
+  }
+
+  it('uma variação só existe com a principal já enviada', async () => {
+    await expect(logos.saveLogo(tv, ANA, inspected(new TextEncoder().encode(SVG2)), store, 'dark')).rejects.toThrow(/logo principal/);
+  });
+
+  it('guarda cada variação, lista o status e o arquivo certo sai por variante', async () => {
+    const main = await logos.saveLogo(tv, ANA, inspected(png(40)), store);
+    const dark = await logos.saveLogo(tv, ANA, inspected(new TextEncoder().encode(SVG2)), store, 'dark');
+    const symbol = await logos.saveLogo(tv, ANA, inspected(png(16)), store, 'symbol');
+    expect(await logos.logoStatus(tv)).toEqual({ main: main.assetId, dark: dark.assetId, light: null, symbol: symbol.assetId });
+    expect((await logos.readLogo(tv, store, 'dark')).contentType).toBe('image/svg+xml');
+    expect((await logos.readLogo(tv, store, 'light'))).toBeNull();
+    expect((await logos.readLogo(tv, store)).assetId).toBe(main.assetId);
+    expect((await one("select variant from brand_assets where id = $1", [dark.assetId])).variant).toBe('dark');
+  });
+
+  it('trocar uma variação apaga a antiga (linha e arquivo) e mantém uma por tipo', async () => {
+    const before = await logos.logoStatus(tv);
+    const oldPath = (await one('select storage_path from brand_assets where id = $1', [before.symbol])).storage_path;
+    const next = await logos.saveLogo(tv, ANA, inspected(png(20)), store, 'symbol');
+    expect(next.assetId).not.toBe(before.symbol);
+    expect((await admin.query("select count(*)::int as n from brand_assets where tenant_id = $1 and variant = 'symbol'", [V])).rows[0].n).toBe(1);
+    expect(objects.has(oldPath)).toBe(false);
+  });
+
+  it('tirar uma variação não mexe nas outras; tirar a principal deixa as variações guardadas', async () => {
+    await logos.removeLogo(tv, ANA, store, 'dark');
+    let status = await logos.logoStatus(tv);
+    expect(status.dark).toBeNull();
+    expect(status.main).not.toBeNull();
+    expect(status.symbol).not.toBeNull();
+    await logos.removeLogo(tv, ANA, store);
+    status = await logos.logoStatus(tv);
+    expect(status.main).toBeNull();
+    expect(status.symbol).not.toBeNull();
+  });
+
+  it('a exportação leva as variações junto com a principal', async () => {
+    await logos.saveLogo(tv, ANA, inspected(png(40)), store);
+    await logos.saveLogo(tv, ANA, inspected(new TextEncoder().encode(SVG2)), store, 'light');
+    const { exportTenant } = await import('../../platform/src/lib/export.ts');
+    const out = await exportTenant(tv, store);
+    expect(out.files.logo).toMatchObject({ content_type: 'image/png', encoding: 'base64' });
+    expect(Object.keys(out.files.logoVariants).sort()).toEqual(['light', 'symbol']);
+    expect(out.files.logoVariants.light).toMatchObject({ content_type: 'image/svg+xml', encoding: 'base64' });
+  });
+
+  it('o banco recusa duas variações do mesmo tipo na mesma conta e uma variante inventada', async () => {
+    const status = await logos.logoStatus(tv);
+    const row = await one('select storage_path, content_type, byte_size from brand_assets where id = $1', [status.symbol]);
+    await expect(
+      admin.query("insert into brand_assets (tenant_id, kind, variant, storage_path, content_type, byte_size) values ($1, 'logo', 'symbol', $2, $3, $4)", [V, row.storage_path.replace('.png', 'b.png'), row.content_type, row.byte_size]),
+    ).rejects.toThrow();
+    await expect(
+      admin.query("insert into brand_assets (tenant_id, kind, variant, storage_path, content_type, byte_size) values ($1, 'logo', 'neon', $2, $3, $4)", [V, row.storage_path.replace('.png', 'c.png'), row.content_type, row.byte_size]),
+    ).rejects.toThrow();
   });
 });

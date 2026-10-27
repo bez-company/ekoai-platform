@@ -13,8 +13,8 @@ import { personProfiles } from './accounts';
 import { getProfile } from './company-profile';
 import { listFacts } from './company-facts';
 import { factsForPrompt } from './company-facts-model';
-import { readLogo, defaultStore, type BlobStore } from './brand-logo';
-import { logoDimensions } from './generation';
+import { defaultStore, type BlobStore } from './brand-logo';
+import { logoFor } from './generation';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { log } from './log';
 import { brandFromProfile, compatibleLayouts, imageDataUri, slidePositions, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type SlideRole, type StoredDesign } from './design/model';
@@ -112,16 +112,12 @@ function assertEditable(target: Target): void {
 type Inputs = { brand: ReturnType<typeof brandFromProfile>; logo: Logo | null; visual: { dataUri: string } | null; facts: ReturnType<typeof factsForPrompt>; banned: string[] };
 
 async function loadInputs(t: TenantDb, target: Target, store: BlobStore): Promise<Inputs> {
-  const [profile, factRows, logoFile, visualBytes] = await Promise.all([
+  const [profile, factRows, logo, visualBytes] = await Promise.all([
     getProfile(t),
     listFacts(t),
-    readLogo(t, store).catch((e) => {
-      log('warn', 'design-revisions', 'não leu o logo; o post sai sem ele', { error: e instanceof Error ? e.message : String(e) });
-      return null;
-    }),
+    logoFor(t, store),
     target.visualKey ? store.get(target.visualKey).catch(() => null) : Promise.resolve(null),
   ]);
-  const logo = logoFile ? { dataUri: `data:${logoFile.contentType};base64,${Buffer.from(logoFile.bytes).toString('base64')}`, ...logoDimensions(logoFile.bytes, logoFile.contentType) } : null;
   return {
     brand: brandFromProfile(profile),
     logo,

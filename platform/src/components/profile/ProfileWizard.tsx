@@ -10,7 +10,7 @@ import Logo from '@/components/Logo';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
 import { isVisualEmpty, isVoiceEmpty, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
 import type { FieldErrors } from '@/lib/company-profile-model';
-import LogoField from './LogoField';
+import LogoField, { type LogoIds } from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
 const STEPS = ['Conta', 'Negócio', 'Jeito de falar', 'Visual'] as const;
@@ -33,7 +33,7 @@ export default function ProfileWizard({ initial }: Props) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logo, setLogo] = useState<LogoIds>({ main: null, dark: null, light: null, symbol: null });
 
   const last = step === STEPS.length - 1;
   const clearError = (field: string) => setErrors(({ [field]: _gone, ...rest }) => rest);
@@ -119,7 +119,7 @@ export default function ProfileWizard({ initial }: Props) {
           {step === 2 && <VoiceSection value={voice} onChange={setVoice} errors={errors} onClearError={clearError} disabled={busy} />}
           {step === 3 && (
             <div className="space-y-5">
-              <LogoField assetId={logo} canEdit onChange={setLogo} />
+              <LogoField ids={logo} canEdit onChange={setLogo} onlyMain />
               <VisualSection value={visual} onChange={setVisual} errors={errors} onClearError={clearError} disabled={busy} />
             </div>
           )}
