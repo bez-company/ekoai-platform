@@ -51,8 +51,8 @@ export default function NotificationPrefs({ initial, mailReady }: { initial: Cat
     <div className="space-y-3">
       <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-3">
         <span />
-        <span className="w-11 text-center text-xs font-semibold text-muted">No app</span>
-        <span className="w-11 text-center text-xs font-semibold text-muted">E-mail</span>
+        <span className="min-w-11 whitespace-nowrap text-center text-xs font-semibold text-muted">No app</span>
+        <span className="min-w-11 whitespace-nowrap text-center text-xs font-semibold text-muted">E-mail</span>
         {prefs.map((p) => (
           <div key={p.category} className="contents">
             <span className="min-w-0">
