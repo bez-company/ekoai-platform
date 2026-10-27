@@ -53,13 +53,13 @@ beforeEach(() => {
 
 describe('GET /api/brand/logo', () => {
   it('pede profile.view; sem logo é 404', async () => {
-    expect((await GET()).status).toBe(404);
+    expect((await GET(new Request('http://app.test/api/brand/logo'))).status).toBe(404);
     expect(sessionMock.calls).toEqual(['profile.view']);
   });
 
   it('devolve o arquivo com cabeçalhos que impedem script e cache público', async () => {
     logoMock.logo = { bytes: new TextEncoder().encode(SVG), contentType: 'image/svg+xml', assetId: 'a' };
-    const res = await GET();
+    const res = await GET(new Request('http://app.test/api/brand/logo'));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/svg+xml');
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
@@ -70,9 +70,9 @@ describe('GET /api/brand/logo', () => {
 
   it('sem sessão 401, sem permissão 403 (leitor)', async () => {
     sessionMock.error = new UnauthorizedError();
-    expect((await GET()).status).toBe(401);
+    expect((await GET(new Request('http://app.test/api/brand/logo'))).status).toBe(401);
     sessionMock.error = new ForbiddenError();
-    expect((await GET()).status).toBe(403);
+    expect((await GET(new Request('http://app.test/api/brand/logo'))).status).toBe(403);
   });
 });
 
@@ -142,14 +142,14 @@ describe('POST /api/brand/logo', () => {
 
 describe('DELETE /api/brand/logo', () => {
   it('pede brand.manage e remove', async () => {
-    expect((await DELETE()).status).toBe(200);
+    expect((await DELETE(new Request('http://app.test/api/brand/logo', { method: 'DELETE' }))).status).toBe(200);
     expect(sessionMock.calls).toEqual(['brand.manage']);
     expect(logoMock.removed).toBe(1);
   });
 
   it('sem permissão: 403', async () => {
     sessionMock.error = new ForbiddenError();
-    expect((await DELETE()).status).toBe(403);
+    expect((await DELETE(new Request('http://app.test/api/brand/logo', { method: 'DELETE' }))).status).toBe(403);
     expect(logoMock.removed).toBe(0);
   });
 });
