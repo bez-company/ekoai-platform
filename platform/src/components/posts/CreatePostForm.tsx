@@ -1,9 +1,9 @@
 'use client';
 
-// CreatePostForm.tsx: Criar post em uma coluna (SPEC 017 decisões 4 a 7, BEZ-240). O pedido em
-// linguagem natural, "Me sugira uma ideia" (sugestões do coordenador), a foto anexada com as
-// perguntas da Ekoai, o objetivo do post e, à direita, a prévia no formato escolhido. O pedido
-// responde na hora e a tela de andamento acompanha a geração.
+// CreatePostForm.tsx: Criar post (SPEC 017 decisões 4 a 7, simplificado na SPEC 025). A primeira escolha é o formato (uma
+// imagem ou carrossel, com a quantidade de lâminas), depois o pedido em linguagem natural, "Sugerir ideias" (seis ideias e
+// a linha de design pelo perfil), a foto anexada (ela já é o visual), o objetivo num dropdown e, à direita, a prévia no
+// formato escolhido. O pedido responde na hora e a tela de andamento acompanha a geração.
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -12,18 +12,24 @@ import { ErrorLine, Spinner } from '@/components/auth/ui';
 import FeedFrame from '@/components/posts/FeedFrame';
 import AttachPhoto from '@/components/photo/AttachPhoto';
 import { ideaWithPhotoText, photoRequestFields, type AttachedPhoto } from '@/components/photo/attach-photo-model';
+import Select from '@/components/ui/Select';
 import { GOALS, POST_GOALS, type PostGoal } from '@/lib/post-goals';
+import { MAX_SLIDES, MIN_SLIDES } from '@/lib/design/slide-limits';
 import { IDEA_MAX } from '@/lib/post-limits';
 
 type Ratio = '4:5' | '1:1';
 type Format = 'single' | 'carousel';
 
-// O tipo do post pelo número de imagens (SPEC 023): a pessoa escolhe; a Ekoai decide quantas lâminas (2 a 10, o teto do Instagram).
+// O tipo do post pelo número de imagens (SPEC 023): a pessoa escolhe, e no carrossel escolhe também quantas lâminas (SPEC 025).
 const FORMATS: [Format, string, string][] = [
   ['single', 'Uma imagem', 'Um post só, com uma imagem.'],
-  ['carousel', 'Carrossel', 'De 2 a 10 lâminas: gancho, conteúdo e chamada. Bom para listas e passo a passo.'],
+  ['carousel', 'Carrossel', 'Lâminas que se leem deslizando: gancho, conteúdo e chamada. Bom para listas e passo a passo.'],
 ];
-type Idea = { id: string; idea: string; goal: PostGoal; goalLabel: string; reason: string };
+type Idea = { id: string; idea: string; goal: PostGoal; goalLabel: string; format: Format };
+type Design = { colors: string[]; fonts: { heading: string | null; body: string | null }; tips: string[] };
+
+// O objetivo é opcional e genérico (SPEC 025): "data comemorativa" vai no texto do pedido, não vira opção.
+const GOAL_OPTIONS = POST_GOALS.filter((g) => g !== 'data_comemorativa').map((g) => ({ value: g, label: GOALS[g].label, hint: g === 'auto' ? 'Pela sequência da semana e pelo que você já aprovou' : undefined }));
 
 const RATIOS: [Ratio, string][] = [
   ['4:5', 'Retrato 4:5'],
@@ -48,10 +54,13 @@ export default function CreatePostForm({
   const [goal, setGoal] = useState<PostGoal>('auto');
   const [ratio, setRatio] = useState<Ratio>('4:5');
   const [format, setFormat] = useState<Format>('single');
+  const [slideMode, setSlideMode] = useState<'auto' | 'exact'>('auto');
+  const [slideCount, setSlideCount] = useState(6);
   const [photo, setPhoto] = useState<AttachedPhoto | null>(null);
   const [attaching, setAttaching] = useState(!!initialAssetId);
-  const [ideas, setIdeas] = useState<Idea[] | null>(null);
-  const [ideasState, setIdeasState] = useState<'idle' | 'loading' | 'empty' | 'error'>('idle');
+  const [ideas, setIdeas] = useState<{ list: Idea[]; design: Design } | null>(null);
+  const [ideasState, setIdeasState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [ideasError, setIdeasError] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [fieldError, setFieldError] = useState('');
@@ -64,18 +73,24 @@ export default function CreatePostForm({
 
   async function suggest() {
     setIdeasState('loading');
-    const res = await fetch('/api/suggestions').catch(() => null);
-    const j = res?.ok ? await res.json().catch(() => null) : null;
-    if (!j) return setIdeasState('error');
-    const list: Idea[] = (j.suggestions ?? []).slice(0, 3);
-    setIdeas(list);
-    setIdeasState(list.length ? 'idle' : 'empty');
+    setIdeasError('');
+    const res = await fetch('/api/posts/ideas', { method: 'POST' }).catch(() => null);
+    const j = res ? await res.json().catch(() => null) : null;
+    if (!res?.ok || !j?.ideas) {
+      setIdeasError(j?.error || 'Não deu para sugerir ideias agora. Nada foi cobrado do seu limite do mês. Tente de novo em instantes.');
+      setIdeasState('error');
+      return;
+    }
+    setIdeas({ list: j.ideas, design: j.design });
+    setPicked(null);
+    setIdeasState('idle');
   }
 
   function pick(i: Idea) {
     setPicked(i.id);
     setIdea(i.idea);
     setGoal(i.goal);
+    if (!photo) setFormat(i.format);
     setFieldError('');
   }
 
@@ -86,7 +101,7 @@ export default function CreatePostForm({
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, ...(carousel ? { format: 'carousel' } : {}), ...photoRequestFields(photo) }),
+      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, ...(carousel ? { format: 'carousel', ...(slideMode === 'exact' ? { slide_count: slideCount } : {}) } : {}), ...photoRequestFields(photo) }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
@@ -98,6 +113,8 @@ export default function CreatePostForm({
     else setError(j.error || 'Não deu para criar o pedido. Tente de novo.');
   }
 
+  const ideasOpen = ideasState !== 'idle' || !!ideas;
+
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
       <form
@@ -107,6 +124,58 @@ export default function CreatePostForm({
           if (!busy && !atLimit && !waitingPhoto) void submit();
         }}
       >
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">Formato</legend>
+          <div role="radiogroup" aria-label="Formato do post" className="grid gap-2 sm:grid-cols-2">
+            {FORMATS.map(([id, label, hint]) => {
+              const off = id === 'carousel' && !!photo;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={(id === 'carousel') === carousel}
+                  disabled={off}
+                  onClick={() => setFormat(id)}
+                  className={`rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${(id === 'carousel') === carousel ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
+                >
+                  <strong className="block text-sm">{label}</strong>
+                  <small className="mt-0.5 block text-xs leading-snug text-muted">{off ? 'Com foto anexada, o post é de uma imagem só.' : hint}</small>
+                </button>
+              );
+            })}
+          </div>
+          {carousel && (
+            <div className="space-y-2 pt-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold">Quantas lâminas?</span>
+                <div role="radiogroup" aria-label="Quantidade de lâminas" className="flex gap-1 rounded-full border border-line bg-inset p-1">
+                  {([['auto', 'A Ekoai decide'], ['exact', 'Escolher']] as const).map(([id, label]) => (
+                    <button key={id} type="button" role="radio" aria-checked={slideMode === id} onClick={() => setSlideMode(id)} className={`rounded-full px-3 py-1 text-xs font-semibold ${slideMode === id ? 'bg-raised text-fg shadow-sm' : 'text-muted hover:text-fg'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {slideMode === 'exact' && (
+                  <div role="group" aria-label="Quantidade de lâminas" className="inline-flex items-center rounded-full border border-line-strong bg-raised">
+                    <button type="button" aria-label="Menos uma lâmina" disabled={slideCount <= MIN_SLIDES} onClick={() => setSlideCount((n) => Math.max(MIN_SLIDES, n - 1))} className="h-9 w-9 rounded-full text-lg disabled:opacity-40">
+                      −
+                    </button>
+                    <output aria-live="polite" className="min-w-8 text-center font-bold">
+                      {slideCount}
+                    </output>
+                    <button type="button" aria-label="Mais uma lâmina" disabled={slideCount >= MAX_SLIDES} onClick={() => setSlideCount((n) => Math.min(MAX_SLIDES, n + 1))} className="h-9 w-9 rounded-full text-lg disabled:opacity-40">
+                      +
+                    </button>
+                  </div>
+                )}
+                {slideMode === 'exact' && <span className="text-xs text-muted">de {MIN_SLIDES} a {MAX_SLIDES}</span>}
+              </div>
+              <p className="text-xs text-muted">Só conta no limite do mês se a capa precisar de uma imagem gerada, como num post de uma imagem. Dá para trocar depois em Aprovar.</p>
+            </div>
+          )}
+        </fieldset>
+
         <div className="space-y-1.5">
           <label htmlFor="idea" className="block text-sm font-semibold">
             Descreva o que você quer no post
@@ -129,7 +198,7 @@ export default function CreatePostForm({
             <ErrorLine id="idea-help">{fieldError}</ErrorLine>
           ) : (
             <p id="idea-help" className="text-xs text-muted">
-              Uma frase basta: o assunto, o que destacar e, se tiver, uma data ou oferta.
+              Uma frase basta: o assunto, o que destacar e, se tiver, uma data ou oferta. Para uma data comemorativa, escreva aqui: &quot;Dia das Crianças&quot;.
               <span className="mt-1 block">Também dá para pedir: fundo claro ou escuro, onde fica o logo, uma frase exata ou quantos itens. A Ekoai desenha o que você pedir.</span>
             </p>
           )}
@@ -138,7 +207,7 @@ export default function CreatePostForm({
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={() => void suggest()} disabled={ideasState === 'loading'}>
             {ideasState === 'loading' ? <Spinner /> : null}
-            Me sugira uma ideia
+            Sugerir ideias
           </button>
           {!attaching && (
             <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={() => setAttaching(true)}>
@@ -147,79 +216,18 @@ export default function CreatePostForm({
           )}
         </div>
 
-        {ideasState === 'empty' && <p className="text-sm text-muted">Ainda não há sugestões. Elas aparecem quando a agenda tem horários livres na semana.</p>}
-        {ideasState === 'error' && <ErrorLine>Não deu para buscar as sugestões agora. Tente de novo.</ErrorLine>}
-        {ideas && ideas.length > 0 && (
-          <div role="radiogroup" aria-label="Ideias da Ekoai" className="grid gap-2">
-            {ideas.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                role="radio"
-                aria-checked={picked === i.id}
-                onClick={() => pick(i)}
-                className={`flex items-start gap-3 rounded-lg border p-3 text-left text-sm transition ${picked === i.id ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
-              >
-                <span aria-hidden="true" className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${picked === i.id ? 'border-accent bg-accent' : 'border-line-strong'}`} />
-                <span>
-                  <strong className="block">{i.idea}</strong>
-                  <small className="text-muted">
-                    {i.goalLabel} · {i.reason}
-                  </small>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {attaching && <AttachPhoto idea={idea} value={photo} onChange={setPhoto} disabled={busy} initialAssetId={initialAssetId} />}
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold">Objetivo do post</legend>
-          <div role="radiogroup" aria-label="Objetivo do post" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {POST_GOALS.map((g) => (
-              <button
-                key={g}
-                type="button"
-                role="radio"
-                aria-checked={goal === g}
-                onClick={() => setGoal(g)}
-                className={`rounded-lg border p-3 text-left transition ${goal === g ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
-              >
-                <strong className="block text-sm">{GOALS[g].label}</strong>
-                <small className="mt-0.5 block text-xs leading-snug text-muted">{GOALS[g].example}</small>
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        <div className="space-y-1.5">
+          <span id="goal-label" className="block text-sm font-semibold">
+            Objetivo do post <span className="font-normal text-muted">(opcional)</span>
+          </span>
+          <Select ariaLabel="Objetivo do post" describedBy="goal-label" value={goal} onChange={(v) => setGoal(v as PostGoal)} options={GOAL_OPTIONS} />
+        </div>
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold">Imagens do post</legend>
-          <div role="radiogroup" aria-label="Imagens do post" className="grid gap-2 sm:grid-cols-2">
-            {FORMATS.map(([id, label, hint]) => {
-              const off = id === 'carousel' && !!photo;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={(id === 'carousel') === carousel}
-                  disabled={off}
-                  onClick={() => setFormat(id)}
-                  className={`rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${(id === 'carousel') === carousel ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
-                >
-                  <strong className="block text-sm">{label}</strong>
-                  <small className="mt-0.5 block text-xs leading-snug text-muted">{off ? 'Com foto anexada, o post é de uma imagem só.' : hint}</small>
-                </button>
-              );
-            })}
-          </div>
-          {carousel && <p className="text-xs text-muted">A Ekoai escolhe o número de lâminas. Só conta no limite do mês se a capa precisar de uma imagem gerada, como num post de uma imagem. Dá para trocar depois em Aprovar.</p>}
-        </fieldset>
-
-        {/* No celular a prévia fica embaixo do formulário: o formato vem aqui, antes de criar. */}
+        {/* No celular a prévia fica embaixo do formulário: a proporção vem aqui, antes de criar. */}
         <div className="flex items-center justify-between gap-2 lg:hidden">
-          <span className="text-sm font-semibold">Formato</span>
+          <span className="text-sm font-semibold">Proporção</span>
           <RatioPicker value={ratio} onChange={setRatio} />
         </div>
 
@@ -234,25 +242,106 @@ export default function CreatePostForm({
             {busy ? 'Enviando…' : 'Criar post'}
           </button>
         </div>
-        {waitingPhoto && <p className="text-right text-xs text-muted">Responda como usar a foto para criar o post.</p>}
       </form>
 
-      <section className="card space-y-3 lg:sticky lg:top-4" aria-label="Prévia">
-        <div className="hidden items-center justify-between gap-2 lg:flex">
-          <span className="label">Formato</span>
-          <RatioPicker value={ratio} onChange={setRatio} />
-        </div>
-        <FeedFrame handle={handle} accountName={accountName} imageUrl={photo?.url ?? null} caption="A legenda aparece aqui depois de criar." ratio={ratio} emptyLabel="A prévia aparece aqui depois de criar" />
-        <p className="text-xs text-muted">
-          Usa o perfil da {accountName}: voz, cores, logo e fatos.{' '}
-          {canEditProfile ? (
-            <Link href="/configuracoes/empresa" className="font-semibold text-accent-text hover:underline">
-              Editar o perfil
-            </Link>
-          ) : null}
-        </p>
-      </section>
+      <div className="space-y-5 lg:sticky lg:top-4">
+        {ideasOpen && <IdeasPanel state={ideasState} error={ideasError} data={ideas} picked={picked} canEditProfile={canEditProfile} onPick={pick} onRetry={() => void suggest()} />}
+        <section className="card space-y-3" aria-label="Prévia">
+          <div className="hidden items-center justify-between gap-2 lg:flex">
+            <span className="label">Proporção</span>
+            <RatioPicker value={ratio} onChange={setRatio} />
+          </div>
+          <FeedFrame handle={handle} accountName={accountName} imageUrl={photo?.url ?? null} caption="A legenda aparece aqui depois de criar." ratio={ratio} emptyLabel="A prévia aparece aqui depois de criar" />
+          <p className="text-xs text-muted">
+            Usa o perfil da {accountName}: voz, cores, logo e fatos.{' '}
+            {canEditProfile ? (
+              <Link href="/configuracoes/empresa" className="font-semibold text-accent-text hover:underline">
+                Editar o perfil
+              </Link>
+            ) : null}
+          </p>
+        </section>
+      </div>
     </div>
+  );
+}
+
+// "Sugerir ideias" (SPEC 025, BEZ-375): a linha de design do perfil e seis ideias para quem está começando. "Usar" só preenche
+// o pedido: a pessoa ainda revisa antes de criar.
+function IdeasPanel({ state, error, data, picked, canEditProfile, onPick, onRetry }: { state: 'idle' | 'loading' | 'error'; error: string; data: { list: Idea[]; design: Design } | null; picked: string | null; canEditProfile: boolean; onPick: (i: Idea) => void; onRetry: () => void }) {
+  return (
+    <section className="card space-y-3" aria-label="Ideias para começar" aria-busy={state === 'loading'}>
+      <h2 className="text-lg font-semibold">Ideias para começar</h2>
+      {state === 'loading' && (
+        <div role="status" className="space-y-2">
+          <p className="flex items-center gap-2 text-sm text-muted">
+            <Spinner /> Lendo o perfil e pensando em ideias. Leva alguns segundos.
+          </p>
+          {[60, 100, 85, 100, 70].map((w, i) => (
+            <div key={i} className="h-3.5 animate-pulse rounded-full bg-inset" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      )}
+      {state === 'error' && (
+        <div className="space-y-2">
+          <ErrorLine>{error}</ErrorLine>
+          <div className="flex gap-2">
+            <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={onRetry}>
+              Tentar de novo
+            </button>
+            {canEditProfile && (
+              <Link href="/configuracoes/empresa" className="btn-ghost min-h-9 px-3 text-xs">
+                Completar o perfil
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+      {state === 'idle' && data && (
+        <>
+          <div className="space-y-2 rounded-lg border border-line bg-inset p-3 text-sm">
+            <strong className="block">Linha de design sugerida</strong>
+            {data.design.colors.length > 0 && (
+              <span className="flex items-center gap-2 text-xs text-muted">
+                {data.design.colors.map((c) => (
+                  <i key={c} aria-hidden="true" className="inline-block h-5 w-5 rounded border border-line" style={{ background: c }} />
+                ))}
+                {data.design.colors.join(' e ')}, as cores do seu perfil
+              </span>
+            )}
+            {(data.design.fonts.heading || data.design.fonts.body) && <span className="block text-xs text-muted">Títulos em {data.design.fonts.heading ?? 'fonte padrão'}, texto em {data.design.fonts.body ?? 'fonte padrão'}.</span>}
+            {data.design.tips.length > 0 && (
+              <ul className="list-disc space-y-1 pl-5 text-xs text-muted">
+                {data.design.tips.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <h3 className="text-sm font-semibold">{data.list.length} ideias de post</h3>
+          <ul className="space-y-2">
+            {data.list.map((i) => (
+              <li key={i.id} className="flex items-start gap-3 rounded-lg border border-line p-3">
+                <div className="min-w-0 flex-1">
+                  <strong className="block text-sm">{i.idea}</strong>
+                  <span className="mt-1 flex flex-wrap gap-1.5">
+                    <span className="chip">{i.goalLabel}</span>
+                    <span className="chip">{i.format === 'carousel' ? 'Carrossel' : 'Uma imagem'}</span>
+                  </span>
+                </div>
+                <button type="button" className={picked === i.id ? 'btn-ghost min-h-9 px-3 text-xs' : 'btn-ghost min-h-9 px-3 text-xs'} disabled={picked === i.id} onClick={() => onPick(i)}>
+                  {picked === i.id ? 'Usada' : 'Usar'}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted">Não conta no limite de posts do mês. Usar uma ideia só preenche o pedido: você ainda revisa antes de criar.</p>
+          <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={onRetry}>
+            Gerar outras ideias
+          </button>
+        </>
+      )}
+    </section>
   );
 }
 

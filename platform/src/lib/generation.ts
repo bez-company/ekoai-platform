@@ -47,10 +47,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -66,6 +66,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     campaignId: (data.campaign_id as string | null) ?? null,
     directives: directivesFromStored(data.directives),
     format: isPostFormat(data.format) ? data.format : DEFAULT_FORMAT,
+    slideCount: Number.isInteger(data.slide_count) ? Number(data.slide_count) : null,
   };
 }
 
@@ -164,7 +165,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -181,7 +182,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
         throw e;
       }
     }
-    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo));
+    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo), brief.slideCount);
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
@@ -433,7 +434,7 @@ export async function writeCarouselSlides(t: TenantDb, briefId: string, deps: Pi
   const [account, profile, factRows, ruleRows] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t)]);
   if (!profile) throw new UserError('Preencha o perfil da empresa antes.');
   const campaign = await campaignOf(t, brief.campaignId);
-  const { copy, issues } = await writeCopy(t, deps as GenerationDeps, { ...brief, format: 'carousel' }, profile, factsForPrompt(factRows), ruleRows.filter((r) => r.active).map((r) => r.rule), account?.plan.maxPostsPerMonth ?? 20, null, campaign, null);
+  const { copy, issues } = await writeCopy(t, deps as GenerationDeps, { ...brief, format: 'carousel', slideCount: null }, profile, factsForPrompt(factRows), ruleRows.filter((r) => r.active).map((r) => r.rule), account?.plan.maxPostsPerMonth ?? 20, null, campaign, null);
   if (!copy.slides) throw new UserError('A Ekoai não conseguiu escrever as lâminas agora. Tente de novo.');
   return { slides: copy.slides, issues };
 }

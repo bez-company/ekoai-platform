@@ -12,12 +12,13 @@ import { IDEA_MAX } from './post-limits';
 import { parsePhotoChoice, type PhotoUsage } from './photo-question-model';
 import { getMediaAsset } from './media-assets';
 import { canUseInPost } from './media-asset-model';
+import { MAX_SLIDES, MIN_SLIDES } from './design/model';
 
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
 // photo: foto do banco anexada e como usá-la (SPEC 017 decisão 7, BEZ-237).
 // format: uma imagem ou carrossel, escolha da pessoa (SPEC 023); sem ele, uma imagem.
-export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; photo?: { assetId: string; usage: PhotoUsage } | null };
+export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; slideCount?: number; photo?: { assetId: string; usage: PhotoUsage } | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -35,11 +36,20 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   const photo = parsePhotoChoice(b);
   if (!photo.ok) return photo;
   if (photo.value && b.format === 'carousel') return { ok: false, error: 'O carrossel não usa foto anexada. Escolha uma imagem ou tire a foto.', field: 'format' };
+  // Quantidade de lâminas (SPEC 025): só no carrossel, de 2 a 10 (o teto do Instagram); ausente = a Ekoai decide.
+  let slideCount: number | undefined;
+  if (b.slide_count != null && b.slide_count !== '') {
+    const n = typeof b.slide_count === 'number' ? b.slide_count : Number(b.slide_count);
+    if (b.format !== 'carousel') return { ok: false, error: 'A quantidade de lâminas só vale para carrossel.', field: 'slide_count' };
+    if (!Number.isInteger(n) || n < MIN_SLIDES || n > MAX_SLIDES) return { ok: false, error: `Escolha de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas.`, field: 'slide_count' };
+    slideCount = n;
+  }
   const goal = isPostGoal(b.goal) ? b.goal : null;
   // Com a foto à mostra, a imagem manda: o post é de atmosfera (foto com título, ou a foto como está).
   const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
   const value: PostRequestInput = { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO };
   if (b.format === 'carousel') value.format = 'carousel';
+  if (slideCount) value.slideCount = slideCount;
   if (photo.value) value.photo = photo.value;
   return { ok: true, value };
 }
@@ -63,6 +73,7 @@ export async function createPostRequest(t: TenantDb, actor: SessionUser | null, 
       goal: input.goal ?? null,
       ratio: input.ratio ?? DEFAULT_RATIO,
       format: input.format ?? DEFAULT_FORMAT,
+      slide_count: input.format === 'carousel' ? (input.slideCount ?? null) : null,
       asset_id: photo?.assetId ?? null,
       photo_usage: photo?.usage ?? null,
       campaign_id: input.campaignId ?? null,

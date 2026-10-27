@@ -28,6 +28,12 @@ const profile = profileFromRow({ niche: 'Alimentação', offering: 'Bolos', audi
 const brand = brandFromProfile({ colorPrimary: '#B83262', colorAccent: '#F2A9C4', fontHeading: 'Playfair Display', fontBody: 'Inter', instagramHandle: 'doceponto' });
 
 describe('contrato das lâminas', () => {
+  it('com a quantidade pedida, só aceita exatamente essa (SPEC 025) e o prompt a exige', () => {
+    expect(parseCopy(json(FIVE), null, 'carousel', 5).ok).toBe(true);
+    expect(parseCopy(json(FIVE), null, 'carousel', 6)).toEqual({ ok: false, error: 'A pessoa pediu 6 lâminas, e vieram 5. Escreva exatamente 6.' });
+    expect(parseCopy(json(FIVE), null, 'carousel', null).ok).toBe(true);
+  });
+
   it('lê de 2 a 10 lâminas; o papel vem da posição, não do que o modelo escreveu', () => {
     const r = parseCopy(json(FIVE.map((s) => ({ ...s, role: 'content' }))), null, 'carousel');
     expect(r.ok).toBe(true);
@@ -90,6 +96,11 @@ describe('prompt', () => {
     expect(single).not.toContain('CARROSSEL');
     expect(single).not.toContain('UMA foto só, para a capa');
     expect(single).toContain('"items":["...","..."]');
+  });
+
+  it('com a quantidade escolhida, o prompt pede exatamente essa; sem ela, a faixa de 2 a 10', () => {
+    expect(buildCopyPrompt({ ...input, format: 'carousel', slideCount: 7 })).toContain('EXATAMENTE 7 lâminas');
+    expect(buildCopyPrompt({ ...input, format: 'carousel' })).toContain('de 2 a 10 lâminas');
   });
 });
 

@@ -6,7 +6,7 @@ import { hasSecondFactor } from '@/lib/identity';
 import { getPrefs } from '@/lib/notification-prefs';
 import { mfaMode } from '@/lib/login-policy';
 import type { MfaState } from '@/lib/person-profile-model';
-import { pageContext } from '@/lib/session';
+import { can, pageContext } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,7 @@ export default async function ProfilePage() {
     const enrolled = uid ? await hasSecondFactor(uid) : null;
     const state: MfaState = enrolled === null ? 'unknown' : enrolled ? 'on' : 'off';
     const required = mfaMode() === 'required' && memberships.some((m) => m.role === 'admin');
-    return <PersonProfile name={user.name ?? ''} email={email} phone={phone} prefs={prefs} mailReady={!!process.env.MAIL_PROVIDER} mfa={{ state, required }} config={firebaseWebConfig()} />;
+    return <PersonProfile name={user.name ?? ''} email={email} phone={phone} prefs={prefs} mailReady={!!process.env.MAIL_PROVIDER} canManagePlan={await can('billing.manage')} mfa={{ state, required }} config={firebaseWebConfig()} />;
   } catch (e) {
     return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/perfil')}</div>;
   }

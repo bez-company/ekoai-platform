@@ -3,6 +3,7 @@
 // marca do perfil. O mesmo DesignSpec gera sempre o mesmo PNG.
 
 import { DEFAULT_BODY, DEFAULT_HEADING, fontOrDefault, type FontFamily } from './fonts';
+import { MAX_SLIDES, MIN_SLIDES } from './slide-limits';
 import { contrast, isHex, mix, untilContrast, type Hex } from './color';
 import type { Background, Element, Place } from '../directives';
 
@@ -79,9 +80,7 @@ export type Placements = Partial<Record<Element, Place | 'off'>>;
 // chamada e as do meio levam um item cada. O que o post guarda no nível de cima (layout, texts, png_key) é o da capa.
 export const SLIDE_ROLES = ['cover', 'content', 'cta'] as const;
 export type SlideRole = (typeof SLIDE_ROLES)[number];
-export const MIN_SLIDES = 2;
-// 10 é o teto do Instagram para um carrossel (BEZ-373); antes eram 6.
-export const MAX_SLIDES = 10;
+export { MAX_SLIDES, MIN_SLIDES };
 
 // O que a pessoa ajusta numa lâmina (SPEC 023): layout, texto, canto do logo e cor do texto, como no post de uma imagem.
 export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };

@@ -31,6 +31,7 @@ const RAW_DB_ALLOWED = {
   'lib/stale-approvals.ts': 1, // posts esquecidos em Aprovar de todas as contas (SPEC 017, decisão 12)
   'lib/meta-callbacks.ts': 1, // pedidos de exclusão da Meta: chegam antes de saber a conta (SPEC 011 R5.4, migration 0034)
   'lib/rate-limit.ts': 1, // limite de taxa das rotas de entrada: quem chama ainda não tem conta (BEZ-29, migration 0035)
+  'lib/account-plan.ts': 1, // upgrade de Individual para Time: troca o tipo e o plano da própria linha em `tenants` (SPEC 025, BEZ-376)
   'lib/notification-prefs.ts': 2, // preferências de aviso da pessoa: vale para todas as contas dela, tabela sem tenant_id de propósito (BEZ-366, migration 0046)
   'lib/social-accounts.ts': 1, // tokens das redes: tabela sem tenant_id de propósito (SPEC 011 R5, migration 0018)
   'app/api/health/route.ts': 1, // ping do banco, sem dado de tenant

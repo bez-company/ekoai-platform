@@ -21,11 +21,12 @@ type Props = {
   phone: string | null;
   prefs: CategoryPref[];
   mailReady: boolean;
+  canManagePlan: boolean;
   mfa: { state: MfaState; required: boolean };
   config: FirebaseWebConfig;
 };
 
-export default function PersonProfile({ name, email, phone, prefs, mailReady, mfa, config }: Props) {
+export default function PersonProfile({ name, email, phone, prefs, mailReady, canManagePlan, mfa, config }: Props) {
   const router = useRouter();
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const [draft, setDraft] = useState(name);
@@ -158,6 +159,20 @@ export default function PersonProfile({ name, email, phone, prefs, mailReady, mf
 
         <div className="space-y-5">
           <MfaCard email={email} state={mfa.state} required={mfa.required} config={config} />
+
+          {canManagePlan && (
+            <section className="card space-y-3" aria-labelledby="perfil-plano">
+              <div>
+                <h2 id="perfil-plano" className="text-lg font-semibold">
+                  Conta e plano
+                </h2>
+                <p className="text-sm text-muted">Veja o plano da conta e, se precisar de equipe ou de várias marcas, faça o upgrade.</p>
+              </div>
+              <Link href="/perfil/conta" className="btn-ghost">
+                Ver planos
+              </Link>
+            </section>
+          )}
 
           <section className="card space-y-3" aria-labelledby="perfil-sessoes">
             <div>
