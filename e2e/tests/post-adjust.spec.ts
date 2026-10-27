@@ -86,12 +86,13 @@ test.describe.serial('Estúdio, versões e regra de marca', () => {
     await expect(page.getByText(/Versão 2 em uso/)).toBeVisible();
   });
 
+  // O post sem marca nasce escuro (BEZ-368): o texto que perde o contraste é o quase preto, não o branco.
   test('cor com contraste baixo trava o Confirmar e diz o motivo; desfazer e Padrão voltam', async ({ page }) => {
     await login(page, 'admin');
     await openStudio(page, posts[0]);
 
     await pick(page, 'Título');
-    await page.getByRole('button', { name: 'Cor do título: Branco' }).click();
+    await page.getByRole('button', { name: 'Cor do título: Quase preto' }).click();
     await expect(status(page)).toContainText('Contraste baixo no título');
     await expect(confirmButton(page)).toBeDisabled();
 
