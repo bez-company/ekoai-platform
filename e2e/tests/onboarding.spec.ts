@@ -21,7 +21,8 @@ test.describe.serial('onboarding da conta nova', () => {
     await expect(page.getByText('Corrija os campos marcados para continuar.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Conte sobre o negócio' })).toBeVisible();
 
-    await page.getByLabel('Nicho').selectOption({ index: 1 });
+    await page.getByLabel('Nicho').click();
+    await page.getByRole('option').first().click();
     await page.getByLabel('O que a empresa vende').fill('Bolos e doces para festas, com entrega no mesmo dia.');
     await page.getByLabel('Para quem vende').fill('Famílias que organizam aniversários na região.');
     await page.getByRole('button', { name: 'Continuar' }).click();
