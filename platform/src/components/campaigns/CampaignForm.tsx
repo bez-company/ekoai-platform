@@ -174,7 +174,7 @@ export default function CampaignForm({ initial, profilePosts }: { initial: FormI
             onChange={(label) => set('postsPerWeek', POSTS_OPTIONS.find(([, l]) => l === label)?.[0] ?? '')}
             options={POSTS_OPTIONS.map(([, l]) => l)}
             placeholder="Escolha"
-            help={profilePosts ? `O perfil usa ${profilePosts} por semana.` : undefined}
+            help={profilePosts ? `A Agenda tem ${profilePosts} ${profilePosts === 1 ? 'horário' : 'horários'} por semana.` : undefined}
             error={err('posts_per_week')}
           />
         </div>

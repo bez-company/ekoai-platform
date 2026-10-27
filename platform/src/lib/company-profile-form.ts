@@ -13,7 +13,7 @@ export type VoiceForm = {
   differentiators: string[];
   pains: string[];
 };
-export type VisualForm = { color_primary: string; color_accent: string; font_heading: string; font_body: string; cta_default: string; posts_per_week: number | null };
+export type VisualForm = { color_primary: string; color_accent: string; font_heading: string; font_body: string; cta_default: string };
 
 export function aboutFromProfile(p: CompanyProfile | null): AboutForm {
   return {
@@ -44,7 +44,6 @@ export function visualFromProfile(p: CompanyProfile | null): VisualForm {
     font_heading: p?.fontHeading ?? '',
     font_body: p?.fontBody ?? '',
     cta_default: p?.ctaDefault ?? '',
-    posts_per_week: p?.postsPerWeek ?? null,
   };
 }
 
@@ -57,7 +56,7 @@ export function hasVoice(p: CompanyProfile): boolean {
 }
 
 export function hasVisual(p: CompanyProfile): boolean {
-  return !!(p.logoAssetId || p.colorPrimary || p.colorAccent || p.fontHeading || p.fontBody || p.ctaDefault || p.postsPerWeek);
+  return !!(p.logoAssetId || p.colorPrimary || p.colorAccent || p.fontHeading || p.fontBody || p.ctaDefault);
 }
 
 // Sobre o negócio vale 60%; jeito de falar e visual, 20% cada. "Completo" é 100%.
@@ -99,11 +98,12 @@ export function toneSummary(p: Pick<CompanyProfile, 'voiceFormal' | 'voiceTechni
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// A chamada que fecha a legenda quando o pedido não diz outra (BEZ-370): o rótulo mostra o que a IA escreve.
 export const CTA_LABEL = { link_bio: 'Link na bio', whatsapp: 'WhatsApp', dm: 'Mensagem direta' } as const;
-export const CTA_HELP = {
-  link_bio: 'Site ou cardápio no link do perfil',
-  whatsapp: 'Conversa direta para encomendar',
-  dm: 'Responder pelo Instagram',
+export const CTA_OPTION = {
+  link_bio: 'Link na bio: convida a abrir o link do perfil',
+  whatsapp: 'WhatsApp: convida a chamar no WhatsApp',
+  dm: 'Mensagem direta: convida a mandar mensagem no Instagram',
 } as const;
 
 // "https://doceponto.com.br" na tela vira "doceponto.com.br".
@@ -117,5 +117,5 @@ export function isVoiceEmpty(f: VoiceForm): boolean {
 }
 
 export function isVisualEmpty(f: VisualForm): boolean {
-  return !f.color_primary.trim() && !f.color_accent.trim() && !f.font_heading && !f.font_body && !f.cta_default && f.posts_per_week == null;
+  return !f.color_primary.trim() && !f.color_accent.trim() && !f.font_heading && !f.font_body && !f.cta_default;
 }

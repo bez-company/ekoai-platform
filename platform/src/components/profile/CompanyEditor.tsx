@@ -206,8 +206,7 @@ export default function CompanyEditor({ initial, canEdit }: { initial: CompanyPr
               ['Cor principal', profile.colorPrimary ? <ColorValue key="p" hex={profile.colorPrimary} /> : ''],
               ['Cor de destaque', profile.colorAccent ? <ColorValue key="a" hex={profile.colorAccent} /> : ''],
               ['Fontes', [profile.fontHeading, profile.fontBody].filter(Boolean).join(' e ')],
-              ['O post leva para', profile.ctaDefault ? CTA_LABEL[profile.ctaDefault] : ''],
-              ['Posts por semana', profile.postsPerWeek ? String(profile.postsPerWeek) : ''],
+              ['Chamada da legenda', profile.ctaDefault ? CTA_LABEL[profile.ctaDefault] : ''],
             ]}
           />
         ) : (

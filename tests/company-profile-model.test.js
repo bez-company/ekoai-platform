@@ -105,8 +105,13 @@ describe('seção Visual', () => {
 
   it('tudo vazio é válido: a seção é opcional', () => {
     expect(ok(m.parseProfileSection({ section: 'visual' }))).toEqual({
-      color_primary: null, color_accent: null, font_heading: null, font_body: null, cta_default: null, posts_per_week: null,
+      color_primary: null, color_accent: null, font_heading: null, font_body: null, cta_default: null,
     });
+  });
+
+  it('sem o campo, posts por semana não é gravado (o ritmo é o da Agenda); com o campo (cliente antigo), grava', () => {
+    expect('posts_per_week' in ok(m.parseProfileSection({ section: 'visual' }))).toBe(false);
+    expect(ok(m.parseProfileSection({ section: 'visual', posts_per_week: 3 })).posts_per_week).toBe(3);
   });
 });
 

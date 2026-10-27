@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import SlotsDialog from './SlotsDialog';
 import type { Recommendation } from '@/lib/content-analysis-model';
-import { defaultSlots, POSTS_PER_WEEK } from '@/lib/onboarding';
 
 type Slot = { weekday: number; hour: number; minute: number };
 
@@ -54,43 +53,18 @@ export function SlotsButton({ slots, recommendation = null }: { slots: Slot[]; r
   );
 }
 
-// Agenda sem nenhum horário: escolher um ritmo pronto já cria a grade.
+// Agenda sem nenhum horário: a pessoa escolhe os dias e as horas. Quantos posts saem por semana é o que ela marcar aqui.
 export function NoSlots({ canManage }: { canManage: boolean }) {
   const d = useSlotsDialog();
-  const [busy, setBusy] = useState<number | null>(null);
-  const [error, setError] = useState('');
-
-  async function pick(n: (typeof POSTS_PER_WEEK)[number]) {
-    setBusy(n);
-    setError('');
-    const res = await fetch('/api/slots', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel: 'instagram', slots: defaultSlots(n) }) });
-    const j = await res.json().catch(() => ({}));
-    setBusy(null);
-    if (!res.ok) return setError(j.error || 'Não deu para criar os horários. Tente de novo.');
-    d.saved(Number(j.scheduled ?? 0));
-  }
-
   return (
     <section className="card space-y-3 py-8 text-center">
       <h2 className="text-lg font-semibold">Escolha quando publicar</h2>
-      <p className="mx-auto max-w-md text-sm text-muted">Sem horários, os posts aprovados esperam na fila. Escolha um ritmo e ajuste depois.</p>
+      <p className="mx-auto max-w-md text-sm text-muted">Sem horários, os posts aprovados esperam na fila. Escolha os dias e as horas: cada horário é um post por semana.</p>
       {canManage ? (
         <>
-          <div className="flex flex-wrap justify-center gap-2">
-            {POSTS_PER_WEEK.map((n) => (
-              <button key={n} type="button" className={n === 3 ? 'btn-primary' : 'btn-ghost'} disabled={busy !== null} onClick={() => void pick(n)}>
-                {busy === n ? 'Criando…' : `${n} por semana`}
-              </button>
-            ))}
-          </div>
-          <button type="button" className="text-sm font-semibold text-accent-text hover:underline" onClick={d.show}>
-            Escolher dias e horas
+          <button type="button" className="btn-primary" onClick={d.show}>
+            Escolher horários
           </button>
-          {error && (
-            <p className="text-sm text-danger" role="alert">
-              {error}
-            </p>
-          )}
           {d.open && <SlotsDialog initial={[]} onClose={d.close} onSaved={d.saved} />}
         </>
       ) : (

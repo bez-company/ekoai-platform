@@ -13,7 +13,7 @@ describe('progresso do perfil', () => {
     expect(f.profileProgress(null)).toEqual({ percent: 0, missing: ['voice', 'visual'] });
     expect(f.profileProgress(profile())).toEqual({ percent: 60, missing: ['voice', 'visual'] });
     expect(f.profileProgress(profile({ bannedWords: ['x'] }))).toEqual({ percent: 80, missing: ['visual'] });
-    expect(f.profileProgress(profile({ postsPerWeek: 3 }))).toEqual({ percent: 80, missing: ['voice'] });
+    expect(f.profileProgress(profile({ ctaDefault: 'whatsapp' }))).toEqual({ percent: 80, missing: ['voice'] });
     expect(f.profileProgress(profile({ pains: ['a'], colorPrimary: '#B83262' }))).toEqual({ percent: 100, missing: [] });
   });
 
@@ -25,7 +25,7 @@ describe('progresso do perfil', () => {
     expect(f.progressText(f.profileProgress(null))).toMatch(/vazio/);
     expect(f.progressText(f.profileProgress(profile()))).toBe('Perfil 60% completo: faltam o jeito de falar e o visual.');
     expect(f.progressText(f.profileProgress(profile({ bannedWords: ['x'] })))).toBe('Perfil 80% completo: falta o visual.');
-    expect(f.progressText(f.profileProgress(profile({ bannedWords: ['x'], postsPerWeek: 2 })))).toMatch(/Perfil completo/);
+    expect(f.progressText(f.profileProgress(profile({ bannedWords: ['x'], ctaDefault: 'dm' })))).toMatch(/Perfil completo/);
   });
 });
 
@@ -43,7 +43,7 @@ describe('estado dos formulários', () => {
   it('sem perfil, tudo vazio e uma linha em branco nas listas', () => {
     expect(f.aboutFromProfile(null)).toEqual({ niche: '', offering: '', audience: '', region: '', site_url: '', instagram_handle: '' });
     expect(f.voiceFromProfile(null)).toMatchObject({ differentiators: [''], pains: [''], banned_words: [], voice_formal: null });
-    expect(f.visualFromProfile(null)).toMatchObject({ color_primary: '', cta_default: '', posts_per_week: null });
+    expect(f.visualFromProfile(null)).toEqual({ color_primary: '', color_accent: '', font_heading: '', font_body: '', cta_default: '' });
   });
 
   it('com perfil, o @ volta para a tela e o corpo leva a seção', () => {
@@ -61,7 +61,7 @@ describe('passo opcional vazio', () => {
     expect(f.isVoiceEmpty({ ...f.voiceFromProfile(null), banned_words: ['x'] })).toBe(false);
     expect(f.isVoiceEmpty({ ...f.voiceFromProfile(null), voice_serious: 2 })).toBe(false);
     expect(f.isVisualEmpty(f.visualFromProfile(null))).toBe(true);
-    expect(f.isVisualEmpty({ ...f.visualFromProfile(null), posts_per_week: 3 })).toBe(false);
+    expect(f.isVisualEmpty({ ...f.visualFromProfile(null), cta_default: 'dm' })).toBe(false);
     expect(f.isVisualEmpty({ ...f.visualFromProfile(null), color_primary: '#B83262' })).toBe(false);
   });
 });

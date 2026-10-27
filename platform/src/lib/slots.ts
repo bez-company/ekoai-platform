@@ -22,6 +22,12 @@ export async function getActiveSlots(t: TenantDb, channel?: Channel): Promise<Pu
   return (data || []) as PublishSlot[];
 }
 
+// Quantos posts saem por semana: um por horário ativo da Agenda (BEZ-370). null quando não há horário.
+export async function weeklyPosts(t: TenantDb, channel: Channel = 'instagram'): Promise<number | null> {
+  const n = (await getActiveSlots(t, channel)).length;
+  return n > 0 ? n : null;
+}
+
 async function occupiedEpochs(t: TenantDb, channel: Channel): Promise<Set<number>> {
   const { data, error } = await t
     .select('scheduled_posts', 'scheduled_for')

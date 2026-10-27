@@ -4,6 +4,7 @@ import { pageError } from '@/lib/api';
 import { getCampaign } from '@/lib/campaigns';
 import { isCampaignId, todayLocal } from '@/lib/campaign-model';
 import { pageContext } from '@/lib/session';
+import { weeklyPosts } from '@/lib/slots';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -21,8 +22,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
       const c = await getCampaign(t, from).catch(() => null);
       if (c) initial = formFromCampaign(c, 'duplicate', today);
     }
-    const profile = await t.select('company_profiles', 'posts_per_week').maybeSingle();
-    profilePosts = typeof profile.data?.posts_per_week === 'number' ? (profile.data.posts_per_week as number) : null;
+    profilePosts = await weeklyPosts(t);
   } catch (e) {
     pageError(e, 'page/campanhas/nova');
   }

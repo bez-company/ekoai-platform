@@ -1,14 +1,14 @@
 'use client';
 
-// QuickQuestions.tsx: as 3 perguntas rápidas depois do cadastro da empresa (SPEC 017, decisão 11;
-// protótipo v10 ob-perguntas). Todas podem ficar em branco. "Quantas vezes por semana" cria os horários
-// padrão no servidor (POST /api/onboarding/answers), só quando a conta ainda não tem nenhum.
+// QuickQuestions.tsx: as 2 perguntas rápidas depois do cadastro da empresa (SPEC 017, decisão 11;
+// protótipo v10 ob-perguntas). Todas podem ficar em branco. A pergunta "quantas vezes por semana" saiu (BEZ-370):
+// os horários, e com eles o ritmo, são escolhidos só na Agenda.
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
-import type { Goal, PostsPerWeek, Source } from '@/lib/onboarding';
+import type { Goal, Source } from '@/lib/onboarding';
 
 const SOURCES: [Source, string][] = [
   ['indicacao', 'Indicação de alguém'],
@@ -22,11 +22,6 @@ const GOALS: [Goal, string][] = [
   ['perfil_ativo', 'Manter o perfil ativo sem esforço'],
   ['ganhar_tempo', 'Ganhar tempo da equipe'],
   ['crescer_seguidores', 'Crescer seguidores'],
-];
-const FREQUENCIES: [PostsPerWeek, string][] = [
-  [2, '2 vezes (ter e qui)'],
-  [3, '3 vezes (ter, qui e sáb)'],
-  [5, '5 vezes (seg a sex)'],
 ];
 
 function Question<T extends string | number>({ label, options, value, onChange, disabled }: { label: string; options: [T, string][]; value: T | null; onChange: (v: T | null) => void; disabled: boolean }) {
@@ -59,7 +54,6 @@ export default function QuickQuestions() {
   const router = useRouter();
   const [source, setSource] = useState<Source | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
-  const [postsPerWeek, setPostsPerWeek] = useState<PostsPerWeek | null>(null);
   const [busy, setBusy] = useState<'save' | 'skip' | null>(null);
   const [error, setError] = useState('');
 
@@ -67,7 +61,7 @@ export default function QuickQuestions() {
     setBusy(skip ? 'skip' : 'save');
     setError('');
     try {
-      const body = skip ? {} : { source, goal, postsPerWeek };
+      const body = skip ? {} : { source, goal };
       const res = await fetch('/api/onboarding/answers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 401) {
         router.push('/entrar');
@@ -92,16 +86,14 @@ export default function QuickQuestions() {
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center gap-4 border-b border-line px-4 py-4 md:px-8">
         <Logo className="text-lg" />
-        <span className="flex-1 text-sm text-muted">Último passo · 3 perguntas</span>
+        <span className="flex-1 text-sm text-muted">Último passo · 2 perguntas</span>
       </header>
 
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 md:py-12">
         <h1 className="text-2xl font-semibold">Antes de começar</h1>
-        <p className="mt-1 text-sm leading-relaxed text-muted">Três perguntas rápidas para a Ekoai acertar o ritmo dos posts. Leva 20 segundos.</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">Duas perguntas rápidas. Leva 10 segundos. Os horários de publicação você escolhe na Agenda.</p>
         <Question label="Como você conheceu a Ekoai?" options={SOURCES} value={source} onChange={setSource} disabled={disabled} />
         <Question label="O que você espera da Ekoai?" options={GOALS} value={goal} onChange={setGoal} disabled={disabled} />
-        <Question label="Quantas vezes por semana quer postar?" options={FREQUENCIES} value={postsPerWeek} onChange={setPostsPerWeek} disabled={disabled} />
-        <p className="mt-3 text-sm text-muted">Os horários ficam às 18h. Dá para mudar a qualquer momento na Agenda.</p>
         {error && (
           <div className="mt-5">
             <ErrorLine>{error}</ErrorLine>

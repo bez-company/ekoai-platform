@@ -31,10 +31,17 @@ export async function resumePublishing(page: Page) {
   await expect(page.getByText(/Publicando normalmente/)).toBeVisible();
 }
 
+// Sem horários na Agenda, escolhe cinco (segunda a sexta, 18h) pelo diálogo Horários; cada horário é um post por semana.
 export async function pickRhythm(page: Page) {
   await page.goto('/agenda');
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeVisible();
-  await page.getByRole('button', { name: '5 por semana' }).click();
+  await page.getByRole('button', { name: 'Escolher horários' }).click();
+  const dialog = page.getByRole('dialog');
+  for (let day = 0; day < 5; day += 1) {
+    await dialog.getByRole('button', { name: '+ horário' }).nth(day).click();
+    await dialog.getByRole('button', { name: 'Pôr' }).click();
+  }
+  await dialog.getByRole('button', { name: 'Salvar horários' }).click();
   await expect(page.getByRole('heading', { name: 'Escolha quando publicar' })).toBeHidden();
   await expect(page.getByText('5 horários na semana')).toBeVisible();
 }
