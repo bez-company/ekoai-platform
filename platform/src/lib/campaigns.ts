@@ -11,6 +11,7 @@ import type { SessionUser } from './accounts';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { auditTenant } from './audit';
 import { latestPostMetrics } from './instagram-metrics';
+import { weeklyPosts } from './slots';
 import {
   campaignFromRow,
   campaignSlug,
@@ -153,8 +154,7 @@ export async function campaignProgress(t: TenantDb, id: string, now: Date = new 
     return day >= week.start && day < week.end;
   }).length;
 
-  const profile = await t.select('company_profiles', 'posts_per_week').maybeSingle();
-  const target = campaign.postsPerWeek ?? (typeof profile.data?.posts_per_week === 'number' ? (profile.data.posts_per_week as number) : null);
+  const target = campaign.postsPerWeek ?? (await weeklyPosts(t));
 
   return {
     daysLeft: campaign.endDate ? Math.max(dayCount(today, campaign.endDate), 0) : null,

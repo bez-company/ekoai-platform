@@ -239,13 +239,15 @@ function visual(b: Record<string, unknown>): ParsedSection {
     else c.fail('posts_per_week', 'Escolha de 1 a 14 posts por semana.');
   }
 
+  // O Visual não pergunta mais quantos posts por semana (BEZ-370: o ritmo é o que a pessoa marca na Agenda). Corpo
+  // sem o campo não mexe no valor antigo; corpo com o campo (clientes antigos) segue gravando.
   return done(c, 'visual', {
     color_primary: primary,
     color_accent: accent,
     font_heading: pickFont(c, 'font_heading', b.font_heading, HEADING_FONTS),
     font_body: pickFont(c, 'font_body', b.font_body, BODY_FONTS),
     cta_default: cta,
-    posts_per_week: perWeek,
+    ...('posts_per_week' in b ? { posts_per_week: perWeek } : {}),
   });
 }
 

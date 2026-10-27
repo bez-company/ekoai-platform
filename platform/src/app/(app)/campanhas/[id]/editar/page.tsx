@@ -6,6 +6,7 @@ import { NotFoundError } from '@/lib/errors';
 import { getCampaign } from '@/lib/campaigns';
 import { isCampaignId, todayLocal } from '@/lib/campaign-model';
 import { pageContext } from '@/lib/session';
+import { weeklyPosts } from '@/lib/slots';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,6 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
   });
   if (!c) notFound();
   if (c.status === 'ended' || c.status === 'archived') redirect(`/campanhas/${id}`);
-  const profile = await t.select('company_profiles', 'posts_per_week').maybeSingle();
   const initial = formFromCampaign(c, 'edit', todayLocal());
   return (
     <div className="space-y-5">
@@ -30,7 +30,7 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
         </Link>
         <h1 className="mt-1 text-2xl font-semibold">Editar campanha</h1>
       </div>
-      <CampaignForm initial={initial} profilePosts={typeof profile.data?.posts_per_week === 'number' ? (profile.data.posts_per_week as number) : null} />
+      <CampaignForm initial={initial} profilePosts={await weeklyPosts(t)} />
     </div>
   );
 }

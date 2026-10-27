@@ -1,7 +1,7 @@
 'use client';
 
 // SlotsDialog.tsx: "Horários" da Agenda (SPEC 017 decisão 13). Os horários de publicação do Instagram,
-// por dia da semana, com ritmo pronto (2, 3 ou 5 por semana). Salvar grava a grade inteira de uma vez
+// por dia da semana: cada horário é um post por semana. Salvar grava a grade inteira de uma vez
 // (PUT /api/slots); a fila sem horário entra nos horários novos. Com 12 posts com alcance, a faixa do
 // topo recomenda os melhores horários (SPEC 022): "Usar estes horários" marca as sugestões na grade, sem
 // tirar os atuais, e quem salva é a pessoa.
@@ -11,7 +11,6 @@ import Modal from '@/components/Modal';
 import { ErrorLine } from '@/components/auth/ui';
 import Link from 'next/link';
 import { describeSlots, type Recommendation } from '@/lib/content-analysis-model';
-import { defaultSlots, POSTS_PER_WEEK } from '@/lib/onboarding';
 
 type Slot = { weekday: number; hour: number; minute: number };
 
@@ -27,7 +26,6 @@ const DAYS: [number, string][] = [
 const pad = (n: number) => String(n).padStart(2, '0');
 const label = (s: Slot) => `${pad(s.hour)}:${pad(s.minute)}`;
 const keyOf = (s: Slot) => `${s.weekday}-${s.hour}-${s.minute}`;
-const sameSet = (a: Slot[], b: Slot[]) => a.length === b.length && a.every((x) => b.some((y) => y.weekday === x.weekday && y.hour === x.hour && y.minute === x.minute));
 
 export default function SlotsDialog({ initial, recommendation = null, onClose, onSaved }: { initial: Slot[]; recommendation?: Recommendation | null; onClose: () => void; onSaved: (scheduled: number) => void }) {
   const [slots, setSlots] = useState<Slot[]>(initial);
@@ -39,7 +37,6 @@ export default function SlotsDialog({ initial, recommendation = null, onClose, o
   const [error, setError] = useState('');
 
   const ofDay = (d: number) => slots.filter((s) => s.weekday === d).sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));
-  const preset = POSTS_PER_WEEK.find((n) => sameSet(slots, defaultSlots(n)));
 
   function add(day: number) {
     const [h, m] = time.split(':').map(Number);
@@ -75,14 +72,6 @@ export default function SlotsDialog({ initial, recommendation = null, onClose, o
     <Modal title="Horários de publicação" onClose={onClose} wide>
       <p className="text-sm text-muted">Quando a Ekoai publica no Instagram. Post aprovado entra no próximo horário livre.</p>
       {recommendation && <RecommendationStrip recommendation={recommendation} adopted={suggested.length > 0} nothingNew={fresh.length === 0} onUse={useSuggestions} onUndo={undoSuggestions} />}
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ritmo">
-        <span className="text-sm text-muted">Ritmo:</span>
-        {POSTS_PER_WEEK.map((n) => (
-          <button key={n} type="button" aria-pressed={preset === n} onClick={() => setSlots(defaultSlots(n))} className={`chip min-h-8 px-3 text-sm ${preset === n ? 'border-accent bg-accent/20 text-fg' : 'hover:text-fg'}`}>
-            {n} por semana
-          </button>
-        ))}
-      </div>
       <div className="divide-y divide-line">
         {DAYS.map(([d, name]) => (
           <div key={d} className="flex flex-wrap items-center gap-2 py-2.5">

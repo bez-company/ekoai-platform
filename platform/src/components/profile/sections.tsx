@@ -5,8 +5,8 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import { BODY_FONTS, CTAS, HEADING_FONTS, LIST_MAX_ITEMS, NICHES, BANNED_MAX_ITEMS, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
-import { CTA_HELP, CTA_LABEL, sectionBody, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
-import { ChipsField, ColorField, Counter, ListField, RadioCards, ScaleField, SelectField, TextAreaField, TextField } from './ui';
+import { CTA_OPTION, sectionBody, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
+import { ChipsField, ColorField, ListField, ScaleField, SelectField, TextAreaField, TextField } from './ui';
 
 // onChange é o setter do estado (aceita função): dois campos mudando no mesmo instante não se sobrescrevem.
 // `onClearError` tira o erro de um campo quando a pessoa o edita: a mensagem não fica contradizendo o valor novo.
@@ -63,17 +63,20 @@ export function VisualSection({ value, onChange, errors, onClearError, disabled 
         <ColorField label="Cor de destaque" value={value.color_accent} onChange={(color_accent) => set({ color_accent })} error={errors.color_accent} disabled={disabled} />
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
-        <SelectField label="Fonte dos títulos" value={value.font_heading} onChange={(font_heading) => set({ font_heading })} options={HEADING_FONTS} placeholder="Escolha a fonte" error={errors.font_heading} disabled={disabled} />
-        <SelectField label="Fonte do texto" value={value.font_body} onChange={(font_body) => set({ font_body })} options={BODY_FONTS} placeholder="Escolha a fonte" error={errors.font_body} disabled={disabled} />
+        <SelectField label="Fonte dos títulos" value={value.font_heading} onChange={(font_heading) => set({ font_heading })} options={HEADING_FONTS} fontPreview placeholder="Escolha a fonte" error={errors.font_heading} disabled={disabled} />
+        <SelectField label="Fonte do texto" value={value.font_body} onChange={(font_body) => set({ font_body })} options={BODY_FONTS} fontPreview placeholder="Escolha a fonte" error={errors.font_body} disabled={disabled} />
       </div>
-      <RadioCards
-        legend="Para onde o post leva as pessoas"
-        value={value.cta_default as (typeof CTAS)[number] | ''}
+      <SelectField
+        label="Chamada no fim da legenda"
+        optional
+        value={value.cta_default}
         onChange={(cta_default) => set({ cta_default })}
-        options={CTAS.map((c) => ({ value: c, label: CTA_LABEL[c], help: CTA_HELP[c] }))}
+        options={CTAS.map((c) => ({ value: c, label: CTA_OPTION[c] }))}
+        placeholder="Sem chamada fixa"
+        help="A IA fecha a legenda convidando para isso, quando o pedido não diz outra coisa."
+        error={errors.cta_default}
         disabled={disabled}
       />
-      <Counter label="Posts por semana" value={value.posts_per_week} onChange={(posts_per_week) => set({ posts_per_week })} min={1} max={14} help="Vira a grade de horários de publicação. Dá para mudar em Configurações." error={errors.posts_per_week} disabled={disabled} />
     </div>
   );
 }

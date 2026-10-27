@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
 import { isActive, MOBILE_PRIMARY, type Screen } from '@/lib/screens';
@@ -33,6 +33,76 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 }
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
+
+// O nome da pessoa, no rodapé da barra lateral, abre um menu com Perfil, Configurações e Sair (BEZ-365). Fecha com
+// Esc, clique fora ou troca de tela; ao abrir, o foco vai para o primeiro item.
+function UserMenu({ person, pathname, canSettings, onLogout }: { person: NavPerson; pathname: string | null; canSettings: boolean; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    root.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      trigger.current?.focus();
+    };
+    const outside = (e: MouseEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', esc);
+    document.addEventListener('mousedown', outside);
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.removeEventListener('mousedown', outside);
+    };
+  }, [open]);
+
+  const item = 'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition hover:bg-inset focus-visible:bg-inset';
+  const current = (href: string) => (isActive(pathname, href) ? 'font-semibold text-accent-text' : '');
+  return (
+    <div ref={root} className="relative min-w-0 flex-1">
+      {open && (
+        <div role="menu" aria-label="Menu da pessoa" className="absolute bottom-full left-0 right-0 mb-2 space-y-0.5 rounded-xl border border-line bg-raised p-1.5 shadow-lg">
+          <Link href="/perfil" role="menuitem" className={`${item} ${current('/perfil')}`}>
+            <Icon name="user" size={18} />
+            Perfil
+          </Link>
+          {canSettings && (
+            <Link href="/configuracoes" role="menuitem" className={`${item} ${current('/configuracoes')}`}>
+              <Icon name="settings" size={18} />
+              Configurações
+            </Link>
+          )}
+          <button type="button" role="menuitem" onClick={onLogout} className={`${item} text-muted`}>
+            <Icon name="logout" size={18} />
+            Sair
+          </button>
+        </div>
+      )}
+      <button
+        ref={trigger}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Menu de ${person.name}`}
+        className={`flex w-full min-w-0 items-center gap-2.5 rounded-md py-1 pl-1 pr-2 text-left transition hover:bg-raised ${open || isActive(pathname, '/perfil') ? 'bg-accent/15' : ''}`}
+      >
+        <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-raised text-xs font-bold">
+          {initials(person.name)}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <strong className="block truncate text-[13px]">{person.name}</strong>
+          <small className="block truncate text-xs text-muted">{person.role}</small>
+        </span>
+      </button>
+    </div>
+  );
+}
 
 export type NavAccount = { name: string; detail: string };
 export type NavPerson = { name: string; role: string };
@@ -128,32 +198,19 @@ export default function Nav({
         </nav>
 
         <div className="mt-auto flex items-center gap-2.5 border-t border-line pt-3">
-          {person && (
-            <Link
-              href="/perfil"
-              aria-label={`Seu perfil: ${person.name}`}
-              aria-current={isActive(pathname, '/perfil') ? 'page' : undefined}
-              className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-1 pl-1 pr-2 transition hover:bg-raised ${isActive(pathname, '/perfil') ? 'bg-accent/15' : ''}`}
+          {person ? (
+            <UserMenu person={person} pathname={pathname} canSettings={links.some((l) => l.href === '/configuracoes')} onLogout={logout} />
+          ) : (
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Sair da conta"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted transition hover:bg-raised hover:text-fg"
             >
-              <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-raised text-xs font-bold">
-                {initials(person.name)}
-              </span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <strong className="block truncate text-[13px]">{person.name}</strong>
-                <small className="block truncate text-xs text-muted">{person.role}</small>
-              </span>
-            </Link>
+              <Icon name="logout" size={18} />
+              Sair
+            </button>
           )}
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Sair da conta"
-            title="Sair"
-            className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted transition hover:bg-raised hover:text-fg ${person ? '' : 'w-full'}`}
-          >
-            <Icon name="logout" size={18} />
-            {person ? null : 'Sair'}
-          </button>
         </div>
       </aside>
 
