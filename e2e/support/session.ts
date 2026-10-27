@@ -6,7 +6,7 @@ import { ACCOUNTS, password, type Persona } from './env';
 export async function login(page: Page, persona: Persona, next = '/inicio') {
   await page.goto(`/entrar?next=${encodeURIComponent(next)}`);
   await page.getByLabel('E-mail').fill(ACCOUNTS[persona].email);
-  await page.getByLabel('Senha').fill(password());
+  await page.getByLabel('Senha', { exact: true }).fill(password());
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page).toHaveURL((url) => url.pathname === next);
 }

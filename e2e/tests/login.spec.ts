@@ -12,7 +12,7 @@ test.describe('login', () => {
   test('senha errada mostra o erro e continua no login', async ({ page }) => {
     await page.goto('/entrar');
     await page.getByLabel('E-mail').fill(ACCOUNTS.admin.email);
-    await page.getByLabel('Senha').fill('senha-que-nao-confere-1');
+    await page.getByLabel('Senha', { exact: true }).fill('senha-que-nao-confere-1');
     await page.getByRole('button', { name: 'Entrar' }).click();
     await expect(page.getByText('E-mail ou senha não conferem')).toBeVisible();
     await expect(page).toHaveURL(/\/entrar/);

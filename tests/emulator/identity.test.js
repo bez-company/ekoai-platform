@@ -44,7 +44,7 @@ describe('ID token do emulador', () => {
     expect(id).toMatchObject({ uid: localId, email: 'ana@teste.com', emailVerified: true, secondFactor: null });
     expect(identityRefusal(id, now())).toBeNull();
     // sem segundo fator, administrador é barrado; criador entra
-    expect(membershipRefusal(id, [{ tenantId: 'acme', role: 'admin', createdAt: '' }]).code).toBe('mfa_required');
+    expect(membershipRefusal(id, [{ tenantId: 'acme', role: 'admin', createdAt: '' }], 'required').code).toBe('mfa_required');
     expect(membershipRefusal(id, [{ tenantId: 'acme', role: 'creator', createdAt: '' }])).toBeNull();
   });
 
