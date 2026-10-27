@@ -18,10 +18,10 @@ import { IDEA_MAX } from '@/lib/post-limits';
 type Ratio = '4:5' | '1:1';
 type Format = 'single' | 'carousel';
 
-// O tipo do post pelo número de imagens (SPEC 023): a pessoa escolhe; a Ekoai só decide quantas lâminas (2 a 6).
+// O tipo do post pelo número de imagens (SPEC 023): a pessoa escolhe; a Ekoai decide quantas lâminas (2 a 10, o teto do Instagram).
 const FORMATS: [Format, string, string][] = [
   ['single', 'Uma imagem', 'Um post só, com uma imagem.'],
-  ['carousel', 'Carrossel', 'De 2 a 6 lâminas: gancho, conteúdo e chamada. Bom para listas e passo a passo.'],
+  ['carousel', 'Carrossel', 'De 2 a 10 lâminas: gancho, conteúdo e chamada. Bom para listas e passo a passo.'],
 ];
 type Idea = { id: string; idea: string; goal: PostGoal; goalLabel: string; reason: string };
 

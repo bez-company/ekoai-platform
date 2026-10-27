@@ -190,7 +190,7 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
   return { ok: true, value: copy };
 }
 
-// As lâminas do carrossel (SPEC 023): de 2 a 6, o papel vem da posição (capa, itens, chamada) e não do que o modelo
+// As lâminas do carrossel (SPEC 023): de 2 a 10, o papel vem da posição (capa, itens, chamada) e não do que o modelo
 // escreveu, e cada uma precisa de título. Item solto não existe na lâmina: ela é o item. Fora da faixa ou sem título
 // volta ao modelo como motivo da recusa, como as outras falhas de formato.
 function parseSlides(raw: unknown): { ok: true; value: CopySlide[] } | { ok: false; error: string } {

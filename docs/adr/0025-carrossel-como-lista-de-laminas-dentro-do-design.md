@@ -11,7 +11,7 @@ Um post vira uma linha em `post_designs` (um layout, um texto, um PNG) e uma `pe
 A revisão imutável ([ADR 0021](0021-revisao-imutavel-com-diff-por-campo.md)) guarda o design inteiro de cada
 versão e compara campo a campo; o conflito de edição se resolve pela versão. O envio do carrossel à Meta já
 existe (`scheduled_posts.slide_urls`, `publishCarousel`), vindo do fluxo antigo, mas nada gera nem edita lâminas.
-O carrossel precisa de 2 a 6 PNGs que mudam juntos, com um visual só em cache e o custo de imagem de um post comum.
+O carrossel precisa de 2 a 10 PNGs (era 2 a 6; 10 é o teto do Instagram, BEZ-373) que mudam juntos, com um visual só em cache e o custo de imagem de um post comum.
 
 ## Decisão
 
@@ -22,11 +22,11 @@ O carrossel precisa de 2 a 6 PNGs que mudam juntos, com um visual só em cache e
    lâmina, para agenda, publicados, métricas e miniaturas não saberem que existe carrossel. Os PNGs das demais ficam
    em `design.slides[n].pngKey`, e `pending_approvals.images` leva um item por lâmina.
 3. **A revisão e o diff não mudam de mecanismo.** O campo do diff ganha o prefixo `slides.<n>.` e o resto
-   (versão, conflito, desfazer, restaurar) segue igual. O limite de 64 KB do `design` cabe em seis lâminas.
+   (versão, conflito, desfazer, restaurar) segue igual. O limite de 64 KB do `design` cabe em seis lâminas; com dez, confira o tamanho do `design` (BEZ-373).
 4. **Um visual por post.** `post_designs.visual_key` é o da capa; as outras lâminas usam a cor da marca. Visual
    novo por lâmina é do Estúdio completo e conta no limite do plano como qualquer visual.
 5. **Sem migration.** Tudo vive no `jsonb` que já existe. A única exceção possível é um `check` para o número de
-   lâminas, que não é necessário porque o parser recusa fora de 2 a 6 antes de gravar.
+   lâminas, que não é necessário porque o parser recusa fora de 2 a 10 antes de gravar.
 
 ## Consequências
 
