@@ -223,6 +223,17 @@ function basePalette(spec: DesignSpec) {
     const kicker = contrast(b.accent, b.deep) >= 4.5 ? b.accent : softened('#FFFFFF', b.deep);
     return { bg: b.deep, title: '#FFFFFF', sub: softened('#FFFFFF', b.deep), kicker, items: '#FFFFFF' };
   }
+  // Marca escura (grafite, ameixa, azul-marinho: a cor principal já lê 7:1 sobre o branco): o post usa a própria cor da
+  // marca como fundo, como o título destaque. Com o papel claro por padrão, o grafite da empresa nunca aparecia (BEZ-368).
+  if (isDarkBrand(b)) {
+    const kicker = contrast(b.accent, b.deep) >= 4.5 ? b.accent : softened('#FFFFFF', b.deep);
+    return { bg: b.deep, title: '#FFFFFF', sub: softened('#FFFFFF', b.deep), kicker, items: '#FFFFFF' };
+  }
   const kicker = contrast(b.primary, b.paper) >= 4.5 ? b.primary : b.ink;
   return { bg: b.paper, title: b.ink, sub: softened(b.ink, b.paper), kicker, items: b.ink };
+}
+
+// A cor principal é escura a ponto de servir de fundo com texto branco (contraste 7:1 ou mais).
+export function isDarkBrand(b: Brand): boolean {
+  return contrast(b.primary, '#FFFFFF') >= 7;
 }
