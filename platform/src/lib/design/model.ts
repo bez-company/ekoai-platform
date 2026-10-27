@@ -80,7 +80,8 @@ export type Placements = Partial<Record<Element, Place | 'off'>>;
 export const SLIDE_ROLES = ['cover', 'content', 'cta'] as const;
 export type SlideRole = (typeof SLIDE_ROLES)[number];
 export const MIN_SLIDES = 2;
-export const MAX_SLIDES = 6;
+// 10 é o teto do Instagram para um carrossel (BEZ-373); antes eram 6.
+export const MAX_SLIDES = 10;
 
 // O que a pessoa ajusta numa lâmina (SPEC 023): layout, texto, canto do logo e cor do texto, como no post de uma imagem.
 export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };

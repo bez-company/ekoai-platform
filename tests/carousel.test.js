@@ -1,4 +1,4 @@
-// Carrossel (SPEC 023, ADR 0025), a parte pura: o contrato do redator (2 a 6 lâminas, papel pela posição), o prompt,
+// Carrossel (SPEC 023, ADR 0025), a parte pura: o contrato do redator (2 a 10 lâminas, papel pela posição), o prompt,
 // as regras entre lâminas, os specs de cada lâmina e o render da família lamina-item nos extremos de texto.
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
@@ -28,7 +28,7 @@ const profile = profileFromRow({ niche: 'Alimentação', offering: 'Bolos', audi
 const brand = brandFromProfile({ colorPrimary: '#B83262', colorAccent: '#F2A9C4', fontHeading: 'Playfair Display', fontBody: 'Inter', instagramHandle: 'doceponto' });
 
 describe('contrato das lâminas', () => {
-  it('lê de 2 a 6 lâminas; o papel vem da posição, não do que o modelo escreveu', () => {
+  it('lê de 2 a 10 lâminas; o papel vem da posição, não do que o modelo escreveu', () => {
     const r = parseCopy(json(FIVE.map((s) => ({ ...s, role: 'content' }))), null, 'carousel');
     expect(r.ok).toBe(true);
     expect(r.value.slides.map((s) => s.role)).toEqual(['cover', 'content', 'content', 'content', 'cta']);
@@ -42,8 +42,10 @@ describe('contrato das lâminas', () => {
   });
 
   it('recusa fora da faixa e lâmina sem título, com o motivo que volta ao modelo', () => {
-    expect(parseCopy(json([FIVE[0]]), null, 'carousel')).toEqual({ ok: false, error: 'O carrossel precisa de 2 a 6 lâminas, e vieram 1.' });
-    expect(parseCopy(json([...FIVE, ...FIVE.slice(1, 3)]), null, 'carousel').error).toMatch(/e vieram 7/);
+    expect(parseCopy(json([FIVE[0]]), null, 'carousel')).toEqual({ ok: false, error: 'O carrossel precisa de 2 a 10 lâminas, e vieram 1.' });
+    expect(parseCopy(json([...FIVE, ...FIVE, ...FIVE.slice(0, 1)]), null, 'carousel').error).toMatch(/e vieram 11/);
+    // dez lâminas (o teto do Instagram) passam
+    expect(parseCopy(json([...FIVE, ...FIVE]), null, 'carousel').ok).toBe(true);
     expect(parseCopy(json([FIVE[0], slide('   ')]), null, 'carousel').error).toBe('A lâmina 2 veio sem título.');
     expect(parseCopy(json(undefined), null, 'carousel').ok).toBe(false);
     expect(parseCopy(json('x'), null, 'carousel').ok).toBe(false);
