@@ -197,7 +197,7 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     const fixed = fakeModel({ text: [new Error('não deveria chamar o texto de novo')], image: [{}] });
     const claimed = await worker.claimQueued(5);
     expect(claimed.map((c) => c.id)).toContain(id);
-    const summary = await worker.runGenerateQueue({ model: fixed, store, fontDir: FONT_DIR });
+    const summary = await worker.runGenerateQueue({ model: fixed, store, fontDir: FONT_DIR, critic: false });
     expect(summary.claimed).toBe(0); // o claim de cima já tinha pegado; o worker de verdade faz os dois juntos
     const retry = await generatePost(t, id, { model: fixed, store, fontDir: FONT_DIR });
     expect(retry.status, JSON.stringify(retry)).toBe('ready');
@@ -232,7 +232,7 @@ describe('post de atmosfera, limite e nova tentativa', () => {
     const t = tenantDb(A);
     const id = await brief('promoção de natal', 'informativo');
     const model = fakeModel({ text: [INFO], image: [] });
-    const summary = await worker.runGenerateQueue({ model, store, fontDir: FONT_DIR }, { limit: 5 });
+    const summary = await worker.runGenerateQueue({ model, store, fontDir: FONT_DIR, critic: false }, { limit: 5 });
     expect(summary, JSON.stringify(summary.outcomes)).toMatchObject({ claimed: 1, ready: 1, failed: 0, limit: 0 });
     expect(summary.outcomes[0]).toMatchObject({ status: 'ready', briefId: id });
     expect(await worker.claimQueued(5)).toEqual([]);
@@ -584,5 +584,103 @@ describe('post do LinkedIn a partir do núcleo (SPEC 028, BEZ-424)', () => {
     await generatePost(t, id, { model, store, fontDir: FONT_DIR });
     expect(model.calls.map((c) => c.labels.step)).toEqual(['writer']);
     expect((await admin.query('select channel from pending_approvals where brief_id = $1', [id])).rows).toEqual([{ channel: 'instagram' }]);
+  });
+});
+
+describe('avaliador de sinais (SPEC 028, BEZ-425)', () => {
+  const CAPTION = 'Salve este post: três sinais para conferir o bolo. Chame no WhatsApp.';
+  const POST = { ...INFO, caption: CAPTION };
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+  const LI = { text: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma.\n\nQual sinal você confere primeiro na sua cozinha?', hashtags: [], share_reason: 'Quem também faz bolo de festa responde com o sinal que confere primeiro' };
+  const IG_IDS = ['envio', 'salvamento', 'gancho', 'fato', 'chamada'];
+  const IG_QUOTES = ['Salve este post', 'três sinais para conferir', 'Seu bolo está pronto', 'o bolo', 'Chame no WhatsApp'];
+  const LI_IDS = ['gancho', 'especificidade', 'leitura', 'pergunta', 'voz'];
+  const LI_QUOTES = ['O erro mais caro de uma confeitaria', 'Eu só abro a porta quando a borda descola', 'borda descola da forma', 'Qual sinal você confere primeiro', 'Eu só abro a porta'];
+  const critic = (ids, quotes, scores) => ({ criteria: ids.map((id, i) => ({ id, score: scores[i], evidence: scores[i] ? quotes[i] : 'falta algo', suggestion: scores[i] === 2 ? null : 'Acrescente o fato: Entregamos no mesmo dia em Marília.' })) });
+  const STRONG = [2, 2, 2, 1, 2];
+  const FIXED = { text: 'Salve este post: três sinais para conferir o bolo. Entregamos no mesmo dia em Marília.' };
+  const steps = (model) => model.calls.map((c) => c.labels.step);
+  const generation = async (id, channel = 'instagram') => (await one('select generation from pending_approvals where brief_id = $1 and channel = $2', [id, channel])).generation;
+
+  it('avalia o post do Instagram, guarda a avaliação na pendência e registra a chamada com a rede', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [POST, critic(IG_IDS, IG_QUOTES, STRONG)], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR, critic: true })).status).toBe('ready');
+    expect(steps(model)).toEqual(['writer', 'critic']);
+    expect(model.calls[1].prompt).toContain(CAPTION);
+    const g = await generation(id);
+    expect(g.critic).toMatchObject({ channel: 'instagram', band: 'forte' });
+    expect(g.critic.fixed).toBeUndefined();
+    expect(g.critic.criteria.map((c) => c.id)).toEqual(IG_IDS);
+    expect(g.variations[0].body).toBe(CAPTION);
+    expect(await one("select step, channel, status from generation_runs where brief_id = $1 and step = 'critic'", [id])).toEqual({ step: 'critic', channel: 'instagram', status: 'done' });
+  });
+
+  it('nota 0 com sugestão: um conserto, nova avaliação melhor, e a legenda nova vai para a pendência', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [POST, critic(IG_IDS, IG_QUOTES, [2, 2, 2, 0, 2]), FIXED, critic(IG_IDS, ['Salve este post', 'três sinais para conferir', 'Seu bolo está pronto', 'Entregamos no mesmo dia em Marília', 'Salve este post'], [2, 2, 2, 2, 2])], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR, critic: true })).status).toBe('ready');
+    expect(steps(model)).toEqual(['writer', 'critic', 'fix', 'critic']);
+    expect(model.calls[2].prompt).toContain('Acrescente o fato: Entregamos no mesmo dia em Marília.');
+    const g = await generation(id);
+    expect(g.variations[0].body).toBe(FIXED.text);
+    expect(g.critic).toMatchObject({ band: 'forte', fixed: true });
+    expect((await admin.query("select step, channel from generation_runs where brief_id = $1 and step in ('critic', 'fix') order by created_at", [id])).rows).toEqual([{ step: 'critic', channel: 'instagram' }, { step: 'fix', channel: 'instagram' }, { step: 'critic', channel: 'instagram' }]);
+  });
+
+  it('o conserto que não melhora a nota, ou que o revisor por regra reprova, deixa a legenda original', async () => {
+    const t = tenantDb(A);
+    const same = await brief('como saber se o bolo está pronto', 'informativo');
+    const weak = critic(IG_IDS, IG_QUOTES, [2, 2, 2, 0, 2]);
+    const m1 = fakeModel({ text: [POST, weak, FIXED, weak], image: [] });
+    await generatePost(t, same, { model: m1, store, fontDir: FONT_DIR, critic: true });
+    expect(steps(m1)).toEqual(['writer', 'critic', 'fix', 'critic']);
+    const g1 = await generation(same);
+    expect(g1.variations[0].body).toBe(CAPTION);
+    expect(g1.critic.fixed).toBeUndefined();
+
+    const banned = await brief('como saber se o bolo está pronto', 'informativo');
+    const m2 = fakeModel({ text: [POST, weak, { text: 'Oferta imperdível: salve este post.' }], image: [] });
+    await generatePost(t, banned, { model: m2, store, fontDir: FONT_DIR, critic: true });
+    expect(steps(m2)).toEqual(['writer', 'critic', 'fix']);
+    expect((await generation(banned)).variations[0].body).toBe(CAPTION);
+  });
+
+  it('avaliação que não vem, vem quebrada ou falha não derruba o post: ele fica pronto, sem avaliação', async () => {
+    const t = tenantDb(A);
+    for (const answer of [{}, { criteria: [{ id: 'envio', score: 2 }] }, new Error('modelo fora do ar')]) {
+      const id = await brief('como saber se o bolo está pronto', 'informativo');
+      const model = fakeModel({ text: [POST, answer], image: [] });
+      expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR, critic: true })).status).toBe('ready');
+      expect(steps(model)).toEqual(['writer', 'critic']);
+      const g = await generation(id);
+      expect(g.critic).toBeUndefined();
+      expect(g.variations[0].body).toBe(CAPTION);
+    }
+  });
+
+  it('sem critic ligado o fluxo é o de antes: nenhuma chamada a mais e nenhuma avaliação', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [POST], image: [] });
+    await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(steps(model)).toEqual(['writer']);
+    expect((await generation(id)).critic).toBeUndefined();
+  });
+
+  it('o LinkedIn tem a própria avaliação, depois do texto, com a rede registrada', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    const model = fakeModel({ text: [{ ...POST, core: CORE }, critic(IG_IDS, IG_QUOTES, STRONG), LI, critic(LI_IDS, LI_QUOTES, [2, 2, 2, 2, 1])], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR, critic: true })).status).toBe('ready');
+    expect(steps(model)).toEqual(['writer', 'critic', 'adapt', 'critic']);
+    expect(model.calls[3].prompt).toContain('post de LinkedIn');
+    expect((await generation(id, 'linkedin')).critic).toMatchObject({ channel: 'linkedin', band: 'forte' });
+    expect((await generation(id, 'instagram')).critic).toMatchObject({ channel: 'instagram' });
+    const runs = (await admin.query("select step, channel from generation_runs where brief_id = $1 and step in ('writer', 'critic', 'adapt') order by created_at", [id])).rows;
+    expect(runs).toEqual([{ step: 'writer', channel: 'instagram' }, { step: 'critic', channel: 'instagram' }, { step: 'adapt', channel: 'linkedin' }, { step: 'critic', channel: 'linkedin' }]);
   });
 });

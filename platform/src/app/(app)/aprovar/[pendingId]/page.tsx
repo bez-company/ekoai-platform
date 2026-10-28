@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getIdeaTabs, getPending } from '@/lib/queries';
 import NetworkTabs from '@/components/posts/NetworkTabs';
+import SignalPanel from '@/components/posts/SignalPanel';
 import { nextFreeSlot } from '@/lib/slots';
 import { composeCaption } from '@/lib/caption';
 import ApproveForm from '@/components/ApproveForm';
@@ -26,7 +27,12 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   const nextSlot = await nextFreeSlot(t, p.channel).catch(() => null);
   // Uma ideia para mais de uma rede (SPEC 028): as abas levam de uma pendência à outra. Falhar aqui nunca derruba a tela.
   const tabs = p.brief_id ? await getIdeaTabs(t, p.brief_id).catch(() => []) : [];
-  const tabsNav = <NetworkTabs tabs={tabs} current={p.channel} />;
+  const tabsNav = (
+    <>
+      <NetworkTabs tabs={tabs} current={p.channel} />
+      <SignalPanel stored={p.generation?.critic} />
+    </>
+  );
 
   // Post feito pela Ekoai (SPEC 012) ou foto do banco (Publicar foto, BEZ-254): a tela da moldura do
   // feed, com os atalhos e os fatos usados.

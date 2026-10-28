@@ -34,6 +34,16 @@ export function fakeCarousel(count = 4) {
   return { ...FAKE_POST, slides };
 }
 
+// Resposta do avaliador de sinais (SPEC 028): nota 2 em tudo, com um trecho que está na legenda do FAKE_POST. O critério da
+// chamada ainda cai para 0 pelo teto de código (o post pede salvar e a legenda não pede), sem sugestão, então não há conserto.
+const CRITIC_IDS = {
+  instagram: ['envio', 'salvamento', 'gancho', 'fato', 'chamada'],
+  linkedin: ['gancho', 'especificidade', 'leitura', 'pergunta', 'voz'],
+};
+export function fakeCritic(channel: 'instagram' | 'linkedin') {
+  return { criteria: CRITIC_IDS[channel].map((id) => ({ id, score: 2, evidence: 'Bolo bom não tem pressa', suggestion: null })) };
+}
+
 export const FAKE_PHOTO_DESCRIPTION = { description: 'Bolo de cenoura com cobertura de chocolate sobre uma mesa de madeira', tags: ['produto'], has_people: false };
 export const FAKE_PHOTO_CAPTION = { caption: 'Cenoura com chocolate, do forno para a sua mesa. Encomende pelo WhatsApp.', hashtags: ['bolodecenoura', 'confeitaria'] };
 
@@ -85,7 +95,11 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
     const reply =
       step === 'ask'
         ? ask
-        : step === 'media_describe'
+      : step === 'critic'
+        ? fakeCritic(prompt.includes('post de LinkedIn') ? 'linkedin' : 'instagram')
+        : step === 'fix'
+          ? { text: FAKE_POST.caption }
+          : step === 'media_describe'
           ? FAKE_PHOTO_DESCRIPTION
           : step === 'photo_caption' || step === 'photo_rewrite'
             ? FAKE_PHOTO_CAPTION
