@@ -80,7 +80,7 @@ export async function askAdjust(t: TenantDb, briefId: string, input: AskInput & 
   const notApplied = [...outcome.notApplied];
   // A legenda passa pelo mesmo revisor do atalho de legenda. Reprovada, não vai: o resto do pedido segue.
   let caption = outcome.caption;
-  // Sem legenda na tela (o Estúdio), o patch de legenda não tem onde entrar: avisa e segue com o resto.
+  // Sem legenda na tela (o Studio), o patch de legenda não tem onde entrar: avisa e segue com o resto.
   if (caption && !input.caption) {
     notApplied.push({ what: 'Legenda', why: 'A legenda se ajusta na tela Aprovar. Volte ao post para mudá-la.' });
     caption = null;

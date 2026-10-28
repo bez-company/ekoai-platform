@@ -31,7 +31,7 @@ describe('o que mudou, antes de confirmar', () => {
     expect(summaryOf(changesOf(base, next))).toBe(summarize(diffDesigns(base, next, ctx)));
   });
 
-  // O Estúdio (SPEC 024) edita a cor de cada texto, o selo e os itens: o resumo da tela segue igual ao do servidor.
+  // O Studio (SPEC 024) edita a cor de cada texto, o selo e os itens: o resumo da tela segue igual ao do servidor.
   it.each([
     ['cor do subtítulo', withColor(base, 'sub', '#B83262')],
     ['cor do selo', withColor(base, 'kicker', '#1F1A19')],

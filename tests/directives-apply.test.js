@@ -151,7 +151,7 @@ describe('composição depois do redator', () => {
 });
 
 describe('fundo pedido nas famílias de sempre', () => {
-  it('a lista fica e ganha o fundo; o título também; o logo ganha placa branca no escuro', () => {
+  it('a lista fica e ganha o fundo; o título também; o logo fica sem placa no escuro', () => {
     const d = { background: 'dark', itemsCount: 3 };
     const out = composeDesign(d, planDirectives(d, S), copy(), S);
     expect(out).toMatchObject({ layout: 'lista-numerada', background: 'dark', texts: { items: ['a', 'b', 'c'] } });

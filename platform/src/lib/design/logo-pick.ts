@@ -1,6 +1,6 @@
 // logo-pick.ts: qual logo entra no post (SPEC 026, BEZ-369). Puro. A principal vale sempre; uma variação ganha quando serve melhor ao fundo:
 // fundo escuro usa "Para fundo escuro", fundo claro usa "Para fundo claro", e a lâmina de carrossel (espaço pequeno) usa "Só o símbolo".
-// Sem a variação certa cai na principal, que ainda passa pela placa clara do logo-blend quando some no fundo: nunca piora o que existia.
+// Sem a variação certa cai na principal. O logo nunca ganha placa nem moldura: entra como a pessoa enviou.
 
 import { contrast, type Hex } from './color';
 import type { Logo, LogoImage } from './model';

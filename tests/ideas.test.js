@@ -82,7 +82,7 @@ describe('parseRework', () => {
 describe('reviewHref: para onde a lista Aprovar leva o cartão', () => {
   const withBrief = (extra) => pending('instagram', { brief_id: BRIEF, seed: { brief_id: BRIEF }, ...extra });
 
-  it('post com design da Ekoai abre a tela do post (imagem, Estúdio e ajuste), mesmo com brief_id', () => {
+  it('post com design da Ekoai abre a tela do post (imagem, Studio e ajuste), mesmo com brief_id', () => {
     const [idea] = groupIdeas([withBrief({ post_design_id: 'd-1' })]);
     expect(reviewHref(idea)).toBe('/aprovar/instagram-x');
     expect(hasPostScreen(idea.pendings[0])).toBe(true);

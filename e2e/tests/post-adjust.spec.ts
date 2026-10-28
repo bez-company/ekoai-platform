@@ -5,7 +5,7 @@ import { saveMinimalProfile } from '../support/flows';
 import { resetAccount } from '../support/seed';
 import { login } from '../support/session';
 
-// O Estúdio de edição do post, as versões e a regra de marca (SPEC 019 e 024). Modelo e Meta são simulados
+// O Studio de edição do post, as versões e a regra de marca (SPEC 019 e 024). Modelo e Meta são simulados
 // (support/fakes.ts); o resto é o app de verdade: o navegador, o servidor que desenha a prévia, o banco e
 // o revisor por regra. Três posts nascem pela interface, e os passos que dependem de um segundo editor
 // usam a API com a sessão da mesma pessoa (o 409 não depende de quem é o outro editor).
@@ -27,11 +27,11 @@ const status = (page: Page) => page.locator('#design-status');
 const confirmButton = (page: Page) => page.getByRole('button', { name: 'Confirmar', exact: true });
 const corner = (page: Page) => page.getByRole('button', { name: 'Logo no canto inferior direito' });
 
-// O Estúdio abre por "Editar imagem" em Aprovar. No desktop os elementos são uma lista; no celular, chips.
+// O Studio abre por "Editar imagem" em Aprovar. No desktop os elementos são uma lista; no celular, chips.
 async function openStudio(page: Page, post: Post) {
   await page.goto(post.inbox);
   await page.getByRole('link', { name: 'Editar imagem' }).click();
-  await expect(page).toHaveURL(/\/estudio$/);
+  await expect(page).toHaveURL(/\/studio$/);
   await expect(page.getByRole('complementary', { name: 'Propriedades' })).toBeVisible();
 }
 // O elemento sem conteúdo (selo ou subtítulo removido) leva "sem" no nome acessível: o nome casa pelo começo.
@@ -49,7 +49,7 @@ async function saveAsOtherEditor(page: Page, briefId: string, change: (design: R
   expect(saved.status()).toBe(201);
 }
 
-test.describe.serial('Estúdio, versões e regra de marca', () => {
+test.describe.serial('Studio, versões e regra de marca', () => {
   const posts: Post[] = [];
 
   test.beforeAll(async () => {
@@ -57,7 +57,7 @@ test.describe.serial('Estúdio, versões e regra de marca', () => {
     await resetFakes();
   });
 
-  test('Aprovar abre o Estúdio, a prévia vem do servidor e confirmar salva a versão 2 sem chamar o modelo', async ({ page }) => {
+  test('Aprovar abre o Studio, a prévia vem do servidor e confirmar salva a versão 2 sem chamar o modelo', async ({ page }) => {
     await login(page, 'admin');
     await saveMinimalProfile(page);
     posts.push(await createPost(page, 'dica de bolo pronto'));
@@ -175,11 +175,11 @@ test.describe.serial('Estúdio, versões e regra de marca', () => {
     await expect(page.getByRole('button', { name: /Desligar a regra: Logo no canto inferior direito/ })).toBeVisible();
   });
 
-  test('o leitor vê as versões no Estúdio, sem editar, e a API recusa a edição', async ({ page }) => {
+  test('o leitor vê as versões no Studio, sem editar, e a API recusa a edição', async ({ page }) => {
     await login(page, 'viewer');
     await page.goto(posts[0].inbox);
     await page.getByRole('link', { name: 'Ver versões' }).click();
-    await expect(page).toHaveURL(/\/estudio$/);
+    await expect(page).toHaveURL(/\/studio$/);
     await expect(page.getByRole('region', { name: 'Versões' })).toBeVisible();
     await expect(page.getByText('Você acompanha esta conta como leitor.')).toBeVisible();
     await expect(confirmButton(page)).toHaveCount(0);

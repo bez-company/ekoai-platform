@@ -49,7 +49,7 @@ export function groupIdeas(pendings: PendingApproval[]): Idea[] {
   return [...map.values()];
 }
 
-// Post feito pela Ekoai (design) ou foto do banco: a tela do post (PostReview) tem o card Imagem, o Estúdio e o pedido
+// Post feito pela Ekoai (design) ou foto do banco: a tela do post (PostReview) tem o card Imagem, o Studio e o pedido
 // de ajuste. A tela por ideia (IdeaForm, SPEC 003) é a das redes e só edita a legenda.
 export const hasPostScreen = (p: PendingApproval): boolean => !!p.post_design_id || p.seed?.source === 'photo';
 

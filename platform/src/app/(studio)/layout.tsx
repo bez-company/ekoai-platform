@@ -1,4 +1,4 @@
-// Layout do Estúdio (SPEC 024, BEZ-315): tela cheia, sem a barra lateral do app. Quem entra já passou pelo
+// Layout do Studio (SPEC 024, BEZ-315): tela cheia, sem a barra lateral do app. Quem entra já passou pelo
 // middleware (sessão) e a página confere a permissão de cada ação.
 export const dynamic = 'force-dynamic';
 

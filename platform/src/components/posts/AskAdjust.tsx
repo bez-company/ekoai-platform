@@ -38,7 +38,7 @@ export default function AskAdjust({
   body: string;
   hashtags: string[];
   usage: { used: number; max: number };
-  aspects?: readonly Aspect[]; // onde dá para mudar nesta tela (o Estúdio não tem legenda)
+  aspects?: readonly Aspect[]; // onde dá para mudar nesta tela (o Studio não tem legenda)
   blockedReason: string | null; // por que o campo está parado (mudança da imagem sem confirmar)
   busyElsewhere: boolean;
   onCaption: (body: string, hashtags: string[]) => void;

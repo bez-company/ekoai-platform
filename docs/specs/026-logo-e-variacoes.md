@@ -22,7 +22,8 @@ versão só com o símbolo, e hoje não há onde enviá-las.
    variações são opcionais. PNG ou SVG, até 2 MB cada; as mesmas regras de inspeção do envio atual.
 2. **A Ekoai escolhe a variação pelo fundo do post**, com a conta de contraste que o motor já usa: fundo escuro usa "Para fundo
    escuro" se existir; fundo claro usa "Para fundo claro"; canto pequeno e lâminas de carrossel usam "Só o símbolo". Sem a variação
-   certa, usa a Principal e, se ela some no fundo, a placa clara de sempre. Nunca piora o que existe hoje.
+   certa, usa a Principal **como foi enviada**. Decisão de 27/10/2026 (BEZ-373): o logo nunca ganha placa clara nem moldura; a
+   placa (e o `logo-blend.ts`) saíram. Quem precisa de contraste envia a variação para o fundo.
 3. **Ampliar** abre a logo em tamanho grande, com fundo claro ou escuro à escolha (já entregue para a Principal no BEZ-371).
 4. **Trocar e Tirar valem por variação.** Tirar a Principal não tira as variações; o post sai sem logo até enviar outra.
 5. Só quem tem `brand.manage` altera; os outros papéis veem em leitura.

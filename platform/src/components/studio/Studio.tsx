@@ -1,6 +1,6 @@
 'use client';
 
-// Studio.tsx: o Estúdio de edição do post (SPEC 024, BEZ-315; protótipo v9 aprovado em 21/10/2026). Tela própria
+// Studio.tsx: o Studio de edição do post (SPEC 024, BEZ-315; protótipo v9 aprovado em 21/10/2026). Tela própria
 // com a imagem grande, a lista de elementos à esquerda e as propriedades do elemento escolhido à direita; no
 // celular os elementos viram chips e as ações vão para a barra de baixo. Faz o que o motor já faz (texto, cor,
 // logo, layout, versões), pelas mesmas rotas do ajuste rápido da SPEC 019: a prévia é desenhada pelo servidor
@@ -102,7 +102,7 @@ export default function Studio({
   usage: { used: number; max: number };
   canEdit: boolean;
   canManage: boolean;
-  // Carrossel (SPEC 023): a lâmina que o Estúdio edita (a partir de 0) e as imagens de todas, para trocar de lâmina.
+  // Carrossel (SPEC 023): a lâmina que o Studio edita (a partir de 0) e as imagens de todas, para trocar de lâmina.
   slide?: number;
   slideUrls?: string[];
 }) {
@@ -487,7 +487,7 @@ export default function Studio({
           ← {dirty ? 'Sair sem salvar' : 'Voltar ao post'}
         </Link>
         <div className="min-w-[200px] grow">
-          <strong className="block text-sm">Estúdio · {title}{slide !== undefined ? ` · lâmina ${slide + 1} de ${state.slides?.length ?? slideUrls?.length ?? 1}` : ''}</strong>
+          <strong className="block text-sm">Studio · {title}{slide !== undefined ? ` · lâmina ${slide + 1} de ${state.slides?.length ?? slideUrls?.length ?? 1}` : ''}</strong>
           <span className="text-xs text-muted">
             A partir da {from} · {kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'} · {RATIO_LABEL[ratio] ?? ratio}
           </span>
@@ -523,7 +523,7 @@ export default function Studio({
                     type="button"
                     aria-current={i === slide}
                     aria-label={`Lâmina ${i + 1}`}
-                    onClick={() => (dirty ? setMessage('Confirme ou descarte o ajuste desta lâmina antes de abrir outra.') : router.push(`/aprovar/${encodeURIComponent(pendingId)}/estudio?lamina=${i + 1}`))}
+                    onClick={() => (dirty ? setMessage('Confirme ou descarte o ajuste desta lâmina antes de abrir outra.') : router.push(`/aprovar/${encodeURIComponent(pendingId)}/studio?lamina=${i + 1}`))}
                     className={`relative w-[56px] overflow-hidden rounded-lg border-2 bg-raised ${i === slide ? 'border-accent' : 'border-line'}`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}

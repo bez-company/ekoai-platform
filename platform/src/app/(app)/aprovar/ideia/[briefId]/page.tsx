@@ -15,7 +15,7 @@ export default async function IdeaPage({ params }: { params: Promise<{ briefId: 
   const pendings = await getIdeaPendings(t, decodeURIComponent(briefId));
   const idea = groupIdeas(pendings)[0];
   if (!idea) notFound();
-  // Link antigo (e-mail, favorito) de um post com design: a tela dele tem a imagem e o Estúdio.
+  // Link antigo (e-mail, favorito) de um post com design: a tela dele tem a imagem e o Studio.
   if (hasPostScreen(idea.pendings[0])) redirect(`/aprovar/${encodeURIComponent(idea.pendings[0].pending_id)}`);
 
   const channels = idea.pendings.map((p) => p.channel);

@@ -9,7 +9,6 @@ import { pickLogo } from './logo-pick';
 import { HEIGHT, MARGIN, WIDTH, paletteFor, type DesignSpec, type Logo, type LogoCorner } from './model';
 import { escapeXml, fitText, textWidth, type Fit } from './text';
 import type { TextBox } from './review';
-import { logoBlendsWith } from './logo-blend';
 import type { Element, Place } from '../directives';
 
 export type Composed = { svg: string; boxes: TextBox[]; overflow: string[]; width: number; height: number };
@@ -27,14 +26,13 @@ function textLines(fit: Fit, x: number, y: number, size: number, color: Hex, fam
     .join('');
 }
 
-function logoAt(logo: Logo | null | undefined, corner: LogoCorner, height: number, badge: Hex | null): { svg: string; box: { x: number; y: number; w: number; h: number } | null } {
+// O logo entra como foi enviado: sem placa, moldura nem filtro. Quem cuida do contraste é a variação certa para o fundo (logo-pick).
+function logoAt(logo: Logo | null | undefined, corner: LogoCorner, height: number): { svg: string; box: { x: number; y: number; w: number; h: number } | null } {
   if (!logo) return { svg: '', box: null };
   const w = Math.round((LOGO_H * logo.width) / Math.max(1, logo.height));
   const x = corner === 'tl' || corner === 'bl' ? MARGIN : WIDTH - MARGIN - w;
   const y = corner === 'tl' || corner === 'tr' ? MARGIN : height - MARGIN - LOGO_H;
-  const pad = 14;
-  const plate = badge ? `<rect x="${x - pad}" y="${y - pad}" width="${w + pad * 2}" height="${LOGO_H + pad * 2}" rx="18" fill="${badge}" opacity="0.96"/>` : '';
-  return { svg: `${plate}<image href="${logo.dataUri}" x="${x}" y="${y}" width="${w}" height="${LOGO_H}" preserveAspectRatio="xMidYMid meet"/>`, box: { x: x - pad, y: y - pad, w: w + pad * 2, h: LOGO_H + pad * 2 } };
+  return { svg: `<image href="${logo.dataUri}" x="${x}" y="${y}" width="${w}" height="${LOGO_H}" preserveAspectRatio="xMidYMid meet"/>`, box: { x, y, w, h: LOGO_H } };
 }
 
 function handleText(handle: string | null, x: number, y: number, color: Hex, family: string, anchor: 'start' | 'middle' | 'end'): { svg: string; box: TextBox | null } {
@@ -110,7 +108,7 @@ function listaNumerada(spec: DesignSpec): Composed {
   });
 
   const corner = spec.logoCorner ?? 'bl';
-  const logo = logoAt(spec.logo, corner, H, spec.background && spec.background !== 'light' ? '#FFFFFF' : null);
+  const logo = logoAt(spec.logo, corner, H);
   parts.push(logo.svg);
   const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
   const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
@@ -162,7 +160,7 @@ function tituloDestaque(spec: DesignSpec): Composed {
   }
 
   const corner = spec.logoCorner ?? 'bl';
-  const logo = logoAt(spec.logo, corner, H, '#FFFFFF');
+  const logo = logoAt(spec.logo, corner, H);
   parts.push(logo.svg);
   const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
   const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
@@ -210,7 +208,7 @@ function fotoTitulo(spec: DesignSpec): Composed {
   }
 
   const corner = spec.logoCorner ?? 'br';
-  const logo = logoAt(spec.logo, corner, H, '#FFFFFF');
+  const logo = logoAt(spec.logo, corner, H);
   parts.push(logo.svg);
   const handleCorner: LogoCorner = corner === 'br' ? 'bl' : 'br';
   const handle = handleText(b.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, body, handleCorner === 'br' ? 'end' : 'start');
@@ -244,9 +242,9 @@ function captionBlock(spec: DesignSpec, P: ReturnType<typeof paletteFor>, y: num
   boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
 }
 
-function signature(spec: DesignSpec, P: ReturnType<typeof paletteFor>, H: number, badge: Hex | null, parts: string[], boxes: TextBox[]): void {
+function signature(spec: DesignSpec, P: ReturnType<typeof paletteFor>, H: number, parts: string[], boxes: TextBox[]): void {
   const corner = spec.logoCorner ?? 'bl';
-  parts.push(logoAt(spec.logo, corner, H, badge).svg);
+  parts.push(logoAt(spec.logo, corner, H).svg);
   const handleCorner: LogoCorner = corner === 'bl' ? 'br' : 'bl';
   const handle = handleText(spec.brand.handle, handleCorner === 'br' ? WIDTH - MARGIN : MARGIN, H - MARGIN - 30, P.sub, spec.brand.fontBody, handleCorner === 'br' ? 'end' : 'start');
   parts.push(handle.svg);
@@ -267,12 +265,12 @@ function fotoJanela(spec: DesignSpec): Composed {
   parts.push(`<circle cx="${WIDTH + 60}" cy="${Math.round(box.y + box.h + (H - box.y - box.h) * 0.42)}" r="170" fill="${mix(b.primary, P.bg, 0.82)}"/>`);
   parts.push(framedVisual(spec, 'janela', `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="36"/>`, box, mix(b.primary, P.bg, 0.6)));
   captionBlock(spec, P, box.y + box.h + 48, spec.ratio === '4:5' ? 3 : 2, parts, boxes, overflow);
-  signature(spec, P, H, null, parts, boxes);
+  signature(spec, P, H, parts, boxes);
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 
 // Arco: fundo na cor profunda da marca, a foto num arco à direita encostado no topo; título claro
-// sobre a cor. O logo ganha uma placa branca para ler sobre o fundo escuro.
+// sobre a cor. O logo entra como foi enviado (a variação para fundo escuro cuida do contraste).
 function fotoArco(spec: DesignSpec): Composed {
   const H = HEIGHT[spec.ratio];
   const P = paletteFor(spec);
@@ -288,7 +286,7 @@ function fotoArco(spec: DesignSpec): Composed {
   const arch = `<path d="M${x} ${h} V${r} A${r} ${r} 0 0 1 ${x + w} ${r} V${h} Z"/>`;
   parts.push(framedVisual(spec, 'arco', arch, { x, y: 0, w, h }, mix(b.primary, '#FFFFFF', 0.35)));
   captionBlock(spec, P, h + 52, spec.ratio === '4:5' ? 3 : 2, parts, boxes, overflow);
-  signature(spec, P, H, '#FFFFFF', parts, boxes);
+  signature(spec, P, H, parts, boxes);
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 
@@ -300,7 +298,6 @@ const PLACE_COL: Record<Place, 'l' | 'c' | 'r'> = { tl: 'l', ml: 'l', bl: 'l', t
 const PLACE_ROW: Record<Place, 't' | 'm' | 'b'> = { tl: 't', tc: 't', tr: 't', ml: 'm', c: 'm', mr: 'm', bl: 'b', bc: 'b', br: 'b' };
 const STACK_ORDER: Element[] = ['logo', 'name', 'title', 'handle'];
 const STACK_GAP = 36;
-const PLATE_PAD = 14;
 const TEXT_GAP = 40; // folga mínima entre dois elementos da mesma linha
 
 // Onde fica cada elemento depois de somar o pedido, o padrão e o que existe (sem logo, não há logo para pôr).
@@ -331,8 +328,6 @@ function marca(spec: DesignSpec): Composed {
   const boxes: TextBox[] = [];
   const overflow: string[] = [];
   const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
-  const light = spec.background === 'light';
-  const plate = light ? null : '#FFFFFF';
 
   type Item = { id: Element; h: number; draw: (x: number, y: number, col: 'l' | 'c' | 'r') => void };
   const items: Item[] = [];
@@ -363,17 +358,12 @@ function marca(spec: DesignSpec): Composed {
     const logo = spec.logo;
     const h = large ? Math.round(H * 0.3) : LOGO_H;
     const w = Math.min(inner, Math.round((h * logo.width) / Math.max(1, logo.height)));
-    // O logo grande some quando tem a cor do fundo: nesse caso ganha uma placa clara, como os pequenos.
-    const blends = large && !light && logoBlendsWith(logo, P.bg);
-    const pad = large && !blends ? 0 : large ? PLATE_PAD * 2 : PLATE_PAD;
-    take(where.logo, w + pad * 2);
+    take(where.logo, w);
     items.push({
       id: 'logo',
-      h: h + pad * 2,
+      h,
       draw: (x, y, col) => {
-        const lx = left(col, x, w + pad * 2);
-        if (pad && plate) parts.push(`<rect x="${lx}" y="${y}" width="${w + pad * 2}" height="${h + pad * 2}" rx="18" fill="${plate}" opacity="0.96"/>`);
-        parts.push(`<image href="${logo.dataUri}" x="${lx + pad}" y="${y + pad}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`);
+        parts.push(`<image href="${logo.dataUri}" x="${left(col, x, w)}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`);
       },
     });
   }
@@ -462,7 +452,17 @@ function laminaItem(spec: DesignSpec): Composed {
   const overflow: string[] = [];
   const inner = WIDTH - MARGIN * 2;
   const parts: string[] = [`<rect width="${WIDTH}" height="${H}" fill="${P.bg}"/>`];
-  parts.push(`<circle cx="${WIDTH - 40}" cy="60" r="250" fill="${mix(b.primary, P.bg, 0.86)}"/>`);
+  // Carrossel de atmosfera: a mesma foto da capa, em outro recorte a cada lâmina, sob um véu mais forte que o da capa
+  // (o texto fica em cima da foto inteira). Sem foto, a lâmina é lisa e leva o círculo da marca.
+  let textBg = P.bg;
+  if (spec.visual?.dataUri) {
+    const scrim = untilContrast(mix(b.deep, '#000000', 0.3), '#FFFFFF', 7);
+    const t = pos && pos.of > 1 ? (pos.n - 1) / (pos.of - 1) : 0;
+    const zoom = 1.3;
+    parts.push(`<image href="${spec.visual.dataUri}" x="${Math.round(-(zoom - 1) * WIDTH * t)}" y="${Math.round(-(zoom - 1) * H * 0.5)}" width="${Math.round(WIDTH * zoom)}" height="${Math.round(H * zoom)}" preserveAspectRatio="xMidYMid slice"/>`);
+    parts.push(`<rect width="${WIDTH}" height="${H}" fill="${scrim}" opacity="0.78"/>`);
+    textBg = over('#FFFFFF', scrim, 0.78);
+  } else parts.push(`<circle cx="${WIDTH - 40}" cy="60" r="250" fill="${mix(b.primary, P.bg, 0.86)}"/>`);
 
   let y = MARGIN + 36;
   const r = 84;
@@ -477,14 +477,14 @@ function laminaItem(spec: DesignSpec): Composed {
     const size = 28;
     const lx = cx + r + 32;
     parts.push(`<text x="${lx}" y="${cy + size / 2 - 4}" font-size="${size}" fill="${P.kicker}" ${fontFace(body, true)} letter-spacing="4">${escapeXml(label)}</text>`);
-    boxes.push({ id: 'kicker', x: lx, y: cy - size / 2 - 8, w: Math.min(WIDTH - MARGIN - lx, textWidth(label, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: P.bg, bold: true });
+    boxes.push({ id: 'kicker', x: lx, y: cy - size / 2 - 8, w: Math.min(WIDTH - MARGIN - lx, textWidth(label, body, size, 1.2)), h: size * 1.3, size, color: P.kicker, bg: textBg, bold: true });
   }
   y = cy + r + 72;
 
   const title = fitText(spec.texts.title, { family: heading, maxWidth: inner, maxLines: 4, start: 96, min: 56, step: 4, lineHeight: 1.08, weightFactor: 1.08 });
   if (title.overflow) overflow.push('title');
   parts.push(textLines(title, MARGIN, y, title.size, P.title, heading, true, 'letter-spacing="-1.5"'));
-  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: P.bg, bold: true });
+  boxes.push({ id: 'title', x: MARGIN, y, w: title.width, h: title.height, size: title.size, color: P.title, bg: textBg, bold: true });
   y += title.height + 36;
 
   const sub = spec.texts.sub?.trim();
@@ -492,7 +492,7 @@ function laminaItem(spec: DesignSpec): Composed {
     const fit = fitText(sub, { family: body, maxWidth: 860, maxLines: 4, start: 40, min: 26, step: 2, lineHeight: 1.3 });
     if (fit.overflow) overflow.push('sub');
     parts.push(textLines(fit, MARGIN, y, fit.size, P.sub, body, false));
-    boxes.push({ id: 'sub', x: MARGIN, y, w: fit.width, h: fit.height, size: fit.size, color: P.sub, bg: P.bg });
+    boxes.push({ id: 'sub', x: MARGIN, y, w: fit.width, h: fit.height, size: fit.size, color: P.sub, bg: textBg });
   }
 
   if (pos && pos.of > 1) {
@@ -500,10 +500,10 @@ function laminaItem(spec: DesignSpec): Composed {
     const seg = Math.min(96, Math.floor((inner - gap * (pos.of - 1)) / pos.of));
     const by = H - MARGIN - LOGO_H - 44;
     for (let i = 0; i < pos.of; i += 1) {
-      parts.push(`<rect x="${MARGIN + i * (seg + gap)}" y="${by}" width="${seg}" height="8" rx="4" fill="${i + 1 === pos.n ? P.kicker : mix(b.primary, P.bg, 0.78)}"/>`);
+      parts.push(`<rect x="${MARGIN + i * (seg + gap)}" y="${by}" width="${seg}" height="8" rx="4" fill="${i + 1 === pos.n ? P.kicker : mix(P.title, textBg, 0.65)}"/>`);
     }
   }
-  signature(spec, P, H, null, parts, boxes);
+  signature(spec, P, H, parts, boxes);
   return { svg: wrap(parts, H), boxes, overflow, width: WIDTH, height: H };
 }
 

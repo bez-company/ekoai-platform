@@ -8,7 +8,6 @@ import { compose, markPlacements } from '../platform/src/lib/design/families.ts'
 import { brandFromProfile, compatibleLayouts, markBackground, paletteFor, storedDesignOf } from '../platform/src/lib/design/model.ts';
 import { applyRule } from '../platform/src/lib/design/rules-model.ts';
 import { reviewLayout } from '../platform/src/lib/design/review.ts';
-import { logoAverageColor, logoBlendsWith } from '../platform/src/lib/design/logo-blend.ts';
 import { contrast } from '../platform/src/lib/design/color.ts';
 import { COMPANIES } from '../evals/cases.js';
 
@@ -196,34 +195,21 @@ describe('cartão de marca: grade inteira, sem sobreposição', () => {
   });
 });
 
-describe('cartão de marca: logo que some no fundo', () => {
+describe('logo sem placa', () => {
   // Logo de tile escuro com a marca clara dentro (como o da BEZ): sobre o fundo escuro o tile some e a marca fica.
   const tile = (fill, mark) => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="${fill}"/>${mark ? `<path d="M70 150c10-40 30-70 70-100-10 40-30 80-70 100z" fill="${mark}"/>` : ''}</svg>`;
     return { dataUri: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, width: 200, height: 200 };
   };
 
-  it('o logo que some por inteiro (tinta da cor do fundo) ganha placa; o que tem marca legível não', () => {
-    const sorriso = brandFromProfile(COMPANIES.sorriso.profile);
-    const aurora = brandFromProfile(COMPANIES.aurora.profile);
-    const bg = markBackground(aurora, 'dark');
-    expect(logoBlendsWith(tile(bg, null), bg)).toBe(true); // tudo da cor do fundo: nada se lê
-    expect(logoBlendsWith(tile('#111111', '#F5F5F0'), bg)).toBe(false); // tile some, a marca clara aparece
-    expect(logoBlendsWith(COMPANIES.sorriso.logo, markBackground(sorriso, 'dark'))).toBe(false);
-    expect(logoBlendsWith(COMPANIES.aurora.logo, bg)).toBe(false);
-    expect(logoBlendsWith(COMPANIES.vertice.logo, markBackground(brandFromProfile(COMPANIES.vertice.profile), 'dark'))).toBe(false);
-    expect(logoAverageColor({ dataUri: 'data:image/png;base64,AAAA', width: 1, height: 1 })).toBeNull(); // imagem ilegível: não decide
-    expect(logoBlendsWith({ dataUri: 'data:image/png;base64,AAAA', width: 1, height: 1 }, bg)).toBe(false);
-  });
-
-  it('o logo grande que some ganha placa clara; o que aparece fica sem moldura branca', () => {
+  it('o logo entra como foi enviado: nenhuma placa clara atrás, em nenhum fundo', () => {
     const bg = markBackground(brandFromProfile(COMPANIES.aurora.profile), 'dark');
-    const plated = compose(specFor('aurora', { logo: tile(bg, null), background: 'dark', placements: { logo: 'c' } })).svg;
-    const bare = compose(specFor('aurora', { background: 'dark', placements: { logo: 'c' } })).svg;
-    const withMark = compose(specFor('aurora', { logo: tile('#111111', '#F5F5F0'), background: 'dark', placements: { logo: 'c' } })).svg;
-    expect(plated).toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
-    expect(bare).not.toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
-    expect(withMark).not.toMatch(/<rect [^>]*rx="18" fill="#FFFFFF"/);
-    expect(plated).toContain('<image');
+    for (const logo of [tile(bg, null), tile('#111111', '#F5F5F0'), COMPANIES.aurora.logo]) {
+      for (const placements of [{ logo: 'c' }, { logo: 'bl' }]) {
+        const svg = compose(specFor('aurora', { logo, background: 'dark', placements })).svg;
+        expect(svg).not.toMatch(/<rect [^>]*rx="18"/);
+        expect(svg).toContain('<image');
+      }
+    }
   });
 });

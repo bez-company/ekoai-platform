@@ -10,7 +10,7 @@
 O motor híbrido ([ADR 0017](0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md)) guarda o design do
 post como dado (`post_designs.design`) e o redesenha sem chamar o modelo. Isso permite ajustar um post por
 centavos de CPU, mas pede três respostas que valem para mais de uma feature (ajuste rápido, histórico,
-regra de marca, e depois o Estúdio e o pedido de ajuste em texto livre):
+regra de marca, e depois o Studio e o pedido de ajuste em texto livre):
 
 1. Como guardar o que a pessoa mudou, para desfazer, voltar a uma versão e mostrar quem mudou o quê.
 2. Como dois editores no mesmo post não se sobrescrevem em silêncio.
@@ -36,7 +36,7 @@ regra de marca, e depois o Estúdio e o pedido de ajuste em texto livre):
 
 ## Consequências
 
-- Desfazer, histórico, conflito e regra usam a mesma tabela e o mesmo diff; o Estúdio e o pedido de ajuste
+- Desfazer, histórico, conflito e regra usam a mesma tabela e o mesmo diff; o Studio e o pedido de ajuste
   em texto livre (BEZ-193) passam a gravar revisões em vez de inventar outro histórico.
 - Campo novo editável exige entrar na lista do diff, no parser e no teste: é de propósito. Campo fora da
   lista não tem como virar revisão nem regra.

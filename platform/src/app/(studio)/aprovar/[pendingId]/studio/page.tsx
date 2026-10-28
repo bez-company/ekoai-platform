@@ -11,7 +11,7 @@ import Studio from '@/components/studio/Studio';
 
 export const dynamic = 'force-dynamic';
 
-// O Estúdio de edição do post (SPEC 024, BEZ-315): a imagem grande, os elementos e as propriedades. Só para
+// O Studio de edição do post (SPEC 024, BEZ-315): a imagem grande, os elementos e as propriedades. Só para
 // post com design da Ekoai (uma imagem ou, com ?lamina=n, uma lâmina do carrossel); foto do banco e post sem design voltam para Aprovar.
 export default async function StudioPage({ params, searchParams }: { params: Promise<{ pendingId: string }>; searchParams: Promise<{ lamina?: string }> }) {
   const { pendingId } = await params;

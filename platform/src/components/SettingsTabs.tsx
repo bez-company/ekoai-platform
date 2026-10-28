@@ -10,7 +10,7 @@ export default function SettingsTabs({ tabs }: { tabs: SettingsTab[] }) {
   const pathname = usePathname();
   if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Seções de configurações" className="flex gap-1 overflow-x-auto border-b border-line">
+    <nav aria-label="Seções de configurações" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
       {tabs.map((tab) => {
         const current = pathname === tab.href;
         return (
@@ -18,7 +18,7 @@ export default function SettingsTabs({ tabs }: { tabs: SettingsTab[] }) {
             key={tab.href}
             href={tab.href}
             aria-current={current ? 'page' : undefined}
-            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition ${
+            className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition ${
               current ? 'border-accent-text text-fg' : 'border-transparent text-muted hover:text-fg'
             }`}
           >
