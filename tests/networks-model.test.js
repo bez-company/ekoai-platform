@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_NETWORKS, networkChips, toggleNetwork } from '../platform/src/lib/networks-model.ts';
 import { ideaTabs } from '../platform/src/lib/ideas-model.ts';
+import { readFileSync } from 'node:fs';
 
 describe('redes de Criar post (SPEC 028)', () => {
   it('o Instagram está sempre disponível, mesmo sem conta conectada', () => {
@@ -56,5 +57,15 @@ describe('abas da ideia (SPEC 028)', () => {
   it('pendência de rede que o pedido não listava ainda aparece, e pedido antigo é só o Instagram', () => {
     expect(ideaTabs(['instagram'], [p('instagram'), p('linkedin')]).map((t) => t.channel)).toEqual(['instagram', 'linkedin']);
     expect(ideaTabs(['instagram'], [p('instagram')])).toHaveLength(1);
+  });
+});
+
+// A tela de Criar post (cliente) importa estes módulos: se um deles puxar node:crypto, o build do Next quebra. O bug já
+// aconteceu uma vez (GENERATED_CHANNELS morava em generation-model.ts).
+describe('módulos que a tela do navegador importa', () => {
+  it.each(['networks-model.ts', 'ideas-model.ts', 'post-goals.ts'])('%s não importa node:* nem o modelo da geração', (file) => {
+    const src = readFileSync(new URL(`../platform/src/lib/${file}`, import.meta.url), 'utf8');
+    expect(src).not.toMatch(/from 'node:/);
+    expect(src).not.toMatch(/from '\.\/generation-model'/);
   });
 });
