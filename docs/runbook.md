@@ -371,6 +371,12 @@ proteção ligada.
 - Pedido que falhou: a tela oferece "Tentar de novo" (`POST /api/posts/<id>/retry`); as etapas que
   deram certo são reaproveitadas. Erro do Vertex (429, 503) tenta de novo 2 vezes com espera e depois
   falha com a mensagem do provedor no brief.
+- Alerta de anomalia de custo (BEZ-410): a cada 6 h o cron `collect-metrics` compara o custo dos posts aprovados nas
+  últimas 6 h (soma de todas as chamadas do pedido em `generation_runs`, com regeneração e falha) com a mediana
+  dos aprovados nos 30 dias antes disso, de todas as contas. Acima de 2x e com pelo menos 10 posts de base,
+  grava uma linha WARNING com `scope` `cost-anomaly` (`brief_id`, `tenant_id`, `cost_usd`, `median_usd`) e a política
+  "Custo por post aprovado acima do normal" manda e-mail à equipe, no máximo um por hora. Para investigar:
+  `select step, status, model, cost_usd, error from generation_runs where brief_id = '<brief_id>'`.
 - Desenvolvimento local: `gcloud auth application-default login` (conta da BEZ) e as quatro variáveis
   no `.env.local`; `LOCAL_BLOB_DIR` guarda os PNGs numa pasta.
 
