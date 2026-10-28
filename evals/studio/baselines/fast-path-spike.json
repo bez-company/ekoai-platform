@@ -1,0 +1,65 @@
+{
+  "f1": {
+    "n": 6,
+    "design": 7.09,
+    "postaria": 3,
+    "p50_s": 109,
+    "max_s": 147,
+    "usd": 0.102,
+    "layout_issues": 26
+  },
+  "f2": {
+    "n": 6,
+    "design": 6.0,
+    "postaria": 4,
+    "p50_s": 78,
+    "max_s": 130,
+    "usd": 0.081,
+    "layout_issues": 47
+  },
+  "f3": {
+    "n": 6,
+    "design": 5.19,
+    "postaria": 2,
+    "p50_s": 85,
+    "max_s": 120,
+    "usd": 0.078,
+    "layout_issues": 39
+  },
+  "f4": {
+    "n": 6,
+    "design": 6.54,
+    "postaria": 3,
+    "p50_s": 39,
+    "max_s": 49,
+    "usd": 0.025,
+    "layout_issues": 62
+  },
+  "f5": {
+    "n": 6,
+    "design": 6.69,
+    "postaria": 3,
+    "p50_s": 50,
+    "max_s": 63,
+    "usd": 0.046,
+    "layout_issues": 25
+  },
+  "tpl-1": {
+    "n": 6,
+    "design": 6.56,
+    "postaria": 4,
+    "p50_s": 12,
+    "max_s": 50,
+    "usd": 0.015,
+    "layout_issues": 14
+  },
+  "tpl-2": {
+    "n": 6,
+    "design": 5.41,
+    "postaria": 3,
+    "p50_s": 35,
+    "max_s": 76,
+    "usd": 0.061,
+    "layout_issues": 10
+  }
+}
