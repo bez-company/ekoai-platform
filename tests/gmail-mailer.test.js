@@ -209,3 +209,34 @@ describe('GmailMailer: JWT, token e envio', () => {
     expect(calls.filter((c) => c.url.includes('gmail.googleapis.com'))).toHaveLength(0);
   });
 });
+
+describe('cabeçalho de marca e ícone embutido (BEZ-430)', () => {
+  const mail = { to: 'ana@empresa.com.br', accountName: 'Bez Company', inviterName: 'Matheus', role: 'admin', link: 'https://app.ekoai.com.br/convite/x' };
+
+  it('todo e-mail abre com o ícone e o nome Ekoai, antes do título', () => {
+    for (const r of [invitationMail(mail), accountDeletedMail({ to: 'a@b.co', accountName: 'X', deletedByName: null })]) {
+      expect(r.html).toContain('src="cid:ekoai-logo"');
+      expect(r.html.indexOf('>ekoai<')).toBeGreaterThan(-1);
+      expect(r.html.indexOf('>ekoai<')).toBeLessThan(r.html.indexOf('<h1'));
+      expect(r.inline).toHaveLength(1);
+    }
+  });
+
+  it('com imagem embutida a mensagem vira multipart/related com o texto e o HTML dentro', () => {
+    const r = invitationMail(mail);
+    const mime = buildMime({ from: { name: 'Ekoai', email: 'no-reply@ekoai.com.br' }, ...r, to: mail.to }, 'ekoai-boundary-teste');
+    expect(mime).toContain('Content-Type: multipart/related; boundary="ekoai-boundary-teste"');
+    expect(mime).toContain('Content-Type: multipart/alternative; boundary="ekoai-boundary-teste-alt"');
+    expect(mime).toContain('Content-ID: <ekoai-logo>');
+    expect(mime).toContain('Content-Type: image/png');
+    expect(partBody(mime, 'text/html')).toContain('Aceitar convite');
+    expect(partBody(mime, 'text/plain')).toContain(mail.link);
+    expect(mime.trim().endsWith('--ekoai-boundary-teste--')).toBe(true);
+  });
+
+  it('recusa imagem embutida com tipo ou Content-ID suspeito', () => {
+    const base = { from: { name: null, email: 'a@b.co' }, to: 'x@y.co', subject: 's', text: 't', html: 'h' };
+    expect(() => buildMime({ ...base, inline: [{ cid: 'a\r\nBcc: x', contentType: 'image/png', base64: 'AA==' }] }, 'boundary-12345')).toThrow('imagem embutida inválida');
+    expect(() => buildMime({ ...base, inline: [{ cid: 'ok', contentType: 'text/html', base64: 'AA==' }] }, 'boundary-12345')).toThrow('imagem embutida inválida');
+  });
+});

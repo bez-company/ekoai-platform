@@ -10,6 +10,8 @@ export type OutgoingMail = {
   subject: string;
   text: string;
   html: string;
+  // Imagem dentro da mensagem, citada no HTML por `cid:<cid>` (o ícone da marca).
+  inline?: { cid: string; contentType: string; base64: string }[];
 };
 
 const EMAIL = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
@@ -69,21 +71,41 @@ export function buildMime(mail: OutgoingMail, boundary: string): string {
   if (mail.replyTo && !isEmailAddress(mail.replyTo)) throw new Error('endereço de resposta inválido');
   if (!/^[A-Za-z0-9'()+_,./:=?-]{8,70}$/.test(boundary)) throw new Error('boundary inválido');
 
+  const inline = mail.inline ?? [];
+  for (const i of inline) if (!/^[A-Za-z0-9._-]{1,60}$/.test(i.cid) || !/^image\/(png|jpeg|gif)$/.test(i.contentType)) throw new Error('imagem embutida inválida');
+  const altBoundary = `${boundary}-alt`;
+
   const headers = [
     `From: ${formatSender(mail.from)}`,
     `To: ${mail.to}`,
     ...(mail.replyTo ? [`Reply-To: ${mail.replyTo}`] : []),
     `Subject: ${encodeWords(noLineBreak(mail.subject, 'Subject'))}`,
     'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: ${inline.length ? 'multipart/related' : 'multipart/alternative'}; boundary="${boundary}"`,
     // Resposta automática de outros sistemas (férias, caixa cheia) não deve voltar para quem convida.
     'Auto-Submitted: auto-generated',
   ];
 
-  const part = (type: string, body: string) =>
-    [`--${boundary}`, `Content-Type: ${type}; charset="UTF-8"`, 'Content-Transfer-Encoding: base64', '', base64Lines(body)].join('\r\n');
+  const part = (bound: string, type: string, body: string) =>
+    [`--${bound}`, `Content-Type: ${type}; charset="UTF-8"`, 'Content-Transfer-Encoding: base64', '', base64Lines(body)].join('\r\n');
 
-  return [...headers, '', part('text/plain', mail.text), part('text/html', mail.html), `--${boundary}--`, ''].join('\r\n');
+  if (!inline.length) return [...headers, '', part(boundary, 'text/plain', mail.text), part(boundary, 'text/html', mail.html), `--${boundary}--`, ''].join('\r\n');
+
+  const image = (i: { cid: string; contentType: string; base64: string }) =>
+    [`--${boundary}`, `Content-Type: ${i.contentType}; name="${i.cid}.png"`, 'Content-Transfer-Encoding: base64', `Content-ID: <${i.cid}>`, `Content-Disposition: inline; filename="${i.cid}.png"`, '', (i.base64.match(/.{1,76}/g) ?? ['']).join('\r\n')].join('\r\n');
+  return [
+    ...headers,
+    '',
+    `--${boundary}`,
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+    '',
+    part(altBoundary, 'text/plain', mail.text),
+    part(altBoundary, 'text/html', mail.html),
+    `--${altBoundary}--`,
+    ...inline.map(image),
+    `--${boundary}--`,
+    '',
+  ].join('\r\n');
 }
 
 export function base64url(text: string): string {
