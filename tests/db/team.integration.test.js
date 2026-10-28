@@ -30,11 +30,14 @@ async function cleanup() {
 beforeAll(async () => {
   await cleanup();
   for (let n = 1; n <= 8; n += 1) await admin.query('insert into users (id, email, name) values ($1, $2, $3)', [U(n), EMAIL(n), n === 1 ? 'Ana Ribeiro' : null]);
-  await admin.query('insert into tenants (id, name) values ($1, $2)', [TENANT, 'It Team']);
+  // O plano Time real não limita a equipe (migration 0051): o limite se testa num plano de 5 vagas só deste arquivo.
+  await admin.query("insert into plans (id, name, kind, max_seats, max_instagram_accounts) values ('it-team-seats', 'It Team', 'empresa', 5, 1) on conflict (id) do update set max_seats = 5");
+  await admin.query("insert into tenants (id, name, kind, plan_id) values ($1, $2, 'empresa', 'it-team-seats')", [TENANT, 'It Team']);
   await admin.query("insert into tenant_members (tenant_id, user_id, role) values ($1, $2, 'admin')", [TENANT, U(1)]);
 });
 afterAll(async () => {
   await cleanup();
+  await admin.query("delete from plans where id = 'it-team-seats'");
   await admin.end();
 });
 
@@ -165,6 +168,12 @@ describe('equipe', () => {
     const blocked = await rejects(team.createInvitation(t, ANA, { email: 'it-extra@example.test', role: 'viewer' }));
     expect(blocked).toBeInstanceOf(UserError);
     await team.cancelInvitation(t, ANA, inv.id);
+  });
+});
+
+describe('plano Time', () => {
+  it('não limita a equipe na fase de teste (migration 0051)', async () => {
+    expect(await one("select max_seats from plans where id = 'inicial'")).toEqual({ max_seats: 1000 });
   });
 });
 

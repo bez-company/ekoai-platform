@@ -4,14 +4,21 @@
 import type { Role } from './permissions';
 import type { InviteStatus } from './invitation-model';
 
-export type SeatUsage = { used: number; max: number; free: number; full: boolean; label: string };
+export type SeatUsage = { used: number; max: number; free: number; full: boolean; unlimited: boolean; label: string };
+
+// O teto da coluna `plans.max_seats` (migration 0051): plano com esse valor não limita a equipe.
+export const UNLIMITED_SEATS = 1000;
+
+export const seatLimitLabel = (used: number, maxSeats: number): string =>
+  maxSeats >= UNLIMITED_SEATS ? `${used} (sem limite)` : `${used} de ${maxSeats}`;
 
 export function seatUsage(input: { members: number; invitations: { status: InviteStatus }[]; maxSeats: number }): SeatUsage {
   const pending = input.invitations.filter((i) => i.status === 'pending').length;
   const used = input.members + pending;
+  const unlimited = input.maxSeats >= UNLIMITED_SEATS;
   const free = Math.max(0, input.maxSeats - used);
-  const unit = input.maxSeats === 1 ? 'pessoa' : 'pessoas';
-  return { used, max: input.maxSeats, free, full: used >= input.maxSeats, label: `${used} de ${input.maxSeats} ${unit}` };
+  const unit = used === 1 || (!unlimited && input.maxSeats === 1) ? 'pessoa' : 'pessoas';
+  return { used, max: input.maxSeats, free, full: !unlimited && used >= input.maxSeats, unlimited, label: unlimited ? `${used} ${unit}` : `${used} de ${input.maxSeats} ${unit}` };
 }
 
 // "Ana Souza" vira "AS"; sem nome, a primeira letra do e-mail.

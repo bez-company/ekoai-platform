@@ -7,6 +7,7 @@ import { ROLE_COPY } from '@/lib/auth-flow';
 import { getAccount } from '@/lib/console-accounts';
 import { KIND_LABEL, isAccountId } from '@/lib/console-model';
 import { fmtDate, fmtDateTime } from '@/lib/format';
+import { seatLimitLabel } from '@/lib/team-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export default async function ConsoleAccount({ params }: { params: Promise<{ id:
   if (!a) notFound();
   const u = a.usage;
   const usage: [string, string][] = [
-    ['Pessoas', `${u.seats} de ${a.plan.maxSeats}`],
+    ['Pessoas', seatLimitLabel(u.seats, a.plan.maxSeats)],
     ['Contas de Instagram', `${u.instagram} de ${a.plan.maxInstagramAccounts}`],
     ['Posts publicados', `${u.postsPublished} de ${a.plan.maxPostsPerMonth}`],
     ['Gerações com IA', String(u.generations)],
