@@ -86,8 +86,9 @@ module "ekoai" {
 
   # E-mail dos convites pelo Gmail API (BEZ-28, ADR 0027). Remetente e resposta são endereços do produto.
   # `mail_provider` só vira "gmail" depois dos passos do runbook (segredo, delegação de domínio, "Enviar e-mail
-  # como"): ligado antes, o convite falha em vez de devolver o link para copiar. Produção liga só depois da release que leva o GmailMailer para a `main` (a imagem de produção vem da `main`: com o provedor ligado e o código antigo, o convite falha) e da delegação do client ID da conta do app.
-  mail_provider = ""
+  # como"): ligado antes, o convite falha em vez de devolver o link para copiar. Ligado em 28/10/2026, depois da
+  # release que levou o GmailMailer para a `main` (a imagem de produção vem da `main`).
+  mail_provider = "gmail"
   mail_from     = "Ekoai <no-reply@ekoai.com.br>"
   mail_reply_to = "suporte@ekoai.com.br"
 
