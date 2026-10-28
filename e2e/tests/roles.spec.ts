@@ -32,7 +32,7 @@ test.describe.serial('papéis', () => {
 
     await page.goto('/configuracoes/equipe');
     await expect(page.getByRole('heading', { name: 'Equipe', level: 2 })).toBeVisible();
-    await expect(page.getByText('3 de 5 pessoas no plano Inicial')).toBeVisible();
+    await expect(page.getByText('3 de 5 pessoas no plano Time')).toBeVisible();
     // as três pessoas do seed, cada uma no seu papel
     await expect(page.getByText('criador@e2e.example.test')).toBeVisible();
     await expect(page.getByText('leitor@e2e.example.test')).toBeVisible();

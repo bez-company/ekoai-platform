@@ -8,6 +8,9 @@ export type PlanTier = 'individual' | 'time';
 // Conta "Só eu" é Individual; Empresa é Time (o plano `inicial` do banco, 5 pessoas, até a cobrança real existir).
 export const tierOf = (kind: AccountKind): PlanTier => (kind === 'pessoa' ? 'individual' : 'time');
 
+// Nome do plano na tela. O banco chama os planos de `Pessoa` e `Inicial`; quem usa o produto vê Individual e Time.
+export const TIER_NAME: Record<PlanTier, string> = { individual: 'Individual', time: 'Time' };
+
 export const TIER_COPY: Record<PlanTier, { title: string; summary: string }> = {
   individual: { title: 'Plano Individual', summary: 'Uma pessoa, um perfil. Você paga só pelos posts.' },
   time: { title: 'Plano Time', summary: 'Quem cria e quem aprova. O primeiro usuário é grátis e cada usuário adicional custa R$ 10 por mês.' },

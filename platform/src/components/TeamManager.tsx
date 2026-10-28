@@ -5,6 +5,7 @@
 // permite e repete a mensagem dele quando recusa (último administrador, limite de vagas...).
 
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Modal from './Modal';
 import { ErrorLine, Field, Spinner } from './auth/ui';
@@ -22,6 +23,8 @@ type Props = {
   planName: string;
   seats: SeatUsage;
   canInvite: boolean;
+  // Quem administra o plano (billing.manage) vê o caminho para o upgrade quando a conta é Individual.
+  canManagePlan: boolean;
 };
 
 type Dialog =
@@ -71,7 +74,7 @@ function RolePicker({ value, onChange, disabled }: { value: Role; onChange: (rol
   );
 }
 
-export default function TeamManager({ members, invitations, meId, planName, seats, canInvite }: Props) {
+export default function TeamManager({ members, invitations, meId, planName, seats, canInvite, canManagePlan }: Props) {
   const router = useRouter();
   const [modal, setModal] = useState<Dialog | null>(null);
   const [busy, setBusy] = useState(false);
@@ -162,9 +165,16 @@ export default function TeamManager({ members, invitations, meId, planName, seat
       )}
 
       {!canInvite && (
-        <p className="card py-3 text-sm text-muted">
-          Contas pessoais têm uma vaga, só para você. Para trabalhar em equipe, crie uma conta de empresa.
-        </p>
+        <div className="card flex flex-wrap items-center justify-between gap-3 py-3">
+          <p className="text-sm text-muted">
+            {canManagePlan ? 'O plano Individual tem uma vaga, só para você. Mude para o plano Time para convidar pessoas.' : 'O plano Individual tem uma vaga, só para você. Peça a quem administra a conta para mudar para o plano Time.'}
+          </p>
+          {canManagePlan && (
+            <Link href="/perfil/conta" className="btn-primary">
+              Ver planos
+            </Link>
+          )}
+        </div>
       )}
 
       <section aria-labelledby="members-title" className="space-y-2">
