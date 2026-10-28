@@ -1,7 +1,8 @@
 'use client';
 
 // AgendaActions.tsx: o botão "Horários" e o aviso de horário vazio da Agenda. O diálogo abre pelo botão
-// ou pela URL (?edit=slots, usado pelo Início e por Configurações); salvar recarrega a Agenda.
+// ou pela URL (?edit=slots, usado pelo Início e por Configurações); salvar recarrega a Agenda. O diálogo é desenhado
+// só pelo SlotsButton.
 
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -61,12 +62,11 @@ export function NoSlots({ canManage }: { canManage: boolean }) {
       <h2 className="text-lg font-semibold">Escolha quando publicar</h2>
       <p className="mx-auto max-w-md text-sm text-muted">Sem horários, os posts aprovados esperam na fila. Escolha os dias e as horas: cada horário é um post por semana.</p>
       {canManage ? (
-        <>
-          <button type="button" className="btn-primary" onClick={d.show}>
-            Escolher horários
-          </button>
-          {d.open && <SlotsDialog initial={[]} onClose={d.close} onSaved={d.saved} />}
-        </>
+        // Só dispara a URL (?edit=slots). Quem desenha o diálogo é o SlotsButton do topo da Agenda, que sempre existe
+        // para quem administra: com os dois desenhando, a conta sem horários mostrava dois diálogos sobrepostos (BEZ-327).
+        <button type="button" className="btn-primary" onClick={d.show}>
+          Escolher horários
+        </button>
       ) : (
         <p className="text-sm text-muted">Quem administra a conta escolhe os horários.</p>
       )}
