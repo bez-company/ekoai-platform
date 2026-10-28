@@ -12,6 +12,8 @@ import { kmsBox, socialTokenContext, type SecretBox } from './secret-box';
 import { ConnectError, REFRESH_WINDOW_DAYS } from './instagram-oauth-model';
 import type { ConnectedInstagram } from './instagram-oauth';
 import type { InstagramCredentials } from './channels/instagram';
+import { ConnectError as LinkedInConnectError, EXPIRING_REASON as LINKEDIN_EXPIRING_REASON, REFRESH_WINDOW_DAYS as LINKEDIN_REFRESH_WINDOW_DAYS, authorUrn as linkedinAuthorUrn } from './linkedin-oauth-model';
+import type { ConnectedLinkedIn } from './linkedin-oauth';
 
 // Único acesso cru ao banco deste módulo: os tokens não têm tenant_id, então não passam pelo tenantDb.
 const system = () => db();
@@ -117,17 +119,17 @@ export async function disconnectSocialAccount(t: TenantDb, userId: string | null
     .update('social_accounts', { status: 'revoked', status_reason: 'disconnected' })
     .eq('id', id)
     .neq('status', 'revoked')
-    .select('id,handle')
+    .select('id,handle,channel')
     .maybeSingle();
   if (error) throw new Error(`social_accounts: ${error.message}`);
   if (!data) return false;
-  await auditSafely(t, userId, 'social_account.disconnected', id, (data.handle as string | null) ?? null);
+  await auditSafely(t, userId, 'social_account.disconnected', id, (data.handle as string | null) ?? null, data.channel === 'linkedin' ? 'linkedin' : 'instagram');
   return true;
 }
 
-async function auditSafely(t: TenantDb, userId: string | null, action: string, id: string, handle: string | null): Promise<void> {
+async function auditSafely(t: TenantDb, userId: string | null, action: string, id: string, handle: string | null, channel: 'instagram' | 'linkedin' = 'instagram'): Promise<void> {
   try {
-    await auditTenant(t, { actorUserId: userId, action, targetType: 'social_account', targetId: id, metadata: { channel: 'instagram', handle } });
+    await auditTenant(t, { actorUserId: userId, action, targetType: 'social_account', targetId: id, metadata: { channel, handle } });
   } catch (e) {
     log('warn', 'social-accounts', 'auditoria não gravada', { action, reason: e instanceof Error ? e.message : String(e) });
   }
@@ -284,4 +286,159 @@ export async function revokeInstagramByExternalId(externalId: string, reason: 'm
     .select('id,tenant_id,handle');
   if (error) throw new Error(`social_accounts: ${error.message}`);
   return (data ?? []).map((r) => ({ id: String(r.id), tenantId: String(r.tenant_id), handle: (r.handle as string | null) ?? null }));
+}
+
+// ── LinkedIn (SPEC 028, BEZ-423): perfil pessoal, uma conexão por conta da Ekoai ──────────────────
+
+export type LinkedInCredentials = { token: string; authorUrn: string };
+
+// Grava a conexão do LinkedIn (nova ou a mesma reconectada) com o token e, se o LinkedIn deu, o refresh token, cifrados, numa transação só.
+// Conectar outro perfil substitui o anterior: a conta da Ekoai tem um LinkedIn por vez (o anterior é revogado e perde o token).
+export async function saveLinkedInConnection(
+  t: TenantDb,
+  input: { userId: string | null; connected: ConnectedLinkedIn },
+  box: SecretBox = kmsBox(),
+): Promise<{ id: string; handle: string | null }> {
+  const { connected } = input;
+  const live = await t.select('social_accounts', 'id,external_id').eq('channel', 'linkedin').neq('status', 'revoked');
+  if (live.error) throw new Error(`social_accounts: ${live.error.message}`);
+  const rows = (live.data ?? []) as { id: string; external_id: string }[];
+  const same = rows.find((r) => String(r.external_id) === connected.profile.memberId);
+  const replaced = rows.filter((r) => r !== same).map((r) => String(r.id));
+  const id = same ? String(same.id) : randomUUID();
+  const context = socialTokenContext(id);
+  const sealed = await box.seal(connected.accessToken, context);
+  const sealedRefresh = connected.refreshToken ? await box.seal(connected.refreshToken, context) : null;
+
+  const client = system();
+  if (!client.transaction) throw new Error('banco sem suporte a transação');
+  await client.transaction(async (tx) => {
+    const scoped = tenantDb(t.tenantId, tx);
+    for (const old of replaced) {
+      const revoked = await scoped.update('social_accounts', { status: 'revoked', status_reason: 'replaced' }).eq('id', old);
+      if (revoked.error) throw new Error(`social_accounts: ${revoked.error.message}`);
+    }
+    const fields = {
+      handle: connected.profile.name,
+      status: 'active',
+      status_reason: null,
+      scopes: connected.scopes,
+      expires_at: connected.expiresAt.toISOString(),
+      connected_by: input.userId,
+      refreshed_at: new Date().toISOString(),
+    };
+    const saved = same
+      ? await scoped.update('social_accounts', fields).eq('id', id)
+      : await scoped.insert('social_accounts', { id, channel: 'linkedin', external_id: connected.profile.memberId, ...fields });
+    if (saved.error) throw saved.error.code === '23505' ? new LinkedInConnectError('taken') : new Error(`social_accounts: ${saved.error.message}`);
+    const secret = await tx
+      .from('social_account_secrets')
+      .upsert({ social_account_id: id, access_token_ciphertext: sealed.ciphertext, refresh_token_ciphertext: sealedRefresh?.ciphertext ?? null, key_version: sealed.keyVersion }, { onConflict: 'social_account_id' });
+    if (secret.error) throw new Error(`social_account_secrets: ${secret.error.message}`);
+  });
+
+  await auditSafely(t, input.userId, 'social_account.connected', id, connected.profile.name, 'linkedin');
+  return { id, handle: connected.profile.name };
+}
+
+// O que a publicação usa: o LinkedIn ativo desta conta da Ekoai, com o autor do post. Sem conexão, ou vencido, falha com o próximo
+// passo e nunca cai no token de outra conta.
+export async function linkedinCredentials(t: TenantDb, box?: SecretBox, nowMs: number = Date.now()): Promise<LinkedInCredentials> {
+  const { data, error } = await t
+    .select('social_accounts', 'id,external_id,expires_at')
+    .eq('channel', 'linkedin')
+    .eq('status', 'active')
+    .order('connected_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  if (!data) throw new UserError('Nenhum LinkedIn conectado. Conecte em Configurações, Redes.');
+  const expires = iso(data.expires_at);
+  if (expires && new Date(expires).getTime() <= nowMs) throw new UserError('A conexão do LinkedIn venceu. Reconecte em Configurações, Redes.');
+  const token = await openToken(String(data.id), box);
+  return { token, authorUrn: linkedinAuthorUrn(String(data.external_id)) };
+}
+
+export type LinkedInRefreshTarget = RefreshTarget & { hasRefreshToken: boolean; expiringNotified: boolean };
+
+// Contas de LinkedIn ativas que vencem dentro da janela (ou já venceram e seguem ativas), com a marca de "já avisei" e se há refresh token.
+export async function listLinkedInRefreshTargets(nowMs: number = Date.now()): Promise<LinkedInRefreshTarget[]> {
+  const horizon = new Date(nowMs + LINKEDIN_REFRESH_WINDOW_DAYS * 86_400_000).toISOString();
+  const { data, error } = await system()
+    .from('social_accounts')
+    .select('id,tenant_id,handle,status,status_reason,expires_at,refreshed_at,connected_at')
+    .eq('channel', 'linkedin')
+    .eq('status', 'active')
+    .lte('expires_at', horizon)
+    .order('expires_at', { ascending: true })
+    .limit(REFRESH_BATCH);
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  const rows = data ?? [];
+  const withRefresh = new Set<string>();
+  if (rows.length) {
+    const secrets = await system().from('social_account_secrets').select('social_account_id').in('social_account_id', rows.map((r) => String(r.id))).not('refresh_token_ciphertext', 'is', null);
+    if (secrets.error) throw new Error(`social_account_secrets: ${secrets.error.message}`);
+    for (const s of secrets.data ?? []) withRefresh.add(String(s.social_account_id));
+  }
+  return rows.map((r) => ({
+    id: String(r.id),
+    tenantId: String(r.tenant_id),
+    handle: (r.handle as string | null) ?? null,
+    status: r.status as SocialAccountStatus,
+    expiresAt: iso(r.expires_at),
+    refreshedAt: iso(r.refreshed_at),
+    connectedAt: iso(r.connected_at),
+    hasRefreshToken: withRefresh.has(String(r.id)),
+    expiringNotified: r.status_reason === LINKEDIN_EXPIRING_REASON,
+  }));
+}
+
+// O refresh token decifrado de uma conta; null quando o LinkedIn não deu um.
+export async function openAccountRefreshToken(accountId: string, box?: SecretBox): Promise<string | null> {
+  const secret = await system().from('social_account_secrets').select('refresh_token_ciphertext').eq('social_account_id', accountId).maybeSingle();
+  if (secret.error) throw new Error(`social_account_secrets: ${secret.error.message}`);
+  const ciphertext = secret.data?.refresh_token_ciphertext;
+  if (!ciphertext) return null;
+  return (box ?? kmsBox()).open({ ciphertext: String(ciphertext) }, socialTokenContext(accountId));
+}
+
+// Grava o token renovado, o refresh token (o novo, ou o anterior) e o prazo novo, numa transação só. Só mexe em conta ainda ativa.
+export async function saveRefreshedLinkedIn(
+  target: Pick<RefreshTarget, 'id' | 'tenantId'>,
+  fresh: { accessToken: string; expiresAt: Date; refreshToken: string | null },
+  box: SecretBox = kmsBox(),
+): Promise<boolean> {
+  const context = socialTokenContext(target.id);
+  const sealed = await box.seal(fresh.accessToken, context);
+  const sealedRefresh = fresh.refreshToken ? await box.seal(fresh.refreshToken, context) : null;
+  const client = system();
+  if (!client.transaction) throw new Error('banco sem suporte a transação');
+  return client.transaction(async (tx) => {
+    const updated = await tenantDb(target.tenantId, tx)
+      .update('social_accounts', { expires_at: fresh.expiresAt.toISOString(), refreshed_at: new Date().toISOString(), status_reason: null })
+      .eq('id', target.id)
+      .eq('status', 'active')
+      .select('id')
+      .maybeSingle();
+    if (updated.error) throw new Error(`social_accounts: ${updated.error.message}`);
+    if (!updated.data) return false;
+    const secret = await tx
+      .from('social_account_secrets')
+      .upsert({ social_account_id: target.id, access_token_ciphertext: sealed.ciphertext, refresh_token_ciphertext: sealedRefresh?.ciphertext ?? null, key_version: sealed.keyVersion }, { onConflict: 'social_account_id' });
+    if (secret.error) throw new Error(`social_account_secrets: ${secret.error.message}`);
+    return true;
+  });
+}
+
+// Marca que o aviso de vencimento já saiu, para não repetir todo dia. Devolve true só na primeira vez.
+export async function markExpiringNotified(target: Pick<RefreshTarget, 'id' | 'tenantId'>): Promise<boolean> {
+  const { data, error } = await tenantDb(target.tenantId)
+    .update('social_accounts', { status_reason: LINKEDIN_EXPIRING_REASON })
+    .eq('id', target.id)
+    .eq('status', 'active')
+    .is('status_reason', null)
+    .select('id')
+    .maybeSingle();
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  return Boolean(data);
 }

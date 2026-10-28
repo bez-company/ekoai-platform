@@ -168,9 +168,26 @@ uma migration em paralelo renumera a sua antes de mergear.
 | `AUTH_SECRET`, `PLATFORM_PASSWORD` | Secret Manager (Cloud Run) | trocar o valor e redeploy; as sessões caem |
 | `CRON_SECRET` | Secret Manager e Cloud Scheduler | trocar nos dois; sem ele o endpoint do cron recusa tudo |
 | `DATABASE_URL` (senha do banco) | Secret Manager | trocar a senha do usuário no Cloud SQL e a versão do segredo |
-| tokens do Instagram e do LinkedIn | Secret Manager (até o R5 da SPEC 011 levar para o banco, cifrados) | o job `refresh-tokens` renova; vence em ~60 dias |
+| tokens do Instagram e do LinkedIn **de cada conta** | banco, cifrados com Cloud KMS (`social_account_secrets`) | Instagram: `/api/cron/refresh-instagram`. LinkedIn: `/api/cron/refresh-linkedin` renova se o LinkedIn deu refresh token, senão avisa antes de vencer (~60 dias) |
+| `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` (o app do LinkedIn, um só para todas as contas) | Secret Manager (Cloud Run) | gerar outro secret no LinkedIn Developers, nova versão do segredo, redeploy; contas conectadas seguem valendo |
 
 Segredo colado em chat ou log: girar sempre. **Pendente:** inventário com data da última rotação.
+
+## Conectar o LinkedIn (SPEC 028, BEZ-423)
+
+Cada conta da Ekoai conecta o próprio perfil pessoal em Configurações › Redes; a plataforma publica no nome dela, depois da aprovação de cada post.
+O que precisa existir uma vez, no ambiente (nada disto entra no repositório):
+
+1. Um app no LinkedIn Developers, ligado a uma Company Page da BEZ, com os produtos **Sign In with LinkedIn using OpenID Connect** e
+   **Share on LinkedIn** (escopos `openid profile w_member_social`). A Community Management API exige revisão e não entra nesta fase.
+2. Em Auth › Redirect URLs: `https://<host do ambiente>/api/linkedin/callback` (staging e prod, cada um com o seu host).
+3. O Client ID e o Client Secret no Secret Manager, mapeados em `LINKEDIN_CLIENT_ID` e `LINKEDIN_CLIENT_SECRET` no Cloud Run
+   (`infra/terraform/modules/ekoai/locals.tf`). Sem as duas, a tela mostra "A conexão com o LinkedIn ainda não está ativa neste ambiente".
+4. O job `refresh-linkedin` do Cloud Scheduler (todo dia, 09:10 UTC) já vem no Terraform.
+
+O LinkedIn nem sempre dá refresh token. Sem ele, o acesso vale ~60 dias: 15 dias antes os administradores recebem o aviso "O acesso ao
+LinkedIn vence em breve" (uma vez) e, vencido, a conta vira "precisa reconectar" e os posts do LinkedIn esperam; o Instagram não é afetado.
+Reconectar é um clique em Configurações › Redes.
 
 ## Banco e backup
 

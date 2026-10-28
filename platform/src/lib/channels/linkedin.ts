@@ -7,31 +7,23 @@ const API_BASE = 'https://api.linkedin.com/rest';
 // LinkedIn desativa cada versão ~1 ano depois; versão vencida devolve erro em toda chamada.
 const VERSION = process.env.LINKEDIN_VERSION || '202610';
 
-function token(): string {
-  const t = process.env.LINKEDIN_ACCESS_TOKEN;
-  if (!t) throw new Error('LINKEDIN_ACCESS_TOKEN ausente');
-  return t;
-}
+// A credencial da conta que publica (SPEC 028, BEZ-423): o token e o autor (`urn:li:person:<id>`) vêm da conexão da conta, cifrados no
+// banco, e nunca de variável de ambiente. Quem chama pega com `linkedinCredentials(t)`.
+export type LinkedInCreds = { token: string; authorUrn: string };
 
-function authorUrn(): string {
-  const urn = process.env.LINKEDIN_AUTHOR_URN;
-  if (!urn) throw new Error('LINKEDIN_AUTHOR_URN ausente (formato: urn:li:person:XXX)');
-  return urn;
-}
-
-function headers(extra: Record<string, string> = {}): Record<string, string> {
+function headers(creds: LinkedInCreds, extra: Record<string, string> = {}): Record<string, string> {
   return {
-    Authorization: `Bearer ${token()}`,
+    Authorization: `Bearer ${creds.token}`,
     'LinkedIn-Version': VERSION,
     'X-Restli-Protocol-Version': '2.0.0',
     ...extra,
   };
 }
 
-async function apiJson(method: string, endpoint: string, body?: unknown): Promise<any> {
+async function apiJson(creds: LinkedInCreds, method: string, endpoint: string, body?: unknown): Promise<any> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method,
-    headers: headers({ 'Content-Type': 'application/json' }),
+    headers: headers(creds, { 'Content-Type': 'application/json' }),
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -45,9 +37,9 @@ async function apiJson(method: string, endpoint: string, body?: unknown): Promis
   return text ? JSON.parse(text) : {};
 }
 
-async function uploadImageFromUrl(imageUrl: string): Promise<string> {
-  const init = await apiJson('POST', '/images?action=initializeUpload', {
-    initializeUploadRequest: { owner: authorUrn() },
+async function uploadImageFromUrl(creds: LinkedInCreds, imageUrl: string): Promise<string> {
+  const init = await apiJson(creds, 'POST', '/images?action=initializeUpload', {
+    initializeUploadRequest: { owner: creds.authorUrn },
   });
   const uploadUrl = init.value?.uploadUrl;
   const imageUrn = init.value?.image;
@@ -67,14 +59,15 @@ async function uploadImageFromUrl(imageUrl: string): Promise<string> {
 // resposta a um comentário: o alvo do path vira o comentário. URNs vão codificadas no path.
 // Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/comments-api
 export async function commentOnPost(
+  creds: LinkedInCreds,
   postUrn: string,
   text: string,
   { parentComment }: { parentComment?: string | null } = {},
 ): Promise<{ id: string | null }> {
   const target = parentComment || postUrn;
-  const body: Record<string, unknown> = { actor: authorUrn(), object: postUrn, message: { text } };
+  const body: Record<string, unknown> = { actor: creds.authorUrn, object: postUrn, message: { text } };
   if (parentComment) body.parentComment = parentComment;
-  const r = await apiJson('POST', `/socialActions/${encodeURIComponent(target)}/comments`, body);
+  const r = await apiJson(creds, 'POST', `/socialActions/${encodeURIComponent(target)}/comments`, body);
   return { id: r?.id ?? null };
 }
 
@@ -90,6 +83,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Documento e vídeo são processados de forma assíncrona depois do upload. Espera ficar
 // AVAILABLE (até ~20s, cabe no maxDuration do cron); se não ficar, tenta postar mesmo assim.
 async function waitAvailable(
+  creds: LinkedInCreds,
   resource: 'documents' | 'videos',
   urn: string,
   tries = 10,
@@ -98,7 +92,7 @@ async function waitAvailable(
   const label = resource === 'documents' ? 'o PDF' : 'o vídeo';
   let status = 'UNKNOWN';
   for (let i = 0; i < tries; i += 1) {
-    const asset = await apiJson('GET', `/${resource}/${encodeURIComponent(urn)}`);
+    const asset = await apiJson(creds, 'GET', `/${resource}/${encodeURIComponent(urn)}`);
     status = asset?.status ?? 'UNKNOWN';
     if (status === 'AVAILABLE') return status;
     if (status === 'PROCESSING_FAILED') {
@@ -109,9 +103,9 @@ async function waitAvailable(
   return status;
 }
 
-async function uploadDocumentFromUrl(documentUrl: string): Promise<string> {
-  const init = await apiJson('POST', '/documents?action=initializeUpload', {
-    initializeUploadRequest: { owner: authorUrn() },
+async function uploadDocumentFromUrl(creds: LinkedInCreds, documentUrl: string): Promise<string> {
+  const init = await apiJson(creds, 'POST', '/documents?action=initializeUpload', {
+    initializeUploadRequest: { owner: creds.authorUrn },
   });
   const uploadUrl = init.value?.uploadUrl;
   const documentUrn = init.value?.document;
@@ -121,7 +115,7 @@ async function uploadDocumentFromUrl(documentUrl: string): Promise<string> {
   if (!pdfRes.ok) throw new Error(`Falha ao baixar PDF ${documentUrl}: ${pdfRes.status}`);
   const buffer = Buffer.from(await pdfRes.arrayBuffer());
 
-  const upRes = await fetch(uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${token()}` }, body: buffer });
+  const upRes = await fetch(uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${creds.token}` }, body: buffer });
   if (!upRes.ok) throw new Error(`Falha upload PDF LinkedIn: ${upRes.status} ${await upRes.text()}`);
   return documentUrn;
 }
@@ -129,14 +123,15 @@ async function uploadDocumentFromUrl(documentUrl: string): Promise<string> {
 // Carrossel do LinkedIn = post de documento (PDF, uma página por slide).
 // Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/documents-api
 export async function publishDocument(
+  creds: LinkedInCreds,
   text: string,
   documentUrl: string,
   title?: string | null,
 ): Promise<{ id: string; channel: 'linkedin'; document: string; documentStatus: string }> {
-  const documentUrn = await uploadDocumentFromUrl(documentUrl);
-  const documentStatus = await waitAvailable('documents', documentUrn);
-  const r = await apiJson('POST', '/posts', {
-    author: authorUrn(),
+  const documentUrn = await uploadDocumentFromUrl(creds, documentUrl);
+  const documentStatus = await waitAvailable(creds, 'documents', documentUrn);
+  const r = await apiJson(creds, 'POST', '/posts', {
+    author: creds.authorUrn,
     commentary: text,
     visibility: 'PUBLIC',
     distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
@@ -147,12 +142,12 @@ export async function publishDocument(
   return { id: r.id, channel: 'linkedin', document: documentUrn, documentStatus };
 }
 
-export async function publishText(text: string, imageUrl?: string | null): Promise<{ id: string; channel: 'linkedin' }> {
+export async function publishText(creds: LinkedInCreds, text: string, imageUrl?: string | null): Promise<{ id: string; channel: 'linkedin' }> {
   let mediaUrn: string | null = null;
-  if (imageUrl) mediaUrn = await uploadImageFromUrl(imageUrl);
+  if (imageUrl) mediaUrn = await uploadImageFromUrl(creds, imageUrl);
 
   const body: Record<string, unknown> = {
-    author: authorUrn(),
+    author: creds.authorUrn,
     commentary: text,
     visibility: 'PUBLIC',
     distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
@@ -161,20 +156,20 @@ export async function publishText(text: string, imageUrl?: string | null): Promi
   };
   if (mediaUrn) body.content = { media: { id: mediaUrn } };
 
-  const r = await apiJson('POST', '/posts', body);
+  const r = await apiJson(creds, 'POST', '/posts', body);
   return { id: r.id, channel: 'linkedin' };
 }
 
 // Vídeo (SPEC 005 R2): initializeUpload devolve as partes (4 MB cada); cada PUT devolve um
 // ETag, que o finalizeUpload recebe na mesma ordem. MP4, de 3 s a 30 min.
 // Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/videos-api
-export async function uploadVideoFromUrl(videoUrl: string): Promise<string> {
+export async function uploadVideoFromUrl(creds: LinkedInCreds, videoUrl: string): Promise<string> {
   const res = await fetch(videoUrl);
   if (!res.ok) throw new Error(`Falha ao baixar vídeo ${videoUrl}: ${res.status}`);
   const bytes = new Uint8Array(await res.arrayBuffer());
 
-  const init = await apiJson('POST', '/videos?action=initializeUpload', {
-    initializeUploadRequest: { owner: authorUrn(), fileSizeBytes: bytes.length, uploadCaptions: false, uploadThumbnail: false },
+  const init = await apiJson(creds, 'POST', '/videos?action=initializeUpload', {
+    initializeUploadRequest: { owner: creds.authorUrn, fileSizeBytes: bytes.length, uploadCaptions: false, uploadThumbnail: false },
   });
   const videoUrn = init.value?.video;
   const parts: { uploadUrl: string; firstByte: number; lastByte: number }[] = init.value?.uploadInstructions || [];
@@ -193,21 +188,22 @@ export async function uploadVideoFromUrl(videoUrl: string): Promise<string> {
     etags.push(etag);
   }
 
-  await apiJson('POST', '/videos?action=finalizeUpload', {
+  await apiJson(creds, 'POST', '/videos?action=finalizeUpload', {
     finalizeUploadRequest: { video: videoUrn, uploadToken: init.value?.uploadToken ?? '', uploadedPartIds: etags },
   });
   return videoUrn;
 }
 
 export async function publishVideo(
+  creds: LinkedInCreds,
   text: string,
   videoUrl: string,
   title?: string | null,
 ): Promise<{ id: string; channel: 'linkedin'; video: string; videoStatus: string }> {
-  const videoUrn = await uploadVideoFromUrl(videoUrl);
-  const videoStatus = await waitAvailable('videos', videoUrn);
-  const r = await apiJson('POST', '/posts', {
-    author: authorUrn(),
+  const videoUrn = await uploadVideoFromUrl(creds, videoUrl);
+  const videoStatus = await waitAvailable(creds, 'videos', videoUrn);
+  const r = await apiJson(creds, 'POST', '/posts', {
+    author: creds.authorUrn,
     commentary: text,
     visibility: 'PUBLIC',
     distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },

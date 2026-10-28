@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { uploadVideoFromUrl } from '../platform/src/lib/channels/linkedin.ts';
+
+// A credencial vem da conta conectada (SPEC 028, BEZ-423), não do ambiente.
+const CREDS = { token: 'tok', authorUrn: 'urn:li:person:abc' };
 import { parseApproveIdea } from '../platform/src/lib/ideas-model.ts';
 import { canAutoPublish } from '../platform/src/lib/capabilities.ts';
 
@@ -18,8 +21,6 @@ describe('matriz de capacidades', () => {
 
 describe('vídeo no LinkedIn', () => {
   beforeEach(() => {
-    vi.stubEnv('LINKEDIN_ACCESS_TOKEN', 'tok');
-    vi.stubEnv('LINKEDIN_AUTHOR_URN', 'urn:li:person:abc');
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -49,7 +50,7 @@ describe('vídeo no LinkedIn', () => {
       return responses.shift()();
     }));
 
-    await expect(uploadVideoFromUrl('https://cdn/v.mp4')).resolves.toBe('urn:li:video:V1');
+    await expect(uploadVideoFromUrl(CREDS, 'https://cdn/v.mp4')).resolves.toBe('urn:li:video:V1');
     expect(JSON.parse(calls[1].init.body).initializeUploadRequest).toMatchObject({ owner: 'urn:li:person:abc', fileSizeBytes: 10 });
     expect(calls[2].init.body).toHaveLength(6);
     expect(calls[3].init.body).toHaveLength(4);
@@ -63,6 +64,6 @@ describe('vídeo no LinkedIn', () => {
       () => new Response(null, { status: 200 }),
     ];
     vi.stubGlobal('fetch', vi.fn(async () => responses.shift()()));
-    await expect(uploadVideoFromUrl('https://cdn/v.mp4')).rejects.toThrow(/ETag/);
+    await expect(uploadVideoFromUrl(CREDS, 'https://cdn/v.mp4')).rejects.toThrow(/ETag/);
   });
 });

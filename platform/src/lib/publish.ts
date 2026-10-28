@@ -18,7 +18,7 @@ import { track } from './analytics';
 import { tenantDb, type TenantDb } from './tenant-db';
 import { notify, channelName } from './notifications';
 import * as instagram from './channels/instagram';
-import { instagramCredentials } from './social-accounts';
+import { instagramCredentials, linkedinCredentials } from './social-accounts';
 import * as linkedin from './channels/linkedin';
 import * as x from './channels/x';
 import { LINK_POLICY, linkCommentText } from './utm';
@@ -164,13 +164,15 @@ async function publishToChannel(t: TenantDb, s: ScheduledPost, hooks: instagram.
     return result;
   }
   if (s.channel === 'linkedin') {
+    // O token e o autor são os do perfil que a conta conectou; sem conexão (ou vencida) a publicação falha com o próximo passo.
+    const creds = await linkedinCredentials(t);
     const result: Record<string, unknown> = s.video_url
-      ? await linkedin.publishVideo(caption, s.video_url, s.variation?.hook)
+      ? await linkedin.publishVideo(creds, caption, s.video_url, s.variation?.hook)
       : s.document_url
-        ? await linkedin.publishDocument(caption, s.document_url, s.variation?.hook)
-        : await linkedin.publishText(caption, s.image_url);
+        ? await linkedin.publishDocument(creds, caption, s.document_url, s.variation?.hook)
+        : await linkedin.publishText(creds, caption, s.image_url);
     if (LINK_POLICY.linkedin === 'first_comment' && s.utm?.url && result.id) {
-      result.link_comment = await postLinkComment(t, String(result.id), linkCommentText(s.utm));
+      result.link_comment = await postLinkComment(t, creds, String(result.id), linkCommentText(s.utm));
     }
     return result;
   }
@@ -221,9 +223,9 @@ async function postLinkReply(t: TenantDb, tweetId: string, text: string): Promis
 
 // O post já está no ar: falha no comentário NÃO pode virar retry (duplicaria o post).
 // Registra o erro no resultado e avisa; o link pode ser colado à mão.
-async function postLinkComment(t: TenantDb, postUrn: string, text: string): Promise<Record<string, unknown>> {
+async function postLinkComment(t: TenantDb, creds: linkedin.LinkedInCreds, postUrn: string, text: string): Promise<Record<string, unknown>> {
   try {
-    return { ok: true, ...(await linkedin.commentOnPost(postUrn, text)) };
+    return { ok: true, ...(await linkedin.commentOnPost(creds, postUrn, text)) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await notify(t, {

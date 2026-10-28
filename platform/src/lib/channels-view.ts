@@ -44,3 +44,26 @@ export function instagramView(input: InstagramViewInput): InstagramView {
   }
   return { kind: 'none', canConnect: true, blockedReason: null };
 }
+
+// LinkedIn (SPEC 028, BEZ-423): perfil pessoal, um por conta da Ekoai, sem limite de plano. O nome do perfil faz o papel do @.
+export type LinkedInView =
+  | { kind: 'none'; canConnect: boolean; blockedReason: string | null }
+  | { kind: 'connected'; id: string; handle: string | null; daysLeft: number | null; expiringSoon: boolean }
+  | { kind: 'reauth'; id: string; handle: string | null };
+
+export type LinkedInViewInput = { accounts: readonly SocialAccount[]; configured: boolean; canManage: boolean; nowMs: number };
+
+export function linkedinView(input: LinkedInViewInput): LinkedInView {
+  const live = input.accounts.filter((a) => a.channel === 'linkedin' && a.status !== 'revoked');
+  const current = live.find((a) => a.status === 'active') ?? live[0];
+
+  if (current) {
+    const daysLeft = daysUntil(current.expiresAt, input.nowMs);
+    if (current.status === 'reauth_required' || daysLeft === 0) return { kind: 'reauth', id: current.id, handle: current.handle };
+    return { kind: 'connected', id: current.id, handle: current.handle, daysLeft, expiringSoon: daysLeft !== null && daysLeft <= EXPIRING_SOON_DAYS };
+  }
+
+  if (!input.canManage) return { kind: 'none', canConnect: false, blockedReason: 'Só administradores conectam o LinkedIn. Peça a quem administra a conta.' };
+  if (!input.configured) return { kind: 'none', canConnect: false, blockedReason: 'A conexão com o LinkedIn ainda não está ativa neste ambiente. Avise o suporte.' };
+  return { kind: 'none', canConnect: true, blockedReason: null };
+}
