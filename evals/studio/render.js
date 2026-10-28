@@ -82,6 +82,19 @@ function withFonts(html) {
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => `${m}${style}`) : `${style}${html}`;
 }
 
+// Ajuste de corpo dos templates: todo elemento com data-fit encolhe o texto (6% por passo, até 60%) enquanto ele não couber
+// na caixa. É código nosso, não do designer: o template só precisa dar à caixa um tamanho fixo.
+function autofit() {
+  for (const el of document.querySelectorAll('[data-fit]')) {
+    const start = parseFloat(getComputedStyle(el).fontSize);
+    let size = start;
+    while ((el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) && size > start * 0.6) {
+      size *= 0.94;
+      el.style.fontSize = `${size}px`;
+    }
+  }
+}
+
 // Roda dentro da página: lista cada elemento com texto próprio, onde ele está e se sai da margem do feed.
 function auditPage({ width, height, margin }) {
   const out = [];
@@ -261,6 +274,7 @@ export async function renderHtml(html, { ratio = '4:5', assets, logos } = {}) {
     page.on('request', (req) => (req.url().startsWith('data:') || req.url().startsWith('about:') ? req.continue() : req.abort()));
     await page.setContent(doc, { waitUntil: 'load', timeout: 30_000 });
     await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(autofit);
     const texts = await page.evaluate(auditPage, { width: WIDTH, height, margin: MARGIN });
     const logoIssues = await checkLogos(page, { sameFile: !!logos && logos['on-light'] === logos['on-dark'] });
     const collisionIssues = await checkCollisions(page, texts);

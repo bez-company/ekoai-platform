@@ -67,7 +67,7 @@ export function brandBlock(company) {
   return lines.join('\n');
 }
 
-const TEXT_RULES = `Regras de texto (valem para tudo o que for escrito):
+export const TEXT_RULES = `Regras de texto (valem para tudo o que for escrito):
 - Português do Brasil com acentuação correta. Sentence case (só a inicial maiúscula e nomes próprios), nunca Title Case.
 - Frase curta e concreta. Sem clichê de marketing (soluções completas, o melhor da região, transforme seu negócio, venha conferir, você merece), sem promessa de resultado, sem "garantia", sem exclamação em série, sem emoji na imagem.
 - Sem travessão nem meia-risca como pontuação (use vírgula, ponto ou dois-pontos).
@@ -233,7 +233,7 @@ function parseHtmlReply(text) {
   return { notes, regen, html };
 }
 
-export async function designer({ company, request, copy, art, territory, ratio, images, feedback = null, temperature = 0.9, thinking = 'medium', step = 'designer', ledger }) {
+export async function designer({ company, request, copy, art, territory, ratio, images, feedback = null, temperature = 0.9, thinking = 'medium', step = 'designer', model = MODELS.smart, ledger }) {
   const refs = loadExemplars();
   const prompt = `Você é o designer da agência. Implementa a direção de arte em HTML/CSS com acabamento de estúdio. Você enxerga as imagens geradas (anexadas) e compõe em volta delas.
 
@@ -249,7 +249,7 @@ DIREÇÃO DE ARTE
 - Tipografia: ${JSON.stringify(art.typography)}
 - Acabamento: ${(art.details ?? []).join('; ')}
 - Logo: ${JSON.stringify(art.logo)}
-- Imagens prontas (ids para usar em {{asset:ID}}): ${images.length ? images.map((i) => `${i.id} (${i.role})`).join('; ') : 'nenhuma, a peça é desenhada em código'}
+- Imagens prontas (ids para usar em {{asset:ID}}): ${images.length ? images.map((i) => `${i.id} (${i.role})${i.png ? '' : ' [ainda sendo gerada: você não a vê; deixe um espaço livre e legível para o texto, com véu ou área sólida atrás dele, e use object-fit:cover]'}`).join('; ') : 'nenhuma, a peça é desenhada em código'}
 
 TEXTOS APROVADOS
 - headline: ${copy.headline}
@@ -266,8 +266,8 @@ Formato da resposta (sem mais nada):
 2 a 4 linhas: a decisão de design mais importante e o que você fez para a peça não parecer template.
 ===HTML===
 <!doctype html>...`;
-  const inputs = [...images.map((i) => ({ bytes: i.png, label: `Imagem gerada "${i.id}":` })), ...refs.map((r) => ({ bytes: r.bytes, label: `Referência de nível "${r.name}":` }))];
-  const { text } = await ask({ model: MODELS.smart, prompt, images: inputs, temperature, thinking, ledger, step });
+  const inputs = [...images.filter((i) => i.png).map((i) => ({ bytes: i.png, label: `Imagem gerada "${i.id}":` })), ...refs.map((r) => ({ bytes: r.bytes, label: `Referência de nível "${r.name}":` }))];
+  const { text } = await ask({ model, prompt, images: inputs, temperature, thinking, ledger, step });
   return parseHtmlReply(text);
 }
 

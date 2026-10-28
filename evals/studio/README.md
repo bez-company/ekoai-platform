@@ -117,6 +117,27 @@ Outros resultados:
 Decisões para a F1: manter marketing, diretor e redator em Pro; manter 2 rascunhos até haver mais amostra; incluir a memória
 de variação; v3 (sem marketing e diretor) fica como opção de um "autoral rápido".
 
+## Spike do caminho rápido (BEZ-447, `baselines/fast-path-spike.json`)
+
+O Matheus exigiu segundos e custo bem menor (R$ 3,30 por post é inviável). Testados em 6 pedidos (n pequeno, juiz de design):
+
+| Caminho | Design | Tempo p50 (máx.) | Custo | Defeitos medidos (6 peças) |
+|---|---|---|---|---|
+| Gerador atual (SVG) | 5,8 | segundos | ~US$ 0,01 | n/d |
+| Cadeia completa (estúdio) | 8,4 | minutos | US$ 0,56 | ~0 depois do conserto |
+| `f1` plano + HTML, Flash, imagem Pro | 7,1 | 109 s (147) | US$ 0,10 | 26 |
+| `f4` Flash, imagem Flash em paralelo | 6,5 | 39 s (49) | US$ 0,025 | 62 |
+| `f5` Flash, imagem Flash antes | 6,7 | 50 s (63) | US$ 0,046 | 25 |
+| `f3` Pro com pouco raciocínio | 5,2 | 85 s (120) | US$ 0,08 | 39 |
+| Template com slots, 10 templates | 6,6 | 12 s (50) | US$ 0,015 | 14 |
+| Template com slots, 8 templates, com 2ª tentativa | 5,4 | 35 s (76) | US$ 0,06 | 10 |
+
+Leitura: sem o laço de crítica e conserto a nota cai de 8,4 para 5 a 7, e o tempo só chega a segundos sem imagem de IA
+(um post sem imagem sai em 19 s por US$ 0,014). A imagem do Pro leva de 60 a 110 s; a do Flash, de 10 a 30 s. Template com
+slots é o mais rápido e barato, mas com 8 a 10 templates o casamento entre pedido e template falha (nota de 3,3 a 8,2).
+A biblioteca precisa ser grande e com lint (texto fixo fora dos slots, caixa que corta) antes de valer; isso custa
+cerca de US$ 0,56 por template na cadeia completa. Latência do modelo varia muito com a carga (o mesmo passo levou de 5 a 72 s).
+
 ## Limites
 
 - O juiz é um modelo e erra; o estúdio e o juiz são da mesma família de modelo, o que pode inflar a nota do
