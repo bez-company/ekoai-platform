@@ -1,745 +1,665 @@
 'use client';
 
-// Studio.tsx: o Studio de edição do post (SPEC 024, BEZ-315; protótipo v9 aprovado em 21/10/2026). Tela própria
-// com a imagem grande, a lista de elementos à esquerda e as propriedades do elemento escolhido à direita; no
-// celular os elementos viram chips e as ações vão para a barra de baixo. Faz o que o motor já faz (texto, cor,
-// logo, layout, versões), pelas mesmas rotas do ajuste rápido da SPEC 019: a prévia é desenhada pelo servidor
-// (o mesmo motor do PNG final) e não grava nada; Desfazer, Refazer e Padrão são só da tela; Confirmar salva uma
-// versão. Dois editores: cada gravação diz de qual versão partiu, e o servidor devolve 409 com quem salvou antes.
-// O revisor por regra trava o Confirmar (o servidor repete a conferência ao salvar). Nada aqui chama o modelo de
-// imagem. "Pedir à Ekoai" é o Pedir ajuste (BEZ-193) sobre a imagem.
+// Studio.tsx: o Studio como editor livre, no estilo do Canva (SPEC 027, BEZ-381; protótipo v21 aprovado em 27/10/2026). O post vira uma
+// lista de camadas (texto, forma, logo): arrastar, redimensionar pelas alças, girar, escrever direto na imagem, inserir, ordenar,
+// travar e esconder. O desenho é o do servidor (lib/design/scene.ts, o mesmo SVG); a tela só liga o ponteiro às contas puras de
+// lib/design/scene-edit.ts. Nada aqui chama o modelo. Confirmar grava a cena como uma versão (PUT /design/scene); o revisor do
+// servidor repete a conferência e o 409 diz quem salvou antes. Embaixo ficam o pedido em texto livre e as versões (StudioExtras).
+// No celular os elementos viram chips e as ações vão para a barra de baixo.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '@/components/auth/ui';
-import AskAdjust from '@/components/posts/AskAdjust';
-import { fmtDateTime } from '@/lib/format';
+import Modal from '@/components/Modal';
+import Select from '@/components/ui/Select';
+import StudioExtras from '@/components/studio/StudioExtras';
+import { contrast } from '@/lib/design/color';
+import { FONTS, type FontFamily } from '@/lib/design/font-metrics';
+import { layerHeight, sceneSvg, type Scene, type SceneLayer, type SceneLogoVariant, type TextLayer } from '@/lib/design/scene';
 import {
-  changesOf,
-  contrastTone,
-  cornerOf,
-  edit,
-  fmtRatio,
-  LAYOUT_LABEL,
-  redo,
-  resetTo,
-  startHistory,
-  summaryOf,
-  undo,
-  withColor,
-  withCorner,
-  withHidden,
-  withItems,
-  withKicker,
-  withLayout,
-  withSub,
-  withTitle,
-  type ColorSlot,
-  type EditableDesign,
-  type History,
-} from '@/lib/design-edit-view';
-import type { DesignState, RevisionView } from '@/lib/post-design-revisions';
+  alignLayers, boxOf, distributeLayers, duplicateLayers, liveIssues, moveLayers, newShape, newText, reorderLayer, resizeLayer, rotateLayer, snapMove, unionBox, updateLayer,
+  type AlignMode, type Guide, type Handle,
+} from '@/lib/design/scene-edit';
+import type { DesignState, SceneView } from '@/lib/post-design-revisions';
 
 export type Swatch = { label: string; hex: string };
-type Issue = { rule: string; message: string; where: string };
-type Preview = { image: string; issues: Issue[]; blocking: Issue[]; contrasts: Record<string, number> };
-type Conflict = { message: string; current: { version: number; summary: string; author: string | null } | null };
-type Proposed = { id: string; title: string; explanation: string };
-type Wish = 'move' | 'resize' | 'other';
-type El = 'title' | 'kicker' | 'sub' | 'items' | 'logo' | 'layout';
+type Status = 'idle' | 'saving' | 'error' | 'conflict';
+type Drag = { kind: 'move' | 'resize' | 'rot'; handle?: Handle; start: { x: number; y: number }; base: Scene; ids: string[]; moved: boolean };
 
-const CORNERS: { id: 'tl' | 'tr' | 'bl' | 'br'; glyph: string; label: string }[] = [
-  { id: 'tl', glyph: '↖', label: 'Logo no canto superior esquerdo' },
-  { id: 'tr', glyph: '↗', label: 'Logo no canto superior direito' },
-  { id: 'bl', glyph: '↙', label: 'Logo no canto inferior esquerdo' },
-  { id: 'br', glyph: '↘', label: 'Logo no canto inferior direito' },
-];
-const WISHES: { id: Wish; label: string }[] = [
-  { id: 'move', label: 'Mover elementos' },
-  { id: 'resize', label: 'Mudar tamanhos' },
-  { id: 'other', label: 'Outra coisa' },
-];
-const EL_LABEL: Record<El, string> = { title: 'Título', kicker: 'Selo', sub: 'Subtítulo', items: 'Itens', logo: 'Logo', layout: 'Layout' };
-const COLOR_LABEL: Record<ColorSlot, string> = { title: 'Cor do título', sub: 'Cor do subtítulo', kicker: 'Cor do selo', items: 'Cor dos itens' };
-const MAX_ITEMS = 4;
-const DEBOUNCE_MS = 350;
-const SAVE_FAILED = 'Não foi possível salvar o ajuste. Suas mudanças continuam na tela. Tente de novo.';
-const PREVIEW_FAILED = 'Não foi possível atualizar a prévia. Suas mudanças continuam na tela.';
-const RATIO_LABEL: Record<string, string> = { '4:5': 'Retrato 4:5', '1:1': 'Quadrado 1:1', '1.91:1': 'Paisagem 1.91:1' };
-// Erro do servidor (5xx) vira a frase com o próximo passo; erro de regra de negócio (4xx) já vem escrito para a pessoa.
-const failText = (r: { status: number; body: Record<string, unknown> }, fallback: string) => (r.status >= 500 || !r.body.error ? fallback : String(r.body.error));
+const FONT_LIST = Object.keys(FONTS) as FontFamily[];
+const LOGO_NAME: Record<SceneLogoVariant, string> = { main: 'Principal', dark: 'Para fundo escuro', light: 'Para fundo claro', symbol: 'Só o símbolo' };
+const HANDLES: [Handle, number, number][] = [['nw', 0, 0], ['n', 0.5, 0], ['ne', 1, 0], ['e', 1, 0.5], ['se', 1, 1], ['s', 0.5, 1], ['sw', 0, 1], ['w', 0, 0.5]];
+const CURSOR: Record<Handle, string> = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+const FAILED = 'Não foi possível salvar. Suas mudanças continuam aqui. Tente de novo.';
 
-async function api(path: string, init?: RequestInit): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...init });
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  return { ok: res.ok, status: res.status, body };
-}
+// As fontes que a imagem usa, para o navegador desenhar com a mesma letra do servidor (regular e negrito).
+const fontCss = (families: readonly FontFamily[]) =>
+  families
+    .flatMap((f) => {
+      const files = FONTS[f].files;
+      const bold = files.find((x) => /Bold/.test(x) && !/SemiBold/.test(x)) ?? files[0];
+      return [`@font-face{font-family:"${f}";font-weight:400;src:url(/api/fonts/${files[0]}) format("truetype");font-display:swap}`, `@font-face{font-family:"${f}";font-weight:700;src:url(/api/fonts/${bold}) format("truetype");font-display:swap}`];
+    })
+    .join('');
+
+const num = (v: number) => Math.round(v);
+
+// Peças do painel, fora do componente: se nascessem dentro, cada tecla remontaria o campo e a pessoa perderia o foco.
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="block space-y-1">
+    <span className="text-xs font-semibold text-muted">{label}</span>
+    {children}
+  </label>
+);
+const NumInput = ({ label, value, onChange, step, disabled, min, editable }: { label: string; value: number; onChange: (v: number) => void; step?: number; disabled?: boolean; min?: number; editable: boolean }) => (
+  <Field label={label}>
+    <input type="number" className="input w-full px-2 py-1.5 text-sm" value={Number.isFinite(value) ? value : 0} step={step} min={min} disabled={disabled || !editable} onChange={(e) => Number.isFinite(e.target.valueAsNumber) && onChange(e.target.valueAsNumber)} />
+  </Field>
+);
+const Swatches = ({ value, onPick, label, swatches, editable }: { value: string; onPick: (hex: string) => void; label: string; swatches: Swatch[]; editable: boolean }) => (
+  <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+    {swatches.map((s) => (
+      <button key={s.hex} type="button" disabled={!editable} aria-label={s.label} title={s.label} aria-pressed={s.hex.toLowerCase() === value.toLowerCase()} onClick={() => onPick(s.hex)} style={{ background: s.hex }} className="h-8 w-8 rounded-full border border-line-strong aria-pressed:outline aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-accent" />
+    ))}
+  </div>
+);
+const Section = ({ title: t, children }: { title: string; children: React.ReactNode }) => (
+  <section className="mt-5 space-y-2">
+    <h3 className="text-sm font-semibold">{t}</h3>
+    {children}
+  </section>
+);
+const Btn = ({ children, onClick, disabled, pressed, editable }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; editable: boolean }) => (
+  <button type="button" className="btn-ghost min-h-8 px-2 py-1 text-xs aria-pressed:border-accent aria-pressed:bg-accent/15" disabled={disabled || !editable} aria-pressed={pressed} onClick={onClick}>
+    {children}
+  </button>
+);
 
 export default function Studio({
   pendingId,
   briefId,
   title,
-  kind,
-  ratio,
-  imageUrl,
-  state,
-  swatches,
-  usage,
-  canEdit,
-  canManage,
   slide,
   slideUrls,
+  canEdit,
+  decided,
+  swatches,
+  state,
+  usage,
 }: {
   pendingId: string;
   briefId: string;
   title: string;
-  kind: 'informativo' | 'atmosfera';
-  ratio: string;
-  imageUrl: string | null;
-  state: DesignState;
-  swatches: Swatch[];
-  usage: { used: number; max: number };
-  canEdit: boolean;
-  canManage: boolean;
-  // Carrossel (SPEC 023): a lâmina que o Studio edita (a partir de 0) e as imagens de todas, para trocar de lâmina.
-  slide?: number;
+  slide?: number; // carrossel: a lâmina que o Studio edita (a partir de 0)
   slideUrls?: string[];
+  canEdit: boolean;
+  decided: boolean;
+  swatches: Swatch[];
+  state: DesignState;
+  usage: { used: number; max: number };
 }) {
   const router = useRouter();
-  const pick = (s: DesignState) => (slide !== undefined && s.slides?.[slide] ? s.slides[slide] : s);
-  const [version, setVersion] = useState(state.version);
-  const [base, setBase] = useState<EditableDesign>(pick(state).editable);
-  const [hist, setHist] = useState<History>(() => startHistory(pick(state).editable));
-  const [versions, setVersions] = useState<RevisionView[]>(state.revisions);
-  const [layouts, setLayouts] = useState<string[]>(pick(state).layouts);
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [view, setView] = useState<SceneView | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [scene, setScene] = useState<Scene | null>(null);
+  const [past, setPast] = useState<Scene[]>([]);
+  const [future, setFuture] = useState<Scene[]>([]);
+  const [sel, setSel] = useState<string[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [tab, setTab] = useState<'layers' | 'insert'>('layers');
+  const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [busy, setBusy] = useState('');
-  const [conflict, setConflict] = useState<Conflict | null>(null);
-  const [saved, setSaved] = useState<{ version: number; summary: string } | null>(null);
-  const [proposed, setProposed] = useState<Proposed | null>(null);
-  const [ruleDone, setRuleDone] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<number | null>(null);
-  const [sel, setSel] = useState<El | null>(null);
-  const [thumbs, setThumbs] = useState<Record<string, string>>({});
-  const [wishOpen, setWishOpen] = useState(false);
-  const [wishSent, setWishSent] = useState(false);
-  const startedAt = useRef<number | null>(null);
-  const seq = useRef(0);
+  const [download, setDownload] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const drag = useRef<Drag | null>(null);
+  const overlay = useRef<SVGSVGElement>(null);
+  const editable = canEdit && !decided;
 
-  const cur = hist.present;
-  const changes = useMemo(() => changesOf(base, cur), [base, cur]);
-  const dirty = changes.length > 0;
-  const locked = !canEdit || state.decided || viewing !== null;
-  const blocked = (preview?.blocking.length ?? 0) > 0;
-  const hasKicker = !!cur.texts.kicker;
-  const hasSub = !!cur.texts.sub;
-  const hasItems = !!cur.texts.items?.length;
-  // Itens só aparecem onde o layout os desenha (lista numerada) ou onde o post já tem.
-  const els: El[] = ['title', 'kicker', 'sub', ...(cur.layout === 'lista-numerada' || hasItems ? (['items'] as El[]) : []), 'logo', 'layout'];
-  const call = useCallback((path: string, body: Record<string, unknown>) => api(`/api/posts/${briefId}/design/${path}`, { method: 'POST', body: JSON.stringify(slide !== undefined ? { ...body, slide } : body) }), [briefId, slide]);
-  const shown = viewing !== null ? `/api/posts/${briefId}/design/revisions/${viewing}/png${slide !== undefined ? `?slide=${slide}` : ''}` : (preview?.image ?? imageUrl);
+  const load = useCallback(async () => {
+    setLoadError('');
+    const res = await fetch(`/api/posts/${briefId}/design/scene${slide !== undefined ? `?slide=${slide}` : ''}`).catch(() => null);
+    const j = res ? ((await res.json().catch(() => ({}))) as SceneView & { error?: string }) : null;
+    if (!res?.ok || !j || !j.scene) return setLoadError(j?.error ?? 'Não foi possível abrir o Studio. Recarregue a página.');
+    setView(j);
+    setScene(j.scene);
+    setPast([]);
+    setFuture([]);
+    setSel([]);
+    setDirty(false);
+  }, [briefId, slide]);
+  useEffect(() => void load(), [load]);
 
-  // Prévia do servidor: só quando há mudança, com espera para não desenhar a cada tecla.
-  useEffect(() => {
-    if (locked) return;
-    if (!dirty) {
-      seq.current += 1;
-      setPreview(null);
-      setMessage('');
-      return;
-    }
-    const mine = ++seq.current;
-    const timer = setTimeout(async () => {
-      const r = await call('preview', { baseVersion: version, design: cur }).catch(() => null);
-      if (mine !== seq.current) return;
-      if (!r) return setMessage(PREVIEW_FAILED);
-      if (r.ok) {
-        setPreview(r.body as unknown as Preview);
-        setMessage('');
-      } else if (r.status === 409) {
-        setConflict({ message: String(r.body.error ?? ''), current: (r.body.current as Conflict['current']) ?? null });
-      } else {
-        setPreview(null);
-        setMessage(failText(r, PREVIEW_FAILED));
-      }
-    }, DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-    // `cur` e `version` movem a prévia; o resto são funções estáveis
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cur, version, locked, dirty]);
+  const size = view ? { width: view.width, height: view.height } : { width: 1080, height: 1350 };
+  const issues = useMemo(() => (scene ? liveIssues(scene, size.height) : []), [scene, size.height]);
+  const layers = scene?.layers ?? [];
+  const picked = layers.filter((l) => sel.includes(l.id));
+  const one = picked.length === 1 ? picked[0] : null;
+  const families = useMemo(() => [...new Set<FontFamily>(layers.filter((l): l is TextLayer => l.type === 'text').map((l) => l.font))], [layers]);
+  const markup = useMemo(() => (scene && view ? sceneSvg(scene, { width: view.width, height: view.height, backdrop: view.backdrop, logos: view.logos }) : ''), [scene, view]);
 
-  // Sair da página com mudança sem confirmar conta como descarte (mede se o ajuste bastou).
-  useEffect(() => {
-    if (!dirty) return;
-    const onHide = () => navigator.sendBeacon?.(`/api/posts/${briefId}/design/signal`, new Blob([JSON.stringify({ kind: 'discarded', edits: changes.length })], { type: 'application/json' }));
-    window.addEventListener('pagehide', onHide);
-    return () => window.removeEventListener('pagehide', onHide);
-  }, [dirty, briefId, changes.length]);
+  // ── histórico ──
+  const commit = useCallback((next: Scene, base?: Scene) => {
+    setPast((p) => [...p.slice(-49), base ?? scene!]);
+    setFuture([]);
+    setScene(next);
+    setDirty(true);
+    setStatus((s) => (s === 'conflict' ? s : 'idle'));
+    setMessage('');
+  }, [scene]);
+  const undo = () => { if (!past.length || !scene) return; setFuture((f) => [scene, ...f]); setScene(past[past.length - 1]); setPast(past.slice(0, -1)); setDirty(true); };
+  const redo = () => { if (!future.length || !scene) return; setPast((p) => [...p, scene]); setScene(future[0]); setFuture(future.slice(1)); setDirty(true); };
+  const patch = (id: string, p: Partial<SceneLayer>) => scene && commit(updateLayer(scene, id, p));
 
-  // As miniaturas dos layouts saem do mesmo desenho do servidor, com cada família no lugar da atual.
-  useEffect(() => {
-    if (sel !== 'layout' || locked) return;
-    let live = true;
-    void Promise.all(
-      layouts.map(async (l) => {
-        const r = await call('preview', { baseVersion: version, design: withLayout(cur, l as EditableDesign['layout']) }).catch(() => null);
-        return r?.ok ? ([l, String((r.body as unknown as Preview).image)] as const) : null;
-      }),
-    ).then((rows) => {
-      if (live) setThumbs(Object.fromEntries(rows.filter((x): x is readonly [string, string] => x !== null)));
-    });
-    return () => {
-      live = false;
-    };
-    // as miniaturas partem da versão em uso e do conteúdo de agora; trocar só o layout não as refaz
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, locked, version, layouts.join(',')]);
-
-  const change = (next: EditableDesign) => {
-    if (startedAt.current === null) startedAt.current = Date.now();
-    setSaved(null);
-    setConflict(null);
-    setHist((h) => edit(h, next));
+  // ── ponteiro ──
+  const at = (e: { clientX: number; clientY: number }) => {
+    const svg = overlay.current;
+    const m = svg?.getScreenCTM();
+    if (!m) return { x: 0, y: 0 };
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    return { x: p.x, y: p.y };
   };
 
-  async function reload(keepEdit: boolean) {
-    const r = await api(`/api/posts/${briefId}/design/revisions`).catch(() => null);
-    if (!r?.ok) return setMessage('Não foi possível carregar as versões. Recarregue a página; nada foi alterado.');
-    const s = r.body as unknown as DesignState;
-    setVersion(s.version);
-    setVersions(s.revisions);
-    setLayouts(pick(s).layouts);
-    setBase(pick(s).editable);
-    if (!keepEdit) setHist(startHistory(pick(s).editable));
-    setConflict(null);
+  function down(e: React.PointerEvent, kind: Drag['kind'], handle?: Handle, id?: string) {
+    if (!scene || !editable || editing) return;
+    e.stopPropagation();
+    let ids = sel;
+    if (kind === 'move' && id) {
+      ids = e.shiftKey ? (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]) : sel.includes(id) ? sel : [id];
+      setSel(ids);
+    }
+    if (kind === 'move' && scene.layers.filter((l) => ids.includes(l.id)).every((l) => l.locked)) return;
+    drag.current = { kind, handle, start: at(e), base: scene, ids, moved: false };
+    overlay.current?.setPointerCapture?.(e.pointerId);
+  }
+
+  function moveTo(e: React.PointerEvent) {
+    const d = drag.current;
+    if (!d) return;
+    const p = at(e);
+    const dx = p.x - d.start.x, dy = p.y - d.start.y;
+    if (!d.moved && Math.hypot(dx, dy) < 3) return;
+    d.moved = true;
+    if (d.kind === 'move') {
+      const s = snapMove(d.base, d.ids, dx, dy, size);
+      setGuides(s.guides);
+      setScene(moveLayers(d.base, d.ids, s.dx, s.dy));
+    } else if (d.kind === 'resize' && d.handle) {
+      const id = d.ids[0];
+      setScene({ ...d.base, layers: d.base.layers.map((l) => (l.id === id ? resizeLayer(l, d.handle!, dx, dy) : l)) });
+    } else if (d.kind === 'rot') {
+      const id = d.ids[0];
+      setScene({ ...d.base, layers: d.base.layers.map((l) => (l.id === id ? rotateLayer(l, p, !e.shiftKey) : l)) });
+    }
+  }
+
+  function up() {
+    const d = drag.current;
+    drag.current = null;
+    setGuides([]);
+    if (d?.moved) { setPast((p) => [...p.slice(-49), d.base]); setFuture([]); setDirty(true); setMessage(''); }
+  }
+
+  // ── ações ──
+  const act = {
+    remove: () => { if (!scene || !sel.length) return; commit({ ...scene, layers: scene.layers.filter((l) => !sel.includes(l.id) || l.locked) }); setSel([]); },
+    duplicate: () => { if (!scene || !sel.length) return; const r = duplicateLayers(scene, sel); commit(r.scene); setSel(r.ids); },
+    order: (to: 'front' | 'back') => { if (scene && sel.length) commit(reorderLayer(scene, sel, to)); },
+    align: (m: AlignMode) => { if (scene) commit(alignLayers(scene, sel, m)); },
+    distribute: (axis: 'h' | 'v') => { if (scene) commit(distributeLayers(scene, sel, axis)); },
+  };
+
+  function insert(kind: 'text' | 'rect' | 'ellipse' | 'line') {
+    if (!scene) return;
+    const color = swatches[3]?.hex ?? '#FFFFFF';
+    const pos = { x: Math.round(size.width / 2 - 200), y: Math.round(size.height / 2 - 100) };
+    // O texto novo nasce na cor da lista que mais contrasta com o fundo do post.
+    const readable = [...swatches.map((s) => s.hex), '#FFFFFF', '#1F1A19'].sort((a, b) => contrast(b, scene.bg) - contrast(a, scene.bg))[0];
+    const layer = kind === 'text' ? newText(scene, { font: 'Inter', color: readable, ...pos }) : newShape(scene, kind, { color, ...pos });
+    commit({ ...scene, layers: [...scene.layers, layer] });
+    setSel([layer.id]);
+    setTab('layers');
+  }
+
+  function onKey(e: React.KeyboardEvent) {
+    if (!editable || editing || (e.target as HTMLElement).matches('input,select,textarea,[contenteditable]')) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
+    if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); return redo(); }
+    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); return act.duplicate(); }
+    if (e.key === 'Escape') return setSel([]);
+    if (!sel.length || !scene) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); return act.remove(); }
+    const step = e.shiftKey ? 10 : 1;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (d) { e.preventDefault(); commit(moveLayers(scene, sel, d[0], d[1])); }
+  }
+
+  function finishEdit(id: string, raw: string) {
+    setEditing(null);
+    const text = raw.replace(/\s+/g, ' ').trim();
+    const l = layers.find((x) => x.id === id);
+    if (!scene || !l || l.type !== 'text' || !text || text === l.text) return;
+    commit(updateLayer(scene, id, { text, lines: undefined } as Partial<TextLayer>));
   }
 
   async function confirm() {
-    setSaving(true);
+    if (!scene || !view) return;
+    setStatus('saving');
     setMessage('');
-    const r = await call('revisions', { baseVersion: version, design: cur, editMs: startedAt.current ? Date.now() - startedAt.current : undefined }).catch(() => null);
-    setSaving(false);
-    if (!r) return setMessage(SAVE_FAILED);
-    if (r.status === 409) return setConflict({ message: String(r.body.error ?? ''), current: (r.body.current as Conflict['current']) ?? null });
-    if (r.status === 422) {
-      const issues = (r.body.issues as Issue[] | undefined) ?? [];
-      setPreview((p) => ({ image: p?.image ?? '', issues, blocking: issues, contrasts: p?.contrasts ?? {} }));
-      return setMessage(String(r.body.error ?? 'O revisor não deixou salvar. Ajuste e tente de novo.'));
+    const res = await fetch(`/api/posts/${briefId}/design/scene`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ baseVersion: view.version, ...(slide !== undefined ? { slide } : {}), scene }) }).catch(() => null);
+    const j = res ? ((await res.json().catch(() => ({}))) as { version?: number; summary?: string; error?: string }) : {};
+    if (res?.ok && typeof j.version === 'number') {
+      setStatus('idle');
+      setReloadKey((k) => k + 1);
+      router.refresh();
+      return load().then(() => setMessage(`Salvo como versão ${j.version}. A versão anterior continua no histórico.`));
     }
-    if (!r.ok) return setMessage(failText(r, SAVE_FAILED));
-    await afterSave(r.body as { version: number; summary: string; ruleProposed?: Proposed | null });
+    if (res?.status === 409) { setStatus('conflict'); return setMessage(j.error ?? 'Outra pessoa salvou uma versão enquanto você editava.'); }
+    setStatus('error');
+    setMessage(res && res.status < 500 && j.error ? j.error : FAILED);
   }
 
-  async function afterSave(j: { version: number; summary: string; ruleProposed?: Proposed | null }) {
-    startedAt.current = null;
-    setSaved({ version: j.version, summary: j.summary });
-    setProposed(j.ruleProposed ?? null);
-    setRuleDone(null);
-    setViewing(null);
-    setPreview(null);
-    await reload(false);
-    router.refresh();
+  async function resetAuto() {
+    if (!view) return;
+    setStatus('saving');
+    const res = await fetch(`/api/posts/${briefId}/design/scene?baseVersion=${view.version}${slide !== undefined ? `&slide=${slide}` : ''}`, { method: 'DELETE' }).catch(() => null);
+    const j = res ? ((await res.json().catch(() => ({}))) as { version?: number; error?: string }) : {};
+    if (res?.ok) { setStatus('idle'); setReloadKey((k) => k + 1); router.refresh(); await load(); return setMessage('Voltou ao layout automático.'); }
+    setStatus(res?.status === 409 ? 'conflict' : 'error');
+    setMessage(j.error ?? FAILED);
   }
 
-  function resetAll() {
-    if (dirty) void call('signal', { kind: 'discarded', edits: changes.length }).catch(() => undefined);
-    setHist((h) => resetTo(h, base));
-    startedAt.current = null;
+  function leaveSlide(i: number) {
+    if (dirty) return setMessage('Confirme ou descarte as mudanças desta lâmina antes de abrir outra.');
+    router.push(`/aprovar/${encodeURIComponent(pendingId)}/studio?lamina=${i + 1}`);
   }
 
-  async function restore(v: number) {
-    setBusy(`restore-${v}`);
-    setMessage('');
-    const r = await api(`/api/posts/${briefId}/design/revisions/${v}/restore`, { method: 'POST', body: JSON.stringify({ baseVersion: version }) }).catch(() => null);
-    setBusy('');
-    if (!r) return setMessage('Não foi possível voltar a essa versão. Tente de novo.');
-    if (r.status === 409) return setConflict({ message: String(r.body.error ?? ''), current: (r.body.current as Conflict['current']) ?? null });
-    if (!r.ok) return setMessage(failText(r, 'Não foi possível voltar a essa versão. Tente de novo.'));
-    await afterSave(r.body as { version: number; summary: string; ruleProposed?: Proposed | null });
-  }
+  const blocking = issues[0];
+  const canConfirm = editable && dirty && !blocking && status !== 'saving';
+  const exportQuery = slide !== undefined ? `&slide=${slide}` : '';
 
-  async function acceptRule() {
-    if (!proposed) return;
-    setBusy('rule');
-    const r = await api(`/api/design-rules/${proposed.id}/accept`, { method: 'POST' }).catch(() => null);
-    setBusy('');
-    if (!r?.ok) return setMessage(String(r?.body.error ?? 'Não foi possível aceitar a regra. Tente de novo em Aprendizado.'));
-    setRuleDone(proposed.title);
-    setProposed(null);
-  }
-
-  async function sendWish(wish: Wish) {
-    setWishSent(true);
-    await call('signal', { kind: 'wish', wish }).catch(() => undefined);
-  }
-
-  // "Visual novo" gera o post de novo (conta no limite): a mesma rota de Outra direção de Aprovar.
-  async function anotherDirection() {
-    setBusy('direction');
-    const r = await api(`/api/posts/${briefId}/direction`, { method: 'POST' }).catch(() => null);
-    if (r?.ok) return router.push(`/criar/${briefId}`);
-    setBusy('');
-    setMessage(r && r.status < 500 && r.body.error ? String(r.body.error) : 'Não foi possível gerar outra direção agora. Tente de novo.');
-  }
-
-  // O pedido de ajuste gravou (ou desfez) uma versão: a prévia sai e o painel recarrega a lista e a imagem.
-  async function askChanged() {
-    setPreview(null);
-    setViewing(null);
-    await reload(false);
-    router.refresh();
-  }
-
-  const corner = cornerOf(cur);
-  const swatchOn = (slot: ColorSlot, hex: string) => cur.colors?.[slot]?.toLowerCase() === hex.toLowerCase();
-  const statusTone = blocked || message ? 'border-danger/30 bg-danger/10 text-fg font-semibold' : preview?.issues.length ? 'border-warning/30 bg-warning/10 text-fg' : 'border-line bg-inset text-fg';
-  const statusText = message
-    ? message
-    : blocked
-      ? preview!.blocking[0].message
-      : dirty
-        ? `${changes.length} mudança${changes.length > 1 ? 's' : ''} sem confirmar: ${changes.join(', ')}.${preview && !preview.issues.length ? ' Conferido pelo revisor: contraste, margem do feed, tamanho do texto, acentos, palavras proibidas e fatos da base.' : ''}`
-        : 'Nenhuma mudança ainda. Clique em um elemento para começar.';
-  const seen = viewing === null ? null : versions.find((v) => v.version === viewing);
-  const from = version === 1 ? 'versão inicial' : `versão ${version}`;
-
-  const actions = (
-    <>
-      <button type="button" className="btn-ghost min-h-9 px-2 text-xs md:px-4 md:text-sm" disabled={locked || !hist.past.length} onClick={() => setHist(undo)}>
-        Desfazer
-      </button>
-      <button type="button" className="btn-ghost min-h-9 px-2 text-xs md:px-4 md:text-sm" disabled={locked || !hist.future.length} onClick={() => setHist(redo)}>
-        Refazer
-      </button>
-      <button type="button" className="btn-ghost min-h-9 px-2 text-xs md:px-4 md:text-sm" title="Descarta o que você ainda não confirmou" disabled={locked || !dirty} onClick={resetAll}>
-        Padrão
-      </button>
-      <button type="button" className="btn-primary min-h-9 px-2 text-xs md:px-4 md:text-sm" title="Salva uma versão nova" disabled={locked || !dirty || blocked || saving || !!conflict} onClick={confirm}>
-        {saving ? <Spinner /> : null}
-        {saving ? 'Salvando' : 'Confirmar'}
-      </button>
-    </>
-  );
-
-  const colorField = (slot: ColorSlot) => {
-    const key = slot === 'items' ? 'item1' : slot;
-    const tone = contrastTone(preview?.contrasts[key]);
-    return (
-      <fieldset className="min-w-0 space-y-2 border-0 p-0" disabled={locked}>
-        <legend className="label mb-2 p-0">{COLOR_LABEL[slot]}</legend>
-        <div className="flex flex-wrap gap-2.5" role="group" aria-label={COLOR_LABEL[slot]}>
-          {swatches.map((s) => (
-            <button
-              key={s.hex}
-              type="button"
-              title={s.label}
-              aria-label={`${COLOR_LABEL[slot]}: ${s.label}`}
-              aria-pressed={swatchOn(slot, s.hex)}
-              onClick={() => change(withColor(cur, slot, swatchOn(slot, s.hex) ? null : s.hex))}
-              className={`h-9 w-9 rounded-full border border-line-strong ${swatchOn(slot, s.hex) ? 'ring-2 ring-accent-text ring-offset-2 ring-offset-raised' : ''}`}
-              style={{ background: s.hex }}
-            />
-          ))}
-        </div>
-        {tone && (
-          <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className={`chip ${tone.tone === 'danger' ? 'text-danger' : tone.tone === 'warning' ? 'text-warning' : 'text-success'}`}>{tone.label}</span>
-            Contraste {fmtRatio(preview!.contrasts[key])}:1 sobre o fundo. Mínimo 4,5:1 (3:1 para título grande em negrito).
-          </p>
-        )}
-      </fieldset>
-    );
-  };
-
-  const sec = 'space-y-2 border-t border-line pt-4';
-
-  function panel() {
-    if (!sel) {
+  // ── painéis ──
+  function propsPanel() {
+    if (!scene || !view) return null;
+    if (!picked.length) {
       return (
         <>
-          <h2 className="text-base font-semibold">Propriedades</h2>
-          <p className="mt-1 text-sm text-muted">Escolha um elemento na lista para mudar texto, cor, logo ou layout.</p>
-        </>
-      );
-    }
-    if (sel === 'title' || sel === 'kicker' || sel === 'sub') {
-      const value = sel === 'title' ? cur.texts.title : (cur.texts[sel] ?? '');
-      const setText = (v: string) => change(sel === 'title' ? withTitle(cur, v) : sel === 'sub' ? withSub(cur, v || null) : withKicker(cur, v || null));
-      return (
-        <>
-          <h2 className="text-base font-semibold">{EL_LABEL[sel]}</h2>
-          <div className={sec}>
-            <label className="block space-y-1">
-              <span className="label">Texto</span>
-              <textarea className="input resize-y" rows={2} maxLength={280} value={value} disabled={locked} onChange={(e) => setText(e.target.value)} aria-label={`Texto do ${EL_LABEL[sel].toLowerCase()}`} />
-            </label>
-            {sel !== 'title' && (
-              <button type="button" className="btn-ghost min-h-9" disabled={locked || !value} onClick={() => setText('')}>
-                {sel === 'sub' ? 'Remover subtítulo' : 'Remover selo'}
+          <h2 className="text-base font-semibold">Post</h2>
+          <p className="mt-1 text-sm text-muted">Clique em um elemento da imagem ou na lista. Arraste para mover.</p>
+          <Section title="Atalhos">
+            <p className="text-xs text-muted">Setas movem 1 px (Shift: 10). Delete apaga. Ctrl+D duplica. Ctrl+Z desfaz. Dois cliques escrevem no texto.</p>
+          </Section>
+          {view.custom && editable && (
+            <Section title="Layout automático">
+              <p className="text-xs text-muted">Tira as camadas e volta ao layout que a Ekoai montou. Fica como uma versão nova.</p>
+              <button type="button" className="btn-ghost min-h-8 px-3 py-1 text-xs" disabled={status === 'saving' || dirty} onClick={() => void resetAuto()}>
+                Voltar ao layout automático
               </button>
-            )}
-            {sel !== 'title' && !value && <p className="text-xs text-muted">Este post está sem {EL_LABEL[sel].toLowerCase()}. Escreva acima para adicionar.</p>}
-          </div>
-          <div className={sec}>
-            {colorField(sel)}
-          </div>
+              {dirty && <p className="text-xs text-muted">Confirme ou desfaça as mudanças antes.</p>}
+            </Section>
+          )}
         </>
       );
     }
-    if (sel === 'items') {
-      const items = cur.texts.items ?? [];
+    if (picked.length > 1) {
       return (
         <>
-          <h2 className="text-base font-semibold">Itens</h2>
-          <div className={sec}>
-            <ol className="space-y-2">
-              {items.map((it, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-sm text-muted">{i + 1}</span>
-                  <input className="input" value={it} maxLength={280} disabled={locked} aria-label={`Item ${i + 1}`} onChange={(e) => change(withItems(cur, items.map((x, j) => (j === i ? e.target.value : x))))} />
-                  <button type="button" className="btn-ghost min-h-9 px-3" disabled={locked || items.length <= 1} aria-label={`Remover o item ${i + 1}`} onClick={() => change(withItems(cur, items.filter((_, j) => j !== i)))}>
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ol>
-            <button type="button" className="btn-ghost min-h-9" disabled={locked || items.length >= MAX_ITEMS} onClick={() => change(withItems(cur, [...items, 'Novo item']))}>
-              Adicionar item
-            </button>
-            <p className="text-xs text-muted">Até {MAX_ITEMS} itens. A lista numerada pede pelo menos 2; com menos, o layout muda para um que sirva.</p>
-          </div>
-          <div className={sec}>
-            {colorField('items')}
-          </div>
+          <h2 className="text-base font-semibold">{picked.length} elementos</h2>
+          <p className="mt-1 text-sm text-muted">Arraste para mover juntos.</p>
+          <Section title="Alinhar">
+            <div className="grid grid-cols-3 gap-1.5">
+              {([['left', 'Esquerda'], ['hcenter', 'Centro'], ['right', 'Direita'], ['top', 'Topo'], ['vcenter', 'Meio'], ['bottom', 'Base']] as [AlignMode, string][]).map(([m, n]) => <Btn key={m} editable={editable} onClick={() => act.align(m)}>{n}</Btn>)}
+            </div>
+          </Section>
+          <Section title="Distribuir">
+            <div className="grid grid-cols-2 gap-1.5">
+              <Btn editable={editable} onClick={() => act.distribute('h')} disabled={picked.length < 3}>Na horizontal</Btn>
+              <Btn editable={editable} onClick={() => act.distribute('v')} disabled={picked.length < 3}>Na vertical</Btn>
+            </div>
+          </Section>
+          <Section title="Camada">
+            <div className="grid grid-cols-2 gap-1.5"><Btn editable={editable} onClick={act.duplicate}>Duplicar</Btn><Btn editable={editable} onClick={act.remove}>Apagar</Btn></div>
+          </Section>
         </>
       );
     }
-    if (sel === 'logo') {
+    const l = one!;
+    const h = layerHeight(l);
+    const position = (
+      <Section title="Posição e tamanho">
+        <div className="grid grid-cols-2 gap-2">
+          <NumInput editable={editable} label="X" value={num(l.x)} onChange={(v) => patch(l.id, { x: v })} />
+          <NumInput editable={editable} label="Y" value={num(l.y)} onChange={(v) => patch(l.id, { y: v })} />
+          <NumInput editable={editable} label="Largura" value={num(l.w)} min={24} onChange={(v) => patch(l.id, l.type === 'text' ? ({ w: Math.max(24, v), lines: undefined } as Partial<TextLayer>) : l.type === 'logo' ? { w: Math.max(24, v), h: Math.round((Math.max(24, v) * l.h) / l.w) } : { w: Math.max(24, v) })} />
+          <NumInput editable={editable} label="Altura" value={num(h)} min={24} disabled={l.type === 'text' || l.type === 'logo'} onChange={(v) => patch(l.id, { h: Math.max(1, v) })} />
+          <NumInput editable={editable} label="Girar (graus)" value={num(l.rot)} onChange={(v) => patch(l.id, { rot: Math.max(-360, Math.min(360, v)) })} />
+        </div>
+      </Section>
+    );
+    const layer = (
+      <Section title="Camada">
+        <Field label="Opacidade">
+          <input type="range" min={0} max={100} value={Math.round(l.opacity * 100)} disabled={!editable} onChange={(e) => patch(l.id, { opacity: Number(e.target.value) / 100 })} className="w-full accent-accent" />
+        </Field>
+        <div className="grid grid-cols-2 gap-1.5">
+          <Btn editable={editable} onClick={() => act.order('front')}>Trazer para frente</Btn>
+          <Btn editable={editable} onClick={() => act.order('back')}>Enviar para trás</Btn>
+          <Btn editable={editable} onClick={act.duplicate}>Duplicar</Btn>
+          <Btn editable={editable} onClick={() => patch(l.id, { locked: !l.locked })}>{l.locked ? 'Destravar' : 'Travar'}</Btn>
+          <Btn editable={editable} onClick={act.remove} disabled={l.locked}>Apagar</Btn>
+        </div>
+      </Section>
+    );
+    if (l.type === 'text') {
+      return (
+        <>
+          <h2 className="text-base font-semibold">{l.name}</h2>
+          <p className="mt-1 text-sm text-muted">Dê dois cliques no texto para escrever direto na imagem.</p>
+          <Section title="Texto">
+            <div className="space-y-3">
+              <Field label="Fonte">
+                <Select ariaLabel="Fonte" searchable disabled={!editable} value={l.font} onChange={(v) => patch(l.id, { font: v as FontFamily, lines: undefined } as Partial<TextLayer>)} options={FONT_LIST.map((f) => ({ value: f, label: f, style: { fontFamily: `"${f}"` } }))} />
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput editable={editable} label="Tamanho" value={l.size} min={8} onChange={(v) => patch(l.id, { size: Math.max(8, v), lines: undefined } as Partial<TextLayer>)} />
+                <Field label="Peso">
+                  <Select ariaLabel="Peso" disabled={!editable || FONTS[l.font].files.length < 2} value={l.bold ? '700' : '400'} onChange={(v) => patch(l.id, { bold: v === '700', lines: undefined } as Partial<TextLayer>)} options={[{ value: '400', label: 'Regular' }, { value: '700', label: 'Negrito' }]} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Alinhamento">
+                {([['left', 'Esquerda'], ['center', 'Centro'], ['right', 'Direita']] as const).map(([a, n]) => <Btn key={a} editable={editable} pressed={l.align === a} onClick={() => patch(l.id, { align: a } as Partial<TextLayer>)}>{n}</Btn>)}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput editable={editable} label="Entrelinha" value={l.lineHeight} step={0.05} min={0.7} onChange={(v) => patch(l.id, { lineHeight: Math.max(0.7, Math.min(3, v)) } as Partial<TextLayer>)} />
+                <NumInput editable={editable} label="Espaço entre letras" value={l.letterSpacing} step={0.5} onChange={(v) => patch(l.id, { letterSpacing: Math.max(-20, Math.min(60, v)) } as Partial<TextLayer>)} />
+              </div>
+            </div>
+          </Section>
+          <Section title="Cor">
+            <Swatches swatches={swatches} editable={editable} label="Cor do texto" value={l.color} onPick={(hex) => patch(l.id, { color: hex } as Partial<TextLayer>)} />
+            <p className="text-xs text-muted">Cores da marca. O contraste é conferido sobre o fundo.</p>
+          </Section>
+          {position}
+          {layer}
+        </>
+      );
+    }
+    if (l.type === 'logo') {
       return (
         <>
           <h2 className="text-base font-semibold">Logo</h2>
-          <p className="mt-1 text-sm text-muted">Vem do perfil da empresa. Aqui você escolhe o canto ou esconde neste post.</p>
-          <fieldset className={`${sec} min-w-0 border-x-0 border-b-0 px-0 pb-0`} disabled={locked}>
-            <legend className="label mb-2 p-0">Canto</legend>
-            <div className="flex gap-2" role="group" aria-label="Canto do logo">
-              {CORNERS.map((c) => (
-                <button key={c.id} type="button" aria-label={c.label} aria-pressed={corner === c.id && !cur.logoHidden} onClick={() => change(withCorner(cur, c.id))} className={`btn-ghost min-w-11 text-lg ${corner === c.id && !cur.logoHidden ? 'border-accent-text bg-inset' : ''}`}>
-                  {c.glyph}
-                </button>
-              ))}
+          <p className="mt-1 text-sm text-muted">A logo entra exatamente como foi enviada: sem placa, sem moldura, sem filtro.</p>
+          <Section title="Versão">
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(LOGO_NAME) as SceneLogoVariant[]).map((v) => {
+                const img = view.logos[v];
+                return (
+                  <button key={v} type="button" disabled={!img || !editable} aria-pressed={l.variant === v} onClick={() => patch(l.id, { variant: v } as Partial<SceneLayer>)} className="grid justify-items-center gap-1.5 rounded-md border border-line bg-surface p-2 text-xs transition disabled:opacity-40 aria-pressed:border-accent aria-pressed:bg-accent/15">
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img.dataUri} alt="" className="h-12 w-12 object-contain" />
+                    ) : (
+                      <span className="h-12 w-12 rounded border border-dashed border-line" aria-hidden="true" />
+                    )}
+                    {LOGO_NAME[v]}
+                    {!img && <span className="text-[11px] text-muted">não enviada</span>}
+                  </button>
+                );
+              })}
             </div>
-            <label className="flex items-center gap-2 pt-2 text-sm">
-              <input type="checkbox" checked={!!cur.logoHidden} onChange={(e) => change(withHidden(cur, e.target.checked))} />
-              Esconder o logo neste post
-            </label>
-          </fieldset>
+            <p className="text-xs text-muted">Sobre fundo escuro, a Ekoai sugere &quot;Para fundo escuro&quot;. Quem escolhe é você.</p>
+          </Section>
+          {position}
+          {layer}
         </>
       );
     }
     return (
       <>
-        <h2 className="text-base font-semibold">Layout</h2>
-        <div className={sec}>
-          {layouts.length < 2 ? (
-            <p className="text-sm text-muted">Este post só tem um layout compatível.</p>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3" role="group" aria-label="Layouts compatíveis">
-                {layouts.map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    aria-pressed={cur.layout === l}
-                    disabled={locked}
-                    onClick={() => change(withLayout(cur, l as EditableDesign['layout']))}
-                    className={`space-y-1.5 rounded-lg border bg-raised p-2 text-left ${cur.layout === l ? 'border-accent-text ring-2 ring-accent/30' : 'border-line-strong'}`}
-                  >
-                    <span className="block overflow-hidden rounded-md bg-inset">
-                      {thumbs[l] ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumbs[l]} alt="" className="block h-auto w-full" />
-                      ) : (
-                        <span className="block aspect-square animate-pulse" />
-                      )}
-                    </span>
-                    <strong className="block text-sm">{LAYOUT_LABEL[l]?.name ?? l}</strong>
-                    <small className="block text-xs text-muted">{LAYOUT_LABEL[l]?.hint}</small>
+        <h2 className="text-base font-semibold">{l.name}</h2>
+        <Section title="Cor">
+          <Swatches swatches={swatches} editable={editable} label="Cor da forma" value={l.fill} onPick={(hex) => patch(l.id, { fill: hex } as Partial<SceneLayer>)} />
+        </Section>
+        {position}
+        {layer}
+      </>
+    );
+  }
+
+  function leftPanel() {
+    const tabs = (
+      <div className="my-2 inline-flex rounded-md border border-line p-0.5 text-sm" role="tablist">
+        {([['layers', 'Camadas'], ['insert', 'Inserir']] as const).map(([k, n]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded px-3 py-1 ${tab === k ? 'bg-accent/15 font-semibold text-accent-text' : 'text-muted'}`}>
+            {n}
+          </button>
+        ))}
+      </div>
+    );
+    if (tab === 'insert') {
+      return (
+        <>
+          <h2 className="text-base font-semibold">Inserir</h2>
+          {tabs}
+          <div className="grid grid-cols-2 gap-2">
+            {([['text', 'Texto', 'Aa'], ['rect', 'Retângulo', '▭'], ['ellipse', 'Círculo', '○'], ['line', 'Linha', '―']] as const).map(([k, n, g]) => (
+              <button key={k} type="button" disabled={!editable || layers.length >= 60} onClick={() => insert(k)} className="grid justify-items-center gap-1 rounded-md border border-line bg-surface px-2 py-3 text-sm transition hover:border-accent hover:bg-accent/10 disabled:opacity-40">
+                <b className="text-lg leading-none" aria-hidden="true">{g}</b>
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted">A logo da marca já está na imagem: escolha a camada &quot;Logo&quot; para trocar a versão. Imagem do banco de imagens vem em seguida.</p>
+        </>
+      );
+    }
+    return (
+      <>
+        <h2 className="text-base font-semibold">Camadas</h2>
+        {tabs}
+        <div role="listbox" aria-label="Camadas do post" className="space-y-0.5">
+          {[...layers].reverse().map((l) => (
+            <div key={l.id} role="option" aria-selected={sel.includes(l.id)} className={`flex items-center gap-1 rounded-md border px-2 py-1.5 text-sm ${sel.includes(l.id) ? 'border-accent bg-accent/15' : 'border-transparent hover:bg-inset'} ${l.hidden ? 'opacity-50' : ''}`}>
+              <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={(e) => setSel(e.shiftKey ? (sel.includes(l.id) ? sel.filter((x) => x !== l.id) : [...sel, l.id]) : [l.id])}>
+                {l.name}
+              </button>
+              {editable && (
+                <>
+                  <button type="button" className="shrink-0 rounded border border-line px-1.5 text-[11px] text-muted hover:text-fg" aria-label={`${l.hidden ? 'Mostrar' : 'Ocultar'} ${l.name}`} onClick={() => scene && commit(updateLayer(scene, l.id, { hidden: !l.hidden }))}>
+                    {l.hidden ? 'Mostrar' : 'Ocultar'}
                   </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted">Só a família muda. Texto, logo e visual ficam. Sem custo de modelo.</p>
-            </>
-          )}
+                  <button type="button" className="shrink-0 rounded border border-line px-1.5 text-[11px] text-muted hover:text-fg" aria-label={`${l.locked ? 'Destravar' : 'Travar'} ${l.name}`} onClick={() => scene && commit(updateLayer(scene, l.id, { locked: !l.locked }))}>
+                    {l.locked ? 'Travada' : 'Travar'}
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+          {!layers.length && <p className="text-sm text-muted">Nenhuma camada ainda. Insira um texto ou uma forma.</p>}
         </div>
       </>
     );
   }
 
-  const elOff = (k: El) => (k === 'kicker' && !hasKicker) || (k === 'sub' && !hasSub);
+  const actions = (
+    <>
+      <button type="button" className="btn-ghost min-h-9 px-3 py-1.5 text-sm" disabled={!past.length || !editable} onClick={undo}>Desfazer</button>
+      <button type="button" className="btn-ghost min-h-9 px-3 py-1.5 text-sm" disabled={!future.length || !editable} onClick={redo}>Refazer</button>
+      <button type="button" className="btn-ghost min-h-9 px-3 py-1.5 text-sm" onClick={() => setDownload(true)} disabled={!view}>Baixar</button>
+      {editable && (
+        <button type="button" className="btn-primary min-h-9 px-4 py-1.5 text-sm" disabled={!canConfirm} onClick={() => void confirm()}>
+          {status === 'saving' ? <Spinner /> : null}
+          {status === 'saving' ? 'Salvando…' : 'Confirmar'}
+        </button>
+      )}
+    </>
+  );
+
+  // ── tela ──
+  const ratio = size.height === size.width ? 'aspect-square max-w-[560px]' : 'aspect-[4/5] max-w-[480px]';
+  const sub = view ? `A partir da versão ${view.version} · ${size.height === size.width ? 'Quadrado 1:1' : 'Retrato 4:5'} · ${dirty ? 'Mudanças sem confirmar' : view.custom ? 'Editado no Studio' : 'Layout automático'}` : 'Abrindo…';
+  const note = message || (blocking ? blocking.message : dirty ? 'Mudanças sem confirmar. Confirmar salva uma versão nova.' : decided ? 'Este post já foi decidido: o Studio abre só para ver.' : canEdit ? 'Nenhuma mudança ainda. Clique em um elemento para começar.' : 'Você pode ver e baixar, mas não editar.');
 
   return (
-    <div className="flex min-h-screen flex-col pb-20 md:pb-0">
+    <div className="flex min-h-screen flex-col pb-20 md:pb-0" onKeyDown={onKey} tabIndex={-1}>
+      {families.length > 0 && <style>{fontCss(families)}</style>}
       <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5">
         <Link href={`/aprovar/${encodeURIComponent(pendingId)}`} className="text-sm font-semibold text-accent-text hover:underline">
           ← {dirty ? 'Sair sem salvar' : 'Voltar ao post'}
         </Link>
         <div className="min-w-[200px] grow">
-          <strong className="block text-sm">Studio · {title}{slide !== undefined ? ` · lâmina ${slide + 1} de ${state.slides?.length ?? slideUrls?.length ?? 1}` : ''}</strong>
-          <span className="text-xs text-muted">
-            A partir da {from} · {kind === 'atmosfera' ? 'Atmosfera' : 'Informativo'} · {RATIO_LABEL[ratio] ?? ratio}
-          </span>
+          <strong className="block text-sm">Studio · {title}{slide !== undefined ? ` · lâmina ${slide + 1} de ${slideUrls?.length ?? 1}` : ''}</strong>
+          <span className="text-xs text-muted">{sub}</span>
         </div>
-        {canEdit && !state.decided && (
-          <div className="hidden items-center gap-2 md:flex" role="toolbar" aria-label="Ações do ajuste">
-            {actions}
-          </div>
-        )}
+        <div className="hidden items-center gap-2 md:flex" role="toolbar" aria-label="Ações do Studio">{actions}</div>
       </header>
 
-      <div className="grid flex-1 grid-cols-[minmax(0,1fr)] md:grid-cols-[220px_minmax(0,1fr)_340px]">
-        <aside className="hidden border-r border-line bg-surface p-4 md:col-start-1 md:row-span-2 md:row-start-1 md:block" aria-label="Elementos">
-          <h2 className="text-base font-semibold">Elementos</h2>
-          <p className="mb-3 mt-1 text-sm text-muted">Clique para editar.</p>
-          <div className="space-y-1" role="listbox" aria-label="Elementos do post">
-            {els.map((k) => (
-              <button key={k} type="button" role="option" aria-selected={sel === k} onClick={() => setSel(k)} className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${sel === k ? 'bg-accent/15 font-semibold text-accent-text' : 'hover:bg-inset'}`}>
-                <span>{EL_LABEL[k]}</span>
-                {elOff(k) && <span className="text-xs text-muted">sem</span>}
-              </button>
-            ))}
-          </div>
-        </aside>
+      {loadError ? (
+        <div className="mx-auto mt-10 max-w-md space-y-3 px-4 text-center" role="alert">
+          <p className="text-sm">{loadError}</p>
+          <button type="button" className="btn-primary" onClick={() => void load()}>Tentar de novo</button>
+        </div>
+      ) : !scene || !view ? (
+        <div className="grid flex-1 place-items-center" role="status"><Spinner /><span className="sr-only">Abrindo o Studio…</span></div>
+      ) : (
+        <div className="grid flex-1 grid-cols-[minmax(0,1fr)] md:grid-cols-[230px_minmax(0,1fr)_340px]">
+          <aside className="hidden border-r border-line bg-surface p-4 md:block" aria-label="Camadas">{leftPanel()}</aside>
 
-        <main className="min-w-0 space-y-4 px-4 pt-6 md:col-start-2 md:row-start-1">
-          {slideUrls && slideUrls.length > 1 && slide !== undefined && (
-            <div className="mx-auto max-w-[620px] space-y-1.5" aria-label="Lâminas do carrossel">
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Lâminas do carrossel">
+          <main className="min-w-0 space-y-3 px-4 pb-6 pt-6">
+            {status === 'error' && <p className="mx-auto max-w-[560px] rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm" role="alert"><strong>Não foi possível salvar.</strong> {message}</p>}
+            {status === 'conflict' && (
+              <p className="mx-auto max-w-[560px] rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm" role="alert">
+                <strong>{message || 'Outra pessoa salvou uma versão enquanto você editava.'}</strong> Nada seu foi apagado. Abra a versão nova para continuar.{' '}
+                <button type="button" className="link" onClick={() => void load()}>Abrir a versão nova</button>
+              </p>
+            )}
+            <div className={`relative mx-auto w-full overflow-hidden rounded-md bg-raised shadow-lg ${ratio}`}>
+              <div className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: markup }} />
+              <svg
+                ref={overlay}
+                viewBox={`0 0 ${size.width} ${size.height}`}
+                className="absolute inset-0 h-full w-full touch-none select-none"
+                role="application"
+                aria-label="Imagem do post: arraste os elementos para mover"
+                onPointerDown={() => { if (!editing) setSel([]); }}
+                onPointerMove={moveTo}
+                onPointerUp={up}
+                onPointerCancel={up}
+              >
+                {layers.map((l) => {
+                  if (l.hidden) return null;
+                  const b = boxOf(l);
+                  return (
+                    <rect
+                      key={l.id}
+                      x={b.x}
+                      y={b.y}
+                      width={Math.max(b.w, 8)}
+                      height={Math.max(b.h, 8)}
+                      transform={l.rot ? `rotate(${l.rot} ${b.x + b.w / 2} ${b.y + b.h / 2})` : undefined}
+                      className="fill-transparent"
+                      style={{ cursor: !editable ? 'default' : l.locked ? 'not-allowed' : 'move' }}
+                      onPointerDown={(e) => down(e, 'move', undefined, l.id)}
+                      onDoubleClick={() => { if (editable && l.type === 'text' && !l.locked) { setSel([l.id]); setEditing(l.id); } }}
+                    />
+                  );
+                })}
+                {guides.map((g, i) => (g.axis === 'x' ? <line key={i} x1={g.at} y1={0} x2={g.at} y2={size.height} className="stroke-accent" strokeWidth={2.5} /> : <line key={i} x1={0} y1={g.at} x2={size.width} y2={g.at} className="stroke-accent" strokeWidth={2.5} />))}
+                {!editing && picked.length > 0 && (() => {
+                  const u = unionBox(picked)!;
+                  const lock = picked.every((l) => l.locked);
+                  const rotated = one && one.rot ? `rotate(${one.rot} ${u.x + u.w / 2} ${u.y + u.h / 2})` : undefined;
+                  return (
+                    <g transform={rotated} pointerEvents="none">
+                      <rect x={u.x} y={u.y} width={u.w} height={u.h} className="fill-none stroke-accent" strokeWidth={3} strokeDasharray={lock ? '10 8' : undefined} />
+                      {editable && !lock && one && (
+                        <>
+                          {HANDLES.map(([k, fx, fy]) => (
+                            <rect key={k} x={u.x + u.w * fx - 11} y={u.y + u.h * fy - 11} width={22} height={22} rx={4} className="fill-raised stroke-accent" strokeWidth={3} style={{ cursor: CURSOR[k], pointerEvents: 'all' }} onPointerDown={(e) => down(e, 'resize', k, one.id)} />
+                          ))}
+                          <line x1={u.x + u.w / 2} y1={u.y} x2={u.x + u.w / 2} y2={u.y - 46} className="stroke-accent" strokeWidth={3} />
+                          <circle cx={u.x + u.w / 2} cy={u.y - 58} r={13} className="fill-raised stroke-accent" strokeWidth={3} style={{ cursor: 'grab', pointerEvents: 'all' }} onPointerDown={(e) => down(e, 'rot', undefined, one.id)} />
+                        </>
+                      )}
+                      <text x={u.x + u.w / 2} y={u.y + u.h + 46} textAnchor="middle" fontSize={26} className="fill-fg" style={{ fontFamily: 'Inter, sans-serif', paintOrder: 'stroke', stroke: 'rgb(0 0 0 / .45)', strokeWidth: 6 }}>
+                        {num(u.w)} × {num(u.h)}
+                      </text>
+                    </g>
+                  );
+                })()}
+                {editing && (() => {
+                  const l = layers.find((x) => x.id === editing);
+                  if (!l || l.type !== 'text') return null;
+                  return (
+                    <foreignObject x={l.x} y={l.y} width={l.w} height={layerHeight(l) + 24}>
+                      <div
+                        contentEditable
+                        suppressContentEditableWarning
+                        spellCheck={false}
+                        ref={(el) => { if (el && document.activeElement !== el) { el.focus(); const r = document.createRange(); r.selectNodeContents(el); const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r); } }}
+                        onBlur={(e) => finishEdit(l.id, e.currentTarget.innerText)}
+                        onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(null); } else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.blur(); } }}
+                        className="outline outline-[3px] outline-accent"
+                        style={{ fontFamily: `"${l.font}", sans-serif`, fontSize: l.size, fontWeight: l.bold ? 700 : 400, lineHeight: l.lineHeight, color: l.color, textAlign: l.align, letterSpacing: l.letterSpacing, background: 'rgb(0 0 0 / .18)', wordBreak: 'break-word' }}
+                      >
+                        {l.text}
+                      </div>
+                    </foreignObject>
+                  );
+                })()}
+              </svg>
+            </div>
+            <p className={`mx-auto max-w-[560px] text-center text-sm ${blocking ? 'font-semibold text-warning' : 'text-muted'}`} role="status" aria-live="polite">{note}</p>
+            {slideUrls && slideUrls.length > 1 && slide !== undefined && (
+              <div className="mx-auto flex max-w-[560px] flex-wrap justify-center gap-2" role="group" aria-label="Lâminas do carrossel">
                 {slideUrls.map((url, i) => (
-                  <button
-                    key={url}
-                    type="button"
-                    aria-current={i === slide}
-                    aria-label={`Lâmina ${i + 1}`}
-                    onClick={() => (dirty ? setMessage('Confirme ou descarte o ajuste desta lâmina antes de abrir outra.') : router.push(`/aprovar/${encodeURIComponent(pendingId)}/studio?lamina=${i + 1}`))}
-                    className={`relative w-[56px] overflow-hidden rounded-lg border-2 bg-raised ${i === slide ? 'border-accent' : 'border-line'}`}
-                  >
+                  <button key={url} type="button" aria-current={i === slide} aria-label={`Lâmina ${i + 1}`} onClick={() => leaveSlide(i)} className={`relative w-[56px] overflow-hidden rounded-lg border-2 bg-raised ${i === slide ? 'border-accent' : 'border-line'}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt="" className="block aspect-[4/5] w-full object-cover" />
                     <span className="absolute bottom-0.5 left-0.5 rounded-full bg-ink/75 px-1.5 text-[10px] font-bold text-paper">{i + 1}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-          {saved && (
-            <div className="mx-auto max-w-[620px] space-y-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm" role="status">
-              <p>
-                <strong>Versão {saved.version} salva e em uso.</strong> {saved.summary}. É esta que será aprovada. As versões anteriores continuam na lista.
-              </p>
-              <Link href={`/aprovar/${encodeURIComponent(pendingId)}`} className="btn-primary min-h-9">
-                Voltar ao post
-              </Link>
-            </div>
-          )}
-          {proposed && (
-            <div className="mx-auto max-w-[620px] space-y-2 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-              <p>
-                <strong>A Ekoai notou um padrão.</strong> {proposed.explanation}
-              </p>
-              {canManage ? (
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className="btn-primary" disabled={busy === 'rule'} onClick={acceptRule}>
-                    {busy === 'rule' ? <Spinner /> : null}
-                    Aceitar regra
-                  </button>
-                  <a className="btn-ghost" href="/aprendizado?tab=design">
-                    Ver em Aprendizado
-                  </a>
-                </div>
-              ) : (
-                <p className="text-muted">Quem administra a conta decide se vira regra. O aviso já foi enviado.</p>
-              )}
-            </div>
-          )}
-          {ruleDone && (
-            <div className="mx-auto max-w-[620px] rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm" role="status">
-              <strong>Regra ativa: {ruleDone}.</strong> Vale nos próximos posts. Os que já estão na fila não mudam. Dá para desligar em Aprendizado.
-            </div>
-          )}
-          {conflict && (
-            <div className="mx-auto max-w-[620px] space-y-2 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm" role="alert">
-              <p>
-                <strong>{conflict.message}</strong> Suas mudanças continuam na tela.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {conflict.current && (
-                  <button type="button" className="btn-ghost" onClick={() => { void reload(true).then(() => setViewing(conflict.current!.version)); }}>
-                    Ver a versão {conflict.current.version}
-                  </button>
-                )}
-                <button type="button" className="btn-primary" onClick={() => reload(true)}>
-                  Refazer sobre a versão {conflict.current?.version ?? 'atual'}
+            )}
+          </main>
+
+          <aside className="border-t border-line bg-surface p-4 md:border-l md:border-t-0" aria-label="Propriedades">
+            <div className="mb-3 flex gap-1.5 overflow-x-auto border-b border-line pb-3 md:hidden" role="group" aria-label="Elementos">
+              {layers.map((l) => (
+                <button key={l.id} type="button" aria-pressed={sel.includes(l.id)} onClick={() => setSel([l.id])} className="shrink-0 whitespace-nowrap rounded-full border border-line px-3 py-1 text-sm aria-pressed:border-accent aria-pressed:bg-accent/15">
+                  {l.name}
                 </button>
-              </div>
+              ))}
+              {editable && <button type="button" className="shrink-0 rounded-full border border-dashed border-line px-3 py-1 text-sm text-muted" onClick={() => insert('text')}>+ Texto</button>}
             </div>
-          )}
-          {state.decided && (
-            <div className="mx-auto max-w-[620px] rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-              <strong>Este post já foi decidido ou usa a sua foto como está.</strong> Para mudar a imagem, peça outra direção e crie um post novo. As versões abaixo ficam só para consulta.
-            </div>
-          )}
-          {!canEdit && !state.decided && (
-            <div className="mx-auto max-w-[620px] rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-              <strong>Você acompanha esta conta como leitor.</strong> Dá para ver as versões do post; quem edita ou administra muda a imagem.
-            </div>
-          )}
-
-          <div className="mx-auto w-full max-w-[620px] overflow-hidden rounded-xl border border-line bg-inset shadow-sm" data-ratio={ratio} aria-label="Imagem do post">
-            {shown ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={shown} alt="Imagem do post" className="block h-auto w-full" />
-            ) : (
-              <div className="flex aspect-[4/5] items-center justify-center text-sm text-muted">Sem imagem para mostrar.</div>
-            )}
-          </div>
-
-          {canEdit && !state.decided && (
-            <>
-              <p className={`mx-auto max-w-[620px] rounded-lg border px-3 py-2 text-center text-sm ${statusTone}`} role="status" aria-live="polite" id="design-status">
-                {statusText}
-              </p>
-            </>
-          )}
-
-        </main>
-
-        <aside className="min-w-0 border-t border-line bg-surface p-4 md:col-start-3 md:row-span-2 md:row-start-1 md:border-l md:border-t-0" aria-label="Propriedades">
-          <div className="mb-3 flex gap-1.5 overflow-x-auto md:hidden" role="group" aria-label="Elementos do post">
-            {els.map((k) => (
-              <button key={k} type="button" aria-pressed={sel === k} onClick={() => setSel(k)} className={`shrink-0 rounded-full border px-3 py-1 text-xs transition ${sel === k ? 'border-accent bg-accent/20 text-fg' : 'border-line text-muted'}`}>
-                {EL_LABEL[k]}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-4">
-            {panel()}
-            {canEdit && !state.decided && (
-              <div className="space-y-2 border-t border-line pt-4 text-sm">
-                {wishSent ? (
-                  <p className="text-muted">Anotado, obrigado. Isso ajuda a decidir o que vem depois.</p>
-                ) : (
-                  <>
-                    <button type="button" className="link" aria-expanded={wishOpen} onClick={() => setWishOpen(!wishOpen)}>
-                      Preciso de mais controle
-                    </button>
-                    <span className="ml-2 text-xs text-muted">Mover e redimensionar elementos ainda não existe. Contar aqui ajuda a decidir.</span>
-                    {wishOpen && (
-                      <div className="flex flex-wrap gap-2" role="group" aria-label="O que faltou">
-                        {WISHES.map((w) => (
-                          <button key={w.id} type="button" className="btn-ghost" onClick={() => sendWish(w.id)}>
-                            {w.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <div className="min-w-0 space-y-4 px-4 pb-6 md:col-start-2 md:row-start-2">
-          {canEdit && !state.decided && slide === undefined && (
-            <section className="card mx-auto max-w-[620px] space-y-3" aria-label="Pedir à Ekoai">
-                <h2 className="text-base font-semibold">Pedir à Ekoai</h2>
-                <AskAdjust
-                  briefId={briefId}
-                  version={version}
-                  body=""
-                  hashtags={[]}
-                  usage={usage}
-                  aspects={['text', 'layout']}
-                  blockedReason={dirty ? 'Confirme ou descarte as mudanças da imagem antes de pedir um ajuste.' : null}
-                  busyElsewhere={busy !== '' || saving}
-                  onCaption={() => undefined}
-                  onChanged={() => void askChanged()}
-                  onDirection={() => void anotherDirection()}
-                />
-              </section>
-          )}
-
-          <section className="card mx-auto max-w-[620px] space-y-3" aria-label="Versões">
-            <div>
-              <h2 className="text-base font-semibold">Versões</h2>
-              <p className="mt-1 text-sm text-muted">
-                Cada Confirmar salva uma versão com o que mudou e quem mudou. A que está em uso é a que será aprovada. Voltar a uma versão antiga cria uma versão nova e não apaga as outras (no máximo 20 por post).
-              </p>
-            </div>
-            {viewing !== null && seen && (
-              <div className="space-y-2 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-                <p>
-                  <strong>Você está vendo a {seen.version === 1 ? 'versão inicial' : `versão ${seen.version}`}.</strong> A versão {version} continua em uso e é a que será aprovada.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {canEdit && !state.decided && (
-                    <button type="button" className="btn-primary" disabled={busy !== ''} onClick={() => restore(seen.version)}>
-                      {busy === `restore-${seen.version}` ? <Spinner /> : null}
-                      Usar esta versão
-                    </button>
-                  )}
-                  <button type="button" className="btn-ghost" onClick={() => setViewing(null)}>
-                    Voltar à versão em uso
-                  </button>
-                </div>
-              </div>
-            )}
-            {versions.length < 2 && <p className="rounded-lg bg-inset px-3 py-2 text-sm">Esta é a versão inicial. Faça um ajuste e confirme para salvar a versão 2.</p>}
-            <ul className="divide-y divide-line">
-              {versions.map((v) => {
-                const inUse = v.version === version;
-                const looking = viewing === v.version;
-                return (
-                  <li key={v.version} className="flex items-center gap-3 py-3">
-                    <span className="block h-16 w-16 shrink-0 overflow-hidden rounded-md border border-line bg-inset">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`/api/posts/${briefId}/design/revisions/${v.version}/png`} alt="" loading="lazy" className="block h-full w-full object-cover" />
-                    </span>
-                    <div className="min-w-0 flex-1 text-sm">
-                      <p className="flex flex-wrap items-center gap-2">
-                        <strong>{v.version === 1 ? 'Versão inicial' : `Versão ${v.version}`}</strong>
-                        {inUse && <span className="chip text-success">Em uso</span>}
-                        {looking && !inUse && <span className="chip text-accent-text">Vendo</span>}
-                      </p>
-                      <p className="text-xs text-muted">
-                        {v.summary} · {v.author ?? (v.version === 1 ? 'Ekoai' : 'Equipe')}
-                        {v.createdAt ? `, ${fmtDateTime(v.createdAt)}` : ''}
-                      </p>
-                    </div>
-                    {!inUse && !looking && (
-                      <button type="button" className="btn-ghost" onClick={() => setViewing(v.version)}>
-                        Ver
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        </div>
-      </div>
-
-      {canEdit && !state.decided && (
-        <div className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 items-center gap-2 border-t border-line bg-surface px-3 py-2.5 md:hidden" role="toolbar" aria-label="Ações do ajuste">
-          {actions}
+            {propsPanel()}
+          </aside>
         </div>
       )}
-      <p className="sr-only" aria-live="polite">
-        {dirty ? summaryOf(changes) : ''}
-      </p>
+
+      {view && <StudioExtras briefId={briefId} state={state} usage={usage} canEdit={canEdit} slide={slide} dirty={dirty} reloadKey={reloadKey} onChanged={() => void load()} />}
+
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-end gap-2 border-t border-line bg-surface px-3 py-2 md:hidden">{actions}</div>
+
+      {download && (
+        <Modal title="Baixar" onClose={() => setDownload(false)}>
+          <p className="text-sm text-muted">O arquivo é o da versão salva{dirty ? '. Confirme as mudanças para incluí-las' : ''}. A logo vai exatamente como você enviou, sem contorno.</p>
+          <div className="space-y-2">
+            <a className="flex items-start justify-between gap-3 rounded-lg border border-line p-3 hover:border-accent" href={`/api/posts/${briefId}/design/export?format=png${exportQuery}`} download onClick={() => setDownload(false)}>
+              <span><strong className="block text-sm">PNG</strong><small className="text-muted">Do jeito que vai para o Instagram.</small></span>
+              <span className="btn-primary min-h-8 px-3 py-1 text-xs">Baixar PNG</span>
+            </a>
+            <a className="flex items-start justify-between gap-3 rounded-lg border border-line p-3 hover:border-accent" href={`/api/posts/${briefId}/design/export?format=svg${exportQuery}`} download onClick={() => setDownload(false)}>
+              <span><strong className="block text-sm">SVG com texto editável</strong><small className="text-muted">Cada texto e a logo são elementos separados, para abrir no Canva ou no Figma. A fonte precisa estar instalada onde você abrir.</small></span>
+              <span className="btn-ghost min-h-8 px-3 py-1 text-xs">Baixar SVG</span>
+            </a>
+          </div>
+          <div className="flex justify-end"><button type="button" className="btn-ghost" onClick={() => setDownload(false)}>Fechar</button></div>
+        </Modal>
+      )}
     </div>
   );
 }

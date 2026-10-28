@@ -8,15 +8,15 @@ import type { Slide, StoredDesign } from './model';
 export const slidesOf = (design: StoredDesign): Slide[] | null => (Array.isArray(design.slides) && design.slides.length >= 2 ? design.slides : null);
 
 // O que muda o desenho da lâmina; a chave do PNG não conta (muda a cada redesenho).
-const keyOf = (s: Slide) => JSON.stringify([s.layout, s.texts, s.logoCorner ?? null, !!s.logoHidden, s.colors ?? null]);
+const keyOf = (s: Slide) => JSON.stringify([s.layout, s.texts, s.logoCorner ?? null, !!s.logoHidden, s.colors ?? null, s.scene ?? null]);
 
 // A lâmina `n` no formato do post de uma imagem: o que o resto do design guarda (foto, regras) fica igual.
 export function flatSlide(design: StoredDesign, n: number): StoredDesign {
   const slides = slidesOf(design);
   const s = slides?.[n];
   if (!slides || !s) return design;
-  const { slides: _slides, logoCorner: _c, logoHidden: _h, colors: _col, ...rest } = design;
-  return { ...rest, layout: s.layout, texts: s.texts, ...(s.logoCorner ? { logoCorner: s.logoCorner } : {}), ...(s.logoHidden ? { logoHidden: true } : {}), ...(s.colors ? { colors: s.colors } : {}) };
+  const { slides: _slides, logoCorner: _c, logoHidden: _h, colors: _col, scene: _scene, ...rest } = design;
+  return { ...rest, layout: s.layout, texts: s.texts, ...(s.logoCorner ? { logoCorner: s.logoCorner } : {}), ...(s.logoHidden ? { logoHidden: true } : {}), ...(s.colors ? { colors: s.colors } : {}), ...(s.scene ? { scene: s.scene } : {}) };
 }
 
 // O design plano editado volta para a lâmina `n`. Na capa, o nível de cima acompanha (agenda e publicados leem dele).
@@ -32,10 +32,11 @@ export function putSlide(design: StoredDesign, n: number, flat: StoredDesign): S
     ...(flat.logoCorner ? { logoCorner: flat.logoCorner } : {}),
     ...(flat.logoHidden ? { logoHidden: true } : {}),
     ...(flat.colors && Object.keys(flat.colors).length ? { colors: flat.colors } : {}),
+    ...(flat.scene ? { scene: flat.scene } : {}),
   };
   const list = slides.map((s, i) => (i === n ? next : s));
   if (n !== 0) return { ...design, slides: list };
-  const { logoCorner: _c, logoHidden: _h, colors: _col, ...rest } = design;
+  const { logoCorner: _c, logoHidden: _h, colors: _col, scene: _scene, ...rest } = design;
   return { ...rest, layout: next.layout, texts: next.texts, ...(next.logoCorner ? { logoCorner: next.logoCorner } : {}), ...(next.logoHidden ? { logoHidden: true } : {}), ...(next.colors ? { colors: next.colors } : {}), slides: list };
 }
 

@@ -136,7 +136,9 @@ function nameOf(id: string): { subject: string; where: string } {
     handle: { subject: 'O @ da conta', where: 'no @ da conta' },
     name: { subject: 'O nome da empresa', where: 'no nome da empresa' },
   };
-  return map[id] ?? { subject: `O texto "${id}"`, where: `no texto "${id}"` };
+  // Texto que a pessoa inseriu no Studio (id `text1`, `text2`...) e papéis repetidos (`title2`): o nome é o do papel, sem o número.
+  const plain = id.replace(/\d+$/, '');
+  return map[id] ?? map[plain] ?? (plain === 'text' ? { subject: 'O texto', where: 'no texto' } : { subject: `O texto "${id}"`, where: `no texto "${id}"` });
 }
 
 export function reviewLayout(boxes: TextBox[], height: number, overflow: string[] = []): Issue[] {
@@ -145,7 +147,8 @@ export function reviewLayout(boxes: TextBox[], height: number, overflow: string[
     const kind = b.id.replace(/\d+$/, '');
     const min = MIN_SIZE[kind] ?? 22;
     if (b.size < min) issues.push({ rule: 'font_size', detail: `${b.id} ${b.size}px`, message: `${nameOf(b.id).subject} ficou pequeno demais para o feed (${b.size}px, mínimo ${min}px).`, where: 'image' });
-    if (b.x < MARGIN || b.y < MARGIN || b.x + b.w > WIDTH - MARGIN || b.y + b.h > height - MARGIN) {
+    // Meio pixel de folga: a conta de caixa em ponto flutuante (cena do Studio) não pode reprovar o texto encostado na margem.
+    if (b.x < MARGIN - 0.5 || b.y < MARGIN - 0.5 || b.x + b.w > WIDTH - MARGIN + 0.5 || b.y + b.h > height - MARGIN + 0.5) {
       issues.push({ rule: 'safe_margin', detail: b.id, message: `${nameOf(b.id).subject} passa da margem de segurança do feed.`, where: 'image' });
     }
     const min_contrast = b.size >= 56 && b.bold ? 3 : 4.5;

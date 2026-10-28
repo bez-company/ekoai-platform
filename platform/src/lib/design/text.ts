@@ -2,7 +2,7 @@
 // fator médio de largura da família (fonts.ts): conservador de propósito, para o texto caber sempre
 // e o revisor por regra ter uma caixa honesta para conferir margem e sobreposição.
 
-import { FONTS, type FontFamily } from './fonts';
+import { FONTS, type FontFamily } from './font-metrics';
 
 export function escapeXml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
