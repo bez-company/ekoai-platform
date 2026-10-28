@@ -21,6 +21,17 @@ export const FAKE_POST = {
   hashtags: ['bolo', 'marilia'],
 };
 
+// Resposta do modelo de texto para um carrossel (SPEC 023): as lâminas no lugar de `texts`. O app pede `slides` quando o prompt
+// traz a regra "CARROSSEL"; o número vem de "EXATAMENTE N lâminas" ou, quando a Ekoai decide, são quatro.
+const CAROUSEL_TITLES = ['Seu bolo está pronto?', 'A massa solta da borda', 'O palito sai limpo', 'Encomende o seu'];
+export function fakeCarousel(count = 4) {
+  const slides = Array.from({ length: count }, (_, i) => ({
+    role: i === 0 ? 'cover' : i === count - 1 ? 'cta' : 'content',
+    texts: { ...(i === 0 ? { kicker: 'Dica da casa' } : {}), title: CAROUSEL_TITLES[i] ?? `Sinal ${i}`, sub: i === 0 ? 'Confira sem abrir o forno' : 'Passe para o lado' },
+  }));
+  return { ...FAKE_POST, slides };
+}
+
 export const FAKE_PHOTO_DESCRIPTION = { description: 'Bolo de cenoura com cobertura de chocolate sobre uma mesa de madeira', tags: ['produto'], has_people: false };
 export const FAKE_PHOTO_CAPTION = { caption: 'Cenoura com chocolate, do forno para a sua mesa. Encomende pelo WhatsApp.', hashtags: ['bolodecenoura', 'confeitaria'] };
 
@@ -67,7 +78,18 @@ export function startFakes(): Promise<{ server: Server; close: () => Promise<voi
     }
     // O app diz a etapa nos labels da chamada: cada uma espera um JSON de formato próprio.
     const step = body?.labels?.step;
-    const reply = step === 'ask' ? ask : step === 'media_describe' ? FAKE_PHOTO_DESCRIPTION : step === 'photo_caption' || step === 'photo_rewrite' ? FAKE_PHOTO_CAPTION : FAKE_POST;
+    const prompt = JSON.stringify(body);
+    const carousel = prompt.includes('CARROSSEL: o post tem');
+    const reply =
+      step === 'ask'
+        ? ask
+        : step === 'media_describe'
+          ? FAKE_PHOTO_DESCRIPTION
+          : step === 'photo_caption' || step === 'photo_rewrite'
+            ? FAKE_PHOTO_CAPTION
+            : carousel
+              ? fakeCarousel(Number(/EXATAMENTE (\d+) lâminas/.exec(prompt)?.[1] ?? 4))
+              : FAKE_POST;
     json(res, 200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 },
