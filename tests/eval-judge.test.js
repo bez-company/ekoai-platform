@@ -64,7 +64,7 @@ describe('conferência por código', () => {
 });
 
 describe('checagens por código do resultado', () => {
-  const ok = { copy: { caption: 'Legenda.', hashtags: ['pao', 'padaria', 'marilia'] }, imageTexts: ['Título', '@casaaurora'], textIssues: [], layoutIssues: [] };
+  const ok = { copy: { caption: 'Legenda.', hashtags: ['pao', 'padaria', 'marilia'], signal: 'salvar', shareReason: 'Quem faz pão em casa guarda a dica para consultar' }, imageTexts: ['Título', '@casaaurora'], textIssues: [], layoutIssues: [] };
   const by = (input) => Object.fromEntries(codeChecks(input).map((c) => [c.id, c.pass]));
 
   it('resultado limpo passa em tudo', () => {
@@ -74,6 +74,8 @@ describe('checagens por código do resultado', () => {
   it('pega travessão, emoji na imagem, hashtag fora do padrão, achado bloqueante', () => {
     expect(by({ ...ok, imageTexts: ['Pão — quente'] })['cod-sem-travessao']).toBe(false);
     expect(by({ ...ok, copy: { ...ok.copy, caption: 'Olá – tudo bem' } })['cod-sem-travessao']).toBe(false);
+    expect(by({ ...ok, copy: { ...ok.copy, shareReason: 'para compartilhar' } })['cod-razao-de-envio']).toBe(false);
+    expect(by({ ...ok, copy: { ...ok.copy, signal: undefined } })['cod-razao-de-envio']).toBe(false);
     expect(by({ ...ok, imageTexts: ['Pão quente 🔥'] })['cod-sem-emoji-na-imagem']).toBe(false);
     expect(by({ ...ok, copy: { ...ok.copy, hashtags: ['a', 'b'] } })['cod-hashtags']).toBe(false);
     expect(by({ ...ok, copy: { ...ok.copy, hashtags: ['pão', 'b', 'c'] } })['cod-hashtags']).toBe(false);

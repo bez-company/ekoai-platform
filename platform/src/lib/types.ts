@@ -27,6 +27,8 @@ export type ImageRef = { id: number; url: string | null; path?: string };
 export type Generation = {
   pillar?: string;
   angle?: string | null;
+  signal?: 'enviar' | 'salvar' | 'responder' | 'assistir'; // o que o post pede à pessoa (SPEC 028)
+  share_reason?: string; // quem faz a ação e por quê, em uma frase
   variations: Variation[];
   model?: string;
   prompt_hash?: string;

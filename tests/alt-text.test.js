@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parseCopy, cleanAltText, altTextFromTexts, finalAltText, LIMITS } from '../platform/src/lib/agents.ts';
 import { publishSingle } from '../platform/src/lib/channels/instagram.ts';
 
-const base = { kind: 'informativo', angle: 'dica', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', items: ['A massa desgruda da borda', 'O palito sai limpo'] }, caption: 'Três sinais.', hashtags: ['bolo'] };
+const base = { kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', items: ['A massa desgruda da borda', 'O palito sai limpo'] }, caption: 'Três sinais.', hashtags: ['bolo'] };
 
 describe('texto alternativo do redator (BEZ-203)', () => {
   it('vem do modelo, limpo de hashtag, link e travessão', () => {

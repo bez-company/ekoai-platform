@@ -16,7 +16,7 @@ import { fieldKeys } from '../platform/src/lib/design-edit-events.ts';
 
 const FONT_DIR = join(import.meta.dirname, '../platform/fonts');
 const slide = (title, extra = {}) => ({ texts: { title, ...extra } });
-const json = (slides, over = {}) => ({ kind: 'informativo', angle: 'três sinais', slides, caption: 'Bolo bom não tem pressa. Chame no WhatsApp.', hashtags: ['bolo'], alt_text: 'Carrossel sobre bolo.', ...over });
+const json = (slides, over = {}) => ({ kind: 'informativo', angle: 'três sinais', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', slides, caption: 'Bolo bom não tem pressa. Chame no WhatsApp.', hashtags: ['bolo'], alt_text: 'Carrossel sobre bolo.', ...over });
 const FIVE = [
   { role: 'cover', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Três sinais, sem abrir o forno' } },
   slide('A massa desgruda da borda', { sub: 'Passe a ponta de uma faca.' }),
@@ -65,7 +65,7 @@ describe('contrato das lâminas', () => {
   });
 
   it('sem pedir carrossel, o texto de uma imagem segue como era', () => {
-    const r = parseCopy({ kind: 'informativo', texts: { title: 'Oi', items: ['a', 'b'] }, caption: 'x', hashtags: [] }, null);
+    const r = parseCopy({ kind: 'informativo', texts: { title: 'Oi', items: ['a', 'b'] }, caption: 'x', hashtags: [], signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar' }, null);
     expect(r.value.slides).toBeUndefined();
     expect(r.value.texts.items).toEqual(['a', 'b']);
   });

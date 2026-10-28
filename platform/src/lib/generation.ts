@@ -22,7 +22,7 @@ import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGo
 import { clicheIssues, offTopicFacts, requestNumbersMissing } from './off-topic-facts';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
-import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
+import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -175,7 +175,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, signal: signalOfGoal(brief.goal), profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -192,7 +192,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
         throw e;
       }
     }
-    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo), brief.slideCount);
+    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo), brief.slideCount, signalOfGoal(brief.goal));
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
@@ -391,6 +391,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         goal: brief.goal,
         ratio: brief.ratio,
         angle: copy.angle || null,
+        // SPEC 028: o que o post pede à pessoa e por quê; a análise agrupa por aqui (BEZ-416).
+        signal: copy.signal,
+        share_reason: copy.shareReason,
         variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: carousel ? 'carousel' : 'single', ...(carousel ? { slideUrls: keys.map((key) => mediaUrl(key, deps.mediaBaseUrl)) } : {}) }],
         model: deps.model.config.textModel,
         // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a

@@ -1,0 +1,104 @@
+{
+  "_doc": "O que cada rede diz medir e o que o post precisa fazer para servir a isso (SPEC 028, BEZ-414). Fonte única dos prompts por rede. As redes mudam o algoritmo sem avisar: cada rede tem `reviewed_at`, e tests/channel-signals.test.js reprova a rede que passa de `max_age_days` sem revisão. `confidence` diz o quanto as fontes sustentam o conteúdo: high (documentação ou código da própria rede), medium (relatos e benchmarks consistentes), low (só blog de marketing: não usar como regra dura). Análise e fontes: docs/analises/2026-10-28-algoritmos-por-rede-e-conteudo.md.",
+  "max_age_days": 120,
+  "channels": {
+    "instagram": {
+      "label": "Instagram",
+      "reviewed_at": "2026-10-28",
+      "confidence": "medium",
+      "measures": [
+        "tempo que a pessoa fica no post (no carrossel, o quanto ela desliza)",
+        "envio do post a alguém por mensagem (pesa mais para quem não segue a conta)",
+        "salvamento e curtida, por alcance"
+      ],
+      "content_must": [
+        "dar a alguém um motivo para mandar o post a uma pessoa específica",
+        "ser algo que se consulta depois, quando o assunto é dica ou lista",
+        "ter um gancho que promete algo específico na primeira linha e na capa",
+        "usar um fato da própria empresa, não um texto que serviria a qualquer negócio"
+      ],
+      "avoid": [
+        "pedir curtida, comentário ou envio em todo post",
+        "republicar sem transformar o que não é da empresa",
+        "texto genérico, que serviria a qualquer empresa"
+      ],
+      "sources": [
+        {
+          "title": "Instagram ranking explained",
+          "url": "https://about.instagram.com/blog/announcements/instagram-ranking-explained",
+          "kind": "primary"
+        },
+        {
+          "title": "Mosseri, sinais de ranking (Social Media Today, jan/2025)",
+          "url": null,
+          "kind": "secondary"
+        }
+      ]
+    },
+    "linkedin": {
+      "label": "LinkedIn",
+      "reviewed_at": "2026-10-28",
+      "confidence": "medium",
+      "measures": [
+        "se a pessoa para na primeira tela ou passa rápido (permanência abaixo de um limiar conta como negativo)",
+        "ações ativas: comentar, curtir e compartilhar",
+        "histórico da pessoa e o assunto do post (ranqueador sequencial, março de 2026)"
+      ],
+      "content_must": [
+        "parar o scroll nas duas primeiras linhas, antes do corte do ver mais",
+        "ter o que ler até o fim: uma situação concreta ou um número que está nos fatos",
+        "terminar com uma pergunta que um colega de profissão responde com a experiência dele"
+      ],
+      "avoid": [
+        "voz genérica de IA e texto sem especificidade",
+        "encher linha para esticar a leitura",
+        "comentário em massa e combinação de curtidas"
+      ],
+      "sources": [
+        {
+          "title": "LinkedIn Engineering: dwell time (2020)",
+          "url": "https://www.linkedin.com/blog/engineering/feed/understanding-feed-dwell-time",
+          "kind": "primary"
+        },
+        {
+          "title": "LinkedIn Engineering: a próxima geração do feed (12/3/2026)",
+          "url": "https://www.linkedin.com/blog/engineering/feed/engineering-the-next-generation-of-linkedins-feed",
+          "kind": "primary"
+        }
+      ]
+    },
+    "twitter": {
+      "label": "X",
+      "reviewed_at": "2026-10-28",
+      "confidence": "medium",
+      "measures": [
+        "resposta ao post e resposta do autor a quem respondeu",
+        "clique no perfil, leitura e tempo de leitura",
+        "sinais negativos: não tenho interesse, silenciar, bloquear e denunciar",
+        "post com mais de 48 horas sai da disputa"
+      ],
+      "content_must": [
+        "uma ideia só, que fala por si em até 280 caracteres",
+        "dar um motivo concreto para responder, de preferência uma pergunta com duas opções",
+        "o autor responder de volta, rápido"
+      ],
+      "avoid": [
+        "tom hostil, repetitivo ou fora do assunto da conta",
+        "vários posts seguidos do mesmo autor",
+        "depender de imagem ou de outro post para fazer sentido"
+      ],
+      "sources": [
+        {
+          "title": "X: xai-org/x-algorithm (2026)",
+          "url": "https://github.com/xai-org/x-algorithm",
+          "kind": "primary"
+        },
+        {
+          "title": "X: pesos de 2023 (the-algorithm-ml)",
+          "url": "https://github.com/twitter/the-algorithm-ml/blob/main/projects/home/recap/README.md",
+          "kind": "primary"
+        }
+      ]
+    }
+  }
+}
