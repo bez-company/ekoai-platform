@@ -50,6 +50,17 @@ resource "google_project_iam_member" "app_auth_viewer" {
   member  = "serviceAccount:${google_service_account.app.email}"
 }
 
+# E-mail pelo Gmail API (BEZ-28, ADR 0027): a conta do app assina, pelo IAM Credentials, o JWT da delegação de domínio.
+# O papel vale só sobre ela mesma (nada de chave em arquivo). Depois do apply, autorize o client ID de
+# `app_service_account_client_id` no Admin Console (Segurança > Controles de API > Delegação em todo o domínio)
+# com o escopo https://www.googleapis.com/auth/gmail.send.
+resource "google_service_account_iam_member" "app_signs_own_jwt" {
+  count              = var.mail_provider == "gmail" ? 1 : 0
+  service_account_id = google_service_account.app.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.app.email}"
+}
+
 # Deploy: troca revisão do serviço e dos jobs, empurra imagem e roda o job de migration.
 resource "google_project_iam_member" "deploy_run" {
   project = var.project_id

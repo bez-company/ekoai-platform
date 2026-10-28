@@ -14,7 +14,7 @@
 | 4 | Teste grátis: duração, o que libera, o que acontece no fim | usar a retenção pós-teste da Pilar como ponto de partida | define o ledger de uso e os avisos de cobrança |
 | 5 | Parecer do leitor obrigatório antes de aprovar? | **opcional por conta** (padrão: não) | muda o fluxo da inbox |
 | 6 | E-mail do ultra admin | e-mail pessoal, fora da Labrynth | entra na migration de `platform_admins` |
-| 7 | Provedor de e-mail transacional | escolher um que aceite domínio próprio | o Google Cloud não tem e-mail transacional próprio; depende do domínio |
+| 7 | Provedor de e-mail transacional | **Gmail API no Workspace da BEZ** ([ADR 0027](../adr/0027-email-transacional-pelo-gmail-api-no-workspace-da-bez.md), 28/10/2026) | o Google Cloud não tem e-mail transacional próprio; o Workspace já tem os domínios, SPF, DKIM e DMARC |
 
 Dependem da reunião com a advogada: nome, domínio, CNPJ da BEZ, termos de uso PF e PJ.
 

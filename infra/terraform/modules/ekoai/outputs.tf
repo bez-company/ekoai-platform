@@ -19,6 +19,11 @@ output "app_service_account" {
   value = google_service_account.app.email
 }
 
+output "app_service_account_client_id" {
+  description = "Client ID (ID único) da conta do app, o que se autoriza na delegação de domínio do Workspace."
+  value       = google_service_account.app.unique_id
+}
+
 output "scheduler_service_account" {
   value = google_service_account.scheduler.email
 }

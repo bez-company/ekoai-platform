@@ -214,3 +214,26 @@ variable "app_domain" {
   type        = string
   default     = ""
 }
+
+variable "mail_provider" {
+  description = "E-mail transacional (env MAIL_PROVIDER): `gmail` envia convites e avisos pelo Gmail API na conta do Workspace da BEZ (ADR 0027). Vazio = sem e-mail, e quem convida copia o link na tela. Exige a delegação de domínio no Admin Console e o valor do segredo mail-impersonate."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = contains(["", "gmail"], var.mail_provider)
+    error_message = "mail_provider deve ser vazio ou gmail."
+  }
+}
+
+variable "mail_from" {
+  description = "Remetente (env MAIL_FROM), ex.: Ekoai <no-reply@ekoai.com.br>. Precisa estar em Gmail > Contas > Enviar e-mail como do usuário que envia."
+  type        = string
+  default     = ""
+}
+
+variable "mail_reply_to" {
+  description = "Endereço de resposta (env MAIL_REPLY_TO), ex.: suporte@ekoai.com.br. Vazio = sem Reply-To."
+  type        = string
+  default     = ""
+}

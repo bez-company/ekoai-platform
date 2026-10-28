@@ -67,6 +67,13 @@ module "ekoai" {
   # Produção segue com senha única e cadastro por convite até haver limite de taxa no cadastro.
   auth_provider = "identity"
   signup_mode   = "open"
+  # E-mail dos convites pelo Gmail API (BEZ-28, ADR 0027). Remetente e resposta são endereços do produto.
+  # `mail_provider` só vira "gmail" depois dos passos do runbook (segredo, delegação de domínio, "Enviar e-mail
+  # como"): ligado antes, o convite falha em vez de devolver o link para copiar.
+  mail_provider = ""
+  mail_from     = "Ekoai <no-reply@ekoai.com.br>"
+  mail_reply_to = "suporte@ekoai.com.br"
+
   # Sem segundo fator obrigatório por enquanto (decisão de 21/10/2026, BEZ-169). Produção segue em `required`.
   mfa_mode = "optional"
 
@@ -113,5 +120,6 @@ output "registry" { value = module.ekoai.registry }
 output "media_bucket" { value = module.ekoai.media_bucket }
 output "sql_instance" { value = module.ekoai.sql_instance }
 output "deploy_service_account" { value = module.ekoai.deploy_service_account }
+output "app_service_account_client_id" { value = module.ekoai.app_service_account_client_id }
 output "workload_identity_provider" { value = module.ekoai.workload_identity_provider }
 output "secrets_to_fill" { value = module.ekoai.secrets_to_fill }

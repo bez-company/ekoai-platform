@@ -110,8 +110,9 @@ describe('endereço do link e e-mail', () => {
     expect(appOrigin(req(), {})).toBe('http://0.0.0.0:8080');
   });
 
-  it('sem provedor não há mailer; com provedor sem implementação falha alto', () => {
+  it('sem provedor não há mailer; com provedor desconhecido falha alto', () => {
     expect(getMailer({})).toBeNull();
-    expect(() => getMailer({ MAIL_PROVIDER: 'resend' })).toThrow(/não tem implementação/);
+    expect(getMailer({ MAIL_PROVIDER: '  ' })).toBeNull();
+    expect(() => getMailer({ MAIL_PROVIDER: 'resend' })).toThrow(/não é suportado/);
   });
 });
