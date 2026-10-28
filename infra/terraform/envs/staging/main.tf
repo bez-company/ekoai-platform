@@ -69,8 +69,8 @@ module "ekoai" {
   signup_mode   = "open"
   # E-mail dos convites pelo Gmail API (BEZ-28, ADR 0027). Remetente e resposta são endereços do produto.
   # `mail_provider` só vira "gmail" depois dos passos do runbook (segredo, delegação de domínio, "Enviar e-mail
-  # como"): ligado antes, o convite falha em vez de devolver o link para copiar.
-  mail_provider = ""
+  # como"): ligado antes, o convite falha em vez de devolver o link para copiar. Staging ligado em 28/10/2026.
+  mail_provider = "gmail"
   mail_from     = "Ekoai <no-reply@ekoai.com.br>"
   mail_reply_to = "suporte@ekoai.com.br"
 
