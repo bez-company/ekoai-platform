@@ -75,7 +75,7 @@ const TEXT_RULES = `Regras de texto (valem para tudo o que for escrito):
 - Dado de exemplo em mockup (nome, nota, valor, contagem) não pode parecer fato da empresa: sem número, sem nome de pessoa; use rótulos e palavras ("Atleta", "Excelente"), nunca "2 gols" ou "J. S.".`;
 
 // ───────────────────────── marketing ─────────────────────────
-export async function strategist({ company, request, territories, ledger }) {
+export async function strategist({ company, request, territories, model = MODELS.smart, ledger }) {
   const list = territories.map((t, i) => `${i + 1}. ${t.id}: ${t.brief}`).join('\n');
   const prompt = `Você é o estrategista de marketing de uma agência de social media. Recebe um pedido simples de um cliente e transforma em ideias que parem o dedo de quem rola o feed do Instagram.
 
@@ -102,11 +102,11 @@ Responda só um JSON:
   { "territory": "<id do território>", "bigIdea": "a ideia em 1 a 2 frases", "hook": "o gancho, na voz da marca", "visual": "o que se vê, em 1 frase", "why": "por que funciona", "fit": 1 a 5 (quanto este território serve a este pedido) }
  ]
 }`;
-  return askJson({ model: MODELS.smart, prompt, temperature: 1, ledger, step: 'marketing' });
+  return askJson({ model, prompt, temperature: 1, ledger, step: 'marketing' });
 }
 
 // ───────────────────────── diretor criativo ─────────────────────────
-export async function director({ request, strategy, recent, company, ledger }) {
+export async function director({ request, strategy, recent, recentTitles = [], company, model = MODELS.smart, ledger }) {
   const routes = strategy.routes.map((r, i) => `${i + 1}. [${r.territory}] ${r.bigIdea}\n   gancho: ${r.hook}\n   visual: ${r.visual}`).join('\n');
   const prompt = `Você é o diretor criativo, o crítico mais exigente da agência. Odeia post genérico: o formato "etiqueta + título + subtítulo + logo + foto de fundo" que toda ferramenta de IA entrega. Escolhe a rota mais corajosa que ainda serve ao pedido e à marca.
 
@@ -118,18 +118,19 @@ Rotas:
 ${routes}
 
 Territórios já usados nos posts recentes desta conta (evite repetir o mesmo jeito): ${recent.length ? recent.join(', ') : 'nenhum'}.
+Títulos recentes da conta (reprove a rota cujo gancho repita ou lembre algum deles): ${recentTitles.length ? recentTitles.map((t) => `"${t}"`).join('; ') : 'nenhum'}.
 
 Critérios, em ordem: (1) serve ao pedido e à marca sem inventar nada; (2) uma ideia que alguém comentaria ou salvaria; (3) variedade em relação aos posts recentes; (4) viável em uma peça só de 1080 x 1350.
 Escolha UMA e afie: diga o que torna a execução memorável e o que evitar para não cair no genérico.
 
 Responda só um JSON: { "choice": <número da rota>, "why": "1 frase", "sharpen": "instruções de execução em 2 a 3 frases", "avoid": ["armadilhas específicas desta rota"] }`;
-  const out = await askJson({ model: MODELS.smart, prompt, temperature: 0.4, ledger, step: 'diretor' });
+  const out = await askJson({ model, prompt, temperature: 0.4, ledger, step: 'diretor' });
   const index = Math.max(1, Math.min(strategy.routes.length, Number(out.choice) || 1)) - 1;
   return { index, route: strategy.routes[index], why: out.why, sharpen: out.sharpen, avoid: out.avoid ?? [] };
 }
 
 // ───────────────────────── redator ─────────────────────────
-export async function copywriter({ company, request, route, sharpen, territory, feedback = [], previous = null, ledger }) {
+export async function copywriter({ company, request, route, sharpen, territory, feedback = [], previous = null, recentTitles = [], model = MODELS.smart, ledger }) {
   const fix = feedback.length
     ? `\nO REVISOR REPROVOU A VERSÃO ANTERIOR. Corrija só o que ele apontou e mantenha o resto:\n${feedback.map((f) => `- ${f.message}`).join('\n')}\nVersão anterior: ${JSON.stringify(previous)}\n`
     : '';
@@ -143,7 +144,7 @@ Gancho de partida: ${route.hook}
 Direção do diretor criativo: ${sharpen}
 
 O território pede este tipo de peça (escreva textos que caibam nele): ${territory.brief}
-
+${recentTitles.length ? `\nTítulos recentes desta conta (NÃO repita nem escreva algo parecido; mude o ângulo e as palavras): ${recentTitles.map((t) => `"${t}"`).join('; ')}\n` : ''}
 Escreva:
 - headline: o texto principal da imagem. De 1 a 8 palavras. Específico e com tensão; nunca um rótulo ("Sobre nós", "Dicas") nem slogan vazio. Pense em 5 opções diferentes de ângulo, escolha a mais forte e devolva as 5 em "options".
 - support: uma frase de apoio de até 14 palavras, ou null se a peça ficar mais forte sem ela (menos texto é melhor).
@@ -155,7 +156,7 @@ Escreva:
 ${TEXT_RULES}
 ${fix}
 Responda só um JSON: { "options": ["..."], "headline": "...", "support": "..." ou null, "extras": ["..."], "caption": "...", "hashtags": ["#..."], "altText": "..." }`;
-  return askJson({ model: MODELS.smart, prompt, temperature: 0.9, ledger, step: 'redator' });
+  return askJson({ model, prompt, temperature: 0.9, ledger, step: 'redator' });
 }
 
 // ───────────────────────── direção de arte ─────────────────────────
@@ -363,7 +364,7 @@ o que mudou, em 2 a 3 linhas.
 }
 
 // ───────────────────────── revisor (portão final) ─────────────────────────
-export async function reviewer({ company, copy, png, ledger }) {
+export async function reviewer({ company, copy, png, model = MODELS.smart, ledger }) {
   const prompt = `Você é o revisor final: lê a peça como um leitor cético, palavra por palavra, antes de ela ir ao cliente. Compare a imagem com o que foi aprovado.
 
 Textos aprovados para a imagem: headline "${copy.headline}"; apoio ${copy.support ? `"${copy.support}"` : 'nenhum'}; extras ${JSON.stringify(copy.extras ?? [])}; assinatura ${company.handle ? `@${company.handle}` : company.name}.
@@ -378,5 +379,5 @@ Confira:
 
 Responda só um JSON: { "ok": true | false, "issues": [ { "rule": "text_drift" | "ai_artifact" | "logo" | "legibilidade" | "fato", "detail": "o que viu", "fix": "como corrigir no HTML" } ] }
 Seja objetivo: só reprove por defeito que um cliente notaria.`;
-  return askJson({ model: MODELS.smart, prompt, images: [{ bytes: png, label: 'A peça:' }], temperature: 0, thinking: 'low', ledger, step: 'revisor' });
+  return askJson({ model, prompt, images: [{ bytes: png, label: 'A peça:' }], temperature: 0, thinking: 'low', ledger, step: 'revisor' });
 }
