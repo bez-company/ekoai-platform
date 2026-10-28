@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ConnectError, FLASH, REFRESH_WINDOW_DAYS, SCOPES, authorUrn, buildAuthorizeUrl, callbackUrl, isFlashKey, isPermanentFailure, missingScopes, parseCallbackQuery, parseProfile, parseToken, refreshDecision } from '../platform/src/lib/linkedin-oauth-model.ts';
+import { ConnectError, FLASH, REFRESH_WINDOW_DAYS, SCOPES, authorUrn, buildAuthorizeUrl, callbackUrl, connectedProps, isFlashKey, isPermanentFailure, missingScopes, parseCallbackQuery, parseProfile, parseToken, refreshDecision } from '../platform/src/lib/linkedin-oauth-model.ts';
 import { LinkedInApiError, connectWithCode, oauthApp, refreshWithToken } from '../platform/src/lib/linkedin-oauth.ts';
 import { createState, stateValid } from '../platform/src/lib/instagram-oauth-model.ts';
 import { linkedinView } from '../platform/src/lib/channels-view.ts';
@@ -202,5 +202,22 @@ describe('nenhuma credencial do LinkedIn vem do ambiente', () => {
     const src = readFileSync(new URL('../platform/src/lib/channels/linkedin.ts', import.meta.url), 'utf8');
     expect(src).not.toMatch(/LINKEDIN_ACCESS_TOKEN|LINKEDIN_AUTHOR_URN|LINKEDIN_CLIENT/);
     expect(src).toContain('export type LinkedInCreds');
+  });
+});
+
+describe('evento de conexão (BEZ-450)', () => {
+  it('diz só se o LinkedIn devolveu refresh token, nunca o token', () => {
+    expect(connectedProps({ refreshToken: 'AQX-refresh-token-longo-demais-para-um-evento-123456789' })).toEqual({ has_refresh: true });
+    expect(connectedProps({ refreshToken: null })).toEqual({ has_refresh: false });
+  });
+
+  it('a conexão de verdade passa pelo helper: com e sem refresh token no corpo', async () => {
+    const reply = (body) => async (url) => new Response(JSON.stringify(String(url).includes('userinfo') ? { sub: 'abc123', name: 'Ana' } : body), { status: 200 });
+    const app = { clientId: 'id', clientSecret: 'segredo' };
+    const base = { access_token: 'acesso', expires_in: 5184000, scope: 'openid,profile,w_member_social' };
+    const withRefresh = await connectWithCode({ code: 'c', redirectUri: 'https://app.test/api/linkedin/callback', app }, reply({ ...base, refresh_token: 'r', refresh_token_expires_in: 31536000 }));
+    const without = await connectWithCode({ code: 'c', redirectUri: 'https://app.test/api/linkedin/callback', app }, reply(base));
+    expect(connectedProps(withRefresh)).toEqual({ has_refresh: true });
+    expect(connectedProps(without)).toEqual({ has_refresh: false });
   });
 });
