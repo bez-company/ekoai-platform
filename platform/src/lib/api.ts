@@ -20,8 +20,16 @@ export function badRequest(message: string): NextResponse {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-// Páginas: mesma regra das rotas, devolvendo o texto que a tela mostra.
+// `notFound()` e `redirect()` do Next funcionam lançando um erro de controle. Se um try/catch de página os pega,
+// a rota vira 200 com um cartão de erro (BEZ-273). Quem reconhece a marca os relança.
+export function isNextControlError(e: unknown): boolean {
+  const digest = e && typeof e === 'object' && 'digest' in e ? (e as { digest?: unknown }).digest : undefined;
+  return typeof digest === 'string' && (digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') || digest.startsWith('NEXT_REDIRECT') || digest === 'NEXT_NOT_FOUND');
+}
+
+// Páginas: mesma regra das rotas, devolvendo o texto que a tela mostra. Erro de controle do Next sobe.
 export function pageError(e: unknown, scope: string): string {
+  if (isNextControlError(e)) throw e;
   if (!(e instanceof UserError)) logError(scope, e);
   return userMessage(e);
 }
