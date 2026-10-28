@@ -13,7 +13,7 @@ const API = join(import.meta.dirname, '../platform/src/app/api');
 // `live`, `ambiente` e `ambiente/ligar` são do staging sob demanda (SPEC 016): com o banco parado ninguém tem sessão; só
 // devolvem o estado ou ligam o banco, e respondem 404 fora do staging (WAKE_ENABLED). `cron/sleep-if-idle` é do Scheduler.
 // `instagram/deauthorize` e `instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é o signed_request.
-const PUBLIC = new Set(['login', 'logout', 'health', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/collect-metrics', 'cron/sleep-if-idle', 'cron/plan-content', 'instagram/deauthorize', 'instagram/data-deletion', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
+const PUBLIC = new Set(['login', 'logout', 'health', 'version', 'live', 'ambiente', 'ambiente/ligar', 'cron/publish-due', 'cron/generate', 'cron/refresh-instagram', 'cron/collect-metrics', 'cron/sleep-if-idle', 'cron/plan-content', 'instagram/deauthorize', 'instagram/data-deletion', 'auth/session', 'media/[...key]', 'account', 'invitations/accept']);
 
 // As rotas do console do administrador da plataforma (BEZ-303) não usam a matriz de papéis das contas: cada
 // uma passa por requirePlatformAdmin(), o portão de uma pessoa só (docs/arquitetura/ultra-admin.md).

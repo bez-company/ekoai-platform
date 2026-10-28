@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { appVersion } from '@/lib/app-version';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,8 @@ async function checkDb(): Promise<boolean> {
 
 export async function GET() {
   const dbOk = await checkDb();
-  const version = process.env.APP_VERSION?.slice(0, 7) ?? process.env.K_REVISION ?? 'dev';
   return NextResponse.json(
-    { status: dbOk ? 'ok' : 'degraded', checks: { db: dbOk ? 'ok' : 'fail' }, version },
+    { status: dbOk ? 'ok' : 'degraded', checks: { db: dbOk ? 'ok' : 'fail' }, version: appVersion() },
     { status: dbOk ? 200 : 503, headers: { 'Cache-Control': 'no-store' } },
   );
 }

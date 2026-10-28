@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import WakeScreen from '@/components/wake/WakeScreen';
+import UpdateNotice from '@/components/UpdateNotice';
+import { appVersion } from '@/lib/app-version';
 import { environmentAsleep } from '@/lib/wake-gate';
 
 // Fontes servidas pela própria plataforma (sem chamada ao Google em runtime): Sora e DM Mono.
@@ -34,7 +36,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const asleep = await environmentAsleep();
   return (
     <html lang="pt-BR" data-theme="light" className={`${sora.variable} ${dmMono.variable}`}>
-      <body>{asleep ? <WakeScreen /> : children}</body>
+      <body>
+        {asleep ? <WakeScreen /> : children}
+        <UpdateNotice version={appVersion()} />
+      </body>
     </html>
   );
 }
