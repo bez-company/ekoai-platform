@@ -77,7 +77,7 @@ const SLIDES = [
   slide('O topo volta ao toque'),
   slide('Quer um bolo assim?', { sub: 'Chame a gente no WhatsApp.' }),
 ];
-const CAROUSEL = { kind: 'informativo', angle: 'três sinais', slides: SLIDES, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'], alt_text: 'Carrossel sobre os sinais de bolo pronto.' };
+const CAROUSEL = { kind: 'informativo', angle: 'três sinais', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', slides: SLIDES, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'], alt_text: 'Carrossel sobre os sinais de bolo pronto.' };
 
 async function carouselBrief(idea, kind = null) {
   const parsed = requests.parsePostRequest({ idea, kind, format: 'carousel' });
@@ -240,7 +240,7 @@ describe('trocar o formato em Aprovar', () => {
     const t = tenantDb(A);
     const parsed = requests.parsePostRequest({ idea, kind: 'informativo', ...(format ? { format } : {}) });
     const made = (await requests.createPostRequest(t, ANA, parsed.value)).id;
-    const text = format ? CAROUSEL : { kind: 'informativo', angle: 'dica', texts: { title: 'Seu bolo está pronto?', sub: 'Três sinais, sem abrir o forno' }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo'], alt_text: 'Post sobre bolo.' };
+    const text = format ? CAROUSEL : { kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { title: 'Seu bolo está pronto?', sub: 'Três sinais, sem abrir o forno' }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo'], alt_text: 'Post sobre bolo.' };
     const out = await generatePost(t, made, { model: fakeModel({ text: [text], image: [] }), store, fontDir: FONT_DIR });
     expect(out.status, JSON.stringify(out)).toBe('ready');
     return made;
