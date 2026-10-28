@@ -149,7 +149,8 @@ export default function Studio({
     setStatus((s) => (s === 'conflict' ? s : 'idle'));
     setMessage('');
   }, [scene]);
-  const undo = () => { if (!past.length || !scene) return; setFuture((f) => [scene, ...f]); setScene(past[past.length - 1]); setPast(past.slice(0, -1)); setDirty(true); };
+  // Desfazer até o começo volta ao que o servidor tem: sem mudança a confirmar.
+  const undo = () => { if (!past.length || !scene) return; setFuture((f) => [scene, ...f]); setScene(past[past.length - 1]); setPast(past.slice(0, -1)); setDirty(past.length > 1); };
   const redo = () => { if (!future.length || !scene) return; setPast((p) => [...p, scene]); setScene(future[0]); setFuture(future.slice(1)); setDirty(true); };
   const patch = (id: string, p: Partial<SceneLayer>) => scene && commit(updateLayer(scene, id, p));
 

@@ -23,22 +23,28 @@ async function createPost(page: Page, idea: string): Promise<Post> {
   return { briefId, inbox: new URL(page.url()).pathname };
 }
 
-const status = (page: Page) => page.locator('#design-status');
+// A nota do editor (aviso do revisor, "mudanças sem confirmar" ou o resultado do Confirmar).
+const status = (page: Page) => page.locator('p[aria-live="polite"]');
 const confirmButton = (page: Page) => page.getByRole('button', { name: 'Confirmar', exact: true });
-const corner = (page: Page) => page.getByRole('button', { name: 'Logo no canto inferior direito' });
+const canvas = (page: Page) => page.getByRole('application', { name: /Imagem do post/ });
 
-// O Studio abre por "Editar imagem" em Aprovar. No desktop os elementos são uma lista; no celular, chips.
+// O Studio abre por "Editar imagem" em Aprovar. No desktop as camadas são uma lista; no celular, chips.
 async function openStudio(page: Page, post: Post) {
   await page.goto(post.inbox);
   await page.getByRole('link', { name: 'Editar imagem' }).click();
   await expect(page).toHaveURL(/\/studio$/);
+  await expect(canvas(page)).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Propriedades' })).toBeVisible();
 }
-// O elemento sem conteúdo (selo ou subtítulo removido) leva "sem" no nome acessível: o nome casa pelo começo.
-const pick = (page: Page, name: string) => {
-  const label = new RegExp(`^${name}( sem)?$`);
-  return page.getByRole('option', { name: label }).or(page.getByRole('group', { name: 'Elementos do post' }).getByRole('button', { name: label })).click();
-};
+const pick = (page: Page, name: string) =>
+  page
+    .getByRole('option')
+    .filter({ hasText: name })
+    .getByRole('button')
+    .first()
+    .or(page.getByRole('group', { name: 'Elementos' }).getByRole('button', { name, exact: true }))
+    .first()
+    .click();
 
 // Outra pessoa salva uma versão do mesmo post (a rota que a tela usa, com a sessão desta página).
 async function saveAsOtherEditor(page: Page, briefId: string, change: (design: Record<string, unknown>) => Record<string, unknown>) {
@@ -46,6 +52,16 @@ async function saveAsOtherEditor(page: Page, briefId: string, change: (design: R
   expect(state.ok()).toBe(true);
   const { version, editable } = (await state.json()) as { version: number; editable: Record<string, unknown> };
   const saved = await page.request.post(`/api/posts/${briefId}/design/revisions`, { data: { baseVersion: version, design: change(editable) } });
+  expect(saved.status()).toBe(201);
+}
+
+// Outra pessoa grava uma cena nova (a rota que o editor usa, com a sessão desta página): esconde a primeira camada de texto.
+async function saveSceneAsOtherEditor(page: Page, briefId: string) {
+  const res = await page.request.get(`/api/posts/${briefId}/design/scene`);
+  expect(res.ok()).toBe(true);
+  const { version, scene } = (await res.json()) as { version: number; scene: { layers: Array<Record<string, unknown>> } };
+  scene.layers[0] = { ...scene.layers[0], locked: true };
+  const saved = await page.request.put(`/api/posts/${briefId}/design/scene`, { data: { baseVersion: version, scene } });
   expect(saved.status()).toBe(201);
 }
 
@@ -57,7 +73,7 @@ test.describe.serial('Studio, versões e regra de marca', () => {
     await resetFakes();
   });
 
-  test('Aprovar abre o Studio, a prévia vem do servidor e confirmar salva a versão 2 sem chamar o modelo', async ({ page }) => {
+  test('Aprovar abre o Studio em camadas e confirmar salva a versão 2 sem chamar o modelo', async ({ page }) => {
     await login(page, 'admin');
     await saveMinimalProfile(page);
     posts.push(await createPost(page, 'dica de bolo pronto'));
@@ -66,20 +82,19 @@ test.describe.serial('Studio, versões e regra de marca', () => {
 
     await openStudio(page, posts[0]);
     await expect(page.getByText('Esta é a versão inicial. Faça um ajuste e confirme para salvar a versão 2.')).toBeVisible();
+    await expect(status(page)).toContainText('Nenhuma mudança ainda');
     await expect(confirmButton(page)).toBeDisabled();
     const modelBefore = (await fakeCalls(/aiplatform/)).length;
 
-    await pick(page, 'Logo');
-    await corner(page).click();
-    await pick(page, 'Subtítulo');
-    await page.getByRole('button', { name: 'Remover subtítulo' }).click();
-    await expect(status(page)).toContainText('2 mudanças sem confirmar: subtítulo removido, logo movido para o canto inferior direito');
+    await pick(page, 'Selo');
+    await page.getByRole('button', { name: 'Travar', exact: true }).click();
+    await expect(status(page)).toContainText('Mudanças sem confirmar');
     await confirmButton(page).click();
 
-    await expect(page.getByText('Versão 2 salva e em uso.')).toBeVisible();
+    await expect(page.getByText(/Salvo como versão 2/)).toBeVisible();
     await expect(page.getByText('Versão 2', { exact: true })).toBeVisible();
     await expect(page.getByText('Versão inicial', { exact: true })).toBeVisible();
-    // ajustar texto, cor e logo é desenho no servidor: o modelo não foi chamado nem uma vez
+    // desenhar as camadas é trabalho do servidor: o modelo não foi chamado nem uma vez
     expect((await fakeCalls(/aiplatform/)).length).toBe(modelBefore);
 
     await page.getByRole('link', { name: 'Voltar ao post', exact: true }).click();
@@ -87,48 +102,49 @@ test.describe.serial('Studio, versões e regra de marca', () => {
   });
 
   // O post sem marca nasce escuro (BEZ-368): o texto que perde o contraste é o quase preto, não o branco.
-  test('cor com contraste baixo trava o Confirmar e diz o motivo; desfazer e Padrão voltam', async ({ page }) => {
+  test('cor com contraste baixo trava o Confirmar e diz o motivo; desfazer volta', async ({ page }) => {
     await login(page, 'admin');
     await openStudio(page, posts[0]);
 
     await pick(page, 'Título');
-    await page.getByRole('button', { name: 'Cor do título: Quase preto' }).click();
+    await page.getByRole('group', { name: 'Cor do texto' }).getByRole('button', { name: 'Quase preto' }).click();
     await expect(status(page)).toContainText('Contraste baixo no título');
     await expect(confirmButton(page)).toBeDisabled();
 
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
-    await expect(status(page)).toContainText('Nenhuma mudança ainda');
-
-    await pick(page, 'Logo');
-    await page.getByLabel('Esconder o logo neste post').check();
-    await expect(status(page)).toContainText('logo escondido');
-    await page.getByRole('button', { name: 'Padrão', exact: true }).click();
-    await expect(status(page)).toContainText('Nenhuma mudança ainda');
+    await expect(status(page)).not.toContainText('Contraste baixo');
   });
 
-  test('cor do subtítulo e dos itens, selo, itens e layout entram como mudança e mostram o contraste', async ({ page }) => {
+  test('inserir texto e forma, apagar, e voltar ao layout automático grava uma versão', async ({ page }) => {
     await login(page, 'admin');
     await openStudio(page, posts[0]);
 
-    await pick(page, 'Subtítulo');
-    await page.getByRole('textbox', { name: 'Texto do subtítulo' }).fill('Confira antes de desenformar'); // o subtítulo foi removido na versão 2: escrever de novo o adiciona
-    await expect(status(page)).toContainText('subtítulo adicionado');
-    await pick(page, 'Selo');
-    await page.getByRole('button', { name: 'Remover selo' }).click();
-    await expect(status(page)).toContainText('selo removido');
-    await pick(page, 'Itens');
-    await page.getByRole('textbox', { name: 'Item 1' }).fill('A massa solta da borda');
-    await expect(status(page)).toContainText('item 1 alterado');
-    await page.getByRole('button', { name: 'Cor dos itens: Cor de destaque da marca' }).click();
-    await expect(page.getByText(/Contraste \d+,\d:1 sobre o fundo/)).toBeVisible();
+    await page.getByRole('tab', { name: 'Inserir' }).or(page.getByRole('button', { name: '+ Texto' })).first().click();
+    if (await page.getByRole('tab', { name: 'Inserir' }).isVisible()) await page.getByRole('button', { name: /Texto$/ }).click();
+    await expect(page.getByRole('heading', { name: 'Texto novo' })).toBeVisible();
+    await page.getByRole('button', { name: 'Apagar', exact: true }).first().click();
+    await expect(page.getByRole('heading', { name: 'Texto novo' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await expect(status(page)).toContainText('Nenhuma mudança ainda');
 
-    await pick(page, 'Layout');
-    const group = page.getByRole('group', { name: 'Layouts compatíveis' });
-    await expect(group.getByText('Lista numerada')).toBeVisible();
-    await expect(group.getByText('Título em destaque')).toBeVisible();
-    await group.getByRole('button', { name: /Título em destaque/ }).click();
-    await expect(status(page)).toContainText('layout trocado para título em destaque');
-    await page.getByRole('button', { name: 'Padrão', exact: true }).click();
+    // o post já tem camadas (versão 2): voltar ao layout automático é uma versão nova
+    await page.getByRole('button', { name: 'Voltar ao layout automático' }).click();
+    await expect(page.getByText('Voltou ao layout automático.')).toBeVisible();
+    await expect(page.getByText('Versão 3', { exact: true })).toBeVisible();
+  });
+
+  test('baixar o PNG e o SVG da versão em uso', async ({ page }) => {
+    await login(page, 'admin');
+    await openStudio(page, posts[0]);
+    const png = await page.request.get(`/api/posts/${posts[0].briefId}/design/export?format=png`);
+    expect(png.status()).toBe(200);
+    expect(png.headers()['content-type']).toBe('image/png');
+    expect(png.headers()['content-disposition']).toContain('post-imagem.png');
+    const svg = await page.request.get(`/api/posts/${posts[0].briefId}/design/export?format=svg`);
+    expect(svg.status()).toBe(200);
+    expect(await svg.text()).toMatch(/<text /);
+    expect((await page.request.get(`/api/posts/${posts[0].briefId}/design/export?format=pdf`)).status()).toBe(400);
   });
 
   test('um segundo editor salvou antes: a tela mostra o conflito e não perde o ajuste', async ({ page }) => {
@@ -136,37 +152,31 @@ test.describe.serial('Studio, versões e regra de marca', () => {
     posts.push(await createPost(page, 'dica de recheio'));
     await openStudio(page, posts[1]);
 
-    await saveAsOtherEditor(page, posts[1].briefId, (d) => ({ ...d, logoCorner: 'tl' }));
-    await pick(page, 'Logo');
-    await page.getByLabel('Esconder o logo neste post').check();
+    await saveSceneAsOtherEditor(page, posts[1].briefId);
+    await pick(page, 'Título');
+    await page.getByRole('button', { name: 'Travar', exact: true }).click();
+    await confirmButton(page).click();
 
     // a faixa de publicação pausada também é um alerta: o conflito se acha pelo texto
-    const conflict = page.getByRole('alert').filter({ hasText: 'salvou a versão 2 enquanto você editava' });
+    const conflict = page.getByRole('alert').filter({ hasText: 'Nada seu foi apagado' });
     await expect(conflict).toBeVisible();
-    await expect(conflict).toContainText('Suas mudanças continuam na tela.');
-    await expect(confirmButton(page)).toBeDisabled();
-    await page.getByRole('button', { name: /Refazer sobre a versão 2/ }).click();
-    await expect(confirmButton(page)).toBeEnabled();
+    await conflict.getByRole('button', { name: 'Abrir a versão nova' }).click();
+    await expect(status(page)).toContainText('Nenhuma mudança ainda');
+    await pick(page, 'Título');
+    await page.getByRole('button', { name: 'Travar', exact: true }).click();
     await confirmButton(page).click();
-    await expect(page.getByText('Versão 3 salva e em uso.')).toBeVisible();
+    await expect(page.getByText(/Salvo como versão 3/)).toBeVisible();
   });
 
   test('a mesma mudança em 3 posts vira regra proposta; aceitar, desligar e ligar de novo em Aprendizado', async ({ page }) => {
     await login(page, 'admin');
-    // o terceiro post: o primeiro já tem o logo no canto inferior direito, o segundo vai agora pela API
-    await saveAsOtherEditor(page, posts[1].briefId, (d) => ({ ...d, logoCorner: 'br', logoHidden: undefined }));
+    // ajustes pelos campos (o ajuste do logo) continuam alimentando o aprendizado: três posts, a mesma mudança, pela API
     posts.push(await createPost(page, 'dica de cobertura'));
-    await openStudio(page, posts[2]);
-    await pick(page, 'Logo');
-    await corner(page).click();
-    await confirmButton(page).click();
-
-    await expect(page.getByText('A Ekoai notou um padrão.')).toBeVisible();
-    await expect(page.getByText(/Você moveu o logo para o canto inferior direito em 3 posts/)).toBeVisible();
-    await page.getByRole('button', { name: 'Aceitar regra' }).click();
-    await expect(page.getByText('Regra ativa: Logo no canto inferior direito.')).toBeVisible();
+    for (const post of posts) await saveAsOtherEditor(page, post.briefId, (d) => ({ ...d, logoCorner: 'br' }));
 
     await page.goto('/aprendizado?tab=design');
+    await expect(page.getByText(/Você moveu o logo para o canto inferior direito em 3 posts/)).toBeVisible();
+    await page.getByRole('button', { name: 'Aceitar regra' }).click();
     await expect(page.getByRole('link', { name: 'Design do post' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByText('Logo no canto inferior direito', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: /Desligar a regra: Logo no canto inferior direito/ }).click();
