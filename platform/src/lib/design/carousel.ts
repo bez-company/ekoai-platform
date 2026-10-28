@@ -8,10 +8,11 @@ import type { Issue } from './review';
 export const MAX_COVER_WORDS = 12;
 
 // A família de cada papel: a capa é a foto com título (atmosfera, com o visual) ou o título em destaque; as lâminas
-// de item levam o número em destaque; a chamada é o título em destaque com a assinatura.
+// de item levam o número em destaque; a chamada repete a capa (foto com título, ou título em destaque). No atmosfera
+// todas as lâminas levam a foto da capa, para o carrossel manter a cara do primeiro post.
 export function layoutForRole(role: SlideRole, kind: PostKind, hasVisual: boolean): Layout {
   if (role === 'content') return 'lamina-item';
-  if (role === 'cover' && kind === 'atmosfera' && hasVisual) return 'foto-titulo';
+  if (kind === 'atmosfera' && hasVisual) return 'foto-titulo';
   return 'titulo-destaque';
 }
 
@@ -49,13 +50,15 @@ export function inSlide(issue: Issue, slides: readonly Pick<CopySlide, 'texts'>[
 
 export const inSlideAt = (issue: Issue, index: number): Issue => (/^Lâmina \d+/.test(issue.message) ? issue : { ...issue, message: `Lâmina ${index + 1}: ${issue.message}` });
 
-// Um DesignSpec por lâmina, a partir do que as lâminas têm em comum (marca, logo, formato). Só a capa leva o visual.
+// Um DesignSpec por lâmina, a partir do que as lâminas têm em comum (marca, logo, formato, fundo). Todas levam o visual
+// (a foto da capa, em outro recorte) e a paleta do layout que dá a cara do post (`look`, por padrão o da capa).
 export function slideSpecs(slides: readonly CopySlide[], common: Omit<DesignSpec, 'layout' | 'texts' | 'visual' | 'slide' | 'kind'> & { kind: PostKind; visual?: DesignSpec['visual'] }): DesignSpec[] {
   const positions = slidePositions(slides.map((_, i) => roleAt(i, slides.length)));
   return slides.map((s, i) => {
     const { visual, ...rest } = common;
     const layout = layoutForRole(s.role, common.kind, !!visual);
-    return { ...rest, layout, texts: s.texts, slide: positions[i], ...(i === 0 && visual ? { visual } : {}) };
+    const look = common.look ?? layoutForRole('cover', common.kind, !!visual);
+    return { ...rest, layout, look, texts: s.texts, slide: positions[i], ...(visual ? { visual } : {}) };
   });
 }
 
@@ -80,9 +83,9 @@ export function slideAltText(texts: Texts, index: number, count: number): string
 }
 
 // Os layouts que servem a cada papel (a troca de layout do ajuste rápido lê daqui): a capa é a foto com título (se há
-// visual) ou o título em destaque; a lâmina de item, o número em destaque ou o título em destaque; a chamada, o título.
+// visual) ou o título em destaque; a lâmina de item, o número em destaque ou o título em destaque; a chamada, como a capa.
 export function slideLayouts(role: SlideRole, kind: PostKind, hasVisual: boolean): Layout[] {
   if (role === 'content') return ['lamina-item', 'titulo-destaque'];
-  if (role === 'cover' && kind === 'atmosfera' && hasVisual) return ['foto-titulo', 'titulo-destaque'];
+  if (kind === 'atmosfera' && hasVisual) return ['foto-titulo', 'titulo-destaque'];
   return ['titulo-destaque'];
 }

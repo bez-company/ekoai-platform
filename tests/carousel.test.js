@@ -4,8 +4,9 @@ import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
 import { buildCopyPrompt, imageTextsOf, keepWhatPassed, parseCopy } from '../platform/src/lib/agents.ts';
 import { inSlide, layoutForRole, reviewSlides, slideSpecs, storedSlides } from '../platform/src/lib/design/carousel.ts';
-import { brandFromProfile, compatibleLayouts, isLayout, roleAt, slidePositions } from '../platform/src/lib/design/model.ts';
+import { brandFromProfile, compatibleLayouts, isLayout, markBackground, paletteFor, roleAt, slidePositions } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
+import { compose } from '../platform/src/lib/design/families.ts';
 import { blocking } from '../platform/src/lib/design/review.ts';
 import { profileFromRow } from '../platform/src/lib/company-profile-model.ts';
 import { changedSlides, flatSlide, putSlide, slideDiffs, slideSummary, slidesOf } from '../platform/src/lib/design/slide-edit.ts';
@@ -147,10 +148,33 @@ describe('lâminas desenhadas', () => {
     ]);
   });
 
-  it('só a capa leva o visual', () => {
+  it('no atmosfera todas as lâminas levam a foto da capa, e a chamada repete o layout da capa', () => {
     const specs = slideSpecs(slides, { ...common, kind: 'atmosfera', visual: { dataUri: 'data:image/png;base64,AAAA' } });
-    expect(specs.map((s) => !!s.visual)).toEqual([true, false, false, false, false]);
-    expect(specs[0].layout).toBe('foto-titulo');
+    expect(specs.map((s) => !!s.visual)).toEqual([true, true, true, true, true]);
+    expect(specs.map((s) => s.layout)).toEqual(['foto-titulo', 'lamina-item', 'lamina-item', 'lamina-item', 'foto-titulo']);
+  });
+
+  it('todas as lâminas leem a paleta da capa (look), do informativo ao fundo pedido', () => {
+    const plain = slideSpecs(slides, common);
+    const colors = (spec) => JSON.stringify(paletteFor(spec));
+    expect(new Set(plain.map((s) => s.look))).toEqual(new Set(['titulo-destaque']));
+    expect(plain.map((s) => paletteFor(s).bg)).toEqual(Array(5).fill(brand.deep));
+    // O post de uma imagem em lista numerada (papel claro) vira carrossel sem trocar de fundo.
+    const fromList = slideSpecs(slides, { ...common, look: 'lista-numerada' });
+    expect(new Set(fromList.map((s) => paletteFor(s).bg))).toEqual(new Set([brand.paper]));
+    // O fundo pedido no post original vale em todas.
+    const dark = slideSpecs(slides, { ...common, background: 'dark', look: 'titulo-destaque' });
+    expect(new Set(dark.map((s) => colors(s))).size).toBe(1);
+    expect(paletteFor(dark[1]).bg).toBe(markBackground(brand, 'dark'));
+  });
+
+  it('a lâmina de item com foto desenha a foto em outro recorte e sem aviso que trava', () => {
+    const photo = { dataUri: `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#c08040"/></svg>').toString('base64')}` };
+    const specs = slideSpecs(slides, { ...common, kind: 'atmosfera', visual: photo });
+    const svgs = specs.map((s) => compose(s).svg);
+    expect(svgs[1]).toContain('<image href="data:image/svg+xml');
+    expect(svgs[1]).not.toBe(svgs[2]);
+    for (const spec of specs) expect(blocking(renderPng(spec, { fontDir: FONT_DIR }).issues), spec.layout).toEqual([]);
   });
 
   it('o design guarda papel, layout, texto e chave de cada lâmina', () => {
@@ -250,7 +274,7 @@ describe('ajuste por lâmina (puro)', () => {
     expect(slideLayouts('cover', 'informativo', false)).toEqual(['titulo-destaque']);
     expect(slideLayouts('cover', 'atmosfera', true)).toEqual(['foto-titulo', 'titulo-destaque']);
     expect(slideLayouts('content', 'informativo', false)).toEqual(['lamina-item', 'titulo-destaque']);
-    expect(slideLayouts('cta', 'atmosfera', true)).toEqual(['titulo-destaque']);
+    expect(slideLayouts('cta', 'atmosfera', true)).toEqual(['foto-titulo', 'titulo-destaque']);
   });
 
   it('o corpo do ajuste aceita a lâmina de 0 a 9 e recusa o resto', () => {
