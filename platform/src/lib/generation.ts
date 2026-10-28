@@ -24,7 +24,9 @@ import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirect
 import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseCore, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type Core, type RewriteMode } from './agents';
 import { CHANNELS, type Channel } from './types';
-import { buildLinkedInPrompt, hookOf, linkedInBody, parseLinkedIn, type LinkedInPost } from './linkedin-post';
+import { LINKEDIN_LIMITS, buildLinkedInPrompt, hookOf, linkedInBody, parseLinkedIn, type LinkedInPost } from './linkedin-post';
+import { avgScore, buildCriticPrompt, buildFixPrompt, parseCritic, parseFix, weakCriteria, type Critic, type CriticChannel, type PostView } from './signal-critic';
+import type { Signal } from './post-goals';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -41,7 +43,9 @@ import { isPhotoUsage, usageShowsPhoto, type PhotoUsage } from './photo-question
 import { renderPhoto } from './design/photo';
 import { photoSource } from './photo-post';
 
-export type GenerationDeps = { model: ModelClient; store?: BlobStore; fontDir?: string; mediaBaseUrl?: string };
+// critic: liga o avaliador de sinais (SPEC 028, BEZ-425): uma chamada por rede, mais um conserto de uma volta quando algum critério
+// vem com nota 0. O worker liga por padrão; quem chama generatePost direto (testes) liga se quiser.
+export type GenerationDeps = { model: ModelClient; store?: BlobStore; fontDir?: string; mediaBaseUrl?: string; critic?: boolean };
 
 export type GenerationOutcome =
   | { status: 'ready'; pendingId: string; briefId: string; rulesApplied?: number }
@@ -274,6 +278,54 @@ async function writeLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, pr
   return best;
 }
 
+// O avaliador de sinais (SPEC 028, BEZ-425): uma chamada que dá nota a cada critério da rede e, se algum vier com 0 e uma
+// sugestão, UM conserto do texto e uma nova avaliação. O conserto só vale se o revisor por regra aprovar e a nota subir; senão
+// fica o texto original. Nunca derruba o post: qualquer falha devolve o texto como estava e sem avaliação.
+type PassInput = { channel: CriticChannel; text: string; hashtags: string[]; coverText?: string; shareReason: string; signal: Signal; limit: number; review: (text: string) => Issue[]; valid?: (text: string) => boolean };
+
+async function signalPass(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, planMax: number, input: PassInput): Promise<{ text: string; critic: Critic | null }> {
+  if (!deps.critic) return { text: input.text, critic: null };
+  const model = deps.model.config.textModel;
+  const view = (text: string): PostView => ({ text, hashtags: input.hashtags, coverText: input.coverText, shareReason: input.shareReason, signal: input.signal });
+  const call = async (step: 'critic' | 'fix', prompt: string): Promise<unknown> => {
+    const hash = inputHash(step, model, { prompt, channel: input.channel });
+    const reservation = await reserveRun(t, { briefId: brief.id, step, inputHash: hash, model, channel: input.channel }, planMax);
+    if (!reservation.ok) throw new Error('reserva recusada');
+    if (reservation.reused && reservation.run.status === 'done') return reservation.run.result;
+    try {
+      const out = await deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step, brief: brief.id }, temperature: 0 });
+      await completeRun(t, reservation.run.id, { result: out.json, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd, durationMs: out.durationMs });
+      return out.json;
+    } catch (e) {
+      await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  };
+  const evaluate = async (text: string): Promise<Critic> => {
+    const parsed = parseCritic(await call('critic', buildCriticPrompt(input.channel, view(text), { niche: profile.niche, audience: profile.audience, facts: facts.facts })), input.channel, view(text));
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.value;
+  };
+  let first: Critic;
+  try {
+    first = await evaluate(input.text);
+  } catch (e) {
+    log('warn', 'generation', 'o avaliador não avaliou; o post segue sem avaliação', { briefId: brief.id, channel: input.channel, error: e instanceof Error ? e.message : String(e) });
+    return { text: input.text, critic: null };
+  }
+  const weak = weakCriteria(first);
+  if (!weak.length) return { text: input.text, critic: first };
+  try {
+    const fixed = parseFix(await call('fix', buildFixPrompt({ channel: input.channel, text: input.text, instructions: weak.map((c) => c.suggestion!), facts: facts.facts, never: facts.never, banned: profile.bannedWords, limit: input.limit })), input.limit);
+    if (!fixed.ok || fixed.text === input.text || blocking(input.review(fixed.text)).length || (input.valid && !input.valid(fixed.text))) return { text: input.text, critic: first };
+    const second = await evaluate(fixed.text);
+    return avgScore(second.criteria) > avgScore(first.criteria) ? { text: fixed.text, critic: { ...second, fixed: true } } : { text: input.text, critic: first };
+  } catch (e) {
+    log('warn', 'generation', 'o conserto do avaliador não valeu; fica o texto original', { briefId: brief.id, channel: input.channel, error: e instanceof Error ? e.message : String(e) });
+    return { text: input.text, critic: first };
+  }
+}
+
 const DIRECTIVES_TRIES = 2;
 
 // O leitor de instruções (SPEC 020, ADR 0022): uma chamada curta lê o pedido e devolve o que a pessoa disse
@@ -443,6 +495,16 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     // Pedido só do LinkedIn (SPEC 028): o Instagram não vira pendência. O redator ainda escreve a legenda dele (é quem devolve o
     // núcleo), mas só o LinkedIn chega a Aprovar.
     const withInstagram = brief.channels.includes('instagram');
+    let igCritic: Critic | null = null;
+    if (withInstagram) {
+      const never = [...facts.never, ...(campaign?.restrictions ?? [])];
+      const pass = await signalPass(t, deps, brief, profile, facts, planMax, {
+        channel: 'instagram', text: copy.caption, hashtags: copy.hashtags, coverText: [copy.texts.kicker, copy.texts.title, copy.texts.sub].filter(Boolean).join('. '), shareReason: copy.shareReason, signal: copy.signal, limit: 900,
+        review: (text) => reviewText({ imageTexts: imageTextsOf(copy), caption: text, hashtags: copy.hashtags, facts: facts.facts, never, inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }),
+      });
+      copy.caption = pass.text;
+      igCritic = pass.critic;
+    }
     const pendingId = `plat-${randomUUID()}`;
     let leadPendingId: string | null = withInstagram ? pendingId : null;
     const pending = !withInstagram ? { error: null } : await t.insert('pending_approvals', {
@@ -459,6 +521,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         // SPEC 028: o que o post pede à pessoa e por quê; a análise agrupa por aqui (BEZ-416).
         signal: copy.signal,
         share_reason: copy.shareReason,
+        ...(igCritic ? { critic: igCritic } : {}),
         variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: carousel ? 'carousel' : 'single', ...(carousel ? { slideUrls: keys.map((key) => mediaUrl(key, deps.mediaBaseUrl)) } : {}) }],
         model: deps.model.config.textModel,
         // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a
@@ -497,6 +560,13 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       try {
         if (!core) throw new Error('o núcleo da ideia não veio do redator');
         const li = await writeLinkedIn(t, deps, brief, profile, facts, rules, planMax, core, campaign);
+        const liNever = [...facts.never, ...(campaign?.restrictions ?? [])];
+        const liPass = await signalPass(t, deps, brief, profile, facts, planMax, {
+          channel: 'linkedin', text: li.post.text, hashtags: li.post.hashtags, shareReason: li.post.shareReason, signal: 'responder', limit: LINKEDIN_LIMITS.text,
+          review: (text) => reviewText({ imageTexts: [], caption: linkedInBody({ ...li.post, text }), hashtags: li.post.hashtags, facts: facts.facts, never: liNever, inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }),
+          valid: (text) => parseLinkedIn({ text, hashtags: li.post.hashtags, share_reason: li.post.shareReason }).ok,
+        });
+        li.post.text = liPass.text;
         const linkedinId = `plat-${randomUUID()}`;
         const inserted = await t.insert('pending_approvals', {
           pending_id: linkedinId,
@@ -512,6 +582,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
             angle: core.angle,
             signal: 'responder',
             share_reason: li.post.shareReason,
+            ...(liPass.critic ? { critic: liPass.critic } : {}),
             variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single' }],
             model: deps.model.config.textModel,
             guardrail_flags: li.issues.map((i) => i.rule),

@@ -54,7 +54,7 @@ export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: 
     try {
       const t = tenantDb(brief.tenant_id);
       const startedBrief = (options.now ?? Date.now)();
-      const outcome = await generatePost(t, brief.id, { ...deps, model });
+      const outcome = await generatePost(t, brief.id, { critic: true, ...deps, model });
       await trackGenerationOutcome(t, outcome, (options.now ?? Date.now)() - startedBrief);
       summary.outcomes.push(outcome);
       summary[outcome.status] += 1;

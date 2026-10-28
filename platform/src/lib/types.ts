@@ -34,7 +34,7 @@ export type Generation = {
   prompt_hash?: string;
   judge_reason?: string;
   judge_scores?: unknown;
-  critic?: unknown;
+  critic?: unknown; // a avaliação de sinais da rede (SPEC 028), lida por criticFromStored
   guardrail_flags?: string[];
   heuristic_scores?: Record<string, number>;
   alt_text?: string; // texto alternativo da imagem, enviado ao Instagram (BEZ-203)
