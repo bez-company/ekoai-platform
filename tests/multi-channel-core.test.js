@@ -24,11 +24,13 @@ describe('pedido para mais de uma rede (SPEC 028, BEZ-424)', () => {
     }
   });
 
-  it('rede que a geração ainda não escreve é recusada com o próximo passo, em vez de ficar de fora em silêncio', () => {
-    expect(GENERATED_CHANNELS).toEqual(['instagram']);
-    const r = parsePostRequest({ idea: 'x', channels: ['instagram', 'linkedin', 'twitter'] });
+  it('o LinkedIn passa; o X, que ainda não tem redator, é recusado com o próximo passo em vez de ficar de fora em silêncio', () => {
+    expect(GENERATED_CHANNELS).toEqual(['instagram', 'linkedin']);
+    expect(parsePostRequest({ idea: 'x', channels: ['instagram', 'linkedin'] }).value.channels).toEqual(['instagram', 'linkedin']);
+    const r = parsePostRequest({ idea: 'x', channels: ['instagram', 'twitter'] });
     expect(r.ok).toBe(false);
-    expect(r.error).toBe('Ainda não dá para criar posts para o LinkedIn e o X. Escolha só o Instagram por enquanto.');
+    expect(r.error).toBe('Ainda não dá para criar posts para o X. Escolha só o Instagram por enquanto.');
+    expect(r.field).toBe('channels');
   });
 
   it('as etapas novas existem para registrar o custo de cada passo', () => {
