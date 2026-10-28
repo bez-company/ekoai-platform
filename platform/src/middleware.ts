@@ -8,7 +8,7 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
 
 // `/instagram/exclusao/` é a página de status do pedido de exclusão que a Meta mostra para a pessoa: só lê pelo
 // código aleatório e não mostra conta nem perfil.
-const PUBLIC_PREFIXES = ['/entrar', '/convite', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/', '/instagram/exclusao/'];
+const PUBLIC_PREFIXES = ['/entrar', '/convite', '/acao', '/api/login', '/api/auth/session', '/api/cron', '/api/health', '/api/media/', '/instagram/exclusao/'];
 // `/api/version` só devolve a revisão em execução, para a aba aberta avisar que saiu deploy novo (BEZ-427).
 // Caminhos públicos exatos: quem chama ainda não tem sessão (a prova é o ID token). Prefixo não,
 // para uma rota futura debaixo deles continuar exigindo sessão.
@@ -17,7 +17,7 @@ const PUBLIC_PREFIXES = ['/entrar', '/convite', '/api/login', '/api/auth/session
 // `/api/instagram/deauthorize` e `/api/instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é
 // o signed_request assinado com o segredo do app.
 // `/termos` e `/privacidade` são os textos legais (BEZ-32): a pessoa os lê antes de ter conta e a revisão da Meta os abre sem login.
-const PUBLIC_EXACT = ['/termos', '/privacidade', '/api/account', '/api/invitations/accept', '/api/live', '/api/version', '/api/ambiente', '/api/ambiente/ligar', '/api/instagram/deauthorize', '/api/instagram/data-deletion'];
+const PUBLIC_EXACT = ['/termos', '/privacidade', '/api/account', '/api/invitations/accept', '/api/auth/verification', '/api/auth/password-reset', '/api/live', '/api/version', '/api/ambiente', '/api/ambiente/ligar', '/api/instagram/deauthorize', '/api/instagram/data-deletion'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

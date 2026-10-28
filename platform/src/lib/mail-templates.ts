@@ -65,3 +65,20 @@ export function accountDeletedMail(mail: AccountDeletedMail): Rendered {
   const line3 = 'Se você não esperava isso, responda a este e-mail para falar com o suporte.';
   return { subject, text: [line1, line2, '', line3].join('\n'), html: frame('Conta excluída', [escapeHtml(line1), escapeHtml(line2), escapeHtml(line3)]), inline: INLINE_LOGO };
 }
+
+export function verificationMail(mail: { name: string | null; link: string }): Rendered {
+  const hello = mail.name ? `Olá, ${oneLine(mail.name)}.` : 'Olá.';
+  const line1 = 'Para ativar o seu acesso à Ekoai, confirme que este e-mail é seu.';
+  const line2 = 'Se você não criou um acesso na Ekoai, ignore esta mensagem.';
+  const text = [hello, line1, '', 'Confirmar e-mail:', mail.link, '', line2].join('\n');
+  const html = frame('Confirme seu e-mail', [escapeHtml(hello), escapeHtml(line1), escapeHtml(line2)], { label: 'Confirmar e-mail', href: mail.link });
+  return { subject: 'Confirme seu e-mail na Ekoai', text, html, inline: INLINE_LOGO };
+}
+
+export function passwordResetMail(mail: { link: string }): Rendered {
+  const line1 = 'Recebemos um pedido para redefinir a senha deste e-mail na Ekoai.';
+  const line2 = 'Se não foi você, ignore esta mensagem: a sua senha continua a mesma.';
+  const text = [line1, '', 'Redefinir senha:', mail.link, '', line2].join('\n');
+  const html = frame('Redefinir senha', [escapeHtml(line1), escapeHtml(line2)], { label: 'Redefinir senha', href: mail.link });
+  return { subject: 'Redefina sua senha da Ekoai', text, html, inline: INLINE_LOGO };
+}

@@ -34,6 +34,9 @@ const FIREBASE_MESSAGES: Record<string, string> = {
   'auth/code-expired': 'O código venceu. Use o que aparece agora no app.',
   'auth/requires-recent-login': 'Por segurança, entre de novo para continuar.',
   'auth/unverified-email': 'Confirme seu e-mail pelo link que enviamos e tente de novo.',
+  // Erros nossos, ao pedir o e-mail de confirmação ou de redefinição pela Ekoai (BEZ-430).
+  'app/rate-limited': 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.',
+  'app/mail-failed': 'Não deu para enviar o e-mail agora. Tente de novo em instantes.',
   'auth/second-factor-already-in-use': 'Este app autenticador já está ativo na sua conta.',
 };
 

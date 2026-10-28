@@ -33,9 +33,6 @@ resource "google_project_iam_member" "app_metrics" {
   member  = "serviceAccount:${google_service_account.app.email}"
 }
 
-# O servidor confere o ID token do Identity Platform com checagem de revogação (SPEC 009), e isso
-# consulta o usuário no Identity Toolkit pela conta do app. Só leitura: a sessão e o "sair de todos
-# os dispositivos" são nossos, não revogam nada no Firebase. Sem este papel todo login volta 401.
 # A geração de posts chama o Vertex AI (texto e imagem) com a credencial do serviço (SPEC 012,
 # decisão 6): nada de chave no repositório nem no navegador. Só o papel de usuário do Vertex.
 resource "google_project_iam_member" "app_vertex_user" {
@@ -44,10 +41,20 @@ resource "google_project_iam_member" "app_vertex_user" {
   member  = "serviceAccount:${google_service_account.app.email}"
 }
 
-resource "google_project_iam_member" "app_auth_viewer" {
+# Identity Platform. O servidor confere o ID token com checagem de revogação (SPEC 009), e isso consulta o usuário no Identity
+# Toolkit pela conta do app: sem o papel todo login volta 401. A sessão e o "sair de todos os dispositivos" são nossos, não
+# revogam nada no Firebase. Além de ler a pessoa (verificação em duas etapas, BEZ-304), a conta gera os códigos dos e-mails de
+# confirmação e de redefinição de senha que a Ekoai envia pelo Gmail (BEZ-430) e apaga uma pessoa (BEZ-433). O papel
+# `firebaseauth.viewer` só lia; gerar o código e apagar exigem `firebaseauth.admin`.
+resource "google_project_iam_member" "app_auth_admin" {
   project = var.project_id
-  role    = "roles/firebaseauth.viewer"
+  role    = "roles/firebaseauth.admin"
   member  = "serviceAccount:${google_service_account.app.email}"
+}
+
+moved {
+  from = google_project_iam_member.app_auth_viewer
+  to   = google_project_iam_member.app_auth_admin
 }
 
 # E-mail pelo Gmail API (BEZ-28, ADR 0027): a conta do app assina, pelo IAM Credentials, o JWT da delegação de domínio.

@@ -10,10 +10,17 @@ export type InviteMail = { to: string; accountName: string; inviterName: string 
 
 export type AccountDeletedMail = { to: string; accountName: string; deletedByName: string | null };
 
+export type VerificationMail = { to: string; name: string | null; link: string };
+
+export type PasswordResetMail = { to: string; link: string };
+
 export interface Mailer {
   sendInvitation(mail: InviteMail): Promise<void>;
   // Aviso aos outros administradores de que a conta foi excluída.
   sendAccountDeleted(mail: AccountDeletedMail): Promise<void>;
+  // Confirmar o e-mail do cadastro e redefinir a senha: saem pelo nosso Gmail, não pelo Firebase (BEZ-430).
+  sendVerification(mail: VerificationMail): Promise<void>;
+  sendPasswordReset(mail: PasswordResetMail): Promise<void>;
 }
 
 export function getMailer(env: Record<string, string | undefined> = process.env): Mailer | null {

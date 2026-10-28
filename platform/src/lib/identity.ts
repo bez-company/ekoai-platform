@@ -4,6 +4,7 @@
 
 import { getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { oobCodeFromLink } from './auth-mail-model';
 import { logError } from './log';
 
 export type Identity = {
@@ -45,6 +46,20 @@ function cleanName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const name = value.replace(/\s+/g, ' ').trim().slice(0, 80);
   return name || null;
+}
+
+// Código de uso único (oobCode) para confirmar o e-mail ou redefinir a senha. O Identity Platform gera; quem monta o link e
+// envia é a Ekoai (auth-mail-model.ts, mailer.ts). Precisa de `roles/firebaseauth.admin` na conta do app. Pessoa que não
+// existe volta `null` (a rota responde igual para quem existe e para quem não existe).
+export async function actionCode(kind: 'verify' | 'reset', email: string): Promise<string | null> {
+  const auth = getAuth(identityApp());
+  try {
+    const link = kind === 'verify' ? await auth.generateEmailVerificationLink(email) : await auth.generatePasswordResetLink(email);
+    return oobCodeFromLink(link);
+  } catch (e) {
+    if (e && typeof e === 'object' && 'code' in e && (e as { code: unknown }).code === 'auth/user-not-found') return null;
+    throw e;
+  }
 }
 
 // A pessoa tem verificação em duas etapas ligada? Lê do provedor (é ele quem sabe). Falha de rede ou de

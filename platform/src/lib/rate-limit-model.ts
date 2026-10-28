@@ -14,6 +14,10 @@ export const RULES = {
   accountEmail: { bucket: 'account.email', windowS: DAY, limit: 5 },
   acceptIp: { bucket: 'accept.ip', windowS: HOUR, limit: 30 },
   acceptEmail: { bucket: 'accept.email', windowS: HOUR, limit: 10 },
+  // E-mail de confirmação e de redefinição enviado pela Ekoai (BEZ-430): cada um chama o Gmail, então tem teto por IP e por endereço.
+  mailIp: { bucket: 'mail.ip', windowS: HOUR, limit: 20 },
+  verifyEmail: { bucket: 'mail.verify', windowS: HOUR, limit: 6 },
+  resetEmail: { bucket: 'mail.reset', windowS: HOUR, limit: 4 },
   // Prévia do ajuste rápido (SPEC 019): desenha no servidor, por conta. Uma pessoa digitando chega a poucas por segundo.
   designPreview: { bucket: 'design.preview', windowS: 60, limit: 60 },
   // Pedir ajuste em texto livre (SPEC 024): uma chamada de modelo de texto por pedido, por conta.
