@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCopyPrompt, keepWhatPassed, parseCopy, visualPromptFor, imageTextsOf, LIMITS, VISUAL_SUFFIX, buildRewritePrompt, parseRewrite, isRewriteMode } from '../platform/src/lib/agents.ts';
+import { ctaLine, reachLines, buildCopyPrompt, keepWhatPassed, parseCopy, visualPromptFor, imageTextsOf, LIMITS, VISUAL_SUFFIX, buildRewritePrompt, parseRewrite, isRewriteMode } from '../platform/src/lib/agents.ts';
 
 const profile = { niche: 'Alimentação', offering: 'Bolos sob encomenda', audience: 'Famílias de Marília', region: 'Marília, SP', siteUrl: null, instagramHandle: 'doceponto', differentiators: ['Entrega no dia'], pains: ['Bolo que chega amassado'], voiceFormal: 4, voiceTechnical: 5, voiceSerious: 3, bannedWords: ['imperdível'], logoAssetId: null, colorPrimary: null, colorAccent: null, fontHeading: null, fontBody: null, ctaDefault: 'whatsapp', postsPerWeek: null, updatedAt: '' };
 
@@ -111,5 +111,26 @@ describe('direção e atalhos de legenda', () => {
     expect(parseRewrite({ hashtags: [] })).toMatchObject({ ok: false });
     expect(isRewriteMode('cta')).toBe(true);
     expect(isRewriteMode('louder')).toBe(false);
+  });
+});
+
+describe('alcance e chamada no prompt (BEZ-373)', () => {
+  const base = { idea: 'x', kind: 'informativo', facts: [], never: [], rules: [] };
+  it('conta local pode citar a cidade; nacional e internacional não, e sem resposta não prende ao local', () => {
+    expect(reachLines({ reach: 'local', region: 'Marília, SP' })[0]).toMatch(/local.*Pode citar a cidade/);
+    expect(reachLines({ reach: 'national', region: 'Marília, SP' })[0]).toMatch(/Brasil todo.*nunca a cidade/);
+    expect(reachLines({ reach: 'international', region: null })[0]).toMatch(/exterior.*inglês/);
+    expect(reachLines({ reach: null, region: 'Marília, SP' })[0]).toMatch(/não informado.*só a cite se o pedido/);
+  });
+
+  it('sem chamada escolhida a legenda termina no conteúdo e não cita link na bio; com chamada, convida', () => {
+    expect(ctaLine(null)).toMatch(/nenhuma.*não cite link, site ou "link na bio"/);
+    expect(ctaLine('link_bio')).toMatch(/link da bio/);
+    const none = buildCopyPrompt({ ...base, profile: { ...profile, ctaDefault: null, reach: 'national' } });
+    expect(none).toMatch(/sem chamada no fim/);
+    expect(none).not.toMatch(/convide a pessoa/);
+    const whats = buildCopyPrompt({ ...base, profile: { ...profile, ctaDefault: 'whatsapp', reach: 'local' } });
+    expect(whats).toMatch(/com a chamada no fim/);
+    expect(whats).toMatch(/chamar no WhatsApp/);
   });
 });

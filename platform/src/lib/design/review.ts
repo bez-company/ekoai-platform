@@ -30,6 +30,8 @@ const plain = (text: string): string => text.toLowerCase().normalize('NFD').repl
 // comercial e passam.
 const GUARANTEE = /garant(?:ia|id[oa]s?|imos|o|em)\b|garant(?:e|a|ir|am)\s+(?:o\s+|a\s+|os\s+|as\s+|seu\s+|sua\s+)?(?:resultados?|sucesso|cura|retorno|lucro|aprova[çc][ãa]o|vendas|seguidores|crescimento|satisfa[çc][ãa]o)/;
 
+const LINK_BIO = /link\s+(?:na|da|do|no)\s+bio/i;
+
 const MIN_SIZE: Record<string, number> = { title: 56, sub: 26, item: 26, kicker: 22, handle: 22, name: 40 };
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -47,6 +49,9 @@ export type TextReviewInput = {
   // O pedido da pessoa, palavra por palavra. Número que ela mesma escreveu ali (30% de desconto, 13h, dia 12)
   // vale como afirmado neste post, comparado número a número. Fato vencido ou recusado continua barrando (ADR 0019).
   request?: string;
+  // O alcance e a chamada que a conta escolheu (BEZ-373): hashtag da cidade só em conta local, e "link na bio" só quando é a chamada.
+  // Sem `scope` (atalhos que não voltam ao modelo), as duas regras não rodam.
+  scope?: { reach: 'local' | 'national' | 'international' | null; region: string | null; cta: string | null };
 };
 
 function numbersIn(text: string): string[] {
@@ -104,6 +109,17 @@ export function reviewText(input: TextReviewInput): Issue[] {
       issues.push({ rule: 'deadline_not_in_facts', detail: term, message: `O prazo "${term}" não está no pedido nem nos fatos da empresa. Tire ou use o que foi pedido.`, where: image.toLowerCase().includes(term) ? 'image' : 'caption' });
     }
   }
+  if (input.scope) {
+    const asked = plain(input.request ?? '');
+    const city = plain((input.scope.region ?? '').split(',')[0]).replace(/[^a-z0-9]/g, '');
+    if (input.scope.reach !== 'local' && city.length >= 3 && !asked.replace(/[^a-z0-9]/g, '').includes(city)) {
+      const bad = input.hashtags.filter((h) => plain(h).replace(/[^a-z0-9]/g, '').includes(city));
+      if (bad.length) issues.push({ rule: 'hashtag_city', detail: bad[0], message: `A hashtag #${bad[0].replace(/^#/, '')} é da cidade da empresa, e a conta fala ao Brasil todo. Troque por uma do nicho ou do tema.`, where: 'caption' });
+    }
+    if (input.scope.cta !== 'link_bio' && LINK_BIO.test(input.caption) && !LINK_BIO.test(input.request ?? '')) {
+      issues.push({ rule: 'link_bio', detail: 'link na bio', message: 'A legenda manda para o "link na bio", e a conta não escolheu essa chamada. Tire a frase.', where: 'caption' });
+    }
+  }
   if (input.caption.length > 2200) issues.push({ rule: 'caption_too_long', detail: String(input.caption.length), message: 'A legenda passa de 2.200 caracteres, o máximo do Instagram.', where: 'caption' });
   if (input.hashtags.length > 30) issues.push({ rule: 'too_many_hashtags', detail: String(input.hashtags.length), message: 'Mais de 30 hashtags: o Instagram não publica.', where: 'caption' });
   return issues;
@@ -150,7 +166,7 @@ export function reviewLayout(boxes: TextBox[], height: number, overflow: string[
 }
 
 // O que trava a aprovação automática (o resto é aviso que a pessoa decide).
-export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'deadline_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags']);
+export const BLOCKING = new Set(['banned_word', 'never_claim', 'number_not_in_facts', 'deadline_not_in_facts', 'fact_not_valid', 'contrast', 'overlap', 'text_too_long', 'caption_too_long', 'too_many_hashtags', 'hashtag_city', 'link_bio']);
 // As regras das instruções do pedido (SPEC 020) entram à parte, para o conjunto acima não ter dono único.
 for (const rule of ['directive_text_missing', 'directive_extra_text', 'directive_count', 'off_topic_fact', 'request_number_missing', 'cliche']) BLOCKING.add(rule);
 // As regras entre lâminas do carrossel (SPEC 023).

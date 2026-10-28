@@ -1,0 +1,218 @@
+{
+  "meta": {
+    "stamp": "2026-10-28T01-32-30",
+    "text": "gemini-3-flash-preview",
+    "image": "sem imagem",
+    "judge": "gemini-3.1-pro-preview",
+    "runs": 3,
+    "judgeFailures": 0,
+    "costUsd": 0.058005
+  },
+  "overall": {
+    "pedido": 0.9833333333333333,
+    "oficio": 1,
+    "leitor": null,
+    "rounds": 1.2380952380952381,
+    "costPerPost": 0.002762142857142857
+  },
+  "tags": {
+    "alcance": {
+      "pedido": 0.986111111111111,
+      "oficio": 1
+    },
+    "nacional": {
+      "pedido": 0.9722222222222222,
+      "oficio": 1
+    },
+    "sem-cta": {
+      "pedido": 0.9722222222222222,
+      "oficio": 1
+    },
+    "internacional": {
+      "pedido": 1,
+      "oficio": 1
+    },
+    "local": {
+      "pedido": 1,
+      "oficio": 1
+    },
+    "cta": {
+      "pedido": 1,
+      "oficio": 1
+    }
+  },
+  "cases": {
+    "nacional-engenharia": {
+      "tags": [
+        "alcance",
+        "nacional",
+        "sem-cta"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1,
+      "costUsd": 0.0026771,
+      "req": {
+        "fala-ao-pais": 1,
+        "hashtags-do-pais": 1,
+        "sem-chamada-final": 1,
+        "sem-link-na-bio": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1,
+        "cod-hashtag-cidade": 1,
+        "cod-sem-chamada": 1
+      }
+    },
+    "internacional-fotografia": {
+      "tags": [
+        "alcance",
+        "internacional"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1,
+      "costUsd": 0.0021606999999999998,
+      "req": {
+        "fala-ao-mundo": 1,
+        "hashtags-alcance-amplo": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1,
+        "cod-hashtag-cidade": 1
+      }
+    },
+    "nacional-panetone": {
+      "tags": [
+        "alcance",
+        "nacional",
+        "sem-cta"
+      ],
+      "runs": 3,
+      "pedido": 0.9166666666666666,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1.6666666666666667,
+      "costUsd": 0.0036495,
+      "req": {
+        "fala-ao-pais": 1,
+        "hashtags-do-pais": 1,
+        "sem-chamada-final": 0.6666666666666666,
+        "sem-link-na-bio": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1,
+        "cod-hashtag-cidade": 1,
+        "cod-sem-chamada": 1
+      }
+    },
+    "local-clinica": {
+      "tags": [
+        "alcance",
+        "local",
+        "cta"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1.3333333333333333,
+      "costUsd": 0.0027681333333333335,
+      "req": {
+        "chamada-whatsapp": 1,
+        "hashtags-locais-e-nicho": 1,
+        "sem-link-na-bio": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1
+      }
+    },
+    "local-padaria": {
+      "tags": [
+        "alcance",
+        "local",
+        "cta"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1.3333333333333333,
+      "costUsd": 0.002855666666666666,
+      "req": {
+        "chamada-whatsapp": 1,
+        "hashtags-locais-e-nicho": 1,
+        "sem-link-na-bio": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1
+      }
+    },
+    "sem-resposta-sobre-alcance": {
+      "tags": [
+        "alcance",
+        "sem-cta"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1,
+      "costUsd": 0.0023249666666666667,
+      "req": {
+        "sem-link-na-bio": 1,
+        "hashtags-nao-so-cidade": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1,
+        "cod-hashtag-cidade": 1,
+        "cod-sem-chamada": 1
+      }
+    },
+    "link-na-bio-escolhido": {
+      "tags": [
+        "cta",
+        "nacional"
+      ],
+      "runs": 3,
+      "pedido": 1,
+      "oficio": 1,
+      "leitor": null,
+      "rounds": 1.3333333333333333,
+      "costUsd": 0.002898933333333333,
+      "req": {
+        "chamada-link-bio": 1,
+        "hashtags-do-pais": 1,
+        "ofc-sem-cliche": 1,
+        "ofc-voz": 1,
+        "cod-link-na-bio": 1,
+        "cod-sem-link-inventado": 1,
+        "cod-hashtag-sem-ano": 1,
+        "cod-hashtags": 1,
+        "cod-hashtag-cidade": 1
+      }
+    }
+  }
+}

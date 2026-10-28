@@ -11,6 +11,20 @@ describe('revisor de texto', () => {
     expect(reviewText(base)).toEqual([]);
   });
 
+  it('alcance e chamada da conta (BEZ-373): hashtag da cidade só em conta local, "link na bio" só quando é a chamada', () => {
+    const scope = (over = {}) => ({ reach: 'national', region: 'Marília, SP', cta: null, ...over });
+    const tagged = { ...base, hashtags: ['padaria', 'mariliasp'] };
+    expect(reviewText(tagged)).toEqual([]); // sem scope, as regras não rodam
+    expect(reviewText({ ...tagged, scope: scope() }).map((i) => i.rule)).toEqual(['hashtag_city']);
+    expect(reviewText({ ...tagged, scope: scope({ reach: null }) }).map((i) => i.rule)).toEqual(['hashtag_city']);
+    expect(reviewText({ ...tagged, scope: scope({ reach: 'local' }) })).toEqual([]);
+    expect(reviewText({ ...tagged, request: 'post sobre a feira em Marília', scope: scope() })).toEqual([]); // o pedido fala da cidade
+    const bio = { ...base, caption: `${base.caption} Chame pelo link na bio.` };
+    expect(reviewText({ ...bio, scope: scope() }).map((i) => i.rule)).toEqual(['link_bio']);
+    expect(reviewText({ ...bio, scope: scope({ cta: 'link_bio' }) })).toEqual([]);
+    expect(blocking(reviewText({ ...bio, scope: scope() }))).toHaveLength(1);
+  });
+
   it('palavra proibida, nunca afirmar e promessa, com onde está', () => {
     const issues = reviewText({ ...base, imageTexts: ['Oferta imperdível'], caption: 'Garantimos a cura do seu desânimo' });
     expect(issues.map((i) => [i.rule, i.where])).toEqual(expect.arrayContaining([['banned_word', 'image'], ['never_claim', 'caption'], ['never_claim', 'caption']]));

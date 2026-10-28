@@ -47,6 +47,17 @@ Precisa de credencial do Google Cloud (`gcloud auth application-default login`).
 cerca de US$ 0,02 por post (US$ 0,40 por rodada de todos os casos). Por isso fica fora de `npm test`.
 Variáveis: `VERTEX_TEXT_MODEL`, `VERTEX_IMAGE_MODEL` (padrão = os da produção), `EVAL_JUDGE_MODEL`.
 
+## Eval da legenda e das hashtags
+
+`npm run eval:caption` (BEZ-373) mede só o texto, sem imagem: 7 casos de `caption-cases.js` (conta local, nacional,
+internacional, sem resposta sobre o alcance, chamada escolhida e conta sem chamada). O redator roda como na geração
+(`pipeline.js`, `writeCopy`) e um juiz só de texto (`caption-judge.js`) confere cada exigência. O código confere
+`captionChecks` (`metrics.js`): hashtag com a cidade em conta nacional, "link na bio" que ninguém escolheu, "link"
+inventado, hashtag com ano e chamada final numa conta que a omitiu. Custa menos de US$ 0,01 por caso.
+`baseline-7-legenda-antes` é o código de 27/10/2026 (pedido 78%, hashtag da cidade em 6 de 14 legendas, chamada final em
+4 de 6 legendas de conta sem chamada); `baseline-8-legenda-depois` tem o alcance e a chamada no prompt e a regra
+`hashtag_city` e `link_bio` no revisor.
+
 ## Baselines
 
 `evals/baselines/` guarda o resumo (sem imagem) de cada marco. A PR que muda a geração anexa o antes e o

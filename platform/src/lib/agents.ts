@@ -52,6 +52,29 @@ export function voiceLine(p: CompanyProfile): string {
 
 const CTA_TEXT: Record<string, string> = { link_bio: 'convide a pessoa ao link da bio', whatsapp: 'convide a pessoa a chamar no WhatsApp', dm: 'convide a pessoa a mandar mensagem direta' };
 
+// A chamada que fecha a legenda (BEZ-373). A conta escolhe uma, ou nenhuma: sem escolha a legenda termina no conteúdo e nenhuma
+// frase pronta ("link na bio", "chame no WhatsApp") entra por conta do modelo. "Link na bio" só vale quando é a escolhida.
+export function ctaLine(cta: string | null | undefined): string {
+  if (cta && CTA_TEXT[cta]) return `- Chamada no fim da legenda: ${CTA_TEXT[cta]}.`;
+  return '- Chamada no fim da legenda: nenhuma. A conta não escolheu chamada, então a legenda termina no conteúdo (uma ideia, uma pergunta ou uma frase que fecha o assunto). Não peça para chamar, mandar mensagem nem clicar, e não cite link, site ou "link na bio".';
+}
+
+// O alcance da empresa (BEZ-373): para quem a legenda fala e de onde vêm as hashtags. Só a conta que atende uma cidade fala da cidade;
+// sem resposta, a legenda não prende o post ao local.
+export function reachLines(p: Pick<CompanyProfile, 'reach' | 'region'>): string[] {
+  const home = p.region ? ` A empresa fica em ${p.region}.` : '';
+  if (p.reach === 'local') {
+    return [`- Alcance: local. Os clientes estão na cidade ou região da empresa.${home} Pode citar a cidade ou o bairro na legenda quando ajudar. Hashtags: misture 1 ou 2 da região (cidade, estado) com as do nicho e do produto.`];
+  }
+  if (p.reach === 'international') {
+    return [`- Alcance: Brasil todo e exterior.${home} A legenda fala a qualquer pessoa, sem "aqui na cidade", "no bairro" nem "venha até nós". Não cite a cidade da empresa na legenda nem nas hashtags, a não ser que o pedido fale dela. Hashtags: do nicho, do produto e do tema, e ao menos uma em inglês de uso internacional.`];
+  }
+  if (p.reach === 'national') {
+    return [`- Alcance: Brasil todo.${home} A legenda fala a qualquer pessoa do país, sem "aqui na cidade", "no bairro" nem "venha até nós". Não cite a cidade da empresa na legenda nem nas hashtags, a não ser que o pedido fale dela. Hashtags: do nicho, do produto e do tema, nunca a cidade, o estado ou o bairro.`];
+  }
+  return [`- Alcance: não informado.${home} Não prenda o post à cidade: só a cite se o pedido falar dela. Hashtags: do nicho, do produto e do tema, sem a cidade nem o estado.`];
+}
+
 export function buildCopyPrompt(input: CopyInput): string {
   const p = input.profile;
   const lines: string[] = [];
@@ -61,12 +84,11 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(`- Nicho: ${p.niche}`);
   lines.push(`- O que vende: ${p.offering}`);
   lines.push(`- Para quem: ${p.audience}`);
-  if (p.region) lines.push(`- Região: ${p.region}`);
   if (p.differentiators.length) lines.push(`- Diferenciais: ${p.differentiators.join('; ')}`);
   if (p.pains.length) lines.push(`- Dores do público: ${p.pains.join('; ')}`);
   lines.push(`- Jeito de falar: ${voiceLine(p)}`);
-  const cta = input.campaign?.cta ?? p.ctaDefault;
-  if (cta && CTA_TEXT[cta]) lines.push(`- Chamada padrão: ${CTA_TEXT[cta]}`);
+  lines.push(...reachLines(p));
+  lines.push(ctaLine(input.campaign?.cta ?? p.ctaDefault));
   if (input.campaign) {
     const c = input.campaign;
     lines.push('');
@@ -111,7 +133,7 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('## Regras do texto');
   lines.push('- Frase curta, voz ativa, sentence case (só a primeira letra maiúscula). Nada de travessão (— ou –): use vírgula, ponto ou dois-pontos.');
   lines.push('- Fato da base só entra quando serve ao pedido. Não complete a imagem com fato solto (o horário da fornada num post sobre outro assunto). Se o pedido já traz o conteúdo, use só ele.');
-  lines.push('- Evento, aviso ou convite: data, horário e local só os que estão no pedido; horário ou dia da base só entram se o pedido for sobre eles. Faltou algum, não escreva (nem a cidade da empresa como se fosse o local) e, na legenda, mande a pessoa perguntar pela chamada padrão. Data, horário e valor que o pedido traz ENTRAM no post, na imagem ou na legenda, do jeito que foram escritos.');
+  lines.push('- Evento, aviso ou convite: data, horário e local só os que estão no pedido; horário ou dia da base só entram se o pedido for sobre eles. Faltou algum, não escreva (nem a cidade da empresa como se fosse o local) e, na legenda, mande a pessoa perguntar pelo canal da chamada no fim (se não houver chamada, só avise que a data sai em breve). Data, horário e valor que o pedido traz ENTRAM no post, na imagem ou na legenda, do jeito que foram escritos.');
   lines.push('- O título promete algo específico: um benefício, uma pergunta ou um fato do negócio. Nada de rótulo de tema ("Segurança técnica em projetos") nem frase que serviria a qualquer empresa. No post de atmosfera, uma cena concreta. Em vez de "Cuidados com o pneu", pergunte "Quando foi a última vez que você olhou o pneu?".');
   lines.push('- Nada de "imperdível", "garantido", "melhor da cidade", superlativo vazio, jargão de IA nem clichê de vendedor: nada de "transformar", "descubra", "mergulhe", "jornada", "essência", "experiência única" nem "o segredo é".');
   lines.push('- Saúde, obra e dinheiro: não prometa resultado. Nada de "garante", "evita", "elimina" nem "resolve de vez"; diga o que a empresa faz, não o que o cliente vai conseguir.');
@@ -123,7 +145,8 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push(`- Em cada lâmina: title até ${LIMITS.title} caracteres, sub até ${LIMITS.sub}, kicker até ${LIMITS.kicker} só na capa e, se quiser, nas do meio. Nada de items. Cada título é diferente dos outros. Se o tema é uma lista (ex.: "3 sinais"), cada item vira uma lâmina.`);
     lines.push('- Em "atmosfera", o visual_prompt descreve UMA foto só, para a capa: uma cena, sem colagem, sem painéis, sem sequência de momentos. As outras lâminas não levam foto.');
   }
-  lines.push(`- caption: a legenda, até 900 caracteres, com a chamada no fim. hashtags: de 3 a 8, sem o #, minúsculas, sem acento.`);
+  const closing = (input.campaign?.cta ?? p.ctaDefault) && CTA_TEXT[(input.campaign?.cta ?? p.ctaDefault) as string] ? 'com a chamada no fim' : 'sem chamada no fim (termina no conteúdo)';
+  lines.push(`- caption: a legenda, até 900 caracteres, ${closing}. hashtags: de 3 a 8, sem o #, minúsculas, sem acento, sem ano (nada de #natal2024), seguindo o alcance acima.`);
   lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. Se o pedido diz o ângulo (de cima, de perto, de frente), comece pelo ângulo (ex.: "top-down flat lay, camera directly above"). SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa (nem equipe, nem recepcionista: ambiente vazio; só mãos, se o pedido pedir). No informativo, null.');
   lines.push('- angle: uma frase com o ângulo escolhido (para a equipe ver por que).');
   lines.push('- alt_text: o texto alternativo da imagem, para quem usa leitor de tela. Em português, de 1 a 3 frases (até 600 caracteres): o que a imagem mostra e o texto escrito nela. Sem hashtag, sem link, sem chamada para ação e sem "imagem de" no começo.');
@@ -280,7 +303,7 @@ const REWRITE_ASK: Record<RewriteMode, string> = {
   shorter: 'Encurte a legenda: metade do tamanho, mantendo a ideia central e a chamada final.',
   casual: 'Deixe a legenda mais descontraída e próxima, como quem conversa com um cliente, sem perder a informação.',
   formal: 'Deixe a legenda mais formal e direta, sem perder a informação nem virar texto de manual.',
-  cta: 'Troque a chamada final por outra, diferente da atual, coerente com a empresa.',
+  cta: 'Troque a chamada final por outra, diferente da atual, coerente com a empresa (nunca "link na bio", a não ser que seja a chamada da conta).',
 };
 
 export function buildRewritePrompt(input: { mode: RewriteMode; caption: string; hashtags: string[]; profile: CompanyProfile; facts: string[]; never: string[] }): string {
@@ -288,7 +311,9 @@ export function buildRewritePrompt(input: { mode: RewriteMode; caption: string; 
   const lines = [
     'Você é o redator de uma pequena empresa brasileira no Instagram. Responda SÓ com um objeto JSON, em português do Brasil, com acentos corretos.',
     '',
-    `## A empresa: ${p.offering}. Para quem: ${p.audience}. Jeito de falar: ${voiceLine(p)}.${p.ctaDefault && CTA_TEXT[p.ctaDefault] ? ` Chamada padrão: ${CTA_TEXT[p.ctaDefault]}.` : ''}`,
+    `## A empresa: ${p.offering}. Para quem: ${p.audience}. Jeito de falar: ${voiceLine(p)}.`,
+    ...reachLines(p),
+    ctaLine(p.ctaDefault),
     `## Pode afirmar: ${input.facts.length ? input.facts.join('; ') : 'nenhum número, preço ou prazo'}`,
     input.never.length ? `## Nunca afirma: ${input.never.join('; ')}` : '',
     p.bannedWords.length ? `## Palavras proibidas: ${p.bannedWords.join(', ')}` : '',

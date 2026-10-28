@@ -41,6 +41,15 @@ export const BODY_FONTS = [
 export const CTAS = ['link_bio', 'whatsapp', 'dm'] as const;
 export type Cta = (typeof CTAS)[number];
 
+// Onde estão os clientes (BEZ-373): decide se a legenda e as hashtags falam da cidade ou do Brasil (e do exterior).
+export const REACHES = ['local', 'national', 'international'] as const;
+export type Reach = (typeof REACHES)[number];
+export const REACH_LABEL: Record<Reach, string> = {
+  local: 'Na minha cidade ou região',
+  national: 'No Brasil todo',
+  international: 'No Brasil e no exterior',
+};
+
 export const LIST_MAX_ITEMS = 5;
 export const LIST_ITEM_MAX = 140;
 export const BANNED_MAX_ITEMS = 30;
@@ -168,6 +177,12 @@ function about(b: Record<string, unknown>): ParsedSection {
   const offering = required(c, 'offering', b.offering, 280, 'Diga o que a empresa vende, em 1 ou 2 frases.');
   const audience = required(c, 'audience', b.audience, 280, 'Diga para quem a empresa vende.');
   const region = optionalText(c, 'region', b.region, 80);
+  const reachText = clean(b.reach);
+  let reach: Reach | null = null;
+  if (reachText) {
+    if ((REACHES as readonly string[]).includes(reachText)) reach = reachText as Reach;
+    else c.fail('reach', 'Escolha uma das opções: cidade ou região, Brasil todo, ou Brasil e exterior.');
+  }
 
   const siteText = clean(b.site_url);
   let site: string | null = null;
@@ -186,7 +201,7 @@ function about(b: Record<string, unknown>): ParsedSection {
     handle = normalizeHandle(handleText);
     if (!handle) c.fail('instagram_handle', 'Use só letras, números, ponto e sublinhado, até 30 caracteres. Ex.: @suamarca.');
   }
-  return done(c, 'about', { niche, offering, audience, region, site_url: site, instagram_handle: handle });
+  return done(c, 'about', { niche, offering, audience, region, reach, site_url: site, instagram_handle: handle });
 }
 
 function voice(b: Record<string, unknown>): ParsedSection {
@@ -274,6 +289,7 @@ export type CompanyProfile = {
   offering: string;
   audience: string;
   region: string | null;
+  reach: Reach | null;
   siteUrl: string | null;
   instagramHandle: string | null;
   differentiators: string[];
@@ -302,6 +318,7 @@ export function profileFromRow(row: Record<string, unknown>): CompanyProfile {
     offering: String(row.offering),
     audience: String(row.audience),
     region: str('region'),
+    reach: str('reach') as Reach | null,
     siteUrl: str('site_url'),
     instagramHandle: str('instagram_handle'),
     differentiators: list('differentiators'),

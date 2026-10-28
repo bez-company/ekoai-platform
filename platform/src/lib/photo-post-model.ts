@@ -4,7 +4,7 @@
 // geração de imagem conta).
 
 import type { CompanyProfile } from './company-profile-model';
-import { LIMITS, isRewriteMode, type RewriteMode } from './agents';
+import { LIMITS, ctaLine, isRewriteMode, reachLines, type RewriteMode } from './agents';
 import { isPhotoRatio, type Focus, type PhotoRatio } from './design/photo';
 
 export const PHOTO_IDEA_MAX = 300;
@@ -95,16 +95,15 @@ export function parsePhotoCaptionRequest(body: unknown): Parsed<{ assetId: strin
   return { ok: true, value: { assetId: b.assetId.toLowerCase(), idea: idea || null } };
 }
 
-const CTA_TEXT: Record<string, string> = { link_bio: 'convide a pessoa ao link da bio', whatsapp: 'convide a pessoa a chamar no WhatsApp', dm: 'convide a pessoa a mandar mensagem direta' };
-
 // A Ekoai olha a foto (vai junto na chamada) e escreve a legenda com a voz da empresa.
 export function buildPhotoCaptionPrompt(input: { profile: CompanyProfile; facts: string[]; never: string[]; rules: string[]; description: string | null; idea: string | null }): string {
   const p = input.profile;
   const lines = [
     'Você é o redator de uma pequena empresa brasileira no Instagram. A foto do post vai junto desta mensagem: olhe a foto e escreva a legenda. Responda SÓ com um objeto JSON, em português do Brasil, com acentos corretos.',
     '',
-    `## A empresa: ${p.niche}. O que vende: ${p.offering}. Para quem: ${p.audience}.${p.region ? ` Região: ${p.region}.` : ''}`,
-    p.ctaDefault && CTA_TEXT[p.ctaDefault] ? `## Chamada padrão: ${CTA_TEXT[p.ctaDefault]}.` : '',
+    `## A empresa: ${p.niche}. O que vende: ${p.offering}. Para quem: ${p.audience}.`,
+    ...reachLines(p),
+    ctaLine(p.ctaDefault),
     `## Pode afirmar: ${input.facts.length ? input.facts.join('; ') : 'nenhum número, preço ou prazo'}`,
     input.never.length ? `## Nunca afirma: ${input.never.join('; ')}` : '',
     p.bannedWords.length ? `## Palavras proibidas: ${p.bannedWords.join(', ')}` : '',
@@ -115,8 +114,8 @@ export function buildPhotoCaptionPrompt(input: { profile: CompanyProfile; facts:
     '## Regras',
     '- Descreva só o que está na foto. Não invente produto, sabor, preço, prazo, nome de pessoa nem depoimento.',
     '- Frase curta, voz ativa. Sem travessão (— ou –). Sem "imperdível", "garantido" nem superlativo vazio.',
-    '- Legenda até 900 caracteres, com a chamada no fim. No máximo 2 emojis, e só se combinar com a empresa.',
-    '- hashtags: de 3 a 8, sem o #, minúsculas, sem acento.',
+    '- Legenda até 900 caracteres, terminando como a chamada acima manda. No máximo 2 emojis, e só se combinar com a empresa.',
+    '- hashtags: de 3 a 8, sem o #, minúsculas, sem acento, seguindo o alcance acima.',
     '',
     '## Formato da resposta (JSON)',
     '{"caption":"...","hashtags":["..."]}',

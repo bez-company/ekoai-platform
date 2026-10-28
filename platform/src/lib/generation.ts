@@ -198,7 +198,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
       continue;
     }
     const copy: Copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const textIssues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: facts.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
+    const textIssues: Issue[] = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: facts.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
     // Carrossel: cada achado de texto diz a lâmina, e valem as regras entre lâminas (capa curta, título que não se repete).
     const issues = copy.slides ? [...textIssues.map((i) => inSlide(i, copy.slides!)), ...reviewSlides(copy.slides)] : textIssues;
     const hard = blocking(issues);
