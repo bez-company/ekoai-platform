@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { runAudienceCollection } from '@/lib/audience';
+import { runCostAnomalyCheck } from '@/lib/cost-anomaly';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { runMetricsCollection } from '@/lib/instagram-metrics';
 import { logError } from '@/lib/log';
@@ -21,7 +22,12 @@ async function handle(req: Request) {
       logError('cron/collect-metrics/audience', e);
       return null;
     });
-    return NextResponse.json({ ok: true, ...metrics, audience });
+    // Alerta de custo por post aprovado (BEZ-410): também não derruba a coleta.
+    const cost = await runCostAnomalyCheck().catch((e) => {
+      logError('cron/collect-metrics/cost-anomaly', e);
+      return null;
+    });
+    return NextResponse.json({ ok: true, ...metrics, audience, cost });
   } catch (e) {
     logError('cron/collect-metrics', e);
     return NextResponse.json({ error: 'falha na coleta' }, { status: 500 });

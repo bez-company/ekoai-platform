@@ -250,3 +250,32 @@ resource "google_monitoring_alert_policy" "publish_stuck" {
   }
   depends_on = [google_cloud_run_v2_service.platform]
 }
+
+# Custo por post aprovado acima de 2x a mediana (BEZ-410): a rota collect-metrics grava uma linha WARNING com
+# escopo `cost-anomaly`; a política avisa a equipe, no máximo um e-mail por hora.
+resource "google_monitoring_alert_policy" "cost_anomaly" {
+  count                 = var.deploy_workloads ? 1 : 0
+  project               = var.project_id
+  display_name          = "Custo por post aprovado acima do normal (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Linha de log cost-anomaly"
+    condition_matched_log {
+      filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${local.name}-platform\" AND jsonPayload.scope=\"cost-anomaly\""
+    }
+  }
+
+  alert_strategy {
+    notification_rate_limit {
+      period = "3600s"
+    }
+  }
+
+  documentation {
+    content   = "Um post aprovado custou mais de 2x a mediana da plataforma (BEZ-410). A linha de log traz brief_id, tenant_id, cost_usd e median_usd. Veja as chamadas em generation_runs desse brief (regeneração, falha em loop)."
+    mime_type = "text/markdown"
+  }
+  depends_on = [google_cloud_run_v2_service.platform]
+}
