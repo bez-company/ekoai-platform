@@ -1,7 +1,7 @@
 // ideas-model.ts: aprovação por ideia (SPEC 003 R3). Agrupa as pendências da mesma rodada,
 // diz o papel de cada rede e valida o que a tela manda. Puro: serve às rotas e ao cliente.
 
-import { CHANNELS, type Channel, type PendingApproval } from './types';
+import { CHANNELS, type Channel, type PendingApproval, type Variation } from './types';
 
 export type NetworkRole = 'mother' | 'reuse' | 'own' | 'single';
 export type PlanStep = { mode: 'mother' | 'reuse' | 'own' | 'skip' | 'locked'; reason?: string; format?: string };
@@ -133,4 +133,33 @@ export function parseRework(body: unknown): Parsed<ReworkInput> {
   const src = b.sourceVariationId == null ? undefined : Number(b.sourceVariationId);
   if (src !== undefined && !Number.isFinite(src)) return { ok: false, error: 'Variação de origem inválida.' };
   return { ok: true, value: { pendingId, mode: b.mode, sourceVariationId: src } };
+}
+
+// Aprovar as redes de uma vez (SPEC 028, BEZ-436): a tela manda só o que a pessoa mudou em cada rede (texto editado, liga e
+// desliga, versão do design); legenda, arte e horário vêm da própria pendência e da grade.
+export type ApproveAllItem = { pendingId: string; enabled: boolean; captionText?: string; designVersion?: number };
+
+export function parseApproveAll(body: unknown): Parsed<{ briefId: string; items: ApproveAllItem[] }> {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const briefId = typeof b.briefId === 'string' ? b.briefId.trim() : '';
+  if (!briefId) return { ok: false, error: 'Ideia não encontrada.' };
+  if (!Array.isArray(b.items) || !b.items.length || b.items.length > CHANNELS.length) return { ok: false, error: 'Nenhuma rede nesta ideia.' };
+  const items: ApproveAllItem[] = [];
+  for (const raw of b.items as Record<string, unknown>[]) {
+    const pendingId = typeof raw?.pendingId === 'string' ? raw.pendingId : '';
+    if (!pendingId || items.some((i) => i.pendingId === pendingId)) return { ok: false, error: 'Rede repetida ou inválida. Recarregue a página.' };
+    const captionText = typeof raw.captionText === 'string' && raw.captionText.trim() ? raw.captionText.slice(0, 5000) : undefined;
+    const version = Number(raw.designVersion);
+    items.push({ pendingId, enabled: raw.enabled !== false, captionText, designVersion: Number.isInteger(version) && version > 0 ? version : undefined });
+  }
+  if (!items.some((i) => i.enabled)) return { ok: false, error: 'Ligue pelo menos uma rede ou recuse o post.' };
+  return { ok: true, value: { briefId, items } };
+}
+
+// O que cada rede vai publicar, em uma linha, para a confirmação de "Aprovar as N redes".
+export function networkFormatLabel(channel: Channel, variation: Pick<Variation, 'slideUrls' | 'documentUrl'> | undefined, captionLength: number): string {
+  const slides = variation?.slideUrls?.length ?? 0;
+  if (channel === 'instagram') return slides > 1 ? `Carrossel de ${slides} lâminas` : 'Imagem única';
+  if (channel === 'linkedin') return variation?.documentUrl ? `Texto com PDF${slides > 1 ? ` de ${slides} páginas` : ''}` : 'Só texto';
+  return `Post de ${captionLength} caracteres`;
 }

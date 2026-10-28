@@ -4,7 +4,8 @@
 
 import type { TenantDb } from './tenant-db';
 import { approvePending, rejectPending } from './scheduling';
-import { roleOf, type IdeaItem, type ReworkInput } from './ideas-model';
+import { roleOf, type ApproveAllItem, type IdeaItem, type ReworkInput } from './ideas-model';
+import { assertDesignVersion, markDesignApproved } from './post-design-revisions';
 import type { PendingApproval, Variation } from './types';
 import { composeCaption } from './caption';
 import { UserError } from './errors';
@@ -58,6 +59,49 @@ export async function approveIdea(
     const edited = !!item.captionText && chosen ? item.captionText.trim() !== composeCaption(chosen).trim() : false;
     signals.push({ ...base, enabled: true, edited });
     scheduled += 1;
+  }
+
+  await recordSignals(t, signals);
+  await t.update('briefs', { status: 'approved' }).eq('id', briefId);
+  return { scheduled, skipped };
+}
+
+// Aprova de uma vez as redes ligadas de uma ideia (SPEC 028, BEZ-436). Legenda, arte e horário saem da própria pendência (o
+// padrão de cada aba); a tela só manda o que mudou. Confere a versão do design antes de agendar qualquer rede, para não aprovar
+// metade. Se uma rede falhar no meio, as já agendadas saem da fila e repetir a chamada aprova só o resto.
+export async function approveAll(t: TenantDb, briefId: string, items: ApproveAllItem[]): Promise<{ scheduled: { pendingId: string; channel: string; id: string; scheduledFor: string | null }[]; skipped: number }> {
+  const pendings = await getIdeaPendings(t, briefId);
+  const byId = new Map(pendings.map((p) => [p.pending_id, p]));
+  const open = items.filter((i) => byId.has(i.pendingId)); // as já resolvidas em outra aba ficam de fora
+  if (!open.some((i) => i.enabled)) throw new UserError('Este post já foi aprovado ou recusado. Atualize a página.');
+
+  const designs = new Map<string, Awaited<ReturnType<typeof assertDesignVersion>>>();
+  for (const item of open.filter((i) => i.enabled)) designs.set(item.pendingId, await assertDesignVersion(t, item.pendingId, item.designVersion));
+
+  const signals: Record<string, unknown>[] = [];
+  const scheduled: { pendingId: string; channel: string; id: string; scheduledFor: string | null }[] = [];
+  let skipped = 0;
+  for (const item of open) {
+    const p = byId.get(item.pendingId)!;
+    const variations: Variation[] = p.generation?.variations || [];
+    const images = p.images || [];
+    const captionId = p.top_id ?? variations[0]?.id ?? 1;
+    const base = { brief_id: briefId, channel: p.channel, role: roleOf(p), chosen_variation: captionId, top_variation: p.top_id ?? null };
+    if (!item.enabled) {
+      await t.delete('pending_approvals').eq('pending_id', p.pending_id);
+      signals.push({ ...base, enabled: false });
+      skipped += 1;
+      continue;
+    }
+    // Texto puro (SPEC 005): padrão quando a variação é `text` ou não há arte; o Instagram exige imagem.
+    const noImage = p.channel !== 'instagram' && (variations.find((v) => v.id === captionId)?.format === 'text' || !images.some((i) => i.url));
+    const artId = images.find((i) => i.url)?.id ?? images[0]?.id ?? captionId;
+    const result = await approvePending(t, { pendingId: p.pending_id, captionId, artId, captionText: item.captionText, noImage });
+    const design = designs.get(item.pendingId);
+    if (design) await markDesignApproved(t, design.designId);
+    const chosen = variations.find((v) => v.id === captionId);
+    signals.push({ ...base, enabled: true, edited: !!item.captionText && !!chosen && item.captionText.trim() !== composeCaption(chosen).trim() });
+    scheduled.push({ pendingId: p.pending_id, channel: p.channel, id: result.id, scheduledFor: result.scheduledFor });
   }
 
   await recordSignals(t, signals);

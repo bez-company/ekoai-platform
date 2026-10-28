@@ -3,6 +3,11 @@ import { notFound } from 'next/navigation';
 import { getIdeaTabs, getPending } from '@/lib/queries';
 import NetworkTabs from '@/components/posts/NetworkTabs';
 import SignalPanel from '@/components/posts/SignalPanel';
+import ApproveAllBar, { type BarNetwork } from '@/components/posts/ApproveAllBar';
+import NetworkSwitch from '@/components/posts/NetworkSwitch';
+import { networkFormatLabel } from '@/lib/ideas-model';
+import { fmtLocal } from '@/lib/scheduling';
+import { listSocialAccounts } from '@/lib/social-accounts';
 import { nextFreeSlot } from '@/lib/slots';
 import { composeCaption } from '@/lib/caption';
 import ApproveForm from '@/components/ApproveForm';
@@ -27,12 +32,39 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   const nextSlot = await nextFreeSlot(t, p.channel).catch(() => null);
   // Uma ideia para mais de uma rede (SPEC 028): as abas levam de uma pendência à outra. Falhar aqui nunca derruba a tela.
   const tabs = p.brief_id ? await getIdeaTabs(t, p.brief_id).catch(() => []) : [];
+  const NAMES: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
   const tabsNav = (
     <>
       <NetworkTabs tabs={tabs} current={p.channel} />
+      {tabs.length > 1 && <NetworkSwitch pendingId={p.pending_id} name={NAMES[p.channel] ?? p.channel} />}
       <SignalPanel stored={p.generation?.critic} />
     </>
   );
+  // A barra "Aprovar as N redes" (BEZ-436): as redes prontas desta ideia, com o formato e o próximo horário de cada uma.
+  // Falhar aqui nunca derruba a tela: sem a barra, cada aba aprova a própria rede.
+  const bar: BarNetwork[] = await (async () => {
+    if (!p.brief_id || tabs.filter((x) => x.state === 'ready').length < 2) return [];
+    const accounts = await listSocialAccounts(t).catch(() => []);
+    const rows = await Promise.all(
+      tabs
+        .filter((x) => x.state === 'ready' && x.pendingId)
+        .map(async (x) => {
+          const other = x.pendingId === p.pending_id ? p : await getPending(t, x.pendingId!);
+          const variation = other?.generation?.variations?.[0];
+          const slot = other?.channel === p.channel ? nextSlot : await nextFreeSlot(t, x.channel).catch(() => null);
+          return {
+            channel: x.channel,
+            name: NAMES[x.channel] ?? x.channel,
+            pendingId: x.pendingId!,
+            format: networkFormatLabel(x.channel, variation, composeCaption(variation).length),
+            slot: slot ? fmtLocal(slot) : null,
+            needsReconnect: accounts.some((a) => a.channel === x.channel && a.status === 'reauth_required'),
+          };
+        }),
+    );
+    return rows;
+  })().catch((e) => (log('warn', 'inbox', 'não montou a barra de aprovar as redes', { error: e instanceof Error ? e.message : String(e) }), []));
+  const barEl = bar.length > 1 && p.brief_id ? <ApproveAllBar briefId={p.brief_id} networks={bar} /> : null;
 
   // Post feito pela Ekoai (SPEC 012) ou foto do banco (Publicar foto, BEZ-254): a tela da moldura do
   // feed, com os atalhos e os fatos usados.
@@ -61,6 +93,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
         canManage={canManage}
         design={design ? { state: design } : null}
       />
+        {barEl}
       </div>
     );
   }
@@ -76,6 +109,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
       </Link>
       {tabsNav}
       <ApproveForm pending={p} suggested={suggested} nextSlot={nextSlot} />
+      {barEl}
     </div>
   );
 }
