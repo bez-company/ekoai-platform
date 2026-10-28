@@ -38,7 +38,11 @@ test.describe.serial('papéis', () => {
     await expect(page.getByText('leitor@e2e.example.test')).toBeVisible();
 
     if (!(await page.getByRole('button', { name: 'Mais', exact: true }).isVisible())) {
-      for (const name of ['Banco de imagens', 'Configurações']) await expect(navLink(page, name)).toBeVisible();
+      await expect(navLink(page, 'Banco de imagens')).toBeVisible();
+      // Configurações abre pelo menu do nome, no rodapé da barra lateral.
+      await expect(navLink(page, 'Configurações')).toHaveCount(0);
+      await page.getByRole('button', { name: /^Menu de / }).click();
+      await expect(page.getByRole('menuitem', { name: 'Configurações' })).toBeVisible();
     }
   });
 

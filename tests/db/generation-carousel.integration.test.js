@@ -1,5 +1,5 @@
 // O carrossel de ponta a ponta contra o Postgres (SPEC 023, ADR 0025), com modelo e bucket falsos: o pedido com
-// formato carousel vira uma pendência com uma imagem por lâmina, um visual só (na capa), design.slides, e ao aprovar
+// formato carousel vira uma pendência com uma imagem por lâmina, um visual só (o da capa, usado em todas as lâminas), design.slides, e ao aprovar
 // o agendamento leva as lâminas para a Meta como carrossel.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import pg from 'pg';
@@ -196,7 +196,7 @@ describe('carrossel informativo', () => {
 });
 
 describe('carrossel de atmosfera', () => {
-  it('um visual só, na capa; as outras lâminas usam a cor da marca e o limite do plano conta 1', async () => {
+  it('um visual só, gerado uma vez e usado em todas as lâminas; o limite do plano conta 1', async () => {
     const t = tenantDb(A);
     const id = await carouselBrief('bastidor da quarta em fotos', 'atmosfera');
     const model = fakeModel({ text: [{ ...CAROUSEL, kind: 'atmosfera', visual_prompt: 'flour on a wooden table, warm light' }], image: [{}] });
@@ -206,7 +206,7 @@ describe('carrossel de atmosfera', () => {
     const pending = await one('select * from pending_approvals where brief_id = $1', [id]);
     const design = await one('select * from post_designs where id = $1', [pending.post_design_id]);
     expect(design.visual_key).toMatch(/^images\//);
-    expect(design.design.slides.map((s) => s.layout)).toEqual(['foto-titulo', 'lamina-item', 'lamina-item', 'lamina-item', 'titulo-destaque']);
+    expect(design.design.slides.map((s) => s.layout)).toEqual(['foto-titulo', 'lamina-item', 'lamina-item', 'lamina-item', 'foto-titulo']);
     expect(pending.images).toHaveLength(5);
     const visuals = await one("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'visual' and status = 'done'", [id]);
     expect(visuals.n).toBe(1);
