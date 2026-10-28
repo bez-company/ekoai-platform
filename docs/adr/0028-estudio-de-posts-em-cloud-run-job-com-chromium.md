@@ -1,8 +1,8 @@
 # ADR 0028: o estúdio de posts roda em um Cloud Run Job com Chromium
 
-- **Status:** proposto (SPEC 028, 28/10/2026)
+- **Status:** proposto (SPEC 030, 28/10/2026)
 - **Data:** 2026-10-28
-- **Specs que dependem:** [SPEC 028](../specs/028-estudio-de-posts-multiagente.md)
+- **Specs que dependem:** [SPEC 030](../specs/030-estudio-de-posts-multiagente.md)
 - **Revisa:** o trecho "o render de artes sai e volta na fase 2" do [ADR 0010](0010-plataforma-generica-sem-pilar-no-codigo.md),
   só para o caminho Design autoral; o motor de layouts em SVG do [ADR 0017](0017-motor-de-design-hibrido-com-biblioteca-de-layouts.md)
   continua sendo o caminho rápido
@@ -46,6 +46,6 @@ trabalha dentro de 240 s, abaixo do timeout de 300 s do Cloud Run. A imagem dos 
 - Nova imagem, novo job e conta de serviço no Terraform; custo por execução (vCPU e memória durante a geração) soma-se ao
   custo de modelo, e entra no teto por post.
 - O tempo do post autoral deixa de ser limitado pelo worker, mas passa a depender da latência do modelo: a meta (p50 8 min,
-  p95 15) é requisito da tiering de modelos (SPEC 028, F0).
+  p95 15) é requisito da tiering de modelos (SPEC 030, F0).
 - Uma segunda cadeia de render existe (Chromium e resvg): o contraste, as margens e os tamanhos mínimos são medidos nos dois
   pelas mesmas regras, em módulos próprios de cada um.

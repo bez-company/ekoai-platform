@@ -1,4 +1,4 @@
-# SPEC 028: estúdio de posts multiagente (design autoral por pedido)
+# SPEC 030: estúdio de posts multiagente (design autoral por pedido)
 
 - **Status:** rascunho, aguarda aprovação do Matheus
 - **Data:** 2026-10-28
