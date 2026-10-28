@@ -547,3 +547,15 @@ Cartão: BEZ-304. Protótipo v13 (tela "Perfil da pessoa").
   tem conta (hoje só o cadastro pede) fica para quando houver a primeira mudança relevante.
 - **Pendente fora do código:** a caixa `privacidade@ekoai.com.br` precisa existir, e a advogada revisar o texto e
   incluir CNPJ e endereço da BEZ.
+
+### E-mail transacional (2026-10-28, BEZ-28)
+
+- **Provedor decidido:** Gmail API na conta do Workspace da BEZ ([ADR 0027](../adr/0027-email-transacional-pelo-gmail-api-no-workspace-da-bez.md)).
+  `MAIL_PROVIDER=gmail` com `MAIL_FROM`, `MAIL_REPLY_TO` e `MAIL_IMPERSONATE` (segredo). Os trechos acima que dizem que
+  `MAIL_PROVIDER` "sem implementação falha" valem agora só para valor diferente de `gmail`.
+- **Convite e aviso de exclusão** saem por e-mail (texto e HTML, em `lib/mail-templates.ts`). A tela de equipe continua
+  oferecendo o link para copiar quando o e-mail não está ligado.
+- **Como ligar um ambiente:** [runbook](../runbook.md#e-mail-transacional-pelo-gmail-api-bez-28-adr-0027). Depende da
+  delegação de domínio no Admin Console e do remetente em "Enviar e-mail como".
+- **Fora:** e-mail de verificação e de nova senha (são do Firebase) e os avisos por e-mail das preferências de
+  notificação (a tela diz que o envio ainda não está ligado nesta instalação; entra numa PR própria).

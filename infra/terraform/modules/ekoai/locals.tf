@@ -27,6 +27,7 @@ locals {
     "cloudkms.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
+    "gmail.googleapis.com",
     "iamcredentials.googleapis.com",
     "identitytoolkit.googleapis.com",
     "logging.googleapis.com",
@@ -84,6 +85,9 @@ locals {
     "x-access-token-secret",
     "sentry-dsn",
     "posthog-key",
+    # E-mail do usuário do Workspace que a delegação de domínio representa ao enviar (BEZ-28). Fica em segredo
+    # porque é e-mail de pessoa e o repositório é público.
+    "mail-impersonate",
   ]
 
   # Variável de ambiente => segredo. Plataforma e jobs leem os mesmos.
@@ -102,6 +106,7 @@ locals {
     X_ACCESS_TOKEN_SECRET  = "x-access-token-secret"
     SENTRY_DSN             = "sentry-dsn"
     POSTHOG_KEY            = "posthog-key"
+    MAIL_IMPERSONATE       = "mail-impersonate"
   }
 
   # Só a plataforma conecta contas de Instagram (OAuth): o app da Meta (id e segredo) não vai para os jobs.
@@ -128,7 +133,7 @@ locals {
   kms_key_name = google_kms_crypto_key.social_tokens.id
 
   # Só entra o que tem valor: variável vazia faria o app falhar com uma mensagem pior que a ausência.
-  account_env = { for k, v in { TENANT_ID = var.tenant_id, SITE_URL = var.site_url, SENTRY_ENVIRONMENT = var.env == "prod" ? "production" : var.env } : k => v if v != "" }
+  account_env = { for k, v in { TENANT_ID = var.tenant_id, SITE_URL = var.site_url, SENTRY_ENVIRONMENT = var.env == "prod" ? "production" : var.env, MAIL_PROVIDER = var.mail_provider, MAIL_FROM = var.mail_from, MAIL_REPLY_TO = var.mail_reply_to } : k => v if v != "" }
 
   jobs_secret_env = merge(local.integration_env, {
     DATABASE_URL = "database-url"

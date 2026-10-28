@@ -520,6 +520,38 @@ tentativa até a rede confirmar) e `published_failure` (`channel`, `attempts`, `
 **Teste de ponta a ponta (depois de aplicar `posthog-key`):** aprovar um post no staging e conferir no PostHog que
 `post_approved` chegou com `environment = staging`; forçar um erro e conferir o issue no Sentry (`environment = staging`).
 
+## E-mail transacional pelo Gmail API (BEZ-28, ADR 0027)
+
+Convites e o aviso de conta excluída saem pelo Gmail API, na conta do Workspace da BEZ. Sem `MAIL_PROVIDER`, o
+convite devolve o link para copiar.
+
+**Ligar em um ambiente** (staging e produção têm conta de serviço e client ID próprios). A ordem importa: com
+`mail_provider = "gmail"` e algum passo faltando, o convite falha em vez de devolver o link para copiar.
+
+1. `terraform apply` do ambiente com `mail_provider = ""` (liga a API do Gmail e cria o segredo `mail-impersonate`, ainda vazio).
+2. Gravar o usuário do Workspace que envia: `printf '%s' '<usuario>@bezcompany.com.br' | gcloud secrets versions add mail-impersonate --data-file=- --project <projeto>`.
+3. Pegar o client ID da conta do app: `terraform output app_service_account_client_id`.
+4. Admin Console, Segurança, Controles de API, Delegação em todo o domínio, Adicionar novo: o client ID e o escopo
+   `https://www.googleapis.com/auth/gmail.send`.
+5. Gmail do usuário que envia, Configurações, Contas, "Enviar e-mail como": `Ekoai <no-reply@ekoai.com.br>`
+   (resposta para `suporte@ekoai.com.br`). Sem isso o Gmail recusa o remetente.
+6. Em `envs/<ambiente>/main.tf` trocar para `mail_provider = "gmail"` e aplicar (cria o papel de assinatura e as
+   variáveis `MAIL_*`). Uma revisão nova do serviço lê o segredo.
+7. Testar: convidar uma pessoa na tela de Equipe e conferir o remetente na mensagem recebida.
+
+**Erros e o que significam** (a mensagem sai no log como `enviar e-mail pelo Gmail` ou `trocar o JWT`):
+
+| Mensagem | Causa | O que fazer |
+| --- | --- | --- |
+| `assinar o JWT ... PERMISSION_DENIED` | falta `serviceAccountTokenCreator` | passo 6 |
+| `trocar o JWT ... unauthorized_client` | delegação de domínio não autorizada | passos 3 e 4 |
+| `enviar e-mail ... 400 Mail service not enabled` | API do Gmail desligada ou usuário sem Gmail | passo 1 e conferir a licença do usuário |
+| remetente trocado pelo endereço do usuário | `no-reply` não está em "Enviar e-mail como" | passo 5 |
+| `MAIL_IMPERSONATE ausente` | segredo vazio | passo 2 |
+
+**Trocar o usuário que envia** (por exemplo, quando houver licença para um usuário só do envio): passo 2 com o
+novo e-mail, passo 5 na caixa dele e uma nova revisão. Sem mudança de código.
+
 ## Pedido de contato da Agência (SPEC 025)
 
 `POST /api/account/plan/agency` não cobra nada: grava `plan.agency_requested` na auditoria da conta (`audit_events`, com as marcas e o recado), avisa os administradores da conta e emite o evento `plan_agency_requested`. A equipe da Ekoai lê esses pedidos na auditoria ou no PostHog e responde pelo e-mail do administrador; ainda não há tela de console para eles.
