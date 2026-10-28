@@ -6,6 +6,9 @@ import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
 import { isProfileComplete } from '@/lib/company-profile-model';
 import { monthlyUsage } from '@/lib/generation-db';
+import { networkChips } from '@/lib/networks-model';
+import { listSocialAccounts } from '@/lib/social-accounts';
+import type { Channel } from '@/lib/types';
 import { can, pageSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +24,8 @@ export default async function CreatePostPage({ searchParams }: { searchParams: P
   const initialAssetId = typeof asset === 'string' && UUID.test(asset) ? asset.toLowerCase() : null;
   if (!(await can('content.create'))) notFound();
   try {
-    const [account, profile] = await Promise.all([accountOf(t.tenantId), getProfile(t)]);
+    const [account, profile, accounts] = await Promise.all([accountOf(t.tenantId), getProfile(t), listSocialAccounts(t).catch(() => [])]);
+    const networks = networkChips(accounts.filter((a) => a.status === 'active').map((a) => a.channel as Channel));
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
     if (!isProfileComplete(profile)) {
@@ -59,7 +63,7 @@ export default async function CreatePostPage({ searchParams }: { searchParams: P
             <strong>Você usou os {usage.max} posts deste mês.</strong> O limite volta no dia 1º. Você ainda pode editar e aprovar os posts que já existem.
           </div>
         )}
-        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} initialAssetId={initialAssetId} />
+        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} networks={networks} initialAssetId={initialAssetId} />
       </div>
     );
   } catch (e) {

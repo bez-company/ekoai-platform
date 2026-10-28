@@ -553,6 +553,30 @@ describe('post do LinkedIn a partir do núcleo (SPEC 028, BEZ-424)', () => {
     expect(await one("select status, error from generation_runs where brief_id = $1 and step = 'adapt'", [id])).toEqual({ status: 'failed', error: 'modelo fora do ar' });
   });
 
+  it('pedido só do LinkedIn: o Instagram não vira pendência e o aviso leva ao LinkedIn', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{linkedin}' where id = $1", [id]);
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, LI], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    const rows = (await admin.query('select pending_id, channel from pending_approvals where brief_id = $1', [id])).rows;
+    expect(rows.map((r) => r.channel)).toEqual(['linkedin']);
+    expect(out.pendingId).toBe(rows[0].pending_id);
+  });
+
+  it('pedido só do LinkedIn que falha não fica "pronto" sem post: o pedido falha com o motivo', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{linkedin}' where id = $1", [id]);
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, new Error('modelo fora do ar')], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('failed');
+    expect(out.error).toBe('O texto do LinkedIn não saiu agora. Tente de novo em instantes.');
+    expect((await admin.query('select 1 from pending_approvals where brief_id = $1', [id])).rows).toHaveLength(0);
+    expect((await one('select status from briefs where id = $1', [id])).status).toBe('failed');
+  });
+
   it('o pedido só do Instagram não chama o redator do LinkedIn', async () => {
     const t = tenantDb(A);
     const id = await brief('como saber se o bolo está pronto', 'informativo');
