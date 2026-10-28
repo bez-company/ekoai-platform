@@ -126,6 +126,10 @@ export function missingScopes(granted: readonly string[]): string[] {
   return REQUIRED_SCOPES.filter((s) => !granted.includes(s));
 }
 
+// O que o evento `linkedin_connected` leva: só se o LinkedIn devolveu refresh token (decide se o acesso renova sozinho ou se a
+// pessoa precisa reconectar a cada ~60 dias). Nunca o token.
+export const connectedProps = (connected: { refreshToken: string | null }): { has_refresh: boolean } => ({ has_refresh: connected.refreshToken !== null });
+
 export function expiresAtFrom(nowMs: number, expiresInSeconds: number): Date {
   return new Date(nowMs + expiresInSeconds * 1000);
 }
