@@ -26,6 +26,9 @@ const FIREBASE_MESSAGES: Record<string, string> = {
   'auth/weak-password': 'A senha precisa de pelo menos 10 caracteres, com letra e número.',
   'auth/user-disabled': 'Este acesso está desativado. Fale com o suporte da Ekoai.',
   'auth/too-many-requests': 'Muitas tentativas seguidas. Espere alguns minutos ou redefina a senha.',
+  // O Identity Platform limita as tentativas do código do app (e do cadastro) por um tempo: `mfaSignIn:finalize` responde
+  // QUOTA_EXCEEDED. Sem esta linha a pessoa via só a mensagem genérica e tentava de novo, o que alonga o bloqueio.
+  'auth/quota-exceeded': 'Muitas tentativas seguidas. Espere alguns minutos antes de tentar de novo.',
   'auth/network-request-failed': 'Sem conexão com o serviço de login. Confira a internet e tente de novo.',
   'auth/invalid-verification-code': 'O código não confere. Ele muda a cada 30 segundos: use o que aparece agora no app.',
   'auth/code-expired': 'O código venceu. Use o que aparece agora no app.',

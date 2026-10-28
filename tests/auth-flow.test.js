@@ -12,10 +12,14 @@ describe('mensagens de erro do Firebase', () => {
   });
 
   it('cada erro conhecido diz o que houve e o próximo passo; o resto é neutro', () => {
-    for (const code of ['auth/email-already-in-use', 'auth/too-many-requests', 'auth/network-request-failed', 'auth/invalid-verification-code', 'auth/requires-recent-login', 'auth/weak-password']) {
+    for (const code of ['auth/email-already-in-use', 'auth/too-many-requests', 'auth/quota-exceeded', 'auth/network-request-failed', 'auth/invalid-verification-code', 'auth/requires-recent-login', 'auth/weak-password']) {
       expect(f.firebaseMessage(code)).not.toBe(f.GENERIC_AUTH_ERROR);
     }
     for (const bad of ['auth/coisa-nova', '', undefined, null, 42]) expect(f.firebaseMessage(bad)).toBe(f.GENERIC_AUTH_ERROR);
+  });
+
+  it('o limite de tentativas do código do app (BEZ-396) manda esperar, sem mandar tentar de novo já', () => {
+    expect(f.firebaseMessage('auth/quota-exceeded')).toMatch(/Espere alguns minutos/);
   });
 
   it('nenhuma mensagem tem travessão, "Oops" nem culpa', () => {
