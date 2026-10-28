@@ -50,9 +50,9 @@ test.describe.serial('Carrossel, do pedido ao agendamento', () => {
       // No carrossel o link edita a lâmina que está à mostra: escolhe a terceira pela tira de miniaturas.
       await slideButtons(page).nth(2).click();
       await page.getByRole('link', { name: 'Editar esta lâmina' }).click();
-      await expect(page).toHaveURL(/\/studio$/);
+      // O Studio já abre na lâmina que estava à mostra.
+      await expect(page).toHaveURL(/\/studio\?lamina=3$/);
       await expect(page.getByRole('application', { name: /Imagem do post/ })).toBeVisible();
-      await page.getByRole('group', { name: 'Lâminas do carrossel' }).getByRole('button', { name: 'Lâmina 3', exact: true }).click();
       await page
         .getByRole('option')
         .getByRole('button', { name: 'Título', exact: true })
