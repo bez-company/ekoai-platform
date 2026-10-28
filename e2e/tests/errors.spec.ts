@@ -64,9 +64,9 @@ test.describe.serial('com sessão', () => {
     }
   });
 
-  // BUG conhecido do app, fora desta frente (BEZ-273): `notFound()` dentro do try da página vira um
-  // cartão de erro com status 200 e uma linha de erro no log. Quando for corrigido, tire o `fixme`.
-  test.fixme('pedido de post que não existe responde 404', async ({ page }) => {
+  // BEZ-273: `notFound()` dentro do try da página virava um cartão de erro com status 200 e uma linha de erro no
+  // log. O `pageError` agora relança o erro de controle do Next.
+  test('pedido de post que não existe responde 404', async ({ page }) => {
     await login(page, 'admin');
     expect((await page.goto(`/criar/${UNKNOWN_ID}`))?.status()).toBe(404);
   });
