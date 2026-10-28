@@ -36,6 +36,12 @@ test.describe.serial('papéis', () => {
     // as três pessoas do seed, cada uma no seu papel
     await expect(page.getByText('criador@e2e.example.test')).toBeVisible();
     await expect(page.getByText('leitor@e2e.example.test')).toBeVisible();
+    // cada pessoa tem o menu "⋯" com mudar papel e remover; você mesmo não tem remover (SPEC 029)
+    await page.getByRole('button', { name: 'Ações para criador@e2e.example.test' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Mudar papel' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Remover da empresa' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menuitem', { name: 'Mudar papel' })).toBeHidden();
 
     if (!(await page.getByRole('button', { name: 'Mais', exact: true }).isVisible())) {
       await expect(navLink(page, 'Banco de imagens')).toBeVisible();
