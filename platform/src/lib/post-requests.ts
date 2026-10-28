@@ -5,7 +5,7 @@
 import type { TenantDb } from './tenant-db';
 import type { SessionUser } from './accounts';
 import { UserError } from './errors';
-import { DEFAULT_FORMAT, DEFAULT_RATIO, isPostFormat, isPostGoal, isPostKind, isRatio, kindForGoal, type PostFormat, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
+import { DEFAULT_FORMAT, DEFAULT_RATIO, GENERATED_CHANNELS, isPostFormat, isPostGoal, isPostKind, isRatio, kindForGoal, type PostFormat, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
 import { runsOfBrief } from './generation-db';
 import { log } from './log';
 import { IDEA_MAX } from './post-limits';
@@ -13,12 +13,13 @@ import { parsePhotoChoice, type PhotoUsage } from './photo-question-model';
 import { getMediaAsset } from './media-assets';
 import { canUseInPost } from './media-asset-model';
 import { MAX_SLIDES, MIN_SLIDES } from './design/model';
+import { CHANNELS, type Channel } from './types';
 
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
 // photo: foto do banco anexada e como usá-la (SPEC 017 decisão 7, BEZ-237).
 // format: uma imagem ou carrossel, escolha da pessoa (SPEC 023); sem ele, uma imagem.
-export type PostRequestInput = { idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; slideCount?: number; photo?: { assetId: string; usage: PhotoUsage } | null };
+export type PostRequestInput = { channels?: Channel[]; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; slideCount?: number; photo?: { assetId: string; usage: PhotoUsage } | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -44,10 +45,23 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
     if (!Number.isInteger(n) || n < MIN_SLIDES || n > MAX_SLIDES) return { ok: false, error: `Escolha de ${MIN_SLIDES} a ${MAX_SLIDES} lâminas.`, field: 'slide_count' };
     slideCount = n;
   }
+  // Onde publicar (SPEC 028): de 1 a 3 redes, sem repetir. Ausente = só o Instagram, como era. Rede que a geração ainda não
+  // escreve (GENERATED_CHANNELS) volta com o motivo, em vez de o pedido ser aceito e a rede ficar de fora em silêncio.
+  let channels: Channel[] | undefined;
+  if (b.channels != null) {
+    const list = Array.isArray(b.channels) ? b.channels : null;
+    if (!list || list.length === 0) return { ok: false, error: 'Escolha pelo menos uma rede para publicar.', field: 'channels' };
+    if (!list.every((c) => typeof c === 'string' && (CHANNELS as string[]).includes(c))) return { ok: false, error: 'Escolha entre Instagram, LinkedIn e X.', field: 'channels' };
+    const unique = [...new Set(list as Channel[])];
+    const notYet = unique.filter((c) => !GENERATED_CHANNELS.includes(c));
+    if (notYet.length) return { ok: false, error: `Ainda não dá para criar posts para ${notYet.map((c) => (c === 'twitter' ? 'o X' : 'o LinkedIn')).join(' e ')}. Escolha só o Instagram por enquanto.`, field: 'channels' };
+    channels = unique;
+  }
   const goal = isPostGoal(b.goal) ? b.goal : null;
   // Com a foto à mostra, a imagem manda: o post é de atmosfera (foto com título, ou a foto como está).
   const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
   const value: PostRequestInput = { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO };
+  if (channels) value.channels = channels;
   if (b.format === 'carousel') value.format = 'carousel';
   if (slideCount) value.slideCount = slideCount;
   if (photo.value) value.photo = photo.value;
@@ -73,6 +87,7 @@ export async function createPostRequest(t: TenantDb, actor: SessionUser | null, 
       goal: input.goal ?? null,
       ratio: input.ratio ?? DEFAULT_RATIO,
       format: input.format ?? DEFAULT_FORMAT,
+      channels: input.channels?.length ? input.channels : ['instagram'],
       slide_count: input.format === 'carousel' ? (input.slideCount ?? null) : null,
       asset_id: photo?.assetId ?? null,
       photo_usage: photo?.usage ?? null,

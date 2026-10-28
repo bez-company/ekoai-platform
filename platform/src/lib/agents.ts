@@ -9,6 +9,7 @@ import type { WriterHints } from './directives-apply';
 import { MAX_SLIDES, MIN_SLIDES, roleAt, type SlideRole, type Texts } from './design/model';
 import { GOALS, asksToShare, isPostGoal, isSignal, type Signal } from './post-goals';
 import { signalPromptLines } from './channel-signals';
+import type { Channel } from './types';
 
 export type CopyInput = {
   idea: string;
@@ -16,6 +17,7 @@ export type CopyInput = {
   format?: PostFormat; // single (padrão) ou carousel: escolha da pessoa (SPEC 023)
   slideCount?: number | null; // carrossel: quantas lâminas a pessoa escolheu (SPEC 025); null = a Ekoai decide
   goal?: string | null; // o objetivo do post em uma frase (SPEC 017 decisão 6)
+  channels?: Channel[]; // onde o pedido publica (SPEC 028); com mais de uma rede, o redator devolve o núcleo (`core`)
   signal?: Signal | null; // o sinal padrão do objetivo (signalOfGoal); null deixa o estrategista escolher (SPEC 028)
   profile: CompanyProfile;
   facts: string[];
@@ -32,6 +34,10 @@ export type CopyInput = {
 // "nunca diga". Meta e números de acompanhamento nunca vão ao modelo.
 export type CopyCampaign = { name: string; objective: string | null; offering: string | null; audience: string | null; cta: string | null; restrictions: string[] };
 
+// O núcleo da ideia (SPEC 028): o que as outras redes leem no lugar da legenda do Instagram. Só o que vale para qualquer
+// rede: o ângulo, de 2 a 4 pontos na ordem do leitor, o fato que sustenta e uma pergunta que o público responde.
+export type Core = { angle: string; points: string[]; proof: string | null; question: string | null };
+
 // Uma lâmina do carrossel como o redator a devolve: o papel (pela posição) e os textos, sem itens.
 export type CopySlide = { role: SlideRole; texts: Texts };
 
@@ -42,11 +48,14 @@ export type Copy = {
   slides?: CopySlide[]; // só no carrossel; a primeira lâmina é a capa e `texts` é o da capa
   caption: string;
   hashtags: string[];
+  core?: Core; // o núcleo da ideia, só quando o pedido é para mais de uma rede (SPEC 028)
   signal: Signal; // o que o post pede à pessoa (SPEC 028): enviar, salvar, responder ou assistir
   shareReason: string; // uma frase: quem faz a ação e por quê; a tela e a análise leem daqui
   visualPrompt: string | null; // só no post de atmosfera
   altText: string; // texto alternativo do redator (BEZ-203); vazio quando ele não mandou: a geração escolhe a sobra
 };
+
+export const CORE_LIMITS = { angle: 120, point: 140, points: 4, proof: 160, question: 120 };
 
 export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120, altText: 1000, shareReason: 160 };
 
@@ -164,6 +173,8 @@ export function buildCopyPrompt(input: CopyInput): string {
   const goalSignal = input.signal ?? null;
   lines.push(`- signal: o que este post pede à pessoa: "enviar" (manda a alguém), "salvar" (guarda para consultar), "responder" (comenta) ou "assistir" (fica e olha, no carrossel desliza). ${goalSignal ? `Para este objetivo, use "${goalSignal}".` : 'Escolha o que combina com o post.'}`);
   lines.push(`- share_reason: UMA frase, até ${LIMITS.shareReason} caracteres, que diz quem faz essa ação e por quê, no negócio desta empresa (ex.: "Quem encomenda bolo manda para quem organiza a festa"). Específica deste post: se serviria a qualquer post, reescreva. Sem travessão.`);
+  const others = (input.channels ?? []).filter((c) => c !== 'instagram');
+  if (others.length) lines.push(`- core: o núcleo desta ideia, que as outras redes (${others.map((c) => (c === 'twitter' ? 'X' : 'LinkedIn')).join(' e ')}) vão reaproveitar: elas NÃO leem a legenda do Instagram, só isto. {"angle": uma frase, "points": de 2 a ${CORE_LIMITS.points} pontos curtos, na ordem em que a pessoa precisa deles, "proof": o fato da base ou do pedido que sustenta o post (ou null), "question": uma pergunta que o público responde com a experiência dele (ou null)}. Só fatos da base ou do pedido.`);
   if (asksToShare(goalSignal)) lines.push(`- Chamada de ${goalSignal === 'salvar' ? 'salvar' : 'enviar'}: a legenda fecha com uma frase natural que pede para ${goalSignal === 'salvar' ? 'salvar o post e consultar depois' : 'mandar o post a quem se encaixa (diga a quem, por exemplo "para quem organiza a festa")'}. Isso não é a chamada padrão da conta: vale mesmo quando ela não escolheu chamada, porque salvar e enviar acontecem dentro do Instagram. Uma frase só, sem insistir.`);
   else if (goalSignal) lines.push('- Não peça para salvar nem enviar o post: use só a chamada padrão.');
   else lines.push('- Só peça para salvar ou enviar quando o post serve a isso (dica para guardar, aviso para um grupo). Em post de atmosfera ou de conversa, use só a chamada padrão.');
@@ -179,7 +190,9 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(input.format === 'carousel'
     ? '{"kind":"informativo|atmosfera","angle":"...","slides":[{"role":"cover","texts":{"kicker":"...","title":"...","sub":"..."}},{"role":"content","texts":{"title":"...","sub":"..."}},{"role":"cta","texts":{"title":"...","sub":"..."}}],"caption":"...","hashtags":["..."],"signal":"enviar|salvar|responder|assistir","share_reason":"...","visual_prompt":null,"alt_text":"..."}'
     : '{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"signal":"enviar|salvar|responder|assistir","share_reason":"...","visual_prompt":null,"alt_text":"..."}');
-  return lines.join('\n');
+  const text = lines.join('\n');
+  // Com outra rede, o formato da resposta pede o núcleo (os exemplos de JSON ficam como estavam).
+  return others.length ? text.replace(/"caption":"\.\.\.",/g, '"core":{"angle":"...","points":["...","..."],"proof":null,"question":null},"caption":"...",') : text;
 }
 
 type Parsed = { ok: true; value: Copy } | { ok: false; error: string };
@@ -192,7 +205,7 @@ function str(v: unknown, max: number): string | null {
 
 // O que volta do modelo, no formato que o resto do motor espera. Corta o que passa do limite em
 // vez de recusar: o revisor por regra decide se o texto cabe na imagem.
-export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single', slideCount: number | null = null, goalSignal: Signal | null = null): Parsed {
+export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single', slideCount: number | null = null, goalSignal: Signal | null = null, wantCore = false): Parsed {
   const o = json && typeof json === 'object' && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
   if (!o) return { ok: false, error: 'O modelo não devolveu um objeto.' };
   const kind: PostKind = requested ?? (o.kind === 'atmosfera' ? 'atmosfera' : 'informativo');
@@ -216,6 +229,12 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
   if (!signal) return { ok: false, error: 'O modelo não disse o que o post pede à pessoa (signal: enviar, salvar, responder ou assistir).' };
   const shareReason = cleanShareReason(o.share_reason);
   if (!shareReason) return { ok: false, error: 'O modelo não explicou, em uma frase específica, quem faz a ação do post e por quê (share_reason).' };
+  let core: Core | undefined;
+  if (wantCore) {
+    const parsedCore = parseCore(o.core);
+    if (!parsedCore) return { ok: false, error: `O modelo não devolveu o núcleo da ideia (core: o ângulo e de 2 a ${CORE_LIMITS.points} pontos).` };
+    core = parsedCore;
+  }
   const items = !slides && kind === 'informativo' && Array.isArray(texts.items) ? texts.items.map((x) => str(x, LIMITS.item)).filter((x): x is string => !!x).slice(0, LIMITS.items) : [];
   const copy: Copy = {
     kind,
@@ -231,12 +250,29 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
     hashtags,
     signal,
     shareReason,
+    ...(core ? { core } : {}),
     visualPrompt: kind === 'atmosfera' ? str(o.visual_prompt, LIMITS.visualPrompt) : null,
     altText: '',
   };
   copy.altText = cleanAltText(o.alt_text) ?? '';
   if (kind === 'atmosfera' && !copy.visualPrompt) return { ok: false, error: 'O modelo não descreveu o visual do post de atmosfera.' };
   return { ok: true, value: copy };
+}
+
+// O núcleo (SPEC 028): ângulo e de 2 a 4 pontos são obrigatórios; fato e pergunta podem faltar. Texto sem travessão, em uma
+// linha e cortado no teto. Menos de 2 pontos, ou sem ângulo, volta ao modelo como as outras falhas de formato.
+export function parseCore(raw: unknown): Core | null {
+  const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  if (!o) return null;
+  const clean = (v: unknown, max: number): string | null => {
+    if (typeof v !== 'string') return null;
+    const text = v.replace(/\s*[\u2013\u2014]\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    return text ? text.slice(0, max).trim() : null;
+  };
+  const angle = clean(o.angle, CORE_LIMITS.angle);
+  const points = (Array.isArray(o.points) ? o.points : []).map((p) => clean(p, CORE_LIMITS.point)).filter((p): p is string => !!p).slice(0, CORE_LIMITS.points);
+  if (!angle || points.length < 2) return null;
+  return { angle, points, proof: clean(o.proof, CORE_LIMITS.proof), question: clean(o.question, CORE_LIMITS.question) };
 }
 
 // A razão do sinal (SPEC 028): uma frase específica. Sem travessão, cortada no teto e com pelo menos 4 palavras;

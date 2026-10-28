@@ -446,3 +446,48 @@ describe('o código obedece as instruções do pedido (SPEC 020, entrega c)', ()
     expect((await one('select generation from pending_approvals where brief_id = $1', [id])).generation.directives).toBeUndefined();
   });
 });
+
+describe('pedido para mais de uma rede (SPEC 028)', () => {
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+
+  it('o pedido comum fica só no Instagram, sem núcleo e sem pedir núcleo ao modelo', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls[0].prompt).not.toContain('- core:');
+    expect(await one('select channels, core from briefs where id = $1', [id])).toEqual({ channels: ['instagram'], core: null });
+  });
+
+  it('com outra rede, o núcleo é pedido, guardado no pedido e o sinal vai para a pendência', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls[0].prompt).toContain('- core:');
+    expect(await one('select channels, core from briefs where id = $1', [id])).toEqual({ channels: ['instagram', 'linkedin'], core: CORE });
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation).toMatchObject({ signal: 'salvar', share_reason: expect.stringContaining('guarda os sinais') });
+  });
+
+  it('resposta sem núcleo volta ao modelo com o motivo e a segunda versão passa', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{instagram,twitter}' where id = $1", [id]);
+    const model = fakeModel({ text: [INFO, { ...INFO, core: CORE }], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls).toHaveLength(2);
+    expect(model.calls[1].prompt).toContain('O modelo não devolveu o núcleo da ideia');
+    expect((await one('select core from briefs where id = $1', [id])).core).toEqual(CORE);
+  });
+
+  it('o banco recusa rede fora da lista, lista vazia e núcleo que não é objeto', async () => {
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await expect(admin.query("update briefs set channels = '{tiktok}' where id = $1", [id])).rejects.toThrow(/briefs_channels_check/);
+    await expect(admin.query("update briefs set channels = '{}' where id = $1", [id])).rejects.toThrow(/briefs_channels_check/);
+    await expect(admin.query("update briefs set core = '[1]'::jsonb where id = $1", [id])).rejects.toThrow(/briefs_core_check/);
+    await expect(admin.query("insert into generation_runs (tenant_id, brief_id, step, input_hash, channel) values ($1, $2, 'adapt', repeat('a', 64), 'tiktok')", [A, id])).rejects.toThrow(/generation_runs_channel_check/);
+    await admin.query("insert into generation_runs (tenant_id, brief_id, step, input_hash, channel, status) values ($1, $2, 'adapt', repeat('b', 64), 'linkedin', 'failed')", [A, id]);
+  });
+});
