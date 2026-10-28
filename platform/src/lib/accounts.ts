@@ -117,6 +117,12 @@ export async function setUserPhone(userId: string, phone: string | null): Promis
   if (error) throw new Error(`gravar celular: ${error.message}`);
 }
 
+// Aceite dos Termos de uso e da Política de privacidade (BEZ-32): a versão vista no cadastro e o momento.
+export async function setUserTermsAccepted(userId: string, version: string): Promise<void> {
+  const { error } = await db().from('users').update({ terms_version: version, terms_accepted_at: new Date().toISOString() }).eq('id', userId);
+  if (error) throw new Error(`gravar aceite dos termos: ${error.message}`);
+}
+
 export async function userPhone(userId: string): Promise<string | null> {
   const { data, error } = await db().from('users').select('phone').eq('id', userId).maybeSingle();
   if (error) throw new Error(`ler celular: ${error.message}`);

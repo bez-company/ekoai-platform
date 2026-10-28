@@ -15,7 +15,8 @@ const PUBLIC_PREFIXES = ['/entrar', '/convite', '/api/login', '/api/auth/session
 // parado ninguém tem sessão, e as rotas só devolvem o estado ou ligam o banco (que o corte por ociosidade desliga).
 // `/api/instagram/deauthorize` e `/api/instagram/data-deletion` são os callbacks da Meta (SPEC 011 R5.4): a prova é
 // o signed_request assinado com o segredo do app.
-const PUBLIC_EXACT = ['/api/account', '/api/invitations/accept', '/api/live', '/api/ambiente', '/api/ambiente/ligar', '/api/instagram/deauthorize', '/api/instagram/data-deletion'];
+// `/termos` e `/privacidade` são os textos legais (BEZ-32): a pessoa os lê antes de ter conta e a revisão da Meta os abre sem login.
+const PUBLIC_EXACT = ['/termos', '/privacidade', '/api/account', '/api/invitations/accept', '/api/live', '/api/ambiente', '/api/ambiente/ligar', '/api/instagram/deauthorize', '/api/instagram/data-deletion'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

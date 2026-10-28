@@ -24,20 +24,25 @@ import {
 import { firebaseAuth, type FirebaseWebConfig } from '@/lib/firebase-client';
 import { acceptOutcome, accountOutcome, errorCode, firebaseMessage, safeNext, sessionOutcome, type SessionOutcome, type View } from '@/lib/auth-flow';
 import type { Role } from '@/lib/permissions';
+import { TERMS_VERSION } from '@/lib/legal';
 import { ChallengeView, CreateAccountView, ForgotSentView, ForgotView, InviteView, LoginView, SetupView, SignupView, VerifyView, WrongAccountView } from './views';
 
 type Go = { error?: string; notice?: string };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const PHONE_KEY = 'ekoai.signup.phone';
+const TERMS_KEY = 'ekoai.signup.terms';
 
-// Grava o celular do cadastro no perfil quando a sessão já existe (conta criada ou convite aceito). Falha não
-// trava a entrada: a pessoa preenche em Seu perfil.
+// Grava o celular e o aceite dos termos do cadastro no perfil quando a sessão já existe (conta criada ou convite
+// aceito). Falha não trava a entrada: o celular se preenche em Seu perfil e o aceite se pede de novo no próximo cadastro.
 async function savePhone(user: User) {
   const phone = sessionStorage.getItem(PHONE_KEY);
   if (!phone) return;
+  const termsVersion = sessionStorage.getItem(TERMS_KEY);
   sessionStorage.removeItem(PHONE_KEY);
-  await fetch('/api/me', { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ name: user.displayName || user.email, phone }) }).catch(() => undefined);
+  sessionStorage.removeItem(TERMS_KEY);
+  const body = { name: user.displayName || user.email, phone, ...(termsVersion ? { termsVersion } : {}) };
+  await fetch('/api/me', { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(body) }).catch(() => undefined);
 }
 
 // Convite aberto pela página /convite/<token>: o token só segue para a rota de aceite; o e-mail é o
@@ -204,6 +209,8 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
       await updateProfile(cred.user, { displayName: name });
       // O celular só vai para o nosso banco depois do login por pessoa (savePhone); até lá fica nesta aba.
       sessionStorage.setItem(PHONE_KEY, phone);
+      // O formulário só envia com o aceite marcado: a versão vista é a vigente.
+      sessionStorage.setItem(TERMS_KEY, TERMS_VERSION);
       credentials.current = { email: mail, password };
       setEmail(mail);
       await sendVerification(cred.user);

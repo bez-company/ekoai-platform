@@ -16,15 +16,17 @@ vi.mock('@/lib/session', () => {
     },
   };
 });
-const dataMock = { renamed: [], phones: [] };
+const dataMock = { renamed: [], phones: [], terms: [] };
 vi.mock('@/lib/accounts', () => ({
   renameUser: async (id, name) => void dataMock.renamed.push([id, name]),
   setUserPhone: async (id, phone) => void dataMock.phones.push([id, phone]),
+  setUserTermsAccepted: async (id, version) => void dataMock.terms.push([id, version]),
 }));
 
 const { PUT } = await import('../platform/src/app/api/me/route.ts');
 const { NAME_MAX, PHONE_ERROR, formatPhone, mfaView, normalizePhone, parseOptionalPhone, parsePersonName } = await import('@/lib/person-profile-model');
 const { ForbiddenError, UnauthorizedError } = await import('@/lib/session');
+const legal = await import('@/lib/legal');
 
 const put = (body) => PUT(new Request('http://app.test/api/me', { method: 'PUT', body: typeof body === 'string' ? body : JSON.stringify(body) }));
 
@@ -32,6 +34,7 @@ beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [] });
   dataMock.renamed = [];
   dataMock.phones = [];
+  dataMock.terms = [];
 });
 
 describe('parsePersonName', () => {
@@ -144,5 +147,44 @@ describe('celular', () => {
     expect(parseOptionalPhone('11912345678')).toEqual({ ok: true, value: '+5511912345678' });
     expect(parseOptionalPhone('abc')).toEqual({ ok: false, error: PHONE_ERROR });
     expect(parseOptionalPhone(42)).toEqual({ ok: false, error: PHONE_ERROR });
+  });
+});
+
+describe('PUT /api/me: aceite dos termos (BEZ-32)', () => {
+  const { TERMS_VERSION } = legal;
+
+  it('grava a versão vigente enviada pelo cadastro', async () => {
+    const res = await put({ name: 'Ana', phone: '+5511912345678', termsVersion: TERMS_VERSION });
+    expect(res.status).toBe(200);
+    expect(dataMock.terms).toEqual([['u1', TERMS_VERSION]]);
+  });
+
+  it('não grava nada quando só o perfil mudou', async () => {
+    const res = await put({ name: 'Ana', phone: '+5511912345678' });
+    expect(res.status).toBe(200);
+    expect(dataMock.terms).toEqual([]);
+  });
+
+  it('recusa a versão que não é a vigente e não altera o perfil', async () => {
+    const res = await put({ name: 'Ana', phone: '+5511912345678', termsVersion: '2020-01-01' });
+    expect(res.status).toBe(400);
+    expect(dataMock.terms).toEqual([]);
+    expect(dataMock.renamed).toEqual([]);
+  });
+});
+
+describe('versão dos termos', () => {
+  it('é uma data ISO igual à que a página mostra por extenso', () => {
+    expect(legal.TERMS_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const [y, m, d] = legal.TERMS_VERSION.split('-').map(Number);
+    const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    expect(legal.LEGAL_UPDATED_LABEL).toBe(`${d} de ${months[m - 1]} de ${y}`);
+  });
+
+  it('parseTermsAccepted: ausente passa, vigente passa, outra recusa', () => {
+    expect(legal.parseTermsAccepted(undefined)).toEqual({ ok: true, value: null });
+    expect(legal.parseTermsAccepted(legal.TERMS_VERSION)).toEqual({ ok: true, value: legal.TERMS_VERSION });
+    expect(legal.parseTermsAccepted('x').ok).toBe(false);
+    expect(legal.parseTermsAccepted(123).ok).toBe(false);
   });
 });

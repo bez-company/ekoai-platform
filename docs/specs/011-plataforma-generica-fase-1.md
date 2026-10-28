@@ -535,3 +535,15 @@ Cartão: BEZ-304. Protótipo v13 (tela "Perfil da pessoa").
 - **Notificações:** o cartão leva à lista de avisos. A tela de preferências é o BEZ-184.
 - **Fora:** trocar senha e trocar e-mail (o protótipo os mostra; o login tem "esqueci a senha" e o e-mail
   novo pede fluxo de confirmação próprio); lista de dispositivos (a sessão não guarda aparelho).
+
+### Termos de uso e Política de privacidade (2026-10-28, BEZ-32)
+
+- **Páginas públicas** `/termos` e `/privacidade` (caminho exato no middleware, sem login), com a moldura
+  `LegalPage`. A tela de entrada leva os dois links no rodapé e o cadastro tem a caixa "Li e aceito", obrigatória.
+- **Aceite registrado:** `users.terms_version` (data da versão) e `users.terms_accepted_at` (migration 0050). O
+  cadastro guarda a versão na aba e a manda em `PUT /api/me` (`termsVersion`) junto do celular, depois do login por
+  pessoa. A rota recusa versão que não é a vigente (`lib/legal.ts`).
+- **Mudou o texto:** subir `TERMS_VERSION` e `LEGAL_UPDATED_LABEL` em `lib/legal.ts`. Pedir novo aceite de quem já
+  tem conta (hoje só o cadastro pede) fica para quando houver a primeira mudança relevante.
+- **Pendente fora do código:** a caixa `privacidade@ekoai.com.br` precisa existir, e a advogada revisar o texto e
+  incluir CNPJ e endereço da BEZ.
