@@ -440,8 +440,12 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       .single();
     if (design.error) throw new Error(`post_designs: ${design.error.message}`);
 
+    // Pedido só do LinkedIn (SPEC 028): o Instagram não vira pendência. O redator ainda escreve a legenda dele (é quem devolve o
+    // núcleo), mas só o LinkedIn chega a Aprovar.
+    const withInstagram = brief.channels.includes('instagram');
     const pendingId = `plat-${randomUUID()}`;
-    const pending = await t.insert('pending_approvals', {
+    let leadPendingId: string | null = withInstagram ? pendingId : null;
+    const pending = !withInstagram ? { error: null } : await t.insert('pending_approvals', {
       pending_id: pendingId,
       channel: 'instagram',
       brief_id: brief.id,
@@ -493,8 +497,9 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       try {
         if (!core) throw new Error('o núcleo da ideia não veio do redator');
         const li = await writeLinkedIn(t, deps, brief, profile, facts, rules, planMax, core, campaign);
+        const linkedinId = `plat-${randomUUID()}`;
         const inserted = await t.insert('pending_approvals', {
-          pending_id: `plat-${randomUUID()}`,
+          pending_id: linkedinId,
           channel: 'linkedin',
           brief_id: brief.id,
           post_design_id: design.data!.id,
@@ -518,14 +523,18 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
           status: 'awaiting_decision',
         });
         if (inserted.error) throw new Error(`pendências: ${inserted.error.message}`);
+        leadPendingId ??= linkedinId;
       } catch (e) {
         log('warn', 'generation', 'o post do LinkedIn não saiu; o do Instagram segue', { briefId: brief.id, error: e instanceof Error ? e.message : String(e) });
       }
     }
 
+    // Nenhuma rede pedida ficou pronta (só o LinkedIn, e ele falhou): o pedido falha com o motivo, em vez de ficar "pronto" sem post.
+    if (!leadPendingId) throw new UserError('O texto do LinkedIn não saiu agora. Tente de novo em instantes.');
+
     await setBrief(t, brief.id, { status: 'ready', error: null });
-    await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });
-    return { status: 'ready', briefId, pendingId, ...(ruled?.applied.length ? { rulesApplied: ruled.applied.length } : {}) };
+    await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/aprovar/${encodeURIComponent(leadPendingId)}`, audience: 'team' });
+    return { status: 'ready', briefId, pendingId: leadPendingId, ...(ruled?.applied.length ? { rulesApplied: ruled.applied.length } : {}) };
   } catch (e) {
     // O erro técnico vai inteiro para o log; o pedido e o aviso levam só texto escrito para a pessoa.
     const raw = (e instanceof Error ? e.message : String(e)).slice(0, 500);

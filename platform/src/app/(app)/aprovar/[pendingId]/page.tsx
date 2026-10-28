@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getPending } from '@/lib/queries';
+import { getIdeaTabs, getPending } from '@/lib/queries';
+import NetworkTabs from '@/components/posts/NetworkTabs';
 import { nextFreeSlot } from '@/lib/slots';
 import { composeCaption } from '@/lib/caption';
 import ApproveForm from '@/components/ApproveForm';
@@ -23,10 +24,15 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   if (!p) notFound();
 
   const nextSlot = await nextFreeSlot(t, p.channel).catch(() => null);
+  // Uma ideia para mais de uma rede (SPEC 028): as abas levam de uma pendência à outra. Falhar aqui nunca derruba a tela.
+  const tabs = p.brief_id ? await getIdeaTabs(t, p.brief_id).catch(() => []) : [];
+  const tabsNav = <NetworkTabs tabs={tabs} current={p.channel} />;
 
   // Post feito pela Ekoai (SPEC 012) ou foto do banco (Publicar foto, BEZ-254): a tela da moldura do
   // feed, com os atalhos e os fatos usados.
-  if (p.post_design_id || p.seed?.source === 'photo') {
+  // O texto do LinkedIn (e das outras redes) usa a tela das redes, com legenda editável, imagem ou só texto e o horário da rede;
+  // só o post do Instagram tem a tela da imagem, com o Studio e o pedido de ajuste.
+  if ((p.post_design_id && p.channel === 'instagram') || p.seed?.source === 'photo') {
     const [account, profile, facts, canApprove, canEdit, canManage] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), can('content.approve'), can('content.edit'), can('brand.manage')]);
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
@@ -34,6 +40,8 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
     const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
     const handle = profile?.instagramHandle ? `@${profile.instagramHandle}` : (account?.name ?? 'sua conta');
     return (
+      <div className="space-y-4">
+        {tabsNav}
       <PostReview
         pending={p}
         suggested={composeCaption(p.generation?.variations?.[0])}
@@ -47,6 +55,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
         canManage={canManage}
         design={design ? { state: design } : null}
       />
+      </div>
     );
   }
 
@@ -59,6 +68,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
       <Link href="/aprovar" className="text-sm text-muted hover:text-fg">
         ← voltar
       </Link>
+      {tabsNav}
       <ApproveForm pending={p} suggested={suggested} nextSlot={nextSlot} />
     </div>
   );

@@ -64,6 +64,22 @@ export function motherOf(idea: Idea): PendingApproval | null {
   return idea.pendings.find((p) => roleOf(p) === 'mother') || null;
 }
 
+// As abas da tela de aprovação (SPEC 028): uma por rede do pedido, na ordem do sistema. Rede pedida que não tem pendência
+// (o texto dela falhou) aparece como "não gerada", sem link; as outras abrem a própria pendência.
+export type TabState = 'ready' | 'approved' | 'rejected' | 'missing';
+export type IdeaTab = { channel: Channel; pendingId: string | null; state: TabState };
+
+export const TAB_STATE_LABEL: Record<TabState, string> = { ready: 'Pronto', approved: 'Aprovado', rejected: 'Recusado', missing: 'Não gerado' };
+
+export function ideaTabs(requested: readonly Channel[], pendings: Pick<PendingApproval, 'pending_id' | 'channel' | 'status'>[]): IdeaTab[] {
+  const channels = CHANNELS.filter((c) => requested.includes(c) || pendings.some((p) => p.channel === c));
+  return channels.map((channel) => {
+    const p = pendings.find((x) => x.channel === channel);
+    if (!p) return { channel, pendingId: null, state: 'missing' as const };
+    return { channel, pendingId: p.pending_id, state: p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'ready' };
+  });
+}
+
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export type IdeaItem = {

@@ -16,6 +16,8 @@ import Select from '@/components/ui/Select';
 import { GOALS, POST_GOALS, type PostGoal } from '@/lib/post-goals';
 import { MAX_SLIDES, MIN_SLIDES } from '@/lib/design/slide-limits';
 import { IDEA_MAX } from '@/lib/post-limits';
+import { DEFAULT_NETWORKS, toggleNetwork, type NetworkChip } from '@/lib/networks-model';
+import type { Channel } from '@/lib/types';
 
 type Ratio = '4:5' | '1:1';
 type Format = 'single' | 'carousel';
@@ -41,12 +43,14 @@ export default function CreatePostForm({
   handle,
   accountName,
   canEditProfile,
+  networks,
   initialAssetId = null,
 }: {
   usage: { used: number; max: number };
   handle: string;
   accountName: string;
   canEditProfile: boolean;
+  networks: NetworkChip[]; // as redes que a empresa pode escolher (SPEC 028)
   initialAssetId?: string | null;
 }) {
   const router = useRouter();
@@ -54,6 +58,7 @@ export default function CreatePostForm({
   const [goal, setGoal] = useState<PostGoal>('auto');
   const [ratio, setRatio] = useState<Ratio>('4:5');
   const [format, setFormat] = useState<Format>('single');
+  const [selected, setSelected] = useState<Channel[]>([...DEFAULT_NETWORKS]);
   const [slideMode, setSlideMode] = useState<'auto' | 'exact'>('auto');
   const [slideCount, setSlideCount] = useState(6);
   const [photo, setPhoto] = useState<AttachedPhoto | null>(null);
@@ -101,7 +106,7 @@ export default function CreatePostForm({
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, ...(carousel ? { format: 'carousel', ...(slideMode === 'exact' ? { slide_count: slideCount } : {}) } : {}), ...photoRequestFields(photo) }),
+      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, channels: selected, ...(carousel ? { format: 'carousel', ...(slideMode === 'exact' ? { slide_count: slideCount } : {}) } : {}), ...photoRequestFields(photo) }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
@@ -124,6 +129,34 @@ export default function CreatePostForm({
           if (!busy && !atLimit && !waitingPhoto) void submit();
         }}
       >
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">Onde publicar</legend>
+          <div role="group" aria-label="Onde publicar" className="grid gap-2 sm:grid-cols-3">
+            {networks.map((chip) => {
+              const on = selected.includes(chip.channel);
+              const className = `rounded-lg border p-3 text-left transition ${chip.locked ? 'border-dashed border-line bg-inset' : on ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`;
+              const body = (
+                <>
+                  <strong className="block text-sm">{chip.label}</strong>
+                  <small className="mt-0.5 block text-xs leading-snug text-muted">{chip.sub}</small>
+                </>
+              );
+              if (chip.locked === 'not_connected') {
+                return (
+                  <Link key={chip.channel} href="/configuracoes/canais" className={className}>
+                    {body}
+                  </Link>
+                );
+              }
+              return (
+                <button key={chip.channel} type="button" aria-pressed={on} disabled={!!chip.locked} onClick={() => setSelected((cur) => toggleNetwork(cur, chip.channel, networks))} className={`${className} disabled:cursor-not-allowed disabled:opacity-60`}>
+                  {body}
+                </button>
+              );
+            })}
+          </div>
+          {selected.length > 1 && <p className="text-xs text-muted">Uma ideia, um post para cada rede, com o mesmo assunto e os mesmos fatos. Conta como 1 post no limite do mês.</p>}
+        </fieldset>
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold">Formato</legend>
           <div role="radiogroup" aria-label="Formato do post" className="grid gap-2 sm:grid-cols-2">

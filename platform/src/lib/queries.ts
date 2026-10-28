@@ -1,7 +1,8 @@
 // queries.ts: leituras (lado read) usadas pelos Server Components, sempre do tenant da sessão.
 
 import type { TenantDb } from './tenant-db';
-import type { PendingApproval, ScheduledPost, PublishedPost, Campaign } from './types';
+import { CHANNELS, type Channel, type PendingApproval, type ScheduledPost, type PublishedPost, type Campaign } from './types';
+import { ideaTabs, type IdeaTab } from './ideas-model';
 
 export async function getPendings(t: TenantDb): Promise<PendingApproval[]> {
   const { data, error } = await t
@@ -23,6 +24,18 @@ export async function getPending(t: TenantDb, pendingId: string): Promise<Pendin
   const { data, error } = await t.select('pending_approvals').eq('pending_id', pendingId).limit(1);
   if (error) throw new Error(`Falha ao ler pendência: ${error.message}`);
   return (data?.[0] as PendingApproval) ?? null;
+}
+
+// As redes de uma ideia (SPEC 028): as pedidas no pedido e a pendência de cada uma. Pedido antigo, sem `channels`, é só o Instagram.
+export async function getIdeaTabs(t: TenantDb, briefId: string): Promise<IdeaTab[]> {
+  const [brief, pendings] = await Promise.all([
+    t.select('briefs', 'channels').eq('id', briefId).maybeSingle(),
+    t.select('pending_approvals', 'pending_id,channel,status').eq('brief_id', briefId).is('archived_at', null),
+  ]);
+  if (brief.error) throw new Error(`Falha ao ler o pedido: ${brief.error.message}`);
+  if (pendings.error) throw new Error(`Falha ao ler as redes da ideia: ${pendings.error.message}`);
+  const requested = ((brief.data?.channels as string[] | undefined) ?? ['instagram']).filter((c): c is Channel => (CHANNELS as string[]).includes(c));
+  return ideaTabs(requested, (pendings.data ?? []) as Pick<PendingApproval, 'pending_id' | 'channel' | 'status'>[]);
 }
 
 export async function getScheduled(
