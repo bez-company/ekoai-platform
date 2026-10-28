@@ -4,9 +4,10 @@
 // cobra. No visual, o gatilho do banco aplica o limite mensal do plano com lock por conta.
 
 import type { TenantDb } from './tenant-db';
+import type { Channel } from './types';
 import { isPlanPostsLimit, monthStart, runFromRow, usageOf, type GenerationRun, type Step, type Usage } from './generation-model';
 
-export type ReserveInput = { briefId: string; step: Step; inputHash: string; model: string };
+export type ReserveInput = { briefId: string; step: Step; inputHash: string; model: string; channel?: Channel }; // channel: a rede da chamada (SPEC 028); sem ele, a chamada é do pedido todo
 
 export type Reservation =
   | { ok: true; run: GenerationRun; reused: boolean }
@@ -37,7 +38,7 @@ export async function reserveRun(t: TenantDb, input: ReserveInput, planMax: numb
   const inserted = await t
     .upsert(
       'generation_runs',
-      { brief_id: input.briefId, step: input.step, input_hash: input.inputHash, model: input.model, status: 'reserved' },
+      { brief_id: input.briefId, step: input.step, input_hash: input.inputHash, model: input.model, channel: input.channel ?? null, status: 'reserved' },
       { onConflict: 'tenant_id,brief_id,step,input_hash', ignoreDuplicates: true },
     )
     .select(COLUMNS);

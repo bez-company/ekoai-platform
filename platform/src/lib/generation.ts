@@ -24,6 +24,7 @@ import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirect
 import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseCore, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type Core, type RewriteMode } from './agents';
 import { CHANNELS, type Channel } from './types';
+import { buildLinkedInPrompt, hookOf, linkedInBody, parseLinkedIn, type LinkedInPost } from './linkedin-post';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -190,7 +191,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
     const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, signal: signalOfGoal(brief.goal), channels: brief.channels, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
-    const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
+    const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model, channel: 'instagram' }, planMax);
     if (!reservation.ok) throw new Error('reserva de texto recusada');
     let json: unknown;
     if (reservation.reused && reservation.run.status === 'done') json = reservation.run.result;
@@ -224,6 +225,52 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   // o pedido falha com o motivo, e a pessoa atualiza o fato ou tira o número da ideia.
   const stale = best.issues.find((i) => i.rule === 'fact_not_valid');
   if (stale) throw new UserError(stale.message);
+  return best;
+}
+
+const MAX_VARIANT_ROUNDS = 2; // a primeira mais 1 volta do revisor
+
+// O texto do LinkedIn (SPEC 028): uma chamada por volta, a partir do núcleo da ideia, nunca da legenda do Instagram. Cada
+// chamada é reservada com a rede, para o custo sair por etapa e por rede. O revisor por regra devolve o motivo ao modelo,
+// como no Instagram. Falhou, quem chama segue sem o LinkedIn: uma rede que cai não derruba as outras.
+async function writeLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, rules: string[], planMax: number, core: Core, campaign: Campaign | null): Promise<{ post: LinkedInPost; issues: Issue[] }> {
+  let previous: LinkedInPost | null = null;
+  let feedback: Issue[] = [];
+  let best: { post: LinkedInPost; issues: Issue[] } | null = null;
+  const never = [...facts.never, ...(campaign?.restrictions ?? [])];
+  for (let round = 1; round <= MAX_VARIANT_ROUNDS; round += 1) {
+    const prompt = buildLinkedInPrompt({ idea: brief.idea, goal: brief.goal ? GOALS[brief.goal].hint || null : null, core, profile, facts: facts.facts, never, rules, campaign: copyCampaign(campaign), feedback, previous });
+    const model = deps.model.config.textModel;
+    const hash = inputHash('adapt', model, { prompt, channel: 'linkedin' });
+    const reservation = await reserveRun(t, { briefId: brief.id, step: 'adapt', inputHash: hash, model, channel: 'linkedin' }, planMax);
+    if (!reservation.ok) throw new Error('reserva de texto recusada');
+    let json: unknown;
+    if (reservation.reused && reservation.run.status === 'done') json = reservation.run.result;
+    else {
+      try {
+        const out = await deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step: 'adapt', brief: brief.id } });
+        await completeRun(t, reservation.run.id, { result: out.json, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd, durationMs: out.durationMs });
+        json = out.json;
+      } catch (e) {
+        await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e));
+        throw e;
+      }
+    }
+    const parsed = parseLinkedIn(json);
+    if (!parsed.ok) {
+      feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
+      continue;
+    }
+    const issues = reviewText({ imageTexts: [], caption: linkedInBody(parsed.value), hashtags: parsed.value.hashtags, facts: facts.facts, never, inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } });
+    const hard = blocking(issues);
+    if (!best || hard.length < blocking(best.issues).length) best = { post: parsed.value, issues };
+    if (hard.length === 0) break;
+    feedback = hard;
+    previous = parsed.value;
+  }
+  if (!best) throw new Error('O modelo não devolveu um texto do LinkedIn utilizável.');
+  // Um número que vem de fato vencido ou recusado nunca segue (ADR 0019); o Instagram já falharia antes por isso.
+  if (best.issues.some((i) => i.rule === 'fact_not_valid')) throw new Error('O texto do LinkedIn usa um fato que não vale hoje.');
   return best;
 }
 
@@ -438,6 +485,43 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       status: 'awaiting_decision',
     });
     if (pending.error) throw new Error(`pendências: ${pending.error.message}`);
+
+    // As outras redes do pedido (SPEC 028): o texto parte do núcleo e a arte é a mesma (no LinkedIn, a capa). Uma rede que
+    // falha não derruba o post: o Instagram já está pronto, e a rede que faltou aparece como "não gerada" na tela.
+    if (brief.channels.includes('linkedin')) {
+      const core = copy.core ?? brief.core;
+      try {
+        if (!core) throw new Error('o núcleo da ideia não veio do redator');
+        const li = await writeLinkedIn(t, deps, brief, profile, facts, rules, planMax, core, campaign);
+        const inserted = await t.insert('pending_approvals', {
+          pending_id: `plat-${randomUUID()}`,
+          channel: 'linkedin',
+          brief_id: brief.id,
+          post_design_id: design.data!.id,
+          post_kind: kind,
+          visual_mode: 'shared',
+          generation: {
+            pillar: brief.goal ?? kind,
+            goal: brief.goal,
+            ratio: brief.ratio,
+            angle: core.angle,
+            signal: 'responder',
+            share_reason: li.post.shareReason,
+            variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single' }],
+            model: deps.model.config.textModel,
+            guardrail_flags: li.issues.map((i) => i.rule),
+            judge_reason: li.issues.length ? li.issues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: palavras proibidas, fatos da base, promessas e travessão.',
+          },
+          top_id: 1,
+          images: keys.slice(0, 1).map((key, i) => ({ id: i + 1, url: mediaUrl(key, deps.mediaBaseUrl), path: key })),
+          seed: { brief_id: brief.id, mother_channel: 'core', kind, goal: brief.goal, ratio: brief.ratio, idea: brief.idea, layout: spec.layout, format: 'single', review: li.issues },
+          status: 'awaiting_decision',
+        });
+        if (inserted.error) throw new Error(`pendências: ${inserted.error.message}`);
+      } catch (e) {
+        log('warn', 'generation', 'o post do LinkedIn não saiu; o do Instagram segue', { briefId: brief.id, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
 
     await setBrief(t, brief.id, { status: 'ready', error: null });
     await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: copy.texts.title.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });

@@ -8,8 +8,8 @@ export const STEPS = ['directives', 'strategist', 'writer', 'core', 'adapt', 'ar
 export type Step = (typeof STEPS)[number];
 
 // As redes para as quais a geração já escreve um post (SPEC 028). O pedido aceita `channels`, mas só estas passam: o
-// LinkedIn entra com o redator por rede (BEZ-424, fatia 2) e o X depois da conexão (BEZ-426).
-export const GENERATED_CHANNELS: readonly Channel[] = ['instagram'];
+// LinkedIn tem redator desde a fatia 2 do BEZ-424 e o X entra com a conexão e a variante (BEZ-426).
+export const GENERATED_CHANNELS: readonly Channel[] = ['instagram', 'linkedin'];
 
 export const POST_KINDS = ['informativo', 'atmosfera'] as const;
 export type PostKind = (typeof POST_KINDS)[number];

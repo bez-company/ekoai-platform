@@ -491,3 +491,74 @@ describe('pedido para mais de uma rede (SPEC 028)', () => {
     await admin.query("insert into generation_runs (tenant_id, brief_id, step, input_hash, channel, status) values ($1, $2, 'adapt', repeat('b', 64), 'linkedin', 'failed')", [A, id]);
   });
 });
+
+describe('post do LinkedIn a partir do núcleo (SPEC 028, BEZ-424)', () => {
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+  const LI = { text: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma e o palito sai limpo.\n\nQual sinal você confere primeiro na sua cozinha?', hashtags: ['confeitaria'], share_reason: 'Quem também faz bolo de festa responde com o sinal que confere primeiro' };
+  const both = async (idea = 'como saber se o bolo está pronto') => {
+    const id = await brief(idea, 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    return id;
+  };
+
+  it('o pedido gera as duas pendências, com o texto do núcleo, a mesma arte e o custo por rede', async () => {
+    const t = tenantDb(A);
+    const id = await both();
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, LI], image: [] });
+    const notified = async () => (await admin.query("select count(*)::int as n from notifications where tenant_id = $1 and kind = 'post.ready'", [A])).rows[0].n;
+    const before = await notified();
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls.map((c) => c.labels.step)).toEqual(['writer', 'adapt']);
+    // uma ideia, uma notificação (não uma por rede)
+    expect((await notified()) - before).toBe(1);
+    // o LinkedIn lê o núcleo, não a legenda do Instagram
+    expect(model.calls[1].prompt).toContain('A massa desgruda da borda');
+    expect(model.calls[1].prompt).not.toContain(INFO.caption);
+
+    const rows = (await admin.query('select channel, post_design_id, visual_mode, post_kind, generation, images from pending_approvals where brief_id = $1 order by channel', [id])).rows;
+    expect(rows.map((r) => r.channel)).toEqual(['instagram', 'linkedin']);
+    expect(rows[0].post_design_id).toBe(rows[1].post_design_id);
+    expect(rows[1].visual_mode).toBe('shared');
+    expect(rows[1].images).toHaveLength(1);
+    expect(rows[1].images[0].path).toBe(rows[0].images[0].path);
+    const li = rows[1].generation;
+    expect(li).toMatchObject({ signal: 'responder', angle: CORE.angle, share_reason: LI.share_reason });
+    expect(li.variations[0]).toMatchObject({ id: 1, format: 'single', hashtags: ['confeitaria'], hook: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma e o palito sai limpo.' });
+    expect(li.variations[0].body.endsWith('\n\n#confeitaria')).toBe(true);
+
+    const runs = (await admin.query("select step, channel, status from generation_runs where brief_id = $1 and step in ('writer', 'adapt') order by created_at", [id])).rows;
+    expect(runs).toEqual([{ step: 'writer', channel: 'instagram', status: 'done' }, { step: 'adapt', channel: 'linkedin', status: 'done' }]);
+  });
+
+  it('palavra proibida no LinkedIn volta ao modelo, e a segunda versão passa (duas chamadas de adapt)', async () => {
+    const t = tenantDb(A);
+    const id = await both();
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, { ...LI, text: LI.text.replace('erro mais caro', 'erro imperdível') }, LI], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(model.calls.map((c) => c.labels.step)).toEqual(['writer', 'adapt', 'adapt']);
+    expect(model.calls[2].prompt).toContain('"imperdível"');
+    const li = await one("select generation from pending_approvals where brief_id = $1 and channel = 'linkedin'", [id]);
+    expect(li.generation.variations[0].body).toContain('erro mais caro');
+    expect((await admin.query("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'adapt' and channel = 'linkedin'", [id])).rows[0].n).toBe(2);
+  });
+
+  it('o LinkedIn que falha não derruba o Instagram: o pedido fica pronto e a falha fica registrada', async () => {
+    const t = tenantDb(A);
+    const id = await both();
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, new Error('modelo fora do ar')], image: [] });
+    const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(out.status).toBe('ready');
+    expect((await admin.query('select channel from pending_approvals where brief_id = $1', [id])).rows).toEqual([{ channel: 'instagram' }]);
+    expect(await one('select status, error from briefs where id = $1', [id])).toEqual({ status: 'ready', error: null });
+    expect(await one("select status, error from generation_runs where brief_id = $1 and step = 'adapt'", [id])).toEqual({ status: 'failed', error: 'modelo fora do ar' });
+  });
+
+  it('o pedido só do Instagram não chama o redator do LinkedIn', async () => {
+    const t = tenantDb(A);
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    const model = fakeModel({ text: [INFO], image: [] });
+    await generatePost(t, id, { model, store, fontDir: FONT_DIR });
+    expect(model.calls.map((c) => c.labels.step)).toEqual(['writer']);
+    expect((await admin.query('select channel from pending_approvals where brief_id = $1', [id])).rows).toEqual([{ channel: 'instagram' }]);
+  });
+});
