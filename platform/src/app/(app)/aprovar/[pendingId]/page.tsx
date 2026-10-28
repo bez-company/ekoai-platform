@@ -35,8 +35,8 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   const NAMES: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
   const tabsNav = (
     <>
-      <NetworkTabs tabs={tabs} current={p.channel} />
-      {tabs.length > 1 && <NetworkSwitch pendingId={p.pending_id} name={NAMES[p.channel] ?? p.channel} />}
+      <NetworkTabs tabs={tabs} current={p.channel} briefId={p.brief_id} />
+      {tabs.filter((x) => x.pendingId).length > 1 && <NetworkSwitch pendingId={p.pending_id} name={NAMES[p.channel] ?? p.channel} />}
       <SignalPanel stored={p.generation?.critic} />
     </>
   );

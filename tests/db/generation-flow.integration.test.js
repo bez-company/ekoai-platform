@@ -13,7 +13,8 @@ process.env.MEDIA_BASE_URL = 'https://app.test/api/media';
 
 const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
-const { generatePost } = await import('../../platform/src/lib/generation.ts');
+const { generatePost, retryNetwork } = await import('../../platform/src/lib/generation.ts');
+const { monthlyUsage } = await import('../../platform/src/lib/generation-db.ts');
 const worker = await import('../../platform/src/lib/generation-worker.ts');
 const requests = await import('../../platform/src/lib/post-requests.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
@@ -682,5 +683,76 @@ describe('avaliador de sinais (SPEC 028, BEZ-425)', () => {
     expect((await generation(id, 'instagram')).critic).toMatchObject({ channel: 'instagram' });
     const runs = (await admin.query("select step, channel from generation_runs where brief_id = $1 and step in ('writer', 'critic', 'adapt') order by created_at", [id])).rows;
     expect(runs).toEqual([{ step: 'writer', channel: 'instagram' }, { step: 'critic', channel: 'instagram' }, { step: 'adapt', channel: 'linkedin' }, { step: 'critic', channel: 'linkedin' }]);
+  });
+});
+
+describe('tentar de novo só a rede que falhou (SPEC 028, BEZ-437)', () => {
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+  const LI = { text: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma e o palito sai limpo.\n\nQual sinal você confere primeiro na sua cozinha?', hashtags: ['confeitaria'], share_reason: 'Quem também faz bolo de festa responde com o sinal que confere primeiro' };
+  const stepsOf = (m) => m.calls.map((c) => c.labels.step);
+  const t = () => tenantDb(A);
+  const deps = (model) => ({ model, store, fontDir: FONT_DIR });
+
+  // Pedido nas duas redes em que o LinkedIn falhou: o Instagram está pronto e o motivo ficou no pedido.
+  async function failedLinkedIn() {
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    const model = fakeModel({ text: [{ ...INFO, core: CORE }, new Error('modelo fora do ar')], image: [] });
+    expect((await generatePost(t(), id, deps(model))).status).toBe('ready');
+    return id;
+  }
+
+  it('a falha do LinkedIn fica no pedido e a tela mostra só essa rede com "Tentar de novo"', async () => {
+    const id = await failedLinkedIn();
+    expect((await one('select network_errors from briefs where id = $1', [id])).network_errors).toEqual({ linkedin: 'modelo fora do ar' });
+    const progress = await requests.postProgress(t(), id);
+    expect(progress.networks.map((n) => [n.id, n.state, n.canRetry])).toEqual([['core', 'done', false], ['instagram', 'done', false], ['linkedin', 'fail', true], ['review', 'done', false]]);
+    expect(progress.networks[2].error).toBe('modelo fora do ar');
+  });
+
+  it('refazer só o LinkedIn não chama o redator do Instagram, reaproveita a arte e não gasta do limite', async () => {
+    const id = await failedLinkedIn();
+    const before = await monthlyUsage(t(), 2);
+    const model = fakeModel({ text: [LI], image: [] });
+    const { pendingId } = await retryNetwork(t(), id, 'linkedin', deps(model));
+
+    expect(stepsOf(model)).toEqual(['adapt']);
+    expect(model.calls[0].prompt).toContain('A massa desgruda da borda');
+    const rows = (await admin.query('select pending_id, channel, post_design_id, visual_mode, images from pending_approvals where brief_id = $1 order by channel', [id])).rows;
+    expect(rows.map((r) => r.channel)).toEqual(['instagram', 'linkedin']);
+    expect(rows[1].pending_id).toBe(pendingId);
+    expect(rows[1].post_design_id).toBe(rows[0].post_design_id);
+    expect(rows[1].images[0].path).toBe(rows[0].images[0].path);
+    expect((await one('select network_errors, status from briefs where id = $1', [id]))).toEqual({ network_errors: {}, status: 'ready' });
+    expect((await monthlyUsage(t(), 2)).remaining).toBe(before.remaining);
+    expect((await admin.query("select count(*)::int as n from generation_runs where brief_id = $1 and step = 'writer'", [id])).rows[0].n).toBe(1);
+    const progress = await requests.postProgress(t(), id);
+    expect(progress.networks.every((n) => n.state === 'done')).toBe(true);
+  });
+
+  it('tentar de novo outra vez devolve a mesma pendência sem chamar o modelo', async () => {
+    const id = await failedLinkedIn();
+    const first = await retryNetwork(t(), id, 'linkedin', deps(fakeModel({ text: [LI], image: [] })));
+    const model = fakeModel({ text: [], image: [] });
+    expect(await retryNetwork(t(), id, 'linkedin', deps(model))).toEqual(first);
+    expect(model.calls).toHaveLength(0);
+  });
+
+  it('se falhar de novo, o motivo é atualizado, a pessoa recebe o próximo passo e nada vira pendência', async () => {
+    const id = await failedLinkedIn();
+    const model = fakeModel({ text: [new Error('limite de uso do modelo')], image: [] });
+    await expect(retryNetwork(t(), id, 'linkedin', deps(model))).rejects.toThrow(/Não deu para escrever o post do LinkedIn agora/);
+    expect((await one('select network_errors from briefs where id = $1', [id])).network_errors).toEqual({ linkedin: 'limite de uso do modelo' });
+    expect((await admin.query("select 1 from pending_approvals where brief_id = $1 and channel = 'linkedin'", [id])).rowCount).toBe(0);
+  });
+
+  it('recusa rede que o pedido não pediu, rede que ainda não gera e pedido que não terminou', async () => {
+    const only = await brief('dica rápida de bolo', 'informativo');
+    await expect(retryNetwork(t(), only, 'linkedin', deps(fakeModel({ text: [], image: [] })))).rejects.toThrow(/não foi pedida/);
+    const id = await failedLinkedIn();
+    await expect(retryNetwork(t(), id, 'twitter', deps(fakeModel({ text: [], image: [] })))).rejects.toThrow(/ainda não gera/);
+    await admin.query("delete from pending_approvals where brief_id = $1 and channel = 'linkedin'", [id]);
+    await admin.query("update briefs set status = 'generating' where id = $1", [id]);
+    await expect(retryNetwork(t(), id, 'linkedin', deps(fakeModel({ text: [], image: [] })))).rejects.toThrow(/ainda está sendo criado/);
   });
 });

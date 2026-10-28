@@ -7,6 +7,7 @@ import type { SessionUser } from './accounts';
 import { UserError } from './errors';
 import { DEFAULT_FORMAT, DEFAULT_RATIO, GENERATED_CHANNELS, isPostFormat, isPostGoal, isPostKind, isRatio, kindForGoal, type PostFormat, type PostGoal, type PostKind, type Ratio, type Step } from './generation-model';
 import { runsOfBrief } from './generation-db';
+import { networkRows, type NetworkRow } from './generation-networks';
 import { log } from './log';
 import { IDEA_MAX } from './post-limits';
 import { parsePhotoChoice, type PhotoUsage } from './photo-question-model';
@@ -127,18 +128,25 @@ export type PostProgress = {
   steps: { step: Step; status: 'reserved' | 'done' | 'failed' }[];
   error: string | null;
   pendingId: string | null;
+  // As linhas por rede (SPEC 028, BEZ-437): só quando o pedido tem mais de uma rede; null no pedido só do Instagram.
+  networks: NetworkRow[] | null;
   createdAt: string;
 };
 
 const STEP_ORDER: Step[] = ['directives', 'strategist', 'writer', 'art', 'visual', 'review', 'render'];
 
 export async function postProgress(t: TenantDb, briefId: string): Promise<PostProgress | null> {
-  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at').eq('id', briefId).maybeSingle();
+  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at,channels,core,network_errors').eq('id', briefId).maybeSingle();
   if (brief.error) throw new Error(`briefs: ${brief.error.message}`);
   if (!brief.data) return null;
-  const [runs, pending] = await Promise.all([runsOfBrief(t, briefId), t.select('pending_approvals', 'pending_id').eq('brief_id', briefId).limit(1)]);
+  const [runs, pending] = await Promise.all([runsOfBrief(t, briefId), t.select('pending_approvals', 'pending_id,channel').eq('brief_id', briefId)]);
   if (pending.error) throw new Error(`pendências: ${pending.error.message}`);
   const steps = runs.map((r) => ({ step: r.step, status: r.status }));
+  const channels = (Array.isArray(brief.data.channels) ? brief.data.channels : ['instagram']).filter((c): c is Channel => (CHANNELS as readonly string[]).includes(c as string));
+  const pendingChannels = (pending.data ?? []).map((r) => r.channel).filter((c): c is Channel => (CHANNELS as readonly string[]).includes(c as string));
+  const rawErrors = brief.data.network_errors && typeof brief.data.network_errors === 'object' && !Array.isArray(brief.data.network_errors) ? (brief.data.network_errors as Record<string, unknown>) : {};
+  const networkErrors: Partial<Record<Channel, string>> = {};
+  for (const c of CHANNELS) if (typeof rawErrors[c] === 'string') networkErrors[c] = rawErrors[c] as string;
   const last = [...runs].sort((a, b) => STEP_ORDER.indexOf(b.step) - STEP_ORDER.indexOf(a.step))[0];
   const status = (BRIEF_STATUS as readonly string[]).includes(String(brief.data.status)) ? (brief.data.status as BriefStatus) : 'failed';
   return {
@@ -151,7 +159,9 @@ export async function postProgress(t: TenantDb, briefId: string): Promise<PostPr
     step: last?.step ?? null,
     steps,
     error: typeof brief.data.error === 'string' ? brief.data.error : null,
-    pendingId: pending.data?.[0] ? String(pending.data[0].pending_id) : null,
+    // O link de revisar abre a primeira rede da ordem do sistema (Instagram, LinkedIn, X); as outras estão nas abas.
+    pendingId: (CHANNELS.map((c) => (pending.data ?? []).find((r) => r.channel === c)).find(Boolean)?.pending_id as string | undefined) ?? null,
+    networks: channels.length > 1 ? networkRows({ status, channels, coreDone: brief.data.core != null || runs.some((r) => r.step === 'writer' && r.status === 'done'), pendingChannels: pendingChannels, errors: networkErrors }) : null,
     createdAt: brief.data.created_at instanceof Date ? brief.data.created_at.toISOString() : String(brief.data.created_at),
   };
 }

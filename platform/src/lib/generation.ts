@@ -36,6 +36,7 @@ import { notify } from './notifications';
 import { applyDesignRulesToSpec } from './design-rules';
 import { NotFoundError, UserError, userMessage } from './errors';
 import { log } from './log';
+import { friendlyGenerationError } from './generation-errors';
 import type { ModelClient } from './vertex';
 import { getMediaAsset, readMediaAssetBytes } from './media-assets';
 import { canUseInPost, type MediaAsset } from './media-asset-model';
@@ -387,6 +388,103 @@ async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy:
   }
 }
 
+// A falha de uma rede do pedido (SPEC 028, BEZ-437): fica no pedido para a tela "Gerando" mostrar o motivo e oferecer "Tentar de
+// novo" só nela. Gerar a rede apaga a falha (`message` null).
+export async function setNetworkError(t: TenantDb, briefId: string, channel: Channel, message: string | null): Promise<void> {
+  const { data, error } = await t.select('briefs', 'network_errors').eq('id', briefId).maybeSingle();
+  if (error) throw new Error(`briefs: ${error.message}`);
+  const current = (data?.network_errors && typeof data.network_errors === 'object' && !Array.isArray(data.network_errors) ? data.network_errors : {}) as Record<string, string>;
+  const next = { ...current };
+  if (message === null) delete next[channel];
+  else next[channel] = message.slice(0, 300);
+  if (JSON.stringify(next) === JSON.stringify(current)) return;
+  await setBrief(t, briefId, { network_errors: next });
+}
+
+// "Tentar de novo" só na rede que falhou (BEZ-437): o pedido já está pronto, então só o texto dela é escrito, do núcleo que ficou
+// guardado e da arte que já existe. Nenhuma outra rede é chamada, e a falha de uma rede não conta no limite de posts do mês.
+export async function retryNetwork(t: TenantDb, briefId: string, channel: Channel, deps: GenerationDeps): Promise<{ pendingId: string }> {
+  if (channel !== 'linkedin') throw new UserError('Esta rede ainda não gera post.');
+  const brief = await loadBrief(t, briefId);
+  if (!brief) throw new UserError('Pedido não encontrado.');
+  if (!brief.channels.includes(channel)) throw new UserError('Esta rede não foi pedida neste post.');
+  const existing = await t.select('pending_approvals', 'pending_id').eq('brief_id', briefId).eq('channel', channel).limit(1);
+  if (existing.data?.[0]) return { pendingId: String(existing.data[0].pending_id) };
+  if (brief.status !== 'ready') throw new UserError('O post ainda está sendo criado. Espere terminar para tentar de novo.');
+  if (!brief.core) throw new UserError('O núcleo da ideia não ficou guardado. Crie o post de novo.');
+
+  const design = await t.select('post_designs', 'id,kind,layout,png_key').eq('brief_id', briefId).order('created_at', { ascending: false }).limit(1);
+  const d = design.data?.[0];
+  if (design.error || !d?.png_key) throw new UserError('A arte do post não foi encontrada. Crie o post de novo.');
+
+  const [account, profile, factRows, ruleRows, campaign] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t), campaignOf(t, brief.campaignId)]);
+  if (!profile) throw new UserError('Preencha o perfil da empresa antes de tentar de novo.');
+  try {
+    const pendingId = await produceLinkedIn(t, deps, brief, {
+      profile, facts: factsForPrompt(factRows), rules: ruleRows.filter((r) => r.active).map((r) => r.rule), planMax: account?.plan.maxPostsPerMonth ?? 20, campaign, core: brief.core,
+      designId: String(d.id), kind: d.kind as PostKind, layout: d.layout as DesignSpec['layout'], imageKey: String(d.png_key),
+    });
+    await setNetworkError(t, briefId, channel, null);
+    return { pendingId };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log('warn', 'generation', 'tentar de novo o LinkedIn não funcionou', { briefId, error: message });
+    await setNetworkError(t, briefId, channel, message).catch(() => undefined);
+    throw new UserError(`Não deu para escrever o post do LinkedIn agora. ${friendlyGenerationError(message)}`);
+  }
+}
+
+// O post do LinkedIn de um pedido (SPEC 028): o texto parte do núcleo, a arte é a mesma do pedido (a capa) e o avaliador confere o
+// texto. Serve ao pedido inteiro e a "Tentar de novo" só nesta rede (BEZ-437): quem chama diz de onde vêm o design e a imagem.
+type LinkedInContext = { profile: CompanyProfile; facts: ReturnType<typeof factsForPrompt>; rules: string[]; planMax: number; campaign: Campaign | null; core: Core; designId: string; kind: PostKind; layout: DesignSpec['layout']; imageKey: string };
+
+async function produceLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, c: LinkedInContext): Promise<string> {
+  const { profile, facts, rules, planMax, campaign, core } = c;
+  const li = await writeLinkedIn(t, deps, brief, c.profile, c.facts, c.rules, c.planMax, c.core, c.campaign);
+  const liNever = [...facts.never, ...(campaign?.restrictions ?? [])];
+  const liPass = await signalPass(t, deps, brief, profile, facts, planMax, {
+    channel: 'linkedin', text: li.post.text, hashtags: li.post.hashtags, shareReason: li.post.shareReason, signal: 'responder', limit: LINKEDIN_LIMITS.text,
+    review: (text) => reviewText({ imageTexts: [], caption: linkedInBody({ ...li.post, text }), hashtags: li.post.hashtags, facts: facts.facts, never: liNever, inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }),
+    valid: (text) => parseLinkedIn({ text, hashtags: li.post.hashtags, share_reason: li.post.shareReason }).ok,
+  });
+  li.post.text = liPass.text;
+  const linkedinId = `plat-${randomUUID()}`;
+  const inserted = await t.insert('pending_approvals', {
+    pending_id: linkedinId,
+    channel: 'linkedin',
+    brief_id: brief.id,
+    post_design_id: c.designId,
+    post_kind: c.kind,
+    visual_mode: 'shared',
+    generation: {
+      pillar: brief.goal ?? c.kind,
+      goal: brief.goal,
+      ratio: brief.ratio,
+      angle: core.angle,
+      signal: 'responder',
+      share_reason: li.post.shareReason,
+      ...(liPass.critic ? { critic: liPass.critic } : {}),
+      variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single' }],
+      model: deps.model.config.textModel,
+      guardrail_flags: li.issues.map((i) => i.rule),
+      judge_reason: li.issues.length ? li.issues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: palavras proibidas, fatos da base, promessas e travessão.',
+    },
+    top_id: 1,
+    images: [{ id: 1, url: mediaUrl(c.imageKey, deps.mediaBaseUrl), path: c.imageKey }],
+    seed: { brief_id: brief.id, mother_channel: 'core', kind: c.kind, goal: brief.goal, ratio: brief.ratio, idea: brief.idea, layout: c.layout, format: 'single', review: li.issues },
+    status: 'awaiting_decision',
+  });
+  if (inserted.error) throw new Error(`pendências: ${inserted.error.message}`);
+  // Duas tentativas ao mesmo tempo (duplo clique): vale a pendência que já entrou.
+  const all = await t.select('pending_approvals', 'pending_id').eq('brief_id', brief.id).eq('channel', 'linkedin');
+  const first = all.error ? null : (all.data ?? []).map((r) => String(r.pending_id)).sort()[0];
+  if (first && first !== linkedinId) {
+    await t.delete('pending_approvals').eq('pending_id', linkedinId);
+    return first;
+  }
+  return linkedinId;
+}
+
 export async function generatePost(t: TenantDb, briefId: string, deps: GenerationDeps): Promise<GenerationOutcome> {
   const store = deps.store ?? defaultStore();
   const brief = await loadBrief(t, briefId);
@@ -559,44 +657,13 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       const core = copy.core ?? brief.core;
       try {
         if (!core) throw new Error('o núcleo da ideia não veio do redator');
-        const li = await writeLinkedIn(t, deps, brief, profile, facts, rules, planMax, core, campaign);
-        const liNever = [...facts.never, ...(campaign?.restrictions ?? [])];
-        const liPass = await signalPass(t, deps, brief, profile, facts, planMax, {
-          channel: 'linkedin', text: li.post.text, hashtags: li.post.hashtags, shareReason: li.post.shareReason, signal: 'responder', limit: LINKEDIN_LIMITS.text,
-          review: (text) => reviewText({ imageTexts: [], caption: linkedInBody({ ...li.post, text }), hashtags: li.post.hashtags, facts: facts.facts, never: liNever, inactive: facts.inactive, banned: profile.bannedWords, allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }),
-          valid: (text) => parseLinkedIn({ text, hashtags: li.post.hashtags, share_reason: li.post.shareReason }).ok,
-        });
-        li.post.text = liPass.text;
-        const linkedinId = `plat-${randomUUID()}`;
-        const inserted = await t.insert('pending_approvals', {
-          pending_id: linkedinId,
-          channel: 'linkedin',
-          brief_id: brief.id,
-          post_design_id: design.data!.id,
-          post_kind: kind,
-          visual_mode: 'shared',
-          generation: {
-            pillar: brief.goal ?? kind,
-            goal: brief.goal,
-            ratio: brief.ratio,
-            angle: core.angle,
-            signal: 'responder',
-            share_reason: li.post.shareReason,
-            ...(liPass.critic ? { critic: liPass.critic } : {}),
-            variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single' }],
-            model: deps.model.config.textModel,
-            guardrail_flags: li.issues.map((i) => i.rule),
-            judge_reason: li.issues.length ? li.issues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: palavras proibidas, fatos da base, promessas e travessão.',
-          },
-          top_id: 1,
-          images: keys.slice(0, 1).map((key, i) => ({ id: i + 1, url: mediaUrl(key, deps.mediaBaseUrl), path: key })),
-          seed: { brief_id: brief.id, mother_channel: 'core', kind, goal: brief.goal, ratio: brief.ratio, idea: brief.idea, layout: spec.layout, format: 'single', review: li.issues },
-          status: 'awaiting_decision',
-        });
-        if (inserted.error) throw new Error(`pendências: ${inserted.error.message}`);
+        const linkedinId = await produceLinkedIn(t, deps, brief, { profile, facts, rules, planMax, campaign, core, designId: design.data!.id as string, kind, layout: spec.layout, imageKey: keys[0] });
         leadPendingId ??= linkedinId;
+        await setNetworkError(t, brief.id, 'linkedin', null);
       } catch (e) {
-        log('warn', 'generation', 'o post do LinkedIn não saiu; o do Instagram segue', { briefId: brief.id, error: e instanceof Error ? e.message : String(e) });
+        const message = e instanceof Error ? e.message : String(e);
+        log('warn', 'generation', 'o post do LinkedIn não saiu; o do Instagram segue', { briefId: brief.id, error: message });
+        await setNetworkError(t, brief.id, 'linkedin', message).catch(() => undefined);
       }
     }
 
