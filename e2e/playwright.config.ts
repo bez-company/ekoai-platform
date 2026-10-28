@@ -34,6 +34,9 @@ export default defineConfig({
   retries: CI ? 1 : 0,
   forbidOnly: CI,
   timeout: 60_000,
+  // Teto da rodada inteira no CI (BEZ-340): o normal é de 6 a 9 min. Passou de 13, falha com relatório e trace em vez de
+  // travar o deploy da staging até o teto do job.
+  globalTimeout: CI ? 13 * 60_000 : undefined,
   expect: { timeout: 15_000 },
   // No CI o `list` também sai: a duração de cada teste fica no log, para decidir o timeout com dado (BEZ-377).
   reporter: CI ? [['github'], ['list'], ['html', { open: 'never' }]] : [['list']],

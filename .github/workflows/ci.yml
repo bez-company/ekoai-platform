@@ -280,7 +280,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Medido em 28/10/2026: de 5,8 a 9,1 min por projeto. O teto de 30 min deixou um travamento segurar o deploy da
+    # staging por 40 min (BEZ-340); com 15, o job falha em vez de travar. O `globalTimeout` do Playwright (13 min)
+    # corta antes e ainda gera o relatório.
+    timeout-minutes: 15
     # Desktop e mobile em paralelo, cada um com o próprio Postgres, app e emulador: cerca de metade do tempo.
     strategy:
       fail-fast: false
