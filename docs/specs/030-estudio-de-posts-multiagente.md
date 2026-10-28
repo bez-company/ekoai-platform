@@ -1,6 +1,6 @@
 # SPEC 030: estúdio de posts multiagente (design autoral por pedido)
 
-- **Status:** rascunho, aguarda aprovação do Matheus
+- **Status:** aprovada pelo Matheus em 2026-10-28 (o ADR 0028 segue proposto)
 - **Data:** 2026-10-28
 - **Cards:** BEZ-406 (esta spec); pai BEZ-403 (experimento e eval); BEZ-404 (variação) e BEZ-405 (defeitos de layout) entram como fases
 - **Origem:** o Matheus comparou os posts do experimento com os do gerador atual: "ficaram absurdamente melhores, vamos
