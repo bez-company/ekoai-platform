@@ -176,5 +176,11 @@ export function parseScene(raw: unknown, limits: { width: number; height: number
   return { ok: true, value: { v: SCENE_VERSION, bg: raw.bg, layers } };
 }
 
-// O que o revisor de texto lê da cena: os textos à vista, sem o número do círculo da lista.
-export const sceneTexts = (scene: Scene): string[] => scene.layers.flatMap((l) => (l.type === 'text' && !l.hidden && l.role !== 'badge' && l.text.trim() ? [l.text] : []));
+// O contador de posição que o motor põe no selo das lâminas de item ("2 DE 4"): é paginação, não afirmação. Só vale o texto
+// inteiro assim; "3 de 4 clientes recomendam" continua sendo conferido.
+const POSITION_COUNTER = /^\s*\d+\s+de\s+\d+\s*$/i;
+
+// O que o revisor de texto lê da cena: os textos à vista, sem o número do círculo da lista nem o contador de lâmina.
+// O contador lido como número afirmado barrava o Confirmar de qualquer lâmina de item do carrossel (BEZ-338).
+export const sceneTexts = (scene: Scene): string[] =>
+  scene.layers.flatMap((l) => (l.type === 'text' && !l.hidden && l.role !== 'badge' && l.text.trim() && !POSITION_COUNTER.test(l.text) ? [l.text] : []));
