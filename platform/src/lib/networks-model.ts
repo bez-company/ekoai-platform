@@ -2,8 +2,11 @@
 // escolha com a mesma regra. O Instagram está sempre disponível (o post fica agendado até a conta conectar); o LinkedIn
 // só com a conta conectada; o X ainda não tem redator.
 
-import { GENERATED_CHANNELS } from './generation-model';
 import { CHANNELS, type Channel } from './types';
+
+// As redes para as quais a geração já escreve um post (SPEC 028). O pedido aceita `channels`, mas só estas passam: o
+// LinkedIn tem redator desde a fatia 2 do BEZ-424 e o X entra com a conexão e a variante (BEZ-426).
+export const GENERATED_CHANNELS: readonly Channel[] = ['instagram', 'linkedin'];
 
 export type NetworkLock = 'not_connected' | 'coming_soon';
 
