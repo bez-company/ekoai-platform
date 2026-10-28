@@ -8,6 +8,7 @@ import type { NoticeView } from '@/components/NoticeItem';
 import { accountOf, personProfiles } from '@/lib/accounts';
 import { noticeWhen, toneOf } from '@/lib/notice-view';
 import { listNotices, unreadCount } from '@/lib/notifications';
+import { TIER_NAME, tierOf } from '@/lib/account-plan-model';
 import { ROLE_COPY } from '@/lib/auth-flow';
 import { can, pageSession } from '@/lib/session';
 import { SCREENS, screensFor } from '@/lib/screens';
@@ -35,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let unread = 0;
   try {
     const [acct, rows, count] = await Promise.all([accountOf(t.tenantId), listNotices(t, role, user?.id ?? null, 5), unreadCount(t, role, user?.id ?? null)]);
-    if (acct) account = { name: acct.name, detail: role === 'viewer' ? 'Você acompanha como leitor' : `Plano ${acct.plan.name}` };
+    if (acct) account = { name: acct.name, detail: role === 'viewer' ? 'Você acompanha como leitor' : `Plano ${TIER_NAME[tierOf(acct.kind)]}` };
     const now = Date.now();
     notices = rows.map((n) => ({ id: n.id, title: n.title, body: n.body, link: n.link, tone: toneOf(n.level), unread: n.unread, when: noticeWhen(n.createdAt, now) }));
     unread = count;
