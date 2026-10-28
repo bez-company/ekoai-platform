@@ -74,6 +74,9 @@ export type DesignSpec = {
   placements?: Placements;
   brandName?: string | null;
   slide?: SlidePosition; // a posição da lâmina no carrossel (família lamina-item)
+  // Carrossel: o layout que dá a cara do post (a capa). A lâmina de conteúdo e a chamada leem a paleta dele, para o
+  // carrossel inteiro parecer um post só, em vez de cada lâmina ter o fundo do próprio layout.
+  look?: Layout;
 };
 
 export type Placements = Partial<Record<Element, Place | 'off'>>;
@@ -146,7 +149,7 @@ export function isLayout(value: unknown): value is Layout {
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
 // `rules`: os ids das regras de marca aplicadas quando o post nasceu (SPEC 019); só para medir e explicar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string; slides?: Slide[] };
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string; slides?: Slide[]; look?: Layout };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
   return {
@@ -200,7 +203,9 @@ export function paletteFor(spec: DesignSpec) {
   return { ...base, ...Object.fromEntries(TEXT_COLOR_KEYS.filter((k) => isHex(own[k])).map((k) => [k, own[k]!.toUpperCase()])) };
 }
 
-function basePalette(spec: DesignSpec) {
+function basePalette(input: DesignSpec) {
+  // A lâmina de carrossel desenha com o próprio layout e a paleta do layout da capa.
+  const spec = input.look && input.look !== input.layout ? { ...input, layout: input.look } : input;
   const b = spec.brand;
   // Fundo pedido (SPEC 020) nas famílias de lista e de título: só pela paleta da marca, texto claro no escuro e tinta no claro.
   if ((spec.layout === 'lista-numerada' || spec.layout === 'titulo-destaque') && spec.background) {

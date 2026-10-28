@@ -127,8 +127,8 @@ async function loadInputs(t: TenantDb, target: Target, store: BlobStore): Promis
   };
 }
 
-// `slide` só vale no carrossel: a lâmina é desenhada como o post de uma imagem, com a posição dela na sequência, e só a
-// capa leva o visual.
+// `slide` só vale no carrossel: a lâmina é desenhada como o post de uma imagem, com a posição dela na sequência. Todas
+// levam o visual (a foto da capa) e leem a paleta do layout que dá a cara do post: `look`, ou o layout da capa.
 function specOf(target: Target, inputs: Inputs, whole: StoredDesign, slide = 0): DesignSpec {
   const slides = slidesOf(whole);
   const design = slides ? flatSlide(whole, slide) : whole;
@@ -139,8 +139,8 @@ function specOf(target: Target, inputs: Inputs, whole: StoredDesign, slide = 0):
     texts: design.texts,
     brand: inputs.brand,
     logo: inputs.logo,
-    visual: slides && slide > 0 ? null : inputs.visual,
-    ...(slides ? { slide: slidePositions(slides.map((x) => x.role))[slide] } : {}),
+    visual: inputs.visual,
+    ...(slides ? { slide: slidePositions(slides.map((x) => x.role))[slide], look: whole.look ?? slides[0].layout } : {}),
     ...(design.logoCorner ? { logoCorner: design.logoCorner } : {}),
     ...(design.logoHidden ? { logoHidden: true } : {}),
     ...(design.colors ? { colors: design.colors } : {}),
@@ -412,7 +412,7 @@ export type FormatDeps = Deps & { writeSlides?: () => Promise<CopySlide[]> };
 
 // Para uma imagem: fica a capa; as outras lâminas saem do post (a versão com elas continua no histórico).
 async function toSingle(t: TenantDb, target: Target, store: BlobStore, o: { baseVersion: number; userId: string | null }): Promise<SavedRevision> {
-  const { slides: old, ...rest } = target.design;
+  const { slides: old, look: _look, ...rest } = target.design;
   const next = rest as StoredDesign;
   const ctx = contextOf(target, next);
   const diff: DiffEntry[] = [{ field: 'format', op: 'set', before: 'carousel', after: 'single', context: ctx }];
@@ -457,7 +457,8 @@ async function toCarousel(t: TenantDb, target: Target, store: BlobStore, o: { ba
   const inputs = await loadInputs(t, target, store);
   const started = Date.now();
   const d = target.design;
-  const out = renderCarousel(content, { ratio: target.ratio, brand: inputs.brand, logo: inputs.logo, visual: inputs.visual, kind: target.kind, ...(d.logoCorner ? { logoCorner: d.logoCorner } : {}), ...(d.logoHidden ? { logoHidden: true } : {}) }, deps.fontDir ? { fontDir: deps.fontDir } : {});
+  // O carrossel herda a cara do post de uma imagem: o layout dele dá a paleta (look) e o fundo pedido segue valendo.
+  const out = renderCarousel(content, { ratio: target.ratio, brand: inputs.brand, logo: inputs.logo, visual: inputs.visual, kind: target.kind, look: d.layout, ...(d.background ? { background: d.background } : {}), ...(d.logoCorner ? { logoCorner: d.logoCorner } : {}), ...(d.logoHidden ? { logoHidden: true } : {}) }, deps.fontDir ? { fontDir: deps.fontDir } : {});
   const blocked = dedupe(editBlocking(out.issues));
   if (blocked.length) throw new RevisionBlocked(blocked[0].message, blocked);
 
@@ -470,6 +471,7 @@ async function toCarousel(t: TenantDb, target: Target, store: BlobStore, o: { ba
     texts: cover.texts,
     ...(d.logoCorner ? { logoCorner: d.logoCorner } : {}),
     ...(d.logoHidden ? { logoHidden: true } : {}),
+    ...(d.layout !== cover.layout ? { look: d.layout } : {}),
     slides: storedSlides(out.slides.map((x) => x.spec), out.roles, keys),
   };
   const ctx = contextOf(target, next);
