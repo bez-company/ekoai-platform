@@ -507,8 +507,9 @@ begin
   exception when check_violation then null;
   end;
 
-  -- conta empresa: 5 pessoas no plano inicial
-  insert into tenants (id, name) values ('lim', 'Lim');
+  -- conta empresa com limite: o plano Time real não limita a equipe (migration 0051), então o gatilho se testa num plano de 5 vagas
+  insert into plans (id, name, kind, max_seats, max_instagram_accounts) values ('rls-5-vagas', 'Cinco vagas', 'empresa', 5, 1);
+  insert into tenants (id, name, kind, plan_id) values ('lim', 'Lim', 'empresa', 'rls-5-vagas');
   insert into tenant_members (tenant_id, user_id, role)
     values ('lim', u1, 'admin'), ('lim', u2, 'creator'), ('lim', u3, 'creator'), ('lim', u4, 'viewer'), ('lim', u5, 'viewer');
   begin
@@ -518,7 +519,7 @@ begin
   end;
 
   -- convite pendente ocupa vaga
-  insert into tenants (id, name) values ('conv', 'Conv');
+  insert into tenants (id, name, kind, plan_id) values ('conv', 'Conv', 'empresa', 'rls-5-vagas');
   insert into tenant_members (tenant_id, user_id, role)
     values ('conv', u1, 'admin'), ('conv', u2, 'creator'), ('conv', u3, 'creator'), ('conv', u4, 'viewer');
   insert into invitations (tenant_id, email, role, token_hash) values ('conv', 'lim8@exemplo.test', 'creator', repeat('1', 64));
@@ -589,7 +590,7 @@ begin
   if n <> 1 then raise exception 'convite recusado mexeu na equipe (% membros)', n; end if;
 
   -- reenviar um convite vencido ocupa vaga de novo
-  insert into tenants (id, name) values ('resend', 'Resend');
+  insert into tenants (id, name, kind, plan_id) values ('resend', 'Resend', 'empresa', 'rls-5-vagas');
   insert into tenant_members (tenant_id, user_id, role)
     values ('resend', u1, 'admin'), ('resend', u2, 'creator'), ('resend', u3, 'creator'), ('resend', u4, 'viewer');
   insert into invitations (tenant_id, email, role, token_hash) values ('resend', 'lim5@exemplo.test', 'viewer', repeat('8', 64));
