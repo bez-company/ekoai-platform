@@ -28,6 +28,9 @@ export type ProductEvent =
   | 'instagram_connected'
   | 'instagram_disconnected'
   | 'instagram_reauth_required'
+  | 'linkedin_connected'
+  | 'linkedin_disconnected'
+  | 'linkedin_reauth_required'
   | 'data_exported'
   | 'account_deleted'
   // Scorecard (BEZ-260): ativação, qualidade e custo do post.

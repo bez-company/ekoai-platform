@@ -5,6 +5,7 @@
 import type { TenantDb } from './tenant-db';
 import { generateJson } from './gemini';
 import * as linkedin from './channels/linkedin';
+import { linkedinCredentials } from './social-accounts';
 import {
   buildEngagePrompt,
   checkRateLimit,
@@ -119,7 +120,7 @@ export async function publishEngagement(
   if (!limit.ok) return { ok: false, error: limit.error, offerCopy: true };
 
   try {
-    const r = await linkedin.commentOnPost(row.target_urn, text, { parentComment: row.parent_comment_urn });
+    const r = await linkedin.commentOnPost(await linkedinCredentials(t), row.target_urn, text, { parentComment: row.parent_comment_urn });
     await t
       .update('engagements', { status: 'publicado', comment_text: text, comment_urn: r.id, error: null, posted_at: new Date().toISOString() })
       .eq('id', id);

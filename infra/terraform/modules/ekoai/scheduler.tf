@@ -99,6 +99,31 @@ resource "google_cloud_scheduler_job" "refresh_instagram" {
   }
 }
 
+# refresh-linkedin: renova o acesso do LinkedIn de cada conta quando o LinkedIn dá refresh token e avisa os administradores
+# (uma vez) quando não dá, antes de vencer (SPEC 028, BEZ-423). Todo dia às 09:10 UTC; a rota só age sobre as contas que
+# vencem em até 15 dias. Sem o app do LinkedIn configurado neste ambiente (LINKEDIN_CLIENT_ID), não há conta para renovar.
+resource "google_cloud_scheduler_job" "refresh_linkedin" {
+  count            = var.deploy_workloads ? 1 : 0
+  project          = var.project_id
+  region           = var.region
+  name             = "${local.name}-refresh-linkedin"
+  description      = "Renova ou avisa sobre o acesso do LinkedIn que vence em breve"
+  schedule         = "10 9 * * *"
+  time_zone        = "Etc/UTC"
+  paused           = var.schedules_paused
+  attempt_deadline = "180s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.platform_url}/api/cron/refresh-linkedin"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+      audience              = local.platform_url
+    }
+  }
+}
+
 # collect-metrics: lê curtidas e comentários (e os insights, quando a conta concedeu a permissão) dos posts
 # publicados no Instagram nos últimos 30 dias (BEZ-183). A cada 6 horas; a rota decide quais posts já
 # estão na hora (a cada 5 h nos 2 primeiros dias, depois uma vez por dia).

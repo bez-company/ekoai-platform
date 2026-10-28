@@ -113,6 +113,9 @@ describe('validação na fronteira', () => {
   });
 });
 
+// A credencial vem da conta conectada (SPEC 028, BEZ-423), não do ambiente.
+const CREDS = { token: 'tok', authorUrn: 'urn:li:person:me' };
+
 describe('commentOnPost', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -120,19 +123,17 @@ describe('commentOnPost', () => {
   });
 
   it('resposta usa o comentário no path e manda parentComment', async () => {
-    vi.stubEnv('LINKEDIN_ACCESS_TOKEN', 'tok');
-    vi.stubEnv('LINKEDIN_AUTHOR_URN', 'urn:li:person:me');
     const calls = [];
     vi.stubGlobal('fetch', vi.fn(async (url, init) => {
       calls.push({ url: String(url), body: JSON.parse(init.body) });
       return new Response(null, { status: 201, headers: { 'x-restli-id': '999' } });
     }));
     const parent = 'urn:li:comment:(urn:li:activity:111,222)';
-    await expect(commentOnPost('urn:li:activity:111', 'boa', { parentComment: parent })).resolves.toEqual({ id: '999' });
+    await expect(commentOnPost(CREDS, 'urn:li:activity:111', 'boa', { parentComment: parent })).resolves.toEqual({ id: '999' });
     expect(calls[0].url).toContain(`/socialActions/${encodeURIComponent(parent)}/comments`);
     expect(calls[0].body).toEqual({ actor: 'urn:li:person:me', object: 'urn:li:activity:111', message: { text: 'boa' }, parentComment: parent });
 
-    await commentOnPost('urn:li:activity:111', 'oi');
+    await commentOnPost(CREDS, 'urn:li:activity:111', 'oi');
     expect(calls[1].url).toContain(`/socialActions/${encodeURIComponent('urn:li:activity:111')}/comments`);
     expect(calls[1].body.parentComment).toBeUndefined();
   });
