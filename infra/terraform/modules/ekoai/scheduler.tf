@@ -9,7 +9,7 @@ resource "google_cloud_scheduler_job" "job" {
   description      = "Roda o job ${each.key}"
   schedule         = each.value.cron
   time_zone        = "Etc/UTC"
-  paused           = var.schedules_paused
+  paused           = var.legacy_jobs_paused
   attempt_deadline = "60s"
 
 
