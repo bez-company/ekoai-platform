@@ -9,15 +9,7 @@ import Link from 'next/link';
 import { Spinner } from '@/components/auth/ui';
 import type { PostProgress } from '@/lib/post-requests';
 import { STEPS, stateOf, type StepState } from '@/lib/generation-steps';
-
-// O erro do provedor vira uma frase de gente; o detalhe técnico fica no log do servidor.
-function friendlyError(error: string | null): string {
-  if (!error) return 'Algo deu errado no meio do caminho.';
-  if (/Vertex AI (429|503)/.test(error)) return 'O modelo de imagem está sobrecarregado agora. Em alguns minutos costuma voltar.';
-  if (/Vertex AI 4\d\d/.test(error)) return 'O modelo recusou o pedido. Tente outro tema ou outra direção.';
-  if (/perfil da empresa/i.test(error)) return error;
-  return error.length > 160 ? `${error.slice(0, 160)}…` : error;
-}
+import { friendlyGenerationError } from '@/lib/generation-errors';
 
 function Mark({ state }: { state: StepState }) {
   if (state === 'run') return <Spinner />;
@@ -53,7 +45,7 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
 
   const steps = STEPS.map((s) => ({ ...s, state: stateOf(progress, s.id) }));
   const limit = progress.status === 'failed' && /limite do plano/.test(progress.error ?? '');
-  const friendly = friendlyError(progress.error);
+  const friendly = friendlyGenerationError(progress.error);
 
   return (
     <div className="card max-w-2xl space-y-4">
