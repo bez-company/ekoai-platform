@@ -17,13 +17,15 @@ import { defaultStore, type BlobStore } from './brand-logo';
 import { logoFor } from './generation';
 import { ConflictError, NotFoundError, UserError } from './errors';
 import { log } from './log';
-import { brandFromProfile, compatibleLayouts, imageDataUri, slidePositions, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type SlideRole, type StoredDesign } from './design/model';
+import { HEIGHT, WIDTH, brandFromProfile, compatibleLayouts, imageDataUri, slidePositions, type DesignSpec, type Layout, type Logo, type PostKind, type Ratio, type SlideRole, type StoredDesign } from './design/model';
 import { inSlideAt, reviewSlides, slideAltText, slideLayouts, storedSlides } from './design/carousel';
 import type { CopySlide } from './agents';
 import { renderCarousel } from './generation-carousel';
 import { changedSlides, flatSlide, putSlide, slideDiffs, slideSummary, slidesOf } from './design/slide-edit';
 import { renderPng } from './design/render';
 import { editBlocking, reviewText, type Issue } from './design/review';
+import { parseScene, sceneSvg, sceneTexts, type Scene, type SceneLogos } from './design/scene';
+import { openScene, sceneContext } from './design/scene-render';
 import { applyEditable, checkLayout, editableOf, type EditableDesign } from './design/edit-model';
 import { diffDesigns, summarize, type DiffContext, type DiffEntry } from './design/diff';
 import { contrast } from './design/color';
@@ -147,6 +149,7 @@ function specOf(target: Target, inputs: Inputs, whole: StoredDesign, slide = 0):
     ...(design.background ? { background: design.background } : {}),
     ...(design.placements ? { placements: design.placements } : {}),
     ...(design.brandName ? { brandName: design.brandName } : {}),
+    ...(design.scene ? { scene: design.scene } : {}),
   };
 }
 
@@ -156,7 +159,7 @@ function renderAndReview(target: Target, inputs: Inputs, whole: StoredDesign, de
   const slides = slidesOf(whole);
   const design = slides ? flatSlide(whole, slide) : whole;
   const rendered = renderPng(specOf(target, inputs, whole, slide), { ...(deps.fontDir ? { fontDir: deps.fontDir } : {}), ...(width ? { width } : {}) });
-  const text = reviewText({ imageTexts: imageTexts(design), caption: '', hashtags: [], facts: inputs.facts.facts, never: inputs.facts.never, inactive: inputs.facts.inactive, banned: inputs.banned });
+  const text = reviewText({ imageTexts: design.scene ? sceneTexts(design.scene) : imageTexts(design), caption: '', hashtags: [], facts: inputs.facts.facts, never: inputs.facts.never, inactive: inputs.facts.inactive, banned: inputs.banned });
   // O contraste de cada texto sobre o fundo do layout: a tela mostra o selo Bom, No limite ou Baixo.
   const contrasts = Object.fromEntries(rendered.boxes.filter((b) => !['handle'].includes(b.id)).map((b) => [b.id, Math.round(contrast(b.color, b.bg) * 100) / 100]));
   const issues = [...text.filter((i) => i.where === 'image'), ...rendered.issues];
@@ -463,7 +466,7 @@ async function toCarousel(t: TenantDb, target: Target, store: BlobStore, o: { ba
   if (blocked.length) throw new RevisionBlocked(blocked[0].message, blocked);
 
   const keys = out.slides.map(() => `images/${randomUUID()}.png`);
-  const { layout: _l, texts: _t, logoCorner: _c, logoHidden: _h, colors: _col, ...rest } = d;
+  const { layout: _l, texts: _t, logoCorner: _c, logoHidden: _h, colors: _col, scene: _scene, ...rest } = d;
   const cover = out.slides[0].spec;
   const next: StoredDesign = {
     ...rest,
@@ -529,6 +532,72 @@ export async function saveEdit(t: TenantDb, briefId: string, input: { baseVersio
   return commit(t, target, store, next, { source, baseVersion: input.baseVersion, userId: input.userId }, deps);
 }
 
+// ── Studio livre (SPEC 027) ─────────────────────────────────────────────────────────────────────────────────
+
+export type SceneView = { version: number; slide: number | null; width: number; height: number; scene: Scene; custom: boolean; backdrop: string; logos: SceneLogos; decided: boolean };
+
+// A cena que o Studio abre: a guardada, ou o layout do post convertido em camadas (ainda sem gravar nada).
+export async function sceneState(t: TenantDb, briefId: string, input: { slide?: number } = {}, deps: Deps = {}): Promise<SceneView> {
+  const { target, store } = await prepare(t, briefId, deps, false);
+  const inputs = await loadInputs(t, target, store);
+  const slides = slidesOf(target.design);
+  const n = slides ? slideIndex(input.slide, slides.length) : 0;
+  const flat = slides ? flatSlide(target.design, n) : target.design;
+  const spec = specOf(target, inputs, target.design, n);
+  if (flat.scene) {
+    const ctx = sceneContext(spec);
+    return { version: target.version, slide: slides ? n : null, width: ctx.width, height: ctx.height, scene: flat.scene, custom: true, backdrop: ctx.backdrop, logos: ctx.logos, decided: target.decided };
+  }
+  const { scene, ctx } = openScene({ ...spec, scene: undefined });
+  return { version: target.version, slide: slides ? n : null, width: ctx.width, height: ctx.height, scene, custom: false, backdrop: ctx.backdrop, logos: ctx.logos, decided: target.decided };
+}
+
+// Confirmar no Studio: grava a cena como a versão base + 1. O revisor confere o PNG que o servidor desenha (margem, tamanho, contraste,
+// texto contra os fatos); 409 se outra pessoa gravou antes.
+export async function saveScene(t: TenantDb, briefId: string, input: { baseVersion: number; scene: unknown; userId: string | null } & SlideInput, deps: Deps = {}): Promise<SavedRevision> {
+  const { target, store } = await prepare(t, briefId, deps, true);
+  if (target.version !== input.baseVersion) throw await conflict(t, target);
+  const parsed = parseScene(input.scene, { width: WIDTH, height: HEIGHT[target.ratio] });
+  if (!parsed.ok) throw new UserError(parsed.error);
+  const slides = slidesOf(target.design);
+  const n = slides ? slideIndex(input.slide, slides.length) : 0;
+  const flat = slides ? flatSlide(target.design, n) : target.design;
+  const nextFlat: StoredDesign = { ...flat, scene: parsed.value };
+  const next = slides ? putSlide(target.design, n, nextFlat) : nextFlat;
+  return commit(t, target, store, next, { source: 'edit', baseVersion: input.baseVersion, userId: input.userId }, deps);
+}
+
+// Tirar as camadas e voltar ao layout automático do post.
+export async function resetScene(t: TenantDb, briefId: string, input: { baseVersion: number; userId: string | null } & SlideInput, deps: Deps = {}): Promise<SavedRevision> {
+  const { target, store } = await prepare(t, briefId, deps, true);
+  if (target.version !== input.baseVersion) throw await conflict(t, target);
+  const slides = slidesOf(target.design);
+  const n = slides ? slideIndex(input.slide, slides.length) : 0;
+  const flat = slides ? flatSlide(target.design, n) : target.design;
+  if (!flat.scene) throw new UserError('Este post já está no layout automático.');
+  const { scene: _scene, ...plain } = flat;
+  const next = slides ? putSlide(target.design, n, plain as StoredDesign) : (plain as StoredDesign);
+  return commit(t, target, store, next, { source: 'edit', baseVersion: input.baseVersion, userId: input.userId }, deps);
+}
+
+// Baixar o post (SPEC 027): o PNG que o servidor desenha, ou o SVG da cena (cada texto é um <text> e a logo uma <image>, para abrir
+// no Canva ou no Figma). O arquivo é o da versão em uso.
+export async function exportDesign(t: TenantDb, briefId: string, input: { format: 'png' | 'svg'; slide?: number }, deps: Deps = {}): Promise<{ body: Buffer | string; contentType: string; filename: string }> {
+  const { target, store } = await prepare(t, briefId, deps, false);
+  const inputs = await loadInputs(t, target, store);
+  const slides = slidesOf(target.design);
+  const n = slides ? slideIndex(input.slide, slides.length) : 0;
+  const spec = specOf(target, inputs, target.design, n);
+  const name = `post-${slides ? `lamina-${n + 1}` : 'imagem'}`;
+  if (input.format === 'png') {
+    const png = renderPng(spec, deps.fontDir ? { fontDir: deps.fontDir } : {}).png;
+    return { body: png, contentType: 'image/png', filename: `${name}.png` };
+  }
+  const flat = slides ? flatSlide(target.design, n) : target.design;
+  const { scene, ctx } = flat.scene ? { scene: flat.scene, ctx: sceneContext(spec) } : openScene({ ...spec, scene: undefined });
+  return { body: sceneSvg(scene, ctx), contentType: 'image/svg+xml; charset=utf-8', filename: `${name}.svg` };
+}
+
 // Voltar a uma versão antiga cria uma versão nova com o design dela; nenhuma é apagada.
 export async function restoreVersion(t: TenantDb, briefId: string, input: { version: number; baseVersion: number; userId: string | null }, deps: Deps = {}): Promise<SavedRevision> {
   const { target, store } = await prepare(t, briefId, deps, true);
@@ -547,7 +616,7 @@ export async function restoreVersion(t: TenantDb, briefId: string, input: { vers
     return commit(t, target, store, restored, { source: 'restore', baseVersion: input.baseVersion, userId: input.userId, summary: `Voltou à versão ${input.version}` }, deps);
   }
   // O visual e a foto do post não se editam aqui: só o que é editável volta da versão antiga.
-  const next = applyEditable(target.design, editableOf(old));
+  const next: StoredDesign = { ...applyEditable(target.design, editableOf(old)), ...(old.scene ? { scene: old.scene } : {}) };
   return commit(t, target, store, next, { source: 'restore', baseVersion: input.baseVersion, userId: input.userId, summary: `Voltou à versão ${input.version}` }, deps);
 }
 

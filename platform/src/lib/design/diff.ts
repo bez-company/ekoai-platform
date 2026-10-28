@@ -20,6 +20,15 @@ function entry(field: string, before: DiffScalar, after: DiffScalar, context: Di
   return { field, op, before, after, context };
 }
 
+// Um resumo curto e estável da cena: o diff guarda só o que mudou, nunca as camadas inteiras.
+const sceneKey = (d: StoredDesign): string | null => {
+  if (!d.scene) return null;
+  const text = JSON.stringify(d.scene);
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i += 1) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return `camadas:${(h >>> 0).toString(16)}`;
+};
+
 const CORNER = (d: StoredDesign): LogoCorner => d.logoCorner ?? defaultCorner(d.layout);
 
 export function diffDesigns(before: StoredDesign, after: StoredDesign, context: DiffContext): DiffEntry[] {
@@ -35,6 +44,7 @@ export function diffDesigns(before: StoredDesign, after: StoredDesign, context: 
   // Canto sempre pelo valor efetivo: escolher o canto que já era o padrão não é mudança.
   out.push(entry('logoCorner', CORNER(before), CORNER(after), context));
   out.push(entry('logoHidden', !!before.logoHidden, !!after.logoHidden, context));
+  out.push(entry('scene', sceneKey(before), sceneKey(after), context));
   for (const key of TEXT_COLOR_KEYS) out.push(entry(`colors.${key}`, before.colors?.[key] ?? null, after.colors?.[key] ?? null, context));
   return out.filter((e): e is DiffEntry => e !== null);
 }
@@ -56,6 +66,7 @@ const COLOR_NAME: Record<string, string> = { 'colors.title': 'do título', 'colo
 function phrase(e: DiffEntry): string {
   if (e.field === 'layout') return `layout trocado para ${LAYOUT_NAME[e.after as Layout] ?? 'outra família'}`;
   if (e.field === 'logoCorner') return `logo movido para o canto ${CORNER_NAME[e.after as LogoCorner] ?? 'novo'}`;
+  if (e.field === 'scene') return e.after === null ? 'voltou ao layout automático' : 'imagem editada no Studio';
   if (e.field === 'logoHidden') return e.after ? 'logo escondido' : 'logo de volta';
   if (e.field.startsWith('colors.')) return e.op === 'remove' ? `cor ${COLOR_NAME[e.field]} voltou à da marca` : `cor ${COLOR_NAME[e.field]} alterada`;
   if (e.field.startsWith('texts.items.')) return e.op === 'remove' ? `item ${Number(e.field.split('.')[2]) + 1} removido` : e.op === 'add' ? `item ${Number(e.field.split('.')[2]) + 1} adicionado` : `item ${Number(e.field.split('.')[2]) + 1} alterado`;

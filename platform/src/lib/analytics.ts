@@ -51,6 +51,7 @@ export type ProductEvent =
   | 'design_edit_wish'
   | 'design_ask'
   | 'design_format_switched'
+  | 'studio_scene_saved'
   | 'design_rule_proposed'
   | 'design_rule_accepted'
   | 'design_rule_dismissed'

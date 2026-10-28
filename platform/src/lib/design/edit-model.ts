@@ -108,7 +108,8 @@ export function checkLayout(value: EditableDesign, kind: PostKind, hasVisual: bo
 // O design guardado com o ajuste por cima. Chaves que a pessoa não edita (a foto anexada, por exemplo)
 // continuam como estavam; as editáveis são trocadas por inteiro, e ausente significa "sem".
 export function applyEditable(stored: StoredDesign, edit: EditableDesign): StoredDesign {
-  const { logoCorner: _c, logoHidden: _h, colors: _col, texts: _t, layout: _l, ...rest } = stored as StoredDesign & Record<string, unknown>;
+  // Um ajuste pelos campos (texto, cor, layout) volta ao layout automático: as camadas do Studio saem (SPEC 027).
+  const { logoCorner: _c, logoHidden: _h, colors: _col, texts: _t, layout: _l, scene: _s, ...rest } = stored as StoredDesign & Record<string, unknown>;
   return {
     ...rest,
     layout: edit.layout,

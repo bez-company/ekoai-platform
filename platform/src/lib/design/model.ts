@@ -2,10 +2,11 @@
 // visual; texto, logo e grade são desenhados por código a partir deste objeto, com os tokens da
 // marca do perfil. O mesmo DesignSpec gera sempre o mesmo PNG.
 
-import { DEFAULT_BODY, DEFAULT_HEADING, fontOrDefault, type FontFamily } from './fonts';
+import { DEFAULT_BODY, DEFAULT_HEADING, fontOrDefault, type FontFamily } from './font-metrics';
 import { MAX_SLIDES, MIN_SLIDES } from './slide-limits';
 import { contrast, isHex, mix, untilContrast, type Hex } from './color';
 import type { Background, Element, Place } from '../directives';
+import type { Scene } from './scene';
 
 // foto-janela e foto-arco (BEZ-251): a foto da pessoa encaixada no layout da marca, com o texto
 // sempre sobre a cor da marca (uso "Dentro do layout da marca" da foto anexada).
@@ -77,6 +78,8 @@ export type DesignSpec = {
   // Carrossel: o layout que dá a cara do post (a capa). A lâmina de conteúdo e a chamada leem a paleta dele, para o
   // carrossel inteiro parecer um post só, em vez de cada lâmina ter o fundo do próprio layout.
   look?: Layout;
+  // Studio livre (SPEC 027): as camadas que a pessoa mexeu. Com `scene`, o render desenha o fundo do layout e, por cima, as camadas.
+  scene?: Scene;
 };
 
 export type Placements = Partial<Record<Element, Place | 'off'>>;
@@ -88,7 +91,7 @@ export type SlideRole = (typeof SLIDE_ROLES)[number];
 export { MAX_SLIDES, MIN_SLIDES };
 
 // O que a pessoa ajusta numa lâmina (SPEC 023): layout, texto, canto do logo e cor do texto, como no post de uma imagem.
-export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors };
+export type Slide = { role: SlideRole; layout: Layout; texts: Texts; pngKey?: string; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; scene?: Scene };
 
 // Onde a lâmina está no carrossel: `n` de `of` no total e, nas de conteúdo, o número do item entre os itens.
 export type SlidePosition = { n: number; of: number; item?: number; items?: number };
@@ -149,7 +152,7 @@ export function isLayout(value: unknown): value is Layout {
 // O design guardado em post_designs.design: só o que não vem do perfil (texto, layout, canto do
 // logo e a chave do visual). Marca e logo entram na hora de renderizar.
 // `rules`: os ids das regras de marca aplicadas quando o post nasceu (SPEC 019); só para medir e explicar.
-export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string; slides?: Slide[]; look?: Layout };
+export type StoredDesign = { layout: Layout; texts: Texts; logoCorner?: LogoCorner; logoHidden?: boolean; colors?: TextColors; rules?: string[]; background?: Background; placements?: Placements; brandName?: string; slides?: Slide[]; look?: Layout; scene?: Scene };
 
 export function storedDesignOf(spec: DesignSpec): StoredDesign {
   return {
