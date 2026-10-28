@@ -125,6 +125,8 @@ export default function Studio({
     if (!res?.ok || !j || !j.scene) return setLoadError(j?.error ?? 'Não foi possível abrir o Studio. Recarregue a página.');
     setView(j);
     setScene(j.scene);
+    setStatus('idle');
+    setMessage('');
     setPast([]);
     setFuture([]);
     setSel([]);
