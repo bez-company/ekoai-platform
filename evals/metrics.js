@@ -15,6 +15,7 @@ export function codeChecks({ copy, imageTexts, textIssues, layoutIssues }) {
     { id: 'cod-sem-travessao', pass: !DASH.test(drawn) && !DASH.test(copy.caption), reason: 'Travessão (— ou –) no texto da imagem ou na legenda.' },
     { id: 'cod-sem-emoji-na-imagem', pass: !EMOJI.test(drawn), reason: 'Emoji no texto desenhado na imagem.' },
     { id: 'cod-hashtags', pass: tags.length >= 3 && tags.length <= 8 && lowered, reason: `Hashtags: ${tags.length} (o pedido é de 3 a 8, minúsculas, sem acento).` },
+    { id: 'cod-razao-de-envio', pass: ['enviar', 'salvar', 'responder', 'assistir'].includes(copy.signal) && (copy.shareReason ?? '').split(' ').filter(Boolean).length >= 4, reason: `Sem sinal ou sem razão do sinal (SPEC 028): ${copy.signal ?? 'sem sinal'}, "${copy.shareReason ?? ''}".` },
     { id: 'cod-revisor-limpo', pass: hard(textIssues).length === 0, reason: `O revisor de texto ainda reprovava o resultado final: ${hard(textIssues).map((i) => i.rule).join(', ')}.` },
     { id: 'cod-layout-limpo', pass: hard(layoutIssues).length === 0, reason: `O revisor de layout reprovava o PNG final: ${hard(layoutIssues).map((i) => i.rule).join(', ')}.` },
   ];

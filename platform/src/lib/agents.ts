@@ -7,6 +7,8 @@ import type { Issue } from './design/review';
 import type { PostFormat, PostKind } from './generation-model';
 import type { WriterHints } from './directives-apply';
 import { MAX_SLIDES, MIN_SLIDES, roleAt, type SlideRole, type Texts } from './design/model';
+import { GOALS, asksToShare, isPostGoal, isSignal, type Signal } from './post-goals';
+import { signalPromptLines } from './channel-signals';
 
 export type CopyInput = {
   idea: string;
@@ -14,6 +16,7 @@ export type CopyInput = {
   format?: PostFormat; // single (padrão) ou carousel: escolha da pessoa (SPEC 023)
   slideCount?: number | null; // carrossel: quantas lâminas a pessoa escolheu (SPEC 025); null = a Ekoai decide
   goal?: string | null; // o objetivo do post em uma frase (SPEC 017 decisão 6)
+  signal?: Signal | null; // o sinal padrão do objetivo (signalOfGoal); null deixa o estrategista escolher (SPEC 028)
   profile: CompanyProfile;
   facts: string[];
   never: string[];
@@ -39,11 +42,13 @@ export type Copy = {
   slides?: CopySlide[]; // só no carrossel; a primeira lâmina é a capa e `texts` é o da capa
   caption: string;
   hashtags: string[];
+  signal: Signal; // o que o post pede à pessoa (SPEC 028): enviar, salvar, responder ou assistir
+  shareReason: string; // uma frase: quem faz a ação e por quê; a tela e a análise leem daqui
   visualPrompt: string | null; // só no post de atmosfera
   altText: string; // texto alternativo do redator (BEZ-203); vazio quando ele não mandou: a geração escolhe a sobra
 };
 
-export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120, altText: 1000 };
+export const LIMITS = { kicker: 32, title: 64, sub: 100, item: 56, items: 4, caption: 2200, hashtags: 30, visualPrompt: 700, angle: 120, altText: 1000, shareReason: 160 };
 
 export function voiceLine(p: CompanyProfile): string {
   const scale = (v: number | null, low: string, high: string) => (v == null ? null : v <= 2 ? low : v >= 4 ? high : `entre ${low} e ${high}`);
@@ -73,6 +78,11 @@ export function reachLines(p: Pick<CompanyProfile, 'reach' | 'region'>): string[
     return [`- Alcance: Brasil todo.${home} A legenda fala a qualquer pessoa do país, sem "aqui na cidade", "no bairro" nem "venha até nós". Não cite a cidade da empresa na legenda nem nas hashtags, a não ser que o pedido fale dela. Hashtags: do nicho, do produto e do tema, nunca a cidade, o estado ou o bairro.`];
   }
   return [`- Alcance: não informado.${home} Não prenda o post à cidade: só a cite se o pedido falar dela. Hashtags: do nicho, do produto e do tema, sem a cidade nem o estado.`];
+}
+
+// O sinal padrão do objetivo (SPEC 028); sem objetivo, ou com "auto", quem escolhe é o estrategista.
+export function signalOfGoal(goal: string | null | undefined): Signal | null {
+  return goal && isPostGoal(goal) ? GOALS[goal].signal : null;
 }
 
 export function buildCopyPrompt(input: CopyInput): string {
@@ -118,6 +128,8 @@ export function buildCopyPrompt(input: CopyInput): string {
     lines.push(input.rules.map((r) => `- ${r}`).join('\n'));
   }
   lines.push('');
+  lines.push(...signalPromptLines('instagram'));
+  lines.push('');
   lines.push('## O pedido');
   lines.push(`- Ideia: ${input.idea}`);
   if (input.goal) lines.push(`- Objetivo do post: ${input.goal}`);
@@ -149,6 +161,12 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push(`- caption: a legenda, até 900 caracteres, ${closing}. hashtags: de 3 a 8, sem o #, minúsculas, sem acento, sem ano (nada de #natal2024), seguindo o alcance acima.`);
   lines.push('- visual_prompt: só em "atmosfera". Em inglês, descreve a foto para um modelo de imagem: cena, luz, materiais, ângulo. Se o pedido diz o ângulo (de cima, de perto, de frente), comece pelo ângulo (ex.: "top-down flat lay, camera directly above"). SEM texto, letras, logo, marca d\'água, rosto de criança ou pessoa (nem equipe, nem recepcionista: ambiente vazio; só mãos, se o pedido pedir). No informativo, null.');
   lines.push('- angle: uma frase com o ângulo escolhido (para a equipe ver por que).');
+  const goalSignal = input.signal ?? null;
+  lines.push(`- signal: o que este post pede à pessoa: "enviar" (manda a alguém), "salvar" (guarda para consultar), "responder" (comenta) ou "assistir" (fica e olha, no carrossel desliza). ${goalSignal ? `Para este objetivo, use "${goalSignal}".` : 'Escolha o que combina com o post.'}`);
+  lines.push(`- share_reason: UMA frase, até ${LIMITS.shareReason} caracteres, que diz quem faz essa ação e por quê, no negócio desta empresa (ex.: "Quem encomenda bolo manda para quem organiza a festa"). Específica deste post: se serviria a qualquer post, reescreva. Sem travessão.`);
+  if (asksToShare(goalSignal)) lines.push(`- Chamada de ${goalSignal === 'salvar' ? 'salvar' : 'enviar'}: a legenda fecha com uma frase natural que pede para ${goalSignal === 'salvar' ? 'salvar o post e consultar depois' : 'mandar o post a quem se encaixa (diga a quem, por exemplo "para quem organiza a festa")'}. Isso não é a chamada padrão da conta: vale mesmo quando ela não escolheu chamada, porque salvar e enviar acontecem dentro do Instagram. Uma frase só, sem insistir.`);
+  else if (goalSignal) lines.push('- Não peça para salvar nem enviar o post: use só a chamada padrão.');
+  else lines.push('- Só peça para salvar ou enviar quando o post serve a isso (dica para guardar, aviso para um grupo). Em post de atmosfera ou de conversa, use só a chamada padrão.');
   lines.push('- alt_text: o texto alternativo da imagem, para quem usa leitor de tela. Em português, de 1 a 3 frases (até 600 caracteres): o que a imagem mostra e o texto escrito nela. Sem hashtag, sem link, sem chamada para ação e sem "imagem de" no começo.');
   if (input.feedback?.length) {
     lines.push('');
@@ -159,8 +177,8 @@ export function buildCopyPrompt(input: CopyInput): string {
   lines.push('');
   lines.push('## Formato da resposta (JSON)');
   lines.push(input.format === 'carousel'
-    ? '{"kind":"informativo|atmosfera","angle":"...","slides":[{"role":"cover","texts":{"kicker":"...","title":"...","sub":"..."}},{"role":"content","texts":{"title":"...","sub":"..."}},{"role":"cta","texts":{"title":"...","sub":"..."}}],"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}'
-    : '{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"visual_prompt":null,"alt_text":"..."}');
+    ? '{"kind":"informativo|atmosfera","angle":"...","slides":[{"role":"cover","texts":{"kicker":"...","title":"...","sub":"..."}},{"role":"content","texts":{"title":"...","sub":"..."}},{"role":"cta","texts":{"title":"...","sub":"..."}}],"caption":"...","hashtags":["..."],"signal":"enviar|salvar|responder|assistir","share_reason":"...","visual_prompt":null,"alt_text":"..."}'
+    : '{"kind":"informativo|atmosfera","angle":"...","texts":{"kicker":"...","title":"...","sub":"...","items":["...","..."]},"caption":"...","hashtags":["..."],"signal":"enviar|salvar|responder|assistir","share_reason":"...","visual_prompt":null,"alt_text":"..."}');
   return lines.join('\n');
 }
 
@@ -174,7 +192,7 @@ function str(v: unknown, max: number): string | null {
 
 // O que volta do modelo, no formato que o resto do motor espera. Corta o que passa do limite em
 // vez de recusar: o revisor por regra decide se o texto cabe na imagem.
-export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single', slideCount: number | null = null): Parsed {
+export function parseCopy(json: unknown, requested: PostKind | null, format: PostFormat = 'single', slideCount: number | null = null, goalSignal: Signal | null = null): Parsed {
   const o = json && typeof json === 'object' && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
   if (!o) return { ok: false, error: 'O modelo não devolveu um objeto.' };
   const kind: PostKind = requested ?? (o.kind === 'atmosfera' ? 'atmosfera' : 'informativo');
@@ -193,6 +211,11 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
     .map((h) => String(h).trim().replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}_]/gu, ''))
     .filter((h, i, arr) => h && arr.indexOf(h) === i)
     .slice(0, LIMITS.hashtags);
+  // O objetivo manda no sinal (o código obedece); sem ele, vale o que o modelo escolheu, se for um dos quatro.
+  const signal = goalSignal ?? (isSignal(o.signal) ? o.signal : null);
+  if (!signal) return { ok: false, error: 'O modelo não disse o que o post pede à pessoa (signal: enviar, salvar, responder ou assistir).' };
+  const shareReason = cleanShareReason(o.share_reason);
+  if (!shareReason) return { ok: false, error: 'O modelo não explicou, em uma frase específica, quem faz a ação do post e por quê (share_reason).' };
   const items = !slides && kind === 'informativo' && Array.isArray(texts.items) ? texts.items.map((x) => str(x, LIMITS.item)).filter((x): x is string => !!x).slice(0, LIMITS.items) : [];
   const copy: Copy = {
     kind,
@@ -206,12 +229,23 @@ export function parseCopy(json: unknown, requested: PostKind | null, format: Pos
     ...(slides ? { slides } : {}),
     caption,
     hashtags,
+    signal,
+    shareReason,
     visualPrompt: kind === 'atmosfera' ? str(o.visual_prompt, LIMITS.visualPrompt) : null,
     altText: '',
   };
   copy.altText = cleanAltText(o.alt_text) ?? '';
   if (kind === 'atmosfera' && !copy.visualPrompt) return { ok: false, error: 'O modelo não descreveu o visual do post de atmosfera.' };
   return { ok: true, value: copy };
+}
+
+// A razão do sinal (SPEC 028): uma frase específica. Sem travessão, cortada no teto e com pelo menos 4 palavras;
+// menos que isso é rótulo ("para compartilhar"), não razão.
+export function cleanShareReason(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const text = raw.replace(/\s*[\u2013\u2014]\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  if (text.split(' ').filter(Boolean).length < 4) return null;
+  return text.slice(0, LIMITS.shareReason).trim();
 }
 
 // As lâminas do carrossel (SPEC 023): de 2 a 10, o papel vem da posição (capa, itens, chamada) e não do que o modelo

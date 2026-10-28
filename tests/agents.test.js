@@ -69,17 +69,17 @@ describe('regras de qualidade do texto', () => {
 
 describe('leitura da resposta', () => {
   it('normaliza e corta nos limites; itens só no informativo', () => {
-    const r = parseCopy({ kind: 'informativo', angle: 'dica', texts: { kicker: ' Dica  da casa ', title: 'Seu bolo está pronto?', sub: 'x', items: ['a', 'b', 'c', 'd', 'e'] }, caption: 'Legenda', hashtags: ['#Bolo', 'bolo', 'bolo caseiro!', '#marília'] }, null);
+    const r = parseCopy({ kind: 'informativo', angle: 'dica', texts: { kicker: ' Dica  da casa ', title: 'Seu bolo está pronto?', sub: 'x', items: ['a', 'b', 'c', 'd', 'e'] }, caption: 'Legenda', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', hashtags: ['#Bolo', 'bolo', 'bolo caseiro!', '#marília'] }, null);
     expect(r.ok).toBe(true);
     expect(r.value.texts).toEqual({ title: 'Seu bolo está pronto?', kicker: 'Dica da casa', sub: 'x', items: ['a', 'b', 'c', 'd'] });
     expect(r.value.hashtags).toEqual(['bolo', 'bolocaseiro', 'marília']);
     expect(r.value.visualPrompt).toBeNull();
-    const long = parseCopy({ texts: { title: 't'.repeat(200) }, caption: 'c' }, 'informativo');
+    const long = parseCopy({ texts: { title: 't'.repeat(200) }, caption: 'c', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno' }, 'informativo');
     expect(long.value.texts.title).toHaveLength(LIMITS.title);
   });
 
   it('o tipo pedido vence o do modelo; atmosfera exige visual_prompt e ignora itens', () => {
-    const r = parseCopy({ kind: 'informativo', texts: { title: 'T', sub: 's', items: ['a', 'b'] }, caption: 'c', hashtags: [], visual_prompt: 'a cake on a wooden table' }, 'atmosfera');
+    const r = parseCopy({ kind: 'informativo', texts: { title: 'T', sub: 's', items: ['a', 'b'] }, caption: 'c', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', hashtags: [], visual_prompt: 'a cake on a wooden table' }, 'atmosfera');
     expect(r.ok).toBe(true);
     expect(r.value.kind).toBe('atmosfera');
     expect(r.value.texts).toEqual({ title: 'T' });
