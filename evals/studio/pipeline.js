@@ -98,7 +98,7 @@ function record(trace, piece, review, round) {
 
 const feedbackText = (issues) => issues.map((i) => `- ${i.rule}: ${i.detail}${i.fix ? ` (${i.fix})` : ''}`).join('\n');
 
-// `config` liga as variações do experimento (F0 da SPEC 028): `drafts` (rascunhos do designer), `lightModel` ('flash' usa o
+// `config` liga as variações do experimento (F0 da SPEC 030): `drafts` (rascunhos do designer), `lightModel` ('flash' usa o
 // modelo rápido em marketing, diretor, redator e revisor) e `skipDirection` (sem marketing nem diretor: o código escolhe o
 // primeiro território sorteado). `recentTitles`: títulos recentes da conta, que o diretor e o redator evitam repetir.
 export async function makePost({ company, request, ratio = '4:5', seed = 1, recent = [], recentTitles = [], only = null, config = {}, onStage = () => {} }) {

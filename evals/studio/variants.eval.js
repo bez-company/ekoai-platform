@@ -1,4 +1,4 @@
-// variants.eval.js: F0 da SPEC 028. Mede o que cada parte da cadeia agrega, regenerando os posts com uma parte a menos
+// variants.eval.js: F0 da SPEC 030. Mede o que cada parte da cadeia agrega, regenerando os posts com uma parte a menos
 // ou trocada, e a memória de variação da conta. Só roda com EVAL_LIVE=1 (gasta chamada paga).
 //
 //   v1  1 rascunho do designer (sem o melhor de 2), o resto igual à rodada completa

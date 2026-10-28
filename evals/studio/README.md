@@ -89,7 +89,7 @@ O repositório é público e as marcas reais não entram nele. O que é de marca
 Pontos fracos conhecidos: variação (títulos e territórios repetem entre tentativas), setas e anotações cruzando
 texto, texto sobre foto com contraste baixo. Cards: BEZ-404, BEZ-405 e BEZ-406.
 
-## F0 da SPEC 028 (28/10/2026, `baselines/f0-ablate-1.json`)
+## F0 da SPEC 030 (28/10/2026, `baselines/f0-ablate-1.json`)
 
 Ablação em 6 pedidos (2 por marca), juiz de design; n pequeno, ruído de cerca de 0,5. `run-1` = 2 rascunhos, tudo Pro.
 
