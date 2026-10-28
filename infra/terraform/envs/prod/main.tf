@@ -74,8 +74,12 @@ module "ekoai" {
   protect_data     = true
   # Zero até o lançamento (19/01/2027): sem cold start só depois de haver tráfego real.
   platform_min_instances = 0
-  schedules_paused       = true
-  uptime_check           = true
+  # Ligadas em 28/10/2026 (BEZ-290): sem o refresh-instagram o token de 60 dias vence antes do lançamento
+  # (quem conectou em 23/10 perde a conexão por volta de 22/12) e sem o collect-metrics não há métrica.
+  # Os jobs herdados continuam pausados: a plataforma já renova o token de cada conta.
+  schedules_paused   = false
+  legacy_jobs_paused = true
+  uptime_check       = true
 
   # Lançamento-base (23/10/2026): cada empresa cria a própria conta e entra por pessoa. O limite de taxa
   # no cadastro entrou com o BEZ-29 (migration 0035), a condição que este ambiente esperava para abrir.

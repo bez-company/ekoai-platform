@@ -136,6 +136,12 @@ variable "schedules_paused" {
   default     = true
 }
 
+variable "legacy_jobs_paused" {
+  description = "Agendas dos Cloud Run Jobs herdados (refresh-tokens, token-health, weekly-report), que leem um token de LinkedIn único do ambiente e um TENANT_ID. A plataforma renova o token de cada conta pelos endpoints /api/cron, então ligá-los só gera falha no Sentry. Pausados à parte de schedules_paused."
+  type        = bool
+  default     = true
+}
+
 variable "publish_paused" {
   description = "Agenda do publish-due pausada, à parte das outras: o staging a mantém ligada para os posts agendados saírem no horário."
   type        = bool
