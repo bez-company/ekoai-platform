@@ -25,6 +25,7 @@ const EXPECTED = {
   archive: ['content.approve'],
   scheduled: ['content.approve'],
   'ideas/approve': ['content.approve'],
+  'ideas/approve-all': ['content.approve'],
   'ideas/reject': ['content.approve'],
   'ideas/rework': ['content.edit'],
   'engage/copied': ['content.edit'],

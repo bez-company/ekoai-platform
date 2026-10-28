@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTextDraft } from '@/components/posts/approve-draft';
 import { useRouter } from 'next/navigation';
 import { fmtDateTime, isoToLocalInput, localInputToIso } from '@/lib/format';
 import { splitThread } from '@/lib/thread';
@@ -39,6 +40,7 @@ export default function ApproveForm({
   const [noImage, setNoImage] = useState<boolean>(wantsTextOnly(defaultCaption));
   const [captionText, setCaptionText] = useState<string>(suggested[defaultCaption] ?? '');
   const [edited, setEdited] = useState(false);
+  useTextDraft(pending.pending_id, edited ? captionText : null);
   const [mode, setMode] = useState<'slot' | 'manual'>(nextSlot ? 'slot' : 'manual');
   const [manual, setManual] = useState<string>(nextSlot ? isoToLocalInput(nextSlot) : '');
   const [busy, setBusy] = useState(false);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupIdeas, roleOf, motherOf, parseApproveIdea, parseRework, reviewHref, hasPostScreen } from '../platform/src/lib/ideas-model.ts';
+import { groupIdeas, roleOf, motherOf, parseApproveIdea, parseRework, reviewHref, hasPostScreen, parseApproveAll, networkFormatLabel } from '../platform/src/lib/ideas-model.ts';
 
 const BRIEF = 'b-1';
 const plan = {
@@ -98,5 +98,43 @@ describe('reviewHref: para onde a lista Aprovar leva o cartão', () => {
     expect(reviewHref(idea)).toBe('/aprovar/ideia/b-1');
     const [alone] = groupIdeas([pending('instagram', { seed: {} })]);
     expect(reviewHref(alone)).toBe('/aprovar/instagram-x');
+  });
+});
+
+describe('aprovar as redes de uma vez (SPEC 028, BEZ-436)', () => {
+  const ok = (items) => parseApproveAll({ briefId: 'b-1', items });
+
+  it('aceita o que a tela manda e descarta o que não é do contrato', () => {
+    const r = ok([{ pendingId: 'p1', enabled: true, captionText: '  Texto  ', designVersion: 3, artId: 9 }, { pendingId: 'p2', enabled: false }]);
+    expect(r.ok).toBe(true);
+    expect(r.value.items).toEqual([
+      { pendingId: 'p1', enabled: true, captionText: '  Texto  ', designVersion: 3 },
+      { pendingId: 'p2', enabled: false, captionText: undefined, designVersion: undefined },
+    ]);
+  });
+
+  it('recusa ideia sem id, sem redes, rede repetida e tudo desligado', () => {
+    expect(parseApproveAll({ items: [{ pendingId: 'p1' }] }).ok).toBe(false);
+    expect(parseApproveAll({ briefId: 'b-1', items: [] }).ok).toBe(false);
+    expect(parseApproveAll(null).ok).toBe(false);
+    expect(ok([{ pendingId: 'p1' }, { pendingId: 'p1' }]).ok).toBe(false);
+    expect(ok([{ pendingId: '' }]).ok).toBe(false);
+    const off = ok([{ pendingId: 'p1', enabled: false }, { pendingId: 'p2', enabled: false }]);
+    expect(off.ok).toBe(false);
+    expect(off.error).toContain('Ligue pelo menos uma rede');
+  });
+
+  it('ignora versão de design inválida e texto vazio', () => {
+    const r = ok([{ pendingId: 'p1', captionText: '   ', designVersion: -2 }]);
+    expect(r.value.items[0]).toMatchObject({ captionText: undefined, designVersion: undefined });
+    expect(ok([{ pendingId: 'p1', designVersion: 1.5 }]).value.items[0].designVersion).toBeUndefined();
+  });
+
+  it('o rótulo de formato diz o que cada rede publica', () => {
+    expect(networkFormatLabel('instagram', { slideUrls: ['a', 'b', 'c'] }, 100)).toBe('Carrossel de 3 lâminas');
+    expect(networkFormatLabel('instagram', undefined, 100)).toBe('Imagem única');
+    expect(networkFormatLabel('linkedin', { slideUrls: ['a', 'b'], documentUrl: 'x.pdf' }, 100)).toBe('Texto com PDF de 2 páginas');
+    expect(networkFormatLabel('linkedin', {}, 100)).toBe('Só texto');
+    expect(networkFormatLabel('twitter', {}, 187)).toBe('Post de 187 caracteres');
   });
 });
