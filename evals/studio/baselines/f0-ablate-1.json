@@ -1,0 +1,138 @@
+{
+  "reference": {
+    "design": 8.574074074074074,
+    "n": 6
+  },
+  "variants": {
+    "v1": {
+      "n": 6,
+      "design": 8.074074074074074,
+      "critic": 7.800000000000001,
+      "postaria": 6,
+      "layoutIssues": 8,
+      "gateOk": 6,
+      "costUsd": 0.47900933333333334,
+      "seconds": 2083.958
+    },
+    "v2": {
+      "n": 6,
+      "design": 7.203703703703705,
+      "critic": 6.616666666666667,
+      "postaria": 4,
+      "layoutIssues": 4,
+      "gateOk": 4,
+      "costUsd": 0.48867774999999997,
+      "seconds": 1435.7106666666666
+    },
+    "v3": {
+      "n": 6,
+      "design": 7.703703703703703,
+      "critic": 7.583333333333333,
+      "postaria": 5,
+      "layoutIssues": 4,
+      "gateOk": 5,
+      "costUsd": 0.3847416666666667,
+      "seconds": 828.6266666666667
+    }
+  },
+  "perRequest": {
+    "fe/amigo": {
+      "run1": 9.11111111111111,
+      "v1": 8.555555555555555,
+      "v2": 8.333333333333334,
+      "v3": 8.222222222222221
+    },
+    "fe/dia": {
+      "run1": 8.666666666666666,
+      "v1": 8.11111111111111,
+      "v2": 6.333333333333333,
+      "v3": 7.333333333333333
+    },
+    "bez/execucao": {
+      "run1": 8.333333333333334,
+      "v1": 8.11111111111111,
+      "v2": 5.333333333333333,
+      "v3": 6.333333333333333
+    },
+    "bez/planilha": {
+      "run1": 8.88888888888889,
+      "v1": 8.444444444444445,
+      "v2": 8.222222222222221,
+      "v3": 8.333333333333334
+    },
+    "ekoai/cansaco": {
+      "run1": 8.222222222222221,
+      "v1": 7.444444444444445,
+      "v2": 6.888888888888889,
+      "v3": 8.222222222222221
+    },
+    "ekoai/voz": {
+      "run1": 8.222222222222221,
+      "v1": 7.777777777777778,
+      "v2": 8.11111111111111,
+      "v3": 7.777777777777778
+    }
+  },
+  "memory": [
+    {
+      "brand": "ekoai",
+      "territories": [
+        "mockup-anotado",
+        "cartaz-retro",
+        "surreal-fotografico"
+      ],
+      "unique": 3,
+      "headlines": [
+        "A gente escreve, mas a voz é sua.",
+        "Sua empresa não fala venha conferir.",
+        "Sua empresa não precisa falar como um robô."
+      ],
+      "verdict": {
+        "variedade": 10,
+        "repetidas": [],
+        "reconhecivel": 9,
+        "comentario": "As três peças entregam abordagens visuais e textuais completamente distintas para o mesmo briefing, oferecendo uma excelente variedade de caminhos criativos. A identidade da marca se mantém forte e reconhecível em todas elas através do uso consistente da paleta de cores, tipografia e tom de voz direto."
+      }
+    },
+    {
+      "brand": "fe",
+      "territories": [
+        "mockup-anotado",
+        "cartaz-retro",
+        "surreal-fotografico"
+      ],
+      "unique": 3,
+      "headlines": [
+        "O investimento que muda o futuro de Marília.",
+        "Um negócio forte levanta a comunidade.",
+        "O resultado da empresa transforma o contraturno."
+      ],
+      "verdict": {
+        "variedade": 10,
+        "repetidas": [],
+        "reconhecivel": 10,
+        "comentario": "As três peças apresentam conceitos visuais e abordagens completamente distintas, oferecendo excelente variedade para a escolha do cliente. A identidade da marca foi mantida de forma consistente através do uso correto das cores, tipografia e tom de voz em todas as opções."
+      }
+    },
+    {
+      "brand": "bez",
+      "territories": [
+        "cartaz-retro",
+        "antes-depois",
+        "surreal-fotografico"
+      ],
+      "unique": 3,
+      "headlines": [
+        "Construir o time ou construir o software.",
+        "Sua ideia complexa. Nosso código preciso.",
+        "A engenharia exata do seu novo software."
+      ],
+      "verdict": {
+        "variedade": 10,
+        "repetidas": [],
+        "reconhecivel": 10,
+        "comentario": "As três peças entregam conceitos visuais completamente distintos, explorando desde o estilo grid/planta baixa até o minimalismo em tela dividida e o uso de fotografia metafórica. Mesmo com essa alta variedade de layouts, a consistência na paleta de cores, na tipografia robusta e no tom de voz direto mantém a marca perfeitamente reconhecível em todas as opções."
+      }
+    }
+  ]
+}
