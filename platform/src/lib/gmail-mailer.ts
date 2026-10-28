@@ -9,9 +9,9 @@
 
 import { randomBytes } from 'node:crypto';
 import { GoogleAuth } from 'google-auth-library';
-import { accountDeletedMail, invitationMail, type Rendered } from './mail-templates';
+import { accountDeletedMail, invitationMail, passwordResetMail, verificationMail, type Rendered } from './mail-templates';
 import { base64url, buildMime, isEmailAddress, parseSender, type Sender } from './mail-message';
-import type { AccountDeletedMail, InviteMail, Mailer } from './mailer';
+import type { AccountDeletedMail, InviteMail, Mailer, PasswordResetMail, VerificationMail } from './mailer';
 
 const SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -125,6 +125,14 @@ export class GmailMailer implements Mailer {
 
   sendAccountDeleted(mail: AccountDeletedMail): Promise<void> {
     return this.send(mail.to, accountDeletedMail(mail));
+  }
+
+  sendVerification(mail: VerificationMail): Promise<void> {
+    return this.send(mail.to, verificationMail(mail));
+  }
+
+  sendPasswordReset(mail: PasswordResetMail): Promise<void> {
+    return this.send(mail.to, passwordResetMail(mail));
   }
 }
 

@@ -52,12 +52,15 @@ export type InviteProps = { token: string; email: string; accountName: string; i
 export default function IdentityEntry({ config, signupOpen, mfaRequired, invite }: { config: FirebaseWebConfig; signupOpen: boolean; mfaRequired: boolean; invite?: InviteProps }) {
   const auth = useMemo(() => firebaseAuth(config), [config]);
   const router = useRouter();
-  const next = safeNext(useSearchParams().get('next'));
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  // Vindo da página "E-mail confirmado" (/acao): a pessoa já confirmou, falta entrar.
+  const verified = params.get('verified') === '1';
 
-  const [view, setView] = useState<View>(invite ? 'invite' : 'login');
+  const [view, setView] = useState<View>(verified ? 'login' : invite ? 'invite' : 'login');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(verified ? 'E-mail confirmado. Entre para continuar.' : '');
   const [email, setEmail] = useState('');
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [qr, setQr] = useState('');
@@ -99,14 +102,29 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
     go('login', extra);
   }
 
+  // E-mail enviado pela Ekoai (Gmail, ADR 0027). `fallback`: ambiente sem provedor de e-mail (desenvolvimento, E2E), onde o
+  // navegador pede ao Firebase o e-mail dele.
+  async function viaEkoai(url: string, body: unknown): Promise<'sent' | 'fallback'> {
+    const res = await fetch(url, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body) });
+    const json = (await res.json().catch(() => ({}))) as { fallback?: boolean };
+    if (res.status === 429) throw Object.assign(new Error('limite de e-mails'), { code: 'app/rate-limited' });
+    if (!res.ok) throw Object.assign(new Error('e-mail não enviado'), { code: 'app/mail-failed' });
+    return json.fallback ? 'fallback' : 'sent';
+  }
+
   async function sendVerification(user: User) {
-    const url = `${window.location.origin}/entrar`;
-    try {
-      await sendEmailVerification(user, { url });
-    } catch (e) {
-      // Endereço ainda fora dos domínios autorizados: manda o link padrão, sem o "continuar".
-      if (!['auth/unauthorized-continue-uri', 'auth/invalid-continue-uri'].includes(errorCode(e))) throw e;
-      await sendEmailVerification(user);
+    // O link do e-mail leva à página /acao e, depois de confirmar, de volta ao convite (ou à entrada).
+    const target = invite ? `/convite/${invite.token}` : '/entrar';
+    const sent = await viaEkoai('/api/auth/verification', { idToken: await user.getIdToken(), next: target });
+    if (sent === 'fallback') {
+      const url = `${window.location.origin}/entrar`;
+      try {
+        await sendEmailVerification(user, { url });
+      } catch (e) {
+        // Endereço ainda fora dos domínios autorizados: manda o link padrão, sem o "continuar".
+        if (!['auth/unauthorized-continue-uri', 'auth/invalid-continue-uri'].includes(errorCode(e))) throw e;
+        await sendEmailVerification(user);
+      }
     }
     setCooldownUntil(Date.now() + 60_000);
   }
@@ -245,18 +263,20 @@ export default function IdentityEntry({ config, signupOpen, mfaRequired, invite 
 
   const onForgot = (mail: string) =>
     run(async () => {
-      const url = `${window.location.origin}/entrar`;
-      try {
-        await sendPasswordResetEmail(auth, mail, { url });
-      } catch (e) {
-        const code = errorCode(e);
-        // E-mail sem acesso responde igual ao que tem: a tela não revela quem existe.
-        if (code === 'auth/user-not-found') {
-          /* segue */
-        } else if (code === 'auth/unauthorized-continue-uri' || code === 'auth/invalid-continue-uri') {
-          await sendPasswordResetEmail(auth, mail);
-        } else {
-          throw e;
+      if ((await viaEkoai('/api/auth/password-reset', { email: mail })) === 'fallback') {
+        const url = `${window.location.origin}/entrar`;
+        try {
+          await sendPasswordResetEmail(auth, mail, { url });
+        } catch (e) {
+          const code = errorCode(e);
+          // E-mail sem acesso responde igual ao que tem: a tela não revela quem existe.
+          if (code === 'auth/user-not-found') {
+            /* segue */
+          } else if (code === 'auth/unauthorized-continue-uri' || code === 'auth/invalid-continue-uri') {
+            await sendPasswordResetEmail(auth, mail);
+          } else {
+            throw e;
+          }
         }
       }
       setEmail(mail);
