@@ -36,10 +36,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
         <EchoArcs />
       </aside>
-      <main className="flex flex-col items-center justify-center px-4 py-12">
+      <main className="flex flex-col items-center justify-center px-4 py-8">
         <Logo className="mb-6 text-2xl md:hidden" />
         {children}
-        <nav aria-label="Textos legais" className="mt-8 flex gap-4 text-xs text-muted">
+        <nav aria-label="Textos legais" className="mt-6 flex gap-4 text-xs text-muted">
           <a href="/termos" className="hover:underline">
             Termos de uso
           </a>

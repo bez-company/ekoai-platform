@@ -30,6 +30,13 @@ type FieldProps = {
   error?: string;
   disabled?: boolean;
   readOnly?: boolean;
+  // Valor fixo (o e-mail do convite): mesmo visual de campo travado, com cadeado, e o leitor de tela avisa que não muda.
+  locked?: boolean;
+  // Confirmação em verde sob o campo (as senhas conferem).
+  success?: ReactNode;
+  mask?: (value: string) => string;
+  inputMode?: 'text' | 'tel' | 'email' | 'numeric';
+  onBlur?: () => void;
   below?: ReactNode;
 };
 
@@ -44,7 +51,16 @@ function EyeIcon({ off }: { off: boolean }) {
   );
 }
 
-export function Field({ label, value, onChange, type = 'text', autoComplete, autoFocus, placeholder, help, error, disabled, readOnly, below }: FieldProps) {
+function LockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+export function Field({ label, value, onChange, type = 'text', autoComplete, autoFocus, placeholder, help, error, success, disabled, readOnly, locked, mask, inputMode, onBlur, below }: FieldProps) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -55,15 +71,19 @@ export function Field({ label, value, onChange, type = 'text', autoComplete, aut
       id={id}
       type={isPassword && shown ? 'text' : type}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(mask ? mask(e.target.value) : e.target.value)}
+      onBlur={onBlur}
+      inputMode={inputMode}
       autoComplete={autoComplete}
       autoFocus={autoFocus}
       placeholder={placeholder}
       disabled={disabled}
-      readOnly={readOnly}
+      readOnly={readOnly || locked}
+      aria-readonly={locked || undefined}
+      tabIndex={locked ? -1 : undefined}
       aria-invalid={error ? true : undefined}
       aria-describedby={[help ? helpId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined}
-      className={isPassword ? 'input pr-11' : 'input'}
+      className={isPassword ? 'input pr-11' : locked ? 'input cursor-not-allowed bg-line/40 pr-10 text-muted' : 'input'}
     />
   );
   return (
@@ -85,6 +105,13 @@ export function Field({ label, value, onChange, type = 'text', autoComplete, aut
             <EyeIcon off={shown} />
           </button>
         </div>
+      ) : locked ? (
+        <div className="relative">
+          {input}
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted">
+            <LockIcon />
+          </span>
+        </div>
       ) : (
         input
       )}
@@ -95,6 +122,12 @@ export function Field({ label, value, onChange, type = 'text', autoComplete, aut
         </p>
       )}
       {error && <ErrorLine id={errorId}>{error}</ErrorLine>}
+      {!error && success && (
+        <p role="status" className="flex items-center gap-1.5 text-sm text-success">
+          <span aria-hidden="true">✓</span>
+          {success}
+        </p>
+      )}
     </div>
   );
 }
@@ -151,12 +184,12 @@ export function OtpInput({ value, onChange, onComplete, invalid, disabled }: { v
   );
 }
 
-export function ViewShell({ title, lead, children, foot }: { title: string; lead?: ReactNode; children: ReactNode; foot?: ReactNode }) {
+export function ViewShell({ title, lead, children, foot, wide }: { title: string; lead?: ReactNode; children: ReactNode; foot?: ReactNode; wide?: boolean }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   return (
-    <div className="w-full max-w-md">
-      <div className="card space-y-5 p-8">
+    <div className={wide ? 'w-full max-w-xl' : 'w-full max-w-md'}>
+      <div className={wide ? 'card space-y-4 p-6 sm:p-7' : 'card space-y-5 p-8'}>
         <div>
           <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none focus-visible:outline-none">
             {title}

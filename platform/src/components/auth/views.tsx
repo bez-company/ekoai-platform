@@ -5,15 +5,15 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { PASSWORD_MIN, ROLE_COPY, countdown, daysLeft, groupSecret, isEmail, passwordOk, passwordRules } from '@/lib/auth-flow';
-import { PHONE_ERROR, normalizePhone } from '@/lib/person-profile-model';
+import { PHONE_ERROR, maskPhone, normalizePhone } from '@/lib/person-profile-model';
 import type { Role } from '@/lib/permissions';
 import { ErrorLine, Field, OtpInput, Spinner, ViewShell } from './ui';
 
 type Common = { busy: boolean; error: string };
 
-function Submit({ busy, children, busyLabel }: { busy: boolean; children: ReactNode; busyLabel: string }) {
+function Submit({ busy, children, busyLabel, disabled }: { busy: boolean; children: ReactNode; busyLabel: string; disabled?: boolean }) {
   return (
-    <button type="submit" disabled={busy} aria-busy={busy || undefined} className="btn-primary w-full">
+    <button type="submit" disabled={busy || disabled} aria-busy={busy || undefined} className="btn-primary w-full">
       {busy ? (
         <>
           <Spinner />
@@ -89,24 +89,26 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
-  const [tried, setTried] = useState(false);
+  const [phoneSeen, setPhoneSeen] = useState(false);
   const rules = passwordRules(password, email);
+  const matches = confirm !== '' && confirm === password;
   const problems = {
     name: !name.trim() ? 'Digite seu nome.' : '',
     email: !isEmail(email) ? 'Digite um e-mail completo, como ana@empresa.com.br.' : '',
     phone: normalizePhone(phone) ? '' : PHONE_ERROR,
     password: !passwordOk(password, email) ? `A senha precisa de pelo menos ${PASSWORD_MIN} caracteres, com letra e número.` : '',
     confirm: confirm !== password ? 'As senhas não são iguais.' : '',
-    terms: accepted ? '' : 'Aceite os Termos de uso e a Política de privacidade para criar o acesso.',
   };
+  // O botão só liga com tudo preenchido, as senhas iguais e os termos aceitos; os erros aparecem enquanto a pessoa digita.
+  const ready = !Object.values(problems).some(Boolean) && confirm !== '' && accepted;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    setTried(true);
-    if (Object.values(problems).some(Boolean)) return;
+    if (!ready) return;
     onSubmit(name.trim(), email.trim(), normalizePhone(phone) as string, password);
   };
   return (
     <ViewShell
+      wide
       title="Criar acesso"
       lead={lockedEmail ? 'Confirme seus dados e crie a senha para entrar na conta do convite.' : 'Depois você cria a conta da empresa e convida a equipe.'}
       foot={
@@ -115,9 +117,24 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
         </>
       }
     >
-      <form onSubmit={submit} className="space-y-4" noValidate>
+      <form onSubmit={submit} className="space-y-3.5" noValidate>
         {error && <ErrorLine>{error}</ErrorLine>}
-        <Field label="Nome" value={name} onChange={setName} autoComplete="name" autoFocus placeholder="Seu nome" disabled={busy} error={tried ? problems.name : ''} />
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <Field label="Nome" value={name} onChange={setName} autoComplete="name" autoFocus placeholder="Seu nome" disabled={busy} />
+          <Field
+            label="Celular"
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            onChange={setPhone}
+            mask={maskPhone}
+            onBlur={() => setPhoneSeen(true)}
+            autoComplete="tel-national"
+            placeholder="(11) 91234-5678"
+            disabled={busy}
+            error={phoneSeen && phone ? problems.phone : ''}
+          />
+        </div>
         <Field
           label="E-mail"
           type="email"
@@ -126,50 +143,56 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
           autoComplete="username"
           placeholder="voce@empresa.com.br"
           disabled={busy}
-          readOnly={!!lockedEmail}
-          help={lockedEmail ? 'O convite é para este e-mail.' : undefined}
-          error={tried ? problems.email : ''}
+          locked={!!lockedEmail}
+          help={lockedEmail ? 'O convite é para este e-mail e não pode ser trocado.' : undefined}
+          error={!lockedEmail && email ? problems.email : ''}
         />
-        <Field label="Celular" type="tel" value={phone} onChange={setPhone} autoComplete="tel-national" placeholder="(11) 91234-5678" help="Só para contato da equipe da Ekoai." disabled={busy} error={tried ? problems.phone : ''} />
-        <Field
-          label="Senha"
-          type="password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-          disabled={busy}
-          error={tried ? problems.password : ''}
-          below={
-            <ul className="grid gap-1 text-sm" aria-label="Regras da senha">
-              {rules.map((r) => (
-                <li key={r.label} className={r.ok ? 'text-success' : 'text-muted'}>
-                  <span aria-hidden="true">{r.ok ? '✓ ' : '• '}</span>
-                  {r.label}
-                  <span className="sr-only">{r.ok ? ' (ok)' : ' (falta)'}</span>
-                </li>
-              ))}
-            </ul>
-          }
-        />
-        <Field label="Confirme a senha" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={busy} error={tried ? problems.confirm : ''} />
-        <div>
-          <label className="flex items-start gap-2.5 text-sm">
-            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={busy} aria-invalid={tried && !!problems.terms} className="mt-0.5 h-4 w-4 shrink-0 accent-accent" />
-            <span>
-              Li e aceito os{' '}
-              <a href="/termos" target="_blank" rel="noopener noreferrer" className="link">
-                Termos de uso
-              </a>{' '}
-              e a{' '}
-              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="link">
-                Política de privacidade
-              </a>
-              .
-            </span>
-          </label>
-          {tried && problems.terms && <ErrorLine>{problems.terms}</ErrorLine>}
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <Field
+            label="Senha"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+            disabled={busy}
+            below={
+              <ul className="grid gap-0.5 text-xs" aria-label="Regras da senha">
+                {rules.map((r) => (
+                  <li key={r.label} className={r.ok ? 'text-success' : 'text-muted'}>
+                    <span aria-hidden="true">{r.ok ? '✓ ' : '• '}</span>
+                    {r.label}
+                    <span className="sr-only">{r.ok ? ' (ok)' : ' (falta)'}</span>
+                  </li>
+                ))}
+              </ul>
+            }
+          />
+          <Field
+            label="Confirme a senha"
+            type="password"
+            value={confirm}
+            onChange={setConfirm}
+            autoComplete="new-password"
+            disabled={busy}
+            error={confirm && !matches ? problems.confirm : ''}
+            success={matches ? 'As senhas conferem.' : undefined}
+          />
         </div>
-        <Submit busy={busy} busyLabel="Criando">
+        <label className="flex items-start gap-2.5 text-sm">
+          <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={busy} className="mt-0.5 h-4 w-4 shrink-0 accent-accent" />
+          <span>
+            Li e aceito os{' '}
+            <a href="/termos" target="_blank" rel="noopener noreferrer" className="link">
+              Termos de uso
+            </a>{' '}
+            e a{' '}
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="link">
+              Política de privacidade
+            </a>
+            .
+          </span>
+        </label>
+        <Submit busy={busy} busyLabel="Criando" disabled={!ready}>
           Criar acesso
         </Submit>
       </form>

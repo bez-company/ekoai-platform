@@ -24,7 +24,7 @@ vi.mock('@/lib/accounts', () => ({
 }));
 
 const { PUT } = await import('../platform/src/app/api/me/route.ts');
-const { NAME_MAX, PHONE_ERROR, formatPhone, mfaView, normalizePhone, parseOptionalPhone, parsePersonName } = await import('@/lib/person-profile-model');
+const { NAME_MAX, PHONE_ERROR, formatPhone, maskPhone, mfaView, normalizePhone, parseOptionalPhone, parsePersonName } = await import('@/lib/person-profile-model');
 const { ForbiddenError, UnauthorizedError } = await import('@/lib/session');
 const legal = await import('@/lib/legal');
 
@@ -186,5 +186,22 @@ describe('versão dos termos', () => {
     expect(legal.parseTermsAccepted(legal.TERMS_VERSION)).toEqual({ ok: true, value: legal.TERMS_VERSION });
     expect(legal.parseTermsAccepted('x').ok).toBe(false);
     expect(legal.parseTermsAccepted(123).ok).toBe(false);
+  });
+});
+
+describe('máscara do celular na digitação', () => {
+  it('formata aos poucos e corta em 11 dígitos', () => {
+    expect(maskPhone('')).toBe('');
+    expect(maskPhone('1')).toBe('(1');
+    expect(maskPhone('119')).toBe('(11) 9');
+    expect(maskPhone('1191234')).toBe('(11) 91234');
+    expect(maskPhone('11912345')).toBe('(11) 91234-5');
+    expect(maskPhone('11912345678999')).toBe('(11) 91234-5678');
+  });
+
+  it('tira o +55 e o que não é número, e o resultado ainda normaliza', () => {
+    expect(maskPhone('+55 11 91234-5678')).toBe('(11) 91234-5678');
+    expect(maskPhone('(11) 91234-5678')).toBe('(11) 91234-5678');
+    expect(normalizePhone(maskPhone('14998721100'))).toBe('+5514998721100');
   });
 });

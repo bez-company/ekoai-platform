@@ -24,6 +24,16 @@ export function normalizePhone(raw: string): string | null {
   return /^[1-9][1-9]9\d{8}$/.test(national) ? `+55${national}` : null;
 }
 
+// Máscara de digitação: "11912345678" vira "(11) 91234-5678" enquanto a pessoa escreve. Tira o +55 do começo e corta em 11 dígitos.
+export function maskPhone(raw: string): string {
+  let d = raw.replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  d = d.slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 export const PHONE_ERROR = 'Digite o celular com DDD, como (11) 91234-5678.';
 
 // "+5511912345678" para "(11) 91234-5678".
