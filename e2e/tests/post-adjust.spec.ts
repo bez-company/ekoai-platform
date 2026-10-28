@@ -36,12 +36,11 @@ async function openStudio(page: Page, post: Post) {
   await expect(canvas(page)).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Propriedades' })).toBeVisible();
 }
+// O nome é exato: "Título" não pode pegar "Subtítulo".
 const pick = (page: Page, name: string) =>
   page
     .getByRole('option')
-    .filter({ hasText: name })
-    .getByRole('button')
-    .first()
+    .getByRole('button', { name, exact: true })
     .or(page.getByRole('group', { name: 'Elementos' }).getByRole('button', { name, exact: true }))
     .first()
     .click();
@@ -97,7 +96,7 @@ test.describe.serial('Studio, versões e regra de marca', () => {
     // desenhar as camadas é trabalho do servidor: o modelo não foi chamado nem uma vez
     expect((await fakeCalls(/aiplatform/)).length).toBe(modelBefore);
 
-    await page.getByRole('link', { name: 'Voltar ao post', exact: true }).click();
+    await page.getByRole('link', { name: /Voltar ao post/ }).click();
     await expect(page.getByText(/Versão 2 em uso/)).toBeVisible();
   });
 
