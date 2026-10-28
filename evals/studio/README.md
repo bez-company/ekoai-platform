@@ -89,6 +89,31 @@ O repositório é público e as marcas reais não entram nele. O que é de marca
 Pontos fracos conhecidos: variação (títulos e territórios repetem entre tentativas), setas e anotações cruzando
 texto, texto sobre foto com contraste baixo. Cards: BEZ-404, BEZ-405 e BEZ-406.
 
+## F0 da SPEC 028 (28/10/2026, `baselines/f0-ablate-1.json`)
+
+Ablação em 6 pedidos (2 por marca), juiz de design; n pequeno, ruído de cerca de 0,5. `run-1` = 2 rascunhos, tudo Pro.
+
+| Variante | Design | Postaria | Custo | Leitura |
+|---|---|---|---|---|
+| run-1 (2 rascunhos) | 8,57 | n/d | US$ 0,56 | referência |
+| v1: 1 rascunho | 8,07 | 6 de 6 | US$ 0,48 | perde cerca de 0,5; o melhor de 2 parece valer |
+| v2: v1 com Flash em marketing, diretor, redator e revisor | 7,20 | 4 de 6 | US$ 0,49 | perde 0,9: Flash nessas etapas não compensa |
+| v3: v1 sem marketing nem diretor | 7,70 | 5 de 6 | US$ 0,38 | perde 0,4 e economiza US$ 0,10 e metade do tempo |
+
+Outros resultados:
+- Reavaliação das versões intermediárias (12 posts da `run-1`, `ablate-rejudge.js`): primeiro rascunho 7,63, melhor de 2 7,66,
+  final 8,36. O ganho está no embelezador e no conserto, que resgataram 2 rascunhos quebrados (4,4 para 8,3 e 4,7 para 8,1).
+- **Memória de variação** (títulos e territórios recentes da conta no diretor e no redator, 3 tentativas por marca):
+  variedade 10 de 10 nas três marcas (era 6 de 10), marca ainda reconhecível (9 a 10), nenhum título repetido. BEZ-404.
+- **Medições novas no render** (`text_overlap`, `arrow_over_text`, `contrast_low`): pegam os defeitos reais (seta cortando
+  o "T" de "Total", `@` quase invisível no preto), mas depois do conserto ainda sobram `off_canvas` (5), `arrow_over_text` (5),
+  `safe_margin` (4) e `text_overlap` (2) em 18 peças. Parte do `off_canvas` é título que sangra de propósito. BEZ-405 segue
+  aberto: falta separar sangria intencional e dar mais de uma volta de conserto.
+- Tempo de relógio (14 a 35 min por post) está contaminado pela carga da máquina; não serve para a meta de latência.
+
+Decisões para a F1: manter marketing, diretor e redator em Pro; manter 2 rascunhos até haver mais amostra; incluir a memória
+de variação; v3 (sem marketing e diretor) fica como opção de um "autoral rápido".
+
 ## Limites
 
 - O juiz é um modelo e erra; o estúdio e o juiz são da mesma família de modelo, o que pode inflar a nota do
