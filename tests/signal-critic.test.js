@@ -106,3 +106,24 @@ describe('conserto de uma volta', () => {
     for (const bad of [null, {}, { text: '  ' }, { text: 4 }]) expect(parseFix(bad, 900).ok).toBe(false);
   });
 });
+
+describe('texto que já está na imagem (o eval pegou o conserto repetindo a imagem na legenda)', () => {
+  const imageTexts = ['A massa desgruda da borda', 'O palito sai limpo'];
+
+  it('o avaliador sabe o que a imagem já diz, não pede para repeti-lo, e o trecho da imagem vale como prova', () => {
+    const p = buildCriticPrompt('instagram', { ...IG, imageTexts }, ctx);
+    expect(p).toContain('Todo o texto que já está desenhado na imagem: A massa desgruda da borda | O palito sai limpo');
+    expect(p).toContain('nenhuma sugestão pode pedir para repeti-lo na legenda');
+    expect(buildCriticPrompt('instagram', IG, ctx)).not.toContain('desenhado na imagem');
+    expect(evidenceIsInPost('O palito sai limpo', { ...IG, imageTexts })).toBe(true);
+    expect(evidenceIsInPost('O palito sai limpo', IG)).toBe(false);
+  });
+
+  it('o conserto recebe o texto da imagem com a ordem de não repetir', () => {
+    const base = { channel: 'instagram', text: IG.text, instructions: ['Acrescente o fato.'], facts: ctx.facts, never: [], banned: [], limit: 900 };
+    expect(buildFixPrompt(base)).not.toContain('NÃO repita na legenda');
+    const p = buildFixPrompt({ ...base, imageTexts });
+    expect(p).toContain('O que já está desenhado na imagem (NÃO repita na legenda)');
+    expect(p).toContain('- A massa desgruda da borda');
+  });
+});

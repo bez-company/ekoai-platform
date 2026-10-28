@@ -88,6 +88,8 @@ describe('sinal do post (SPEC 028, BEZ-415)', () => {
     const salvar = buildCopyPrompt({ ...input, signal: 'salvar' });
     expect(salvar).toContain('Para este objetivo, use "salvar"');
     expect(salvar).toContain('Chamada de salvar');
+    // a frase de salvar ou enviar nunca toma o lugar da chamada padrão da conta (o eval pegou o modelo trocando uma pela outra)
+    expect(salvar).toContain('ANTES da chamada padrão da conta e nunca a substitui');
     const enviar = buildCopyPrompt({ ...input, signal: 'enviar' });
     expect(enviar).toContain('Chamada de enviar');
     for (const signal of ['responder', 'assistir']) {
@@ -100,6 +102,7 @@ describe('sinal do post (SPEC 028, BEZ-415)', () => {
     expect(auto).toContain('Escolha o que combina com o post');
     expect(auto).toContain('Só peça para salvar ou enviar quando o post serve a isso');
     expect(auto).not.toContain('Chamada de salvar');
+    expect(auto).toContain('ANTES da chamada padrão da conta, que nunca sai do fim da legenda');
   });
 
   it('o parser guarda o sinal e a razão, e o objetivo manda no sinal', () => {

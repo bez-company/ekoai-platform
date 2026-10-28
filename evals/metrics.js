@@ -21,6 +21,21 @@ export function codeChecks({ copy, imageTexts, textIssues, layoutIssues }) {
   ];
 }
 
+// Checagens por código do texto de LinkedIn (SPEC 028), sem modelo. Mesma forma de `codeChecks`: { id, pass, reason }.
+export function linkedinChecks({ post, issues }) {
+  const text = post.text ?? '';
+  const first = text.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? '';
+  return [
+    { id: 'cod-li-sem-travessao', pass: !DASH.test(text), reason: 'Travessão (— ou –) no texto do LinkedIn.' },
+    { id: 'cod-li-pergunta', pass: text.includes('?'), reason: 'O texto do LinkedIn não tem nenhuma pergunta.' },
+    { id: 'cod-li-abertura', pass: first.length >= 15 && first.length <= 160, reason: `A primeira linha tem ${first.length} caracteres (de 15 a 160, para caber antes do "ver mais").` },
+    { id: 'cod-li-tamanho', pass: text.length <= 1500, reason: `O texto tem ${text.length} caracteres (teto 1500).` },
+    { id: 'cod-li-hashtags', pass: (post.hashtags ?? []).length <= 3, reason: `${(post.hashtags ?? []).length} hashtags (teto 3).` },
+    { id: 'cod-li-revisor-limpo', pass: blocking(issues).length === 0, reason: `O revisor de texto ainda reprovava o texto do LinkedIn: ${blocking(issues).map((i) => i.rule).join(', ')}.` },
+    { id: 'cod-li-razao', pass: (post.shareReason ?? '').split(' ').filter(Boolean).length >= 4, reason: `Sem razão de resposta (share_reason): "${post.shareReason ?? ''}".` },
+  ];
+}
+
 const looseText = (s) => s.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 
 // O leitor de instruções contra o que uma pessoa esperava do pedido (`directives` do caso). Regras: chave

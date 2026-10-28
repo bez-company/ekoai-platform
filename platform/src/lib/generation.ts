@@ -281,12 +281,12 @@ async function writeLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, pr
 // O avaliador de sinais (SPEC 028, BEZ-425): uma chamada que dá nota a cada critério da rede e, se algum vier com 0 e uma
 // sugestão, UM conserto do texto e uma nova avaliação. O conserto só vale se o revisor por regra aprovar e a nota subir; senão
 // fica o texto original. Nunca derruba o post: qualquer falha devolve o texto como estava e sem avaliação.
-type PassInput = { channel: CriticChannel; text: string; hashtags: string[]; coverText?: string; shareReason: string; signal: Signal; limit: number; review: (text: string) => Issue[]; valid?: (text: string) => boolean };
+type PassInput = { channel: CriticChannel; text: string; hashtags: string[]; coverText?: string; imageTexts?: string[]; shareReason: string; signal: Signal; limit: number; review: (text: string) => Issue[]; valid?: (text: string) => boolean };
 
 async function signalPass(t: TenantDb, deps: GenerationDeps, brief: Brief, profile: CompanyProfile, facts: ReturnType<typeof factsForPrompt>, planMax: number, input: PassInput): Promise<{ text: string; critic: Critic | null }> {
   if (!deps.critic) return { text: input.text, critic: null };
   const model = deps.model.config.textModel;
-  const view = (text: string): PostView => ({ text, hashtags: input.hashtags, coverText: input.coverText, shareReason: input.shareReason, signal: input.signal });
+  const view = (text: string): PostView => ({ text, hashtags: input.hashtags, coverText: input.coverText, imageTexts: input.imageTexts, shareReason: input.shareReason, signal: input.signal });
   const call = async (step: 'critic' | 'fix', prompt: string): Promise<unknown> => {
     const hash = inputHash(step, model, { prompt, channel: input.channel });
     const reservation = await reserveRun(t, { briefId: brief.id, step, inputHash: hash, model, channel: input.channel }, planMax);
@@ -316,7 +316,7 @@ async function signalPass(t: TenantDb, deps: GenerationDeps, brief: Brief, profi
   const weak = weakCriteria(first);
   if (!weak.length) return { text: input.text, critic: first };
   try {
-    const fixed = parseFix(await call('fix', buildFixPrompt({ channel: input.channel, text: input.text, instructions: weak.map((c) => c.suggestion!), facts: facts.facts, never: facts.never, banned: profile.bannedWords, limit: input.limit })), input.limit);
+    const fixed = parseFix(await call('fix', buildFixPrompt({ channel: input.channel, text: input.text, instructions: weak.map((c) => c.suggestion!), facts: facts.facts, never: facts.never, banned: profile.bannedWords, limit: input.limit, imageTexts: input.imageTexts })), input.limit);
     if (!fixed.ok || fixed.text === input.text || blocking(input.review(fixed.text)).length || (input.valid && !input.valid(fixed.text))) return { text: input.text, critic: first };
     const second = await evaluate(fixed.text);
     return avgScore(second.criteria) > avgScore(first.criteria) ? { text: fixed.text, critic: { ...second, fixed: true } } : { text: input.text, critic: first };
@@ -499,7 +499,7 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     if (withInstagram) {
       const never = [...facts.never, ...(campaign?.restrictions ?? [])];
       const pass = await signalPass(t, deps, brief, profile, facts, planMax, {
-        channel: 'instagram', text: copy.caption, hashtags: copy.hashtags, coverText: [copy.texts.kicker, copy.texts.title, copy.texts.sub].filter(Boolean).join('. '), shareReason: copy.shareReason, signal: copy.signal, limit: 900,
+        channel: 'instagram', text: copy.caption, hashtags: copy.hashtags, coverText: [copy.texts.kicker, copy.texts.title, copy.texts.sub].filter(Boolean).join('. '), imageTexts: imageTextsOf(copy), shareReason: copy.shareReason, signal: copy.signal, limit: 900,
         review: (text) => reviewText({ imageTexts: imageTextsOf(copy), caption: text, hashtags: copy.hashtags, facts: facts.facts, never, inactive: facts.inactive, banned: [...profile.bannedWords, ...(plan?.avoid ?? [])], allowed: campaign?.offering ? [campaign.offering] : [], request: brief.idea, scope: { reach: profile.reach, region: profile.region, cta: campaign?.cta ?? profile.ctaDefault } }),
       });
       copy.caption = pass.text;

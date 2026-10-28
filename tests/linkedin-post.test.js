@@ -16,6 +16,8 @@ describe('prompt do LinkedIn (SPEC 028, BEZ-424)', () => {
     for (const piece of ['Ângulo: Três sinais de que o bolo está no ponto', 'A massa desgruda da borda; O palito sai limpo no centro; O topo volta ao toque', 'Fato que sustenta: Entregamos no mesmo dia em Marília', 'Pergunta que o público responde: Qual sinal você confere primeiro?']) expect(p).toContain(piece);
     expect(p).toContain('duas primeiras linhas');
     expect(p).toContain('UMA pergunta que um colega de profissão responde');
+    expect(p).toContain('não o cliente final');
+    expect(p).toContain('reescreva-a para o colega');
     expect(p).toContain('Palavras proibidas: imperdível');
     expect(p).toContain('garantia de resultado');
     expect(p).toContain('{"text":"...","hashtags":["..."],"share_reason":"..."}');

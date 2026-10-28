@@ -126,7 +126,7 @@ describe('relatório', () => {
     expect(s.overall).toMatchObject({ pedido: 0.75, oficio: 0.75, rounds: 1, costPerPost: 0.1 });
     expect(s.cases.x).toMatchObject({ runs: 2, pedido: 0.75, oficio: 0.75, leitor: null, req: { a: 1, b: 0.5, o1: 1, c1: 0.5 } });
     expect(s.tags.marca).toEqual({ pedido: 0.75, oficio: 0.75 });
-    expect(renderSummary(s)).toContain('| x | 75% | 75% | b 50%, c1 50% |');
+    expect(renderSummary(s)).toContain('| x | 75% | 75% | - | - | b 50%, c1 50% |');
   });
 
   it('o leitor de instruções tem nota própria e não entra no ofício', () => {

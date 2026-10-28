@@ -41,6 +41,41 @@ export function buildJudgePrompt({ idea, requirements, caption, company }) {
   ].join('\n');
 }
 
+// O juiz do texto de LinkedIn (SPEC 028): só o texto, sem imagem. Mesmo formato de resposta do juiz do Instagram, para
+// parseJudge e verdictOf servirem aos dois.
+export function buildLinkedInJudgePrompt({ idea, requirements, text, company }) {
+  const list = requirements.map((r) => `- ${r.id}: ${r.text}`).join('\n');
+  return [
+    'Você confere se um texto de LinkedIn, do perfil pessoal do dono de uma pequena empresa, está bem escrito. Responda SÓ com um objeto JSON.',
+    '',
+    '## O pedido da pessoa, palavra por palavra',
+    idea,
+    '',
+    '## A empresa (o que o post pode afirmar e como ela fala)',
+    `- ${company.name}. Voz: ${company.voice}.`,
+    `- Base de fatos (o que pode afirmar): ${company.facts.join('; ')}.`,
+    `- Nunca afirma: ${company.never.join('; ')}.`,
+    `- Palavras proibidas: ${company.profile.bannedWords.join(', ')}.`,
+    '',
+    '## O texto do LinkedIn',
+    '"""',
+    text,
+    '"""',
+    '',
+    '## Exigências (confira uma a uma)',
+    list,
+    '',
+    '## Como julgar',
+    '- Julgue só o que está escrito no texto. Ignore a intenção de quem fez.',
+    '- Seja literal e rigoroso: na dúvida, reprove. Não dê crédito por "ficou bom" nem por "quase".',
+    '- As duas primeiras linhas são as duas primeiras linhas do texto (o que aparece antes do "ver mais").',
+    '- Ao reprovar, diga em uma frase o que você viu no lugar do pedido.',
+    '',
+    '## Formato da resposta (JSON)',
+    '{"items":[{"id":"...","pass":true,"reason":"uma frase curta"}],"seen":"uma frase sobre o que as duas primeiras linhas prometem"}',
+  ].join('\n');
+}
+
 // O objeto de resposta do juiz. O modelo às vezes embrulha o objeto num array (`[{"items":[...]}]`) ou devolve
 // só a lista de itens: os dois formatos valem.
 function judgeObject(json) {
