@@ -1,0 +1,535 @@
+{
+  "meta": {
+    "stamp": "run-1",
+    "brands": [
+      "bez",
+      "ekoai",
+      "fe"
+    ],
+    "perBrand": 4,
+    "variations": 4
+  },
+  "stats": {
+    "baseline": {
+      "n": 12,
+      "failed": 0,
+      "design": 5.768518518518518,
+      "byDim": {
+        "conceito": 4.083333333333333,
+        "hierarquia": 6.916666666666667,
+        "tipografia": 6.166666666666667,
+        "composicao": 5.75,
+        "acabamento": 4.333333333333333,
+        "originalidade": 3,
+        "marca": 6.666666666666667,
+        "legibilidade": 8.75,
+        "texto": 6.25,
+        "pedido": 8.5,
+        "legenda": 6.416666666666667
+      },
+      "postaria": 8,
+      "factsOk": 12,
+      "defects": 0.75,
+      "costUsd": 0.0018284916666666663,
+      "seconds": 185.49283333333335
+    },
+    "studio": {
+      "n": 12,
+      "failed": 0,
+      "design": 8.36111111111111,
+      "byDim": {
+        "conceito": 8.5,
+        "hierarquia": 8.416666666666666,
+        "tipografia": 7.833333333333333,
+        "composicao": 7.75,
+        "acabamento": 7.583333333333333,
+        "originalidade": 8.166666666666666,
+        "marca": 8.583333333333334,
+        "legibilidade": 9.166666666666666,
+        "texto": 9.25,
+        "pedido": 9.5,
+        "legenda": 9.083333333333334
+      },
+      "postaria": 10,
+      "factsOk": 12,
+      "defects": 0.3333333333333333,
+      "costUsd": 0.5611746666666666,
+      "seconds": 2137.6445
+    }
+  },
+  "pairwise": {
+    "total": 12,
+    "wins": {
+      "baseline": 0,
+      "studio": 12,
+      "empate": 0
+    },
+    "dimWins": {
+      "conceito": {
+        "baseline": 0,
+        "studio": 12,
+        "empate": 0
+      },
+      "hierarquia": {
+        "baseline": 0,
+        "studio": 10,
+        "empate": 2
+      },
+      "tipografia": {
+        "baseline": 0,
+        "studio": 11,
+        "empate": 1
+      },
+      "composicao": {
+        "baseline": 0,
+        "studio": 12,
+        "empate": 0
+      },
+      "acabamento": {
+        "baseline": 0,
+        "studio": 12,
+        "empate": 0
+      },
+      "originalidade": {
+        "baseline": 0,
+        "studio": 12,
+        "empate": 0
+      },
+      "marca": {
+        "baseline": 2,
+        "studio": 8,
+        "empate": 2
+      },
+      "legibilidade": {
+        "baseline": 2,
+        "studio": 3,
+        "empate": 7
+      },
+      "texto": {
+        "baseline": 0,
+        "studio": 11,
+        "empate": 1
+      }
+    }
+  },
+  "studio": {
+    "territories": {
+      "mockup-anotado": 2,
+      "colagem-editorial": 1,
+      "citacao-grande": 1,
+      "cartaz-tipografico": 2,
+      "surreal-fotografico": 2,
+      "ilustracao-geometrica": 1,
+      "bilhete-e-notas": 2,
+      "antes-depois": 1
+    },
+    "stepCostUsd": {
+      "marketing": 0.037193166666666666,
+      "diretor": 0.019277833333333334,
+      "redator": 0.03623366666666667,
+      "arte": 0.03365966666666667,
+      "designer": 0.20103733333333337,
+      "conserto": 0.081034,
+      "critico": 0.034675500000000005,
+      "embelezador": 0.07431766666666667,
+      "revisor": 0.0056096666666666664,
+      "imagem": 0.17955600000000002
+    },
+    "gate": {
+      "ok": 11,
+      "total": 12
+    },
+    "criticScore": 7.516666666666667,
+    "layoutIssues": 4
+  },
+  "variation": [
+    {
+      "brand": "bez",
+      "request": "post sobre desenvolvimento de software sob medida",
+      "territories": [
+        "mockup-anotado",
+        "bilhete-e-notas",
+        "surreal-fotografico",
+        "ilustracao-geometrica"
+      ],
+      "unique": 4,
+      "count": 4,
+      "verdict": {
+        "variedade": 6,
+        "repetidas": [
+          "1 e 2"
+        ],
+        "reconhecivel": 9,
+        "comentario": "As peças 1 e 2 repetem a mesma estrutura de layout com o elemento de papel inclinado na base, o que reduz a variedade do conjunto. Porém, as opções 3 e 4 trazem abordagens visuais bem distintas (fotografia e diagrama minimalista) mantendo a identidade da marca forte e reconhecível."
+      },
+      "costUsd": 2.7566479999999998
+    },
+    {
+      "brand": "ekoai",
+      "request": "post explicando que a Ekoai escreve a legenda na voz da empresa",
+      "territories": [
+        "mockup-anotado",
+        "bilhete-e-notas",
+        "surreal-fotografico",
+        "mockup-anotado"
+      ],
+      "unique": 3,
+      "count": 4,
+      "verdict": {
+        "variedade": 6,
+        "repetidas": [
+          "1 e 4"
+        ],
+        "reconhecivel": 10,
+        "comentario": "A identidade visual está impecável, com cores, tipografia e tom de voz perfeitamente alinhados em todas as opções. Porém, as peças 1 e 4 usam exatamente o mesmo recurso visual do card inclinado com anotações em volta, o que prejudica a entrega de variedade real."
+      },
+      "costUsd": 2.04245
+    },
+    {
+      "brand": "fe",
+      "request": "post para convidar empresas para virar Amigo do Fé",
+      "territories": [
+        "mockup-anotado",
+        "antes-depois",
+        "objeto-heroi",
+        "mockup-anotado"
+      ],
+      "unique": 3,
+      "count": 4,
+      "verdict": {
+        "variedade": 6,
+        "repetidas": [
+          "1 e 4"
+        ],
+        "reconhecivel": 10,
+        "comentario": "As peças 1 e 4 utilizam exatamente a mesma estrutura de layout e conceito do documento com anotações, o que prejudica a variedade exigida. Por outro lado, a consistência visual e o uso correto das cores garantem que todas as artes sejam facilmente reconhecidas como parte da mesma marca."
+      },
+      "costUsd": 2.63229
+    }
+  ],
+  "rows": [
+    {
+      "brand": "bez",
+      "id": "briefing",
+      "request": "post sobre como a gente trabalha, do briefing ao produto no ar",
+      "winner": "b",
+      "reason": "A Peça 2 vence por apresentar um conceito muito mais original, utilizando a metáfora visual de uma interface de software com anotações manuscritas que traduzem os termos técnicos de forma acessível. Embora a Peça 1 aplique melhor a paleta de cores da marca, a Peça 2 entrega um acabamento superior e foge do formato genérico de lista, destacando-se visualmente no feed.",
+      "arms": {
+        "baseline": {
+          "design": 7.666666666666667,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "A peça é extremamente limpa, legível e cumpre o briefing com perfeição, usando as cores da marca de forma elegante e direta. Falta um pouco de originalidade visual, sendo um formato de lista bem padrão, mas a execução tipográfica e o alinhamento são impecáveis."
+        },
+        "studio": {
+          "design": 8,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "mockup-anotado",
+          "comentario": "A metáfora visual de um componente de interface anotado traduz perfeitamente o processo de desenvolvimento de forma didática e alinhada ao universo tech. O design é limpo, direto e foge dos clichês corporativos, passando credibilidade e profissionalismo."
+        }
+      }
+    },
+    {
+      "brand": "bez",
+      "id": "execucao",
+      "request": "post falando que ideia sem execução não vale nada",
+      "winner": "b",
+      "reason": "A Peça 1 eleva o briefing através de uma metáfora visual inteligente e um copywriting brilhante ('Um rascunho genial não roda no navegador'), distanciando-se do formato genérico e literal da concorrente. O design apresenta um acabamento impecável de nível de agência, traduzindo a voz direta e técnica da marca com originalidade e alto impacto visual.",
+      "arms": {
+        "baseline": {
+          "design": 6.222222222222222,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "A peça acerta em cheio na clareza da mensagem, com um texto forte e excelente legibilidade que funciona muito bem no celular. Visualmente, no entanto, é apenas um template estrutural básico e sem criatividade, que não oferece nenhum gancho visual para prender a atenção no feed."
+        },
+        "studio": {
+          "design": 8.333333333333334,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [
+            "Textos nos cantos superior e inferior direitos parecem jargões soltos de preenchimento de template."
+          ],
+          "territory": "colagem-editorial",
+          "comentario": "O texto principal é excelente, traduzindo o clichê 'ideia não vale nada' para a realidade de software de forma inteligente, direta e sem jargões. A composição é limpa e profissional, embora os textos menores nos cantos direitos pareçam sobras de um template genérico."
+        }
+      }
+    },
+    {
+      "brand": "bez",
+      "id": "planilha",
+      "request": "post para atrair clientes que têm uma planilha que virou sistema",
+      "winner": "b",
+      "reason": "A Peça 2 vence por apostar em um insight real e empático que ilustra perfeitamente a dor do cliente, enquanto a Peça 1 se apoia em um formato de lista genérico e com cara de slide corporativo. A tipografia ousada e a composição confiante elevam a percepção da marca, garantindo superioridade absoluta em conceito, originalidade e acabamento.",
+      "arms": {
+        "baseline": {
+          "design": 6.333333333333333,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "O texto é o grande destaque, mapeando perfeitamente as dores do cliente com uma linguagem direta e sem jargões. Visualmente, no entanto, a peça não passa de uma lista formatada em um template básico, sem nenhum elemento gráfico ou conceito visual que chame a atenção no feed."
+        },
+        "studio": {
+          "design": 8.88888888888889,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "citacao-grande",
+          "comentario": "O grande trunfo da peça é a união de um texto extremamente empático, que atinge em cheio a dor do cliente, com uma tipografia ousada e de alto contraste. A execução minimalista foge dos clichês visuais de tecnologia (como fotos de pessoas frustradas no computador) e entrega a mensagem de forma direta, elegante e muito profissional."
+        }
+      }
+    },
+    {
+      "brand": "bez",
+      "id": "sob-medida",
+      "request": "post sobre desenvolvimento de software sob medida",
+      "winner": "b",
+      "reason": "A Peça 1 apresenta um conceito tipográfico ousado e original que foge dos layouts genéricos, entregando um acabamento premium e confiante digno de uma boa agência. Além disso, seu texto direto e sem jargões traduz perfeitamente a voz da marca, enquanto a Peça 2 peca na originalidade e ao usar termos técnicos como 'CTO' para pequenos empresários.",
+      "arms": {
+        "baseline": {
+          "design": 6.222222222222222,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "A peça acerta na legibilidade impecável e na hierarquia da informação, guiando bem a leitura dos benefícios. O ponto fraco é o visual extremamente básico e plano, que se assemelha a um slide de apresentação genérico e carece de um gancho criativo para reter a atenção no feed."
+        },
+        "studio": {
+          "design": 6.777777777777778,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "A letra 's' no final da palavra 'escrevemos' está cortada na margem direita."
+          ],
+          "territory": "cartaz-tipografico",
+          "comentario": "A peça acerta em cheio no tom de voz direto e na força da mensagem tipográfica, fugindo de clichês visuais. No entanto, o erro de composição que corta a última letra de 'escrevemos' arruína o acabamento e impede a publicação."
+        }
+      }
+    },
+    {
+      "brand": "ekoai",
+      "id": "aprovar",
+      "request": "post sobre aprovar o post antes de publicar",
+      "winner": "b",
+      "reason": "A Peça 1 traduz o benefício em um sentimento real ('Ufa') com um design ousado e texto perfeitamente alinhado à voz simples e próxima da marca. A Peça 2 é um template corporativo genérico e burocrático que ignora a diretriz de evitar jargões.",
+      "arms": {
+        "baseline": {
+          "design": 4.777777777777778,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "A legenda viola gravemente a voz da marca ao usar jargões como 'automação de marketing' e 'análise técnica'"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça visual é apenas um slide de texto genérico, sem nenhum gancho criativo, parecendo um template básico de apresentação. O pior erro está na legenda, que ignora a diretriz de falar de forma simples com o pequeno empreendedor e adota um tom corporativo e cheio de jargões."
+        },
+        "studio": {
+          "design": 8.88888888888889,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "cartaz-tipografico",
+          "comentario": "A peça acerta em cheio ao usar a tipografia gigante para transmitir a emoção exata do cliente ('Ufa'), criando um contraste de escala excelente. É um design corajoso, limpo e que foge completamente dos templates genéricos."
+        }
+      }
+    },
+    {
+      "brand": "ekoai",
+      "id": "cansaco",
+      "request": "post sobre o cansaço de ter que postar todo dia",
+      "winner": "b",
+      "reason": "A Peça 1 vence por traduzir o cansaço do cliente em uma metáfora visual forte e um texto empático, respeitando perfeitamente a voz simples e direta da marca. A Peça 2 é um template genérico que ignora as diretrizes ao usar jargões corporativos proibidos, como 'esforço operacional' e 'gestão de conteúdo'.",
+      "arms": {
+        "baseline": {
+          "design": 4.555555555555555,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "Tom corporativo e jargões na imagem e legenda ('saturação', 'esforço operacional', 'demanda técnica', 'presença digital'), violando a voz da marca"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça aplica as cores corretamente e tem boa legibilidade, mas o design é um template de texto estático sem apelo visual. O maior erro está na voz: em vez de falar de forma simples com o dono do negócio, usa um tom corporativo e jargões que afastam o leitor."
+        },
+        "studio": {
+          "design": 8.222222222222221,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [
+            "corrente atravessando a tela do celular de forma fisicamente impossível (artefato de IA)"
+          ],
+          "territory": "surreal-fotografico",
+          "comentario": "A metáfora visual traduz perfeitamente o peso da obrigação de criar conteúdo, com excelente uso das cores da marca e um texto forte e direto. O único deslize é o artefato na corrente fundida ao aparelho, mas o impacto conceitual supera essa falha."
+        }
+      }
+    },
+    {
+      "brand": "ekoai",
+      "id": "padaria",
+      "request": "post sobre o dono da padaria sem tempo para a rede social",
+      "winner": "b",
+      "reason": "A Peça 1 traduz a dor do cliente em uma metáfora visual inteligente e usa um texto empático e direto, alinhando-se perfeitamente à voz da marca. Já a Peça 2 recorre a um formato de lista genérico e viola as diretrizes ao usar jargões corporativos como 'gestão operacional' e 'presença digital'.",
+      "arms": {
+        "baseline": {
+          "design": 4.666666666666667,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "Uso de jargão corporativo e de marketing ('Gestão Operacional', 'presença digital', 'suporte técnico') contrariando a voz da marca",
+            "Layout engessado que reproduz o exato template padrão de IA (etiqueta, título, subtítulo, lista)"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça tem boa legibilidade e aplica as cores corretas, mas falha gravemente na voz da marca ao usar um tom robótico e jargões distantes da realidade de um pequeno empresário. Visualmente, é um slide de texto monótono e sem nenhum gancho criativo."
+        },
+        "studio": {
+          "design": 9,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "ilustracao-geometrica",
+          "comentario": "A sacada visual de comparar o volume de trabalho com o tempo para postar usando proporções exageradas é excelente e gera identificação imediata. O texto é direto, empático e foge do tom corporativo, casando perfeitamente com a voz da marca."
+        }
+      }
+    },
+    {
+      "brand": "ekoai",
+      "id": "voz",
+      "request": "post explicando que a Ekoai escreve a legenda na voz da empresa",
+      "winner": "b",
+      "reason": "A Peça 1 traduz o benefício de forma visual e criativa, acertando em cheio o tom de voz simples e sem jargões exigido pela marca. A Peça 2 cai na armadilha do texto corporativo genérico ('diretrizes', 'posicionamento') e apresenta um layout em lista sem originalidade.",
+      "arms": {
+        "baseline": {
+          "design": 4.666666666666667,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "Uso de jargão de marketing e corporativo ('diretrizes', 'posicionamento', 'identidade visual e verbal') contrariando o guia de voz da marca"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça tem excelente legibilidade e aplica as cores da marca corretamente em um layout limpo. No entanto, o design é um template genérico sem criatividade e os textos (tanto na imagem quanto na legenda) falham gravemente ao usar jargões, afastando-se da voz simples e direta exigida."
+        },
+        "studio": {
+          "design": 8.222222222222221,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "bilhete-e-notas",
+          "comentario": "A peça traduz o benefício da ferramenta de forma brilhante com um exemplo visual prático de 'antes e depois' no texto. O design é limpo, direto e usa as cores da marca com muita eficiência para guiar o olhar."
+        }
+      }
+    },
+    {
+      "brand": "fe",
+      "id": "amigo",
+      "request": "post para convidar empresas para virar Amigo do Fé",
+      "winner": "b",
+      "reason": "A Peça 1 vence por apresentar um conceito criativo e original, traduzindo o impacto social para a linguagem de negócios de forma visualmente atraente e perfeitamente alinhada ao tom caloroso da marca. A Peça 2 ignora a diretriz de evitar jargões e entrega um layout corporativo genérico, frio e esquecível.",
+      "arms": {
+        "baseline": {
+          "design": 4.777777777777778,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [
+            "Uso de jargão corporativo ('Fomento', 'resultados reais'), violando a diretriz de voz da marca",
+            "Visual excessivamente árido e sem elementos gráficos, assemelhando-se a um slide de apresentação corporativa"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça cumpre o papel informativo com excelente legibilidade e hierarquia clara, indo direto ao ponto. No entanto, o visual é extremamente genérico e o texto abusa de jargões corporativos, afastando-se da voz calorosa e humana exigida pela marca."
+        },
+        "studio": {
+          "design": 9.11111111111111,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "mockup-anotado",
+          "comentario": "A metáfora visual do recibo com anotações à mão é brilhante para atrair empresários, unindo a linguagem corporativa ao impacto social de forma criativa. O design é extremamente limpo, tem excelente hierarquia e foge completamente dos clichês de posts de arrecadação."
+        }
+      }
+    },
+    {
+      "brand": "fe",
+      "id": "dia",
+      "request": "post mostrando que R$ 36 transformam um dia de uma criança",
+      "winner": "b",
+      "reason": "A Peça 2 traduz o impacto da doação em uma metáfora visual brilhante e tangível, elevando o post ao nível de uma campanha publicitária com excelente acabamento e texto acolhedor. A Peça 1, por outro lado, entrega a informação de forma fria e corporativa, parecendo um slide de apresentação genérico que ignora a voz da marca.",
+      "arms": {
+        "baseline": {
+          "design": 6.222222222222222,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [
+            "Composição desequilibrada com excesso de espaço vazio à direita",
+            "Legenda usa jargão ('filantropia', 'métrica da eficiência'), contrariando a diretriz de voz calorosa e sem jargão"
+          ],
+          "layout": "lista-numerada",
+          "comentario": "A peça é extremamente clara, legível e cumpre o briefing de forma direta e didática, explicando perfeitamente o valor da doação. Porém, o design é muito básico, lembrando um slide corporativo, e a legenda erra o tom da marca ao usar jargões frios."
+        },
+        "studio": {
+          "design": 8.666666666666666,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "surreal-fotografico",
+          "comentario": "A metáfora visual do recibo se transformando no campo de futebol é brilhante, tangibilizando o impacto da doação de forma criativa e sem expor crianças. O acabamento realista, a iluminação cuidadosa e a tipografia limpa elevam a peça a um nível de excelência profissional."
+        }
+      }
+    },
+    {
+      "brand": "fe",
+      "id": "escolinha",
+      "request": "post sobre a escolinha de futebol",
+      "winner": "b",
+      "reason": "A Peça 1 vence por apresentar um conceito forte e original, usando uma composição dinâmica e texto direto para criar um contraste emocional que foge do padrão corporativo. Apesar de deslizes na aplicação do logo e da cor institucional, seu impacto visual, criatividade e adequação à voz calorosa pedida a tornam muito superior à lista genérica e burocrática da Peça 2.",
+      "arms": {
+        "baseline": {
+          "design": 6.888888888888889,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "A peça é extremamente clara, legível e respeita perfeitamente a identidade e os fatos da marca, funcionando muito bem como um post informativo seguro. No entanto, o design é excessivamente simples e estático, parecendo mais um slide de apresentação corporativa do que uma peça de social media com forte apelo visual."
+        },
+        "studio": {
+          "design": 8.11111111111111,
+          "postaria": false,
+          "fatos_ok": true,
+          "defeitos": [
+            "Logo incompleto (falta a palavra 'Fé')"
+          ],
+          "territory": "antes-depois",
+          "comentario": "O conceito de contraste (rua vs. campo) é brilhante e resolve a restrição de não usar fotos de crianças com muita elegância e impacto. O único pecado grave é o logo incompleto no canto inferior direito, que impede a postagem imediata."
+        }
+      }
+    },
+    {
+      "brand": "fe",
+      "id": "semana",
+      "request": "post de motivação para a semana",
+      "winner": "b",
+      "reason": "A Peça 1 atende perfeitamente ao pedido de motivação ao unir os pilares de esporte e fé em uma metáfora visual criativa e dinâmica, com excelente uso das cores da marca. A Peça 2 ignora o tom motivacional para entregar uma lista genérica e fria, que soa corporativa demais e não reflete a voz calorosa exigida.",
+      "arms": {
+        "baseline": {
+          "design": 6.222222222222222,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "layout": "lista-numerada",
+          "comentario": "A peça acerta em cheio na voz da marca e na legibilidade, entregando um conteúdo útil e perfeitamente alinhado aos pilares do instituto (esporte, educação, família e fé). No entanto, o design é extremamente básico e carece de qualquer apelo visual ou originalidade, parecendo um slide de apresentação corporativa."
+        },
+        "studio": {
+          "design": 8.11111111111111,
+          "postaria": true,
+          "fatos_ok": true,
+          "defeitos": [],
+          "territory": "bilhete-e-notas",
+          "comentario": "A metáfora visual de anotações táticas une perfeitamente os pilares de esporte e fé do instituto, com excelente hierarquia e uso preciso das cores da marca. O único ponto de melhoria seria o uso de texturas mais realistas, já que a fita adesiva e a fonte manuscrita têm um aspecto levemente genérico de banco de imagens, mas não comprometem a eficácia da peça."
+        }
+      }
+    }
+  ]
+}
