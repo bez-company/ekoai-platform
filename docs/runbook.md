@@ -156,6 +156,11 @@ disso, a PR aplica todas duas vezes num Postgres limpo e roda `supabase/ci/rls_t
 Migration é aditiva; apagar coluna ou tabela exige `-- allow-destructive` no arquivo.
 Nunca aplicar à mão em produção.
 
+**Número da migration:** o executor guarda a versão pelo nome completo do arquivo e ordena por nome. Os pares `0041` e
+`0043` repetem o número (duas branches abriram em paralelo) e já estão em produção: não renomeie, porque o `migrate` as
+trataria como migrations novas. `tests/migration-numbering.test.js` reprova qualquer número novo repetido; quem abrir
+uma migration em paralelo renumera a sua antes de mergear.
+
 ## Segredos
 
 | Segredo | Onde | Como girar |
