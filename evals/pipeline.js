@@ -26,7 +26,7 @@ function textChecks({ copy, idea, facts, dictated }) {
 }
 
 // Texto: até 3 rodadas, o revisor por regra devolvendo o motivo ao modelo (igual ao writeCopy).
-async function writeCopy({ model, brief, company, plan }) {
+export async function writeCopy({ model, brief, company, plan }) {
   let previous = null;
   let feedback = [];
   let best = null;
@@ -41,7 +41,7 @@ async function writeCopy({ model, brief, company, plan }) {
       continue;
     }
     const copy = previous ? keepWhatPassed(previous, parsed.value, feedback) : parsed.value;
-    const issues = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: [...company.profile.bannedWords, ...(plan?.avoid ?? [])], request: brief.idea }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: company.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
+    const issues = [...reviewText({ imageTexts: imageTextsOf(copy), caption: copy.caption, hashtags: copy.hashtags, facts: company.facts, never: company.never, banned: [...company.profile.bannedWords, ...(plan?.avoid ?? [])], request: brief.idea, scope: { reach: company.profile.reach ?? null, region: company.profile.region ?? null, cta: company.profile.ctaDefault ?? null } }), ...(plan ? reviewCount(plan, copy) : []), ...textChecks({ copy, idea: brief.idea, facts: company.facts, dictated: !!plan && (plan.brandCard || plan.exactTexts.length > 0) })];
     const hard = blocking(issues);
     if (!best || hard.length < blocking(best.issues).length) best = { copy, issues };
     if (hard.length === 0) break;

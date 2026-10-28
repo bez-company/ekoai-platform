@@ -4,7 +4,7 @@
 // passos e em Configurações › Empresa, e a chamada que grava uma seção (PUT /api/profile).
 
 import type { Dispatch, SetStateAction } from 'react';
-import { BODY_FONTS, CTAS, HEADING_FONTS, LIST_MAX_ITEMS, NICHES, BANNED_MAX_ITEMS, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
+import { BODY_FONTS, CTAS, HEADING_FONTS, LIST_MAX_ITEMS, NICHES, REACHES, REACH_LABEL, BANNED_MAX_ITEMS, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
 import { CTA_OPTION, sectionBody, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
 import { ChipsField, ColorField, ListField, ScaleField, SelectField, TextAreaField, TextField } from './ui';
 
@@ -22,6 +22,17 @@ export function AboutSection({ value, onChange, errors, onClearError, disabled }
       <SelectField label="Nicho" value={value.niche} onChange={(niche) => set({ niche })} options={NICHES} placeholder="Escolha o nicho" error={errors.niche} disabled={disabled} />
       <TextAreaField label="O que a empresa vende" value={value.offering} onChange={(offering) => set({ offering })} placeholder="Em 1 ou 2 frases" max={280} error={errors.offering} disabled={disabled} />
       <TextAreaField label="Para quem vende" value={value.audience} onChange={(audience) => set({ audience })} placeholder="Quem compra de você" max={280} error={errors.audience} disabled={disabled} />
+      <SelectField
+        label="Onde estão os seus clientes?"
+        optional
+        value={value.reach}
+        onChange={(reach) => set({ reach })}
+        options={REACHES.map((r) => ({ value: r, label: REACH_LABEL[r] }))}
+        placeholder="Escolha uma opção"
+        help="Define se a legenda e as hashtags falam da sua cidade ou do Brasil todo. Sem resposta, a Ekoai não prende o post à cidade."
+        error={errors.reach}
+        disabled={disabled}
+      />
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField label="Cidade ou região" optional value={value.region} onChange={(region) => set({ region })} error={errors.region} disabled={disabled} />
         <TextField label="Site" optional value={value.site_url} onChange={(site_url) => set({ site_url })} placeholder="seusite.com.br" autoComplete="url" error={errors.site_url} disabled={disabled} />
@@ -72,8 +83,8 @@ export function VisualSection({ value, onChange, errors, onClearError, disabled 
         value={value.cta_default}
         onChange={(cta_default) => set({ cta_default })}
         options={CTAS.map((c) => ({ value: c, label: CTA_OPTION[c] }))}
-        placeholder="Sem chamada fixa"
-        help="A IA fecha a legenda convidando para isso, quando o pedido não diz outra coisa."
+        placeholder="Sem chamada: a legenda termina no conteúdo"
+        help={'Quando você escolhe uma, a Ekoai fecha a legenda convidando para isso. Sem escolha, a legenda termina no conteúdo, sem "link na bio".'}
         error={errors.cta_default}
         disabled={disabled}
       />

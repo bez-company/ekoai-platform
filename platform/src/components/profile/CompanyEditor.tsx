@@ -19,7 +19,7 @@ import {
   type VisualForm,
   type VoiceForm,
 } from '@/lib/company-profile-form';
-import type { CompanyProfile, FieldErrors, Section } from '@/lib/company-profile-model';
+import { REACH_LABEL, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
 import LogoField, { type LogoIds } from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
@@ -155,6 +155,7 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
               ['Nicho', profile.niche],
               ['O que vende', profile.offering],
               ['Para quem', profile.audience],
+              ['Clientes', profile.reach ? REACH_LABEL[profile.reach] : ''],
               ['Região', profile.region],
               ['Site', profile.siteUrl ? siteLabel(profile.siteUrl) : ''],
               ['Instagram', profile.instagramHandle ? `@${profile.instagramHandle}` : ''],
@@ -208,7 +209,7 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
               ['Cor principal', profile.colorPrimary ? <ColorValue key="p" hex={profile.colorPrimary} /> : ''],
               ['Cor de destaque', profile.colorAccent ? <ColorValue key="a" hex={profile.colorAccent} /> : ''],
               ['Fontes', [profile.fontHeading, profile.fontBody].filter(Boolean).join(' e ')],
-              ['Chamada da legenda', profile.ctaDefault ? CTA_LABEL[profile.ctaDefault] : ''],
+              ['Chamada da legenda', profile.ctaDefault ? CTA_LABEL[profile.ctaDefault] : 'Sem chamada final'],
             ]}
           />
         ) : (

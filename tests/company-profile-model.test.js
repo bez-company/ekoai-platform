@@ -11,8 +11,14 @@ describe('seção Sobre o negócio', () => {
   it('aceita só os obrigatórios e deixa o resto vazio', () => {
     expect(ok(m.parseProfileSection(about()))).toEqual({
       niche: 'Alimentação', offering: 'Bolos sob encomenda.', audience: 'Famílias de Marília.',
-      region: null, site_url: null, instagram_handle: null,
+      region: null, reach: null, site_url: null, instagram_handle: null,
     });
+  });
+
+  it('o alcance é opcional e só aceita local, nacional ou internacional', () => {
+    for (const reach of ['local', 'national', 'international']) expect(ok(m.parseProfileSection(about({ reach }))).reach).toBe(reach);
+    expect(ok(m.parseProfileSection(about({ reach: '' }))).reach).toBeNull();
+    expect(m.parseProfileSection(about({ reach: 'mundo' })).fields.reach).toMatch(/Escolha/);
   });
 
   it('cada obrigatório que falta volta com a própria mensagem', () => {
@@ -126,7 +132,7 @@ describe('corpo inválido', () => {
 
   it('o campo de tenant ou de dono no corpo é ignorado', () => {
     const v = ok(m.parseProfileSection(about({ tenant_id: 'outra', updated_by: 'x', logo_asset_id: 'x' })));
-    expect(Object.keys(v).sort()).toEqual(['audience', 'instagram_handle', 'niche', 'offering', 'region', 'site_url']);
+    expect(Object.keys(v).sort()).toEqual(['audience', 'instagram_handle', 'niche', 'offering', 'reach', 'region', 'site_url']);
   });
 });
 

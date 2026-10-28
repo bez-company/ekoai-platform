@@ -4,7 +4,7 @@
 
 import type { CompanyProfile, Section } from './company-profile-model';
 
-export type AboutForm = { niche: string; offering: string; audience: string; region: string; site_url: string; instagram_handle: string };
+export type AboutForm = { niche: string; offering: string; audience: string; region: string; reach: string; site_url: string; instagram_handle: string };
 export type VoiceForm = {
   voice_formal: number | null;
   voice_technical: number | null;
@@ -21,6 +21,7 @@ export function aboutFromProfile(p: CompanyProfile | null): AboutForm {
     offering: p?.offering ?? '',
     audience: p?.audience ?? '',
     region: p?.region ?? '',
+    reach: p?.reach ?? '',
     site_url: p?.siteUrl ?? '',
     instagram_handle: p?.instagramHandle ? `@${p.instagramHandle}` : '',
   };

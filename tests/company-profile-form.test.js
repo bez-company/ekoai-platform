@@ -41,7 +41,7 @@ describe('resumo do tom', () => {
 
 describe('estado dos formulários', () => {
   it('sem perfil, tudo vazio e uma linha em branco nas listas', () => {
-    expect(f.aboutFromProfile(null)).toEqual({ niche: '', offering: '', audience: '', region: '', site_url: '', instagram_handle: '' });
+    expect(f.aboutFromProfile(null)).toEqual({ niche: '', offering: '', audience: '', region: '', reach: '', site_url: '', instagram_handle: '' });
     expect(f.voiceFromProfile(null)).toMatchObject({ differentiators: [''], pains: [''], banned_words: [], voice_formal: null });
     expect(f.visualFromProfile(null)).toEqual({ color_primary: '', color_accent: '', font_heading: '', font_body: '', cta_default: '' });
   });

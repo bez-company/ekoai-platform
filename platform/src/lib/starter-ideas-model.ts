@@ -28,7 +28,8 @@ export function buildIdeasPrompt(input: { profile: CompanyProfile; facts: string
   return [
     'Você é o estrategista de conteúdo de uma pequena empresa brasileira que está começando o Instagram. Responda SÓ com um objeto JSON, em português do Brasil, com acentos corretos.',
     '',
-    `## A empresa: ${p.offering}. Nicho: ${p.niche}.${p.region ? ` Região: ${p.region}.` : ''} Para quem: ${p.audience}. Jeito de falar: ${voiceLine(p)}.`,
+    `## A empresa: ${p.offering}. Nicho: ${p.niche}. Para quem: ${p.audience}. Jeito de falar: ${voiceLine(p)}.`,
+    p.reach === 'local' && p.region ? `## Região: ${p.region} (os clientes estão ali, ideia pode usar a cidade)` : '',
     p.differentiators.length ? `## Diferenciais: ${p.differentiators.join('; ')}` : '',
     p.pains.length ? `## Dores do cliente: ${p.pains.join('; ')}` : '',
     `## Pode afirmar: ${input.facts.length ? input.facts.join('; ') : 'nenhum número, preço nem prazo'}`,

@@ -63,3 +63,28 @@ export function compareNotApplied(expectedKeys, got) {
   const problems = [...missing.map((k) => `não declarou ${k} como não aplicado`), ...extra.map((k) => `declarou ${k} como não aplicado sem precisar`)];
   return { pass: problems.length === 0, reason: problems.join('; ') };
 }
+
+const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const LINK_BIO = /link\s+(?:na|da|do|no)\s+bio/i;
+// Chamada para ação no fim da legenda: um verbo de convite perto de um canal ou de um link.
+const CTA_TAIL = /(?:chame|chama|fale|mande|manda|envie|clique|acesse|agende|solicite|pe[cç]a|encomende|garanta|reserve|visite|siga)[^.!?\n]{0,60}(?:whats|zap|direct|\bdm\b|mensagem|link|bio|contato|perfil)/i;
+
+// Checagens por código da legenda e das hashtags (eval da legenda, BEZ-373): a cidade nas hashtags, "link na bio" que
+// ninguém escolheu e chamada final numa conta que a omitiu.
+export function captionChecks({ copy, profile }) {
+  const tags = (copy.hashtags ?? []).map(plain);
+  const caption = copy.caption ?? '';
+  const city = plain((profile.region ?? '').split(',')[0]).replace(/[^a-z0-9]/g, '');
+  const wide = profile.reach === 'national' || profile.reach === 'international' || profile.reach == null;
+  const cityTags = city ? tags.filter((t) => t.includes(city)) : [];
+  const tail = caption.slice(-200);
+  const checks = [
+    { id: 'cod-link-na-bio', pass: profile.ctaDefault === 'link_bio' || !LINK_BIO.test(caption), reason: '"link na bio" na legenda, e a conta não escolheu essa chamada.' },
+    { id: 'cod-sem-link-inventado', pass: profile.ctaDefault === 'link_bio' || !/\blink\b/i.test(caption), reason: 'A legenda cita "link" e a conta não tem esse canal como chamada (nem o link existe).' },
+    { id: 'cod-hashtag-sem-ano', pass: !tags.some((t) => /\d{4}/.test(t) && !/nbr\d{4}/.test(t)), reason: 'Hashtag com ano (#natal2024): envelhece e erra o ano.' },
+    { id: 'cod-hashtags', pass: tags.length >= 3 && tags.length <= 8 && (copy.hashtags ?? []).every((h) => h === h.toLowerCase() && h === plain(h)), reason: `Hashtags: ${tags.length} (o pedido é de 3 a 8, minúsculas, sem acento).` },
+  ];
+  if (wide) checks.push({ id: 'cod-hashtag-cidade', pass: cityTags.length === 0, reason: `Hashtag da cidade (${cityTags.map((t) => `#${t}`).join(', ')}) numa conta que fala ao país ou ao mundo.` });
+  if (!profile.ctaDefault) checks.push({ id: 'cod-sem-chamada', pass: !CTA_TAIL.test(tail), reason: 'A legenda fecha com chamada para ação numa conta que a omitiu.' });
+  return checks;
+}
