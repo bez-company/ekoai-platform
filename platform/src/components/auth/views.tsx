@@ -88,6 +88,7 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [accepted, setAccepted] = useState(false);
   const [tried, setTried] = useState(false);
   const rules = passwordRules(password, email);
   const problems = {
@@ -96,6 +97,7 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
     phone: normalizePhone(phone) ? '' : PHONE_ERROR,
     password: !passwordOk(password, email) ? `A senha precisa de pelo menos ${PASSWORD_MIN} caracteres, com letra e número.` : '',
     confirm: confirm !== password ? 'As senhas não são iguais.' : '',
+    terms: accepted ? '' : 'Aceite os Termos de uso e a Política de privacidade para criar o acesso.',
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -150,6 +152,23 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
           }
         />
         <Field label="Confirme a senha" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={busy} error={tried ? problems.confirm : ''} />
+        <div>
+          <label className="flex items-start gap-2.5 text-sm">
+            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={busy} aria-invalid={tried && !!problems.terms} className="mt-0.5 h-4 w-4 shrink-0 accent-accent" />
+            <span>
+              Li e aceito os{' '}
+              <a href="/termos" target="_blank" rel="noopener noreferrer" className="link">
+                Termos de uso
+              </a>{' '}
+              e a{' '}
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="link">
+                Política de privacidade
+              </a>
+              .
+            </span>
+          </label>
+          {tried && problems.terms && <ErrorLine>{problems.terms}</ErrorLine>}
+        </div>
         <Submit busy={busy} busyLabel="Criando">
           Criar acesso
         </Submit>
