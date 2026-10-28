@@ -122,7 +122,7 @@ export default function AccountPlan({ accountName, tier, canManage, adminName, e
       {dialog === 'time' && (
         <Modal title="Mudar para o plano Time?" onClose={close}>
           <p className="text-sm text-muted">
-            A conta passa de &quot;Só eu&quot; para Empresa e você poderá convidar pessoas. O primeiro usuário continua grátis e cada usuário adicional custa R$ 10 por mês, cobrado quando o convidado aceitar. Nada é apagado.
+            A conta passa do plano Individual para o Time e você poderá convidar pessoas. Nada é cobrado agora: a cobrança ainda não está ativa. Quando começar, o primeiro usuário continua grátis e cada usuário adicional custa R$ 10 por mês, e avisamos antes. Nada é apagado.
           </p>
           {error && <ErrorLine>{error}</ErrorLine>}
           <div className="flex justify-end gap-2">

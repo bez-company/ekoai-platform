@@ -1,6 +1,6 @@
 // Conta e plano (SPEC 025): o que a tela mostra por tipo de conta e a validação do pedido da Agência e do upgrade. Puro, sem banco.
 import { describe, it, expect } from 'vitest';
-import { AGENCY_BRANDS_MAX, AGENCY_NOTE_MAX, TIER_COPY, parseAgencyRequest, parsePlanChange, tierOf } from '../platform/src/lib/account-plan-model.ts';
+import { AGENCY_BRANDS_MAX, AGENCY_NOTE_MAX, TIER_COPY, TIER_NAME, parseAgencyRequest, parsePlanChange, tierOf } from '../platform/src/lib/account-plan-model.ts';
 
 describe('plano da conta', () => {
   it('conta "Só eu" é Individual e empresa é Time', () => {
@@ -28,5 +28,11 @@ describe('pedido da Agência', () => {
     for (const brands of [0, 101, 2.5, 'x', '', null, undefined]) expect(parseAgencyRequest({ brands }), String(brands)).toMatchObject({ ok: false, field: 'brands' });
     expect(parseAgencyRequest({ brands: 2, note: 'a'.repeat(AGENCY_NOTE_MAX + 1) })).toMatchObject({ ok: false, field: 'note' });
     expect(parseAgencyRequest(null)).toMatchObject({ ok: false, field: 'brands' });
+  });
+});
+
+describe('nome do plano na tela', () => {
+  it('Individual e Time, não os nomes internos do banco', () => {
+    expect(TIER_NAME).toEqual({ individual: 'Individual', time: 'Time' });
   });
 });
