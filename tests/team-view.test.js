@@ -48,3 +48,33 @@ describe('administradores e validade', () => {
     expect(v.inviteExpiry('pending', 5)).toBe('Vence em 5 dias');
   });
 });
+
+describe('último acesso (SPEC 029)', () => {
+  const now = Date.parse('2026-10-28T15:00:00Z'); // 12h em Brasília
+  it('hoje, ontem, há N dias e a data', () => {
+    expect(v.lastAccessLabel('2026-10-28T13:00:00Z', now)).toBe('Último acesso hoje');
+    expect(v.lastAccessLabel('2026-10-27T20:00:00Z', now)).toBe('Último acesso ontem');
+    expect(v.lastAccessLabel('2026-10-25T15:00:00Z', now)).toBe('Último acesso há 3 dias');
+    expect(v.lastAccessLabel('2026-10-12T15:00:00Z', now)).toBe('Último acesso em 12/10/2026');
+  });
+
+  it('conta o dia no horário de Brasília, não em UTC', () => {
+    // 01:30 UTC do dia 28 ainda é 22:30 do dia 27 em Brasília: ontem
+    expect(v.lastAccessLabel('2026-10-28T01:30:00Z', now)).toBe('Último acesso ontem');
+  });
+
+  it('sem login ou data inválida: ainda não entrou', () => {
+    expect(v.lastAccessLabel(null, now)).toBe('Ainda não entrou');
+    expect(v.lastAccessLabel('lixo', now)).toBe('Ainda não entrou');
+  });
+});
+
+describe('única pessoa administradora', () => {
+  it('só quando é a única com o papel de administrador', () => {
+    const team = [{ userId: 'a', role: 'admin' }, { userId: 'b', role: 'creator' }];
+    expect(v.isSoleAdmin(team, 'a')).toBe(true);
+    expect(v.isSoleAdmin(team, 'b')).toBe(false);
+    expect(v.isSoleAdmin([...team, { userId: 'c', role: 'admin' }], 'a')).toBe(false);
+    expect(v.isSoleAdmin([], 'a')).toBe(false);
+  });
+});

@@ -11,7 +11,7 @@ import { auditTenant } from './audit';
 import { INVITE_TTL_DAYS, hashInviteToken, inviteStatus, newInviteToken, type InviteStatus } from './invitation-model';
 import type { Role } from './permissions';
 
-export type TeamMember = { userId: string; email: string; name: string | null; role: Role; since: string };
+export type TeamMember = { userId: string; email: string; name: string | null; role: Role; since: string; lastLoginAt: string | null };
 export type TeamInvitation = { id: string; email: string; role: Role; status: InviteStatus; expiresAt: string; createdAt: string };
 
 const LAST_ADMIN = 'A conta precisa de pelo menos um administrador. Promova outra pessoa antes.';
@@ -47,6 +47,7 @@ export async function listTeam(t: TenantDb): Promise<{ members: TeamMember[]; in
       name: profiles.get(String(r.user_id))?.name ?? null,
       role: r.role as Role,
       since: iso(r.created_at),
+      lastLoginAt: profiles.get(String(r.user_id))?.lastLoginAt ?? null,
     })),
     invitations: (inv.data ?? []).map((r) => ({
       id: String(r.id),

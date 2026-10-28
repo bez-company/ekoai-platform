@@ -196,16 +196,16 @@ export async function accountOf(tenantId: string): Promise<AccountInfo | null> {
   return { id: String(t.data.id), name: String(t.data.name), kind: t.data.kind as AccountKind, plan };
 }
 
-export type PersonProfile = { email: string; name: string | null };
+export type PersonProfile = { email: string; name: string | null; lastLoginAt: string | null };
 
 // E-mail e nome de várias pessoas de uma vez (a tabela users não tem tenant_id: quem chama já
 // filtrou pelos membros da conta da sessão).
 export async function personProfiles(userIds: string[]): Promise<Map<string, PersonProfile>> {
   const out = new Map<string, PersonProfile>();
   if (userIds.length === 0) return out;
-  const { data, error } = await db().from('users').select('id,email,name').in('id', userIds);
+  const { data, error } = await db().from('users').select('id,email,name,last_login_at').in('id', userIds);
   if (error) throw new Error(`users: ${error.message}`);
-  for (const r of data ?? []) out.set(String(r.id), { email: String(r.email), name: (r.name as string | null) ?? null });
+  for (const r of data ?? []) out.set(String(r.id), { email: String(r.email), name: (r.name as string | null) ?? null, lastLoginAt: r.last_login_at ? new Date(String(r.last_login_at)).toISOString() : null });
   return out;
 }
 

@@ -40,3 +40,25 @@ export function inviteExpiry(status: InviteStatus, daysLeft: number): string {
   if (daysLeft <= 1) return 'Vence em 1 dia';
   return `Vence em ${daysLeft} dias`;
 }
+
+const BRASILIA = 'America/Sao_Paulo';
+const dayKey = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: BRASILIA });
+const DAY = 86_400_000;
+
+// "Último acesso hoje", "ontem", "há 3 dias" ou a data. Os dias contam no horário de Brasília, não em UTC.
+export function lastAccessLabel(lastLoginAt: string | null, nowMs: number): string {
+  if (!lastLoginAt) return 'Ainda não entrou';
+  const at = Date.parse(lastLoginAt);
+  if (!Number.isFinite(at)) return 'Ainda não entrou';
+  const days = Math.round((Date.parse(`${dayKey(nowMs)}T00:00:00Z`) - Date.parse(`${dayKey(at)}T00:00:00Z`)) / DAY);
+  if (days <= 0) return 'Último acesso hoje';
+  if (days === 1) return 'Último acesso ontem';
+  if (days < 7) return `Último acesso há ${days} dias`;
+  return `Último acesso em ${new Date(at).toLocaleDateString('pt-BR', { timeZone: BRASILIA })}`;
+}
+
+// A pessoa é a única administradora: o menu dela explica por que mudar o papel e sair estão desligados (o banco também recusa).
+export function isSoleAdmin(members: { userId: string; role: Role }[], userId: string): boolean {
+  const admins = members.filter((m) => m.role === 'admin');
+  return admins.length === 1 && admins[0].userId === userId;
+}
