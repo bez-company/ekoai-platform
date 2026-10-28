@@ -10,7 +10,7 @@
   [ADR 0017 de eventos](../adr/0017-eventos-de-produto-pelo-servidor.md), [ADR 0021](../adr/0021-revisao-imutavel-com-diff-por-campo.md)
 - **Ideias que esta spec fecha:** BEZ-195 (versões, Restaurar padrão, Confirmar), BEZ-201 (aprender com a
   edição), BEZ-202 (trocar layout sem chamar o modelo)
-- **Fica fora, com gatilho de dado (seção "Fase 3"):** BEZ-194 (arrastar elementos), BEZ-196 completo (Estúdio)
+- **Fica fora, com gatilho de dado (seção "Fase 3"):** BEZ-194 (arrastar elementos), BEZ-196 completo (Studio)
 - **Fica em card próprio:** BEZ-193 (pedir ajuste em texto livre), BEZ-257 (alt text editável), BEZ-208, 209, 200
 - **Protótipo:** v13 publicada em 23/10/2026 no mesmo artifact das fases anteriores
   (https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, versão 13, `version_id` 1792728726-05ec). No seletor do alto:
@@ -49,7 +49,7 @@
 frente à linha de base da própria conta; corrigir um detalhe custa menos tempo e dinheiro que
 regenerar. Os eventos que medem cada uma estão em "Medição".
 
-**Fora de escopo:** arrastar elementos e Estúdio completo (fase 3, só com gatilho de dado); pedir ajuste
+**Fora de escopo:** arrastar elementos e Studio completo (fase 3, só com gatilho de dado); pedir ajuste
 em texto livre por modelo (BEZ-193); editar a legenda e as hashtags dentro da versão (a legenda segue
 como hoje; entra na revisão numa spec seguinte, ver decisão 9); variações de logo e paletas (BEZ-209);
 alt text editável (BEZ-257); exemplos que aprendem (BEZ-208); editar post já aprovado ou publicado.
@@ -236,7 +236,7 @@ Cada uma tem a recomendação e o motivo. As marcadas com **(Matheus)** esperam 
     **Linha de base:** a entrega (c) vai antes da (d). Duas semanas de eventos sem regra ativa dão a linha de
     base de cada conta. Sem piloto, a spec não promete número; promete o instrumento e a comparação.
 
-### Fase 3: arrastar e Estúdio completo (só com gatilho)
+### Fase 3: arrastar e Studio completo (só com gatilho)
 
 16. **Não se implementa nesta rodada.** O gatilho que libera a fase 3, medido pelos eventos acima, em
     qualquer janela de 14 dias:
@@ -482,7 +482,7 @@ Cada um tem como verificar.
 | Edição de post com fato que venceu depois | Post com número velho | O revisor roda no Confirmar com os fatos de hoje (SPEC 018); fato vencido reprova |
 | Confirmar no celular com conexão ruim | Perde o ajuste | Mudanças ficam na tela até o 201; erro diz isso (texto do estado de erro) |
 | Dois editores, um deles aprova | Aprova versão que não viu | `designVersion` no aprovar (decisão 7) |
-| Estúdio completo antes de haver uso | Código que ninguém usa | Gatilho de dado (decisão 16); o botão "Preciso de mais controle" mede a demanda |
+| Studio completo antes de haver uso | Código que ninguém usa | Gatilho de dado (decisão 16); o botão "Preciso de mais controle" mede a demanda |
 
 ## Decisões do Matheus
 

@@ -206,7 +206,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
                   {design.state.revisions[0] ? `${design.state.version === 1 ? 'Versão inicial' : `Versão ${design.state.version}`} em uso: ${design.state.revisions[0].summary}.` : 'Versão inicial em uso.'} Texto, cor, logo e layout mudam sem gerar de novo e sem gastar do limite do mês ({usage.used} de {usage.max}).
                 </p>
               </div>
-              <Link href={`/aprovar/${encodeURIComponent(pending.pending_id)}/estudio${carousel ? `?lamina=${slide + 1}` : ''}`} className="btn-primary">
+              <Link href={`/aprovar/${encodeURIComponent(pending.pending_id)}/studio${carousel ? `?lamina=${slide + 1}` : ''}`} className="btn-primary">
                 {canEdit && !design.state.decided ? (carousel ? 'Editar esta lâmina' : 'Editar imagem') : 'Ver versões'}
               </Link>
             </section>

@@ -147,6 +147,8 @@ export default function Nav({
   const creating = pathname?.startsWith('/criar') ?? false;
   const primary = links.filter((l) => (MOBILE_PRIMARY as readonly string[]).includes(l.href));
   const rest = links.filter((l) => !(MOBILE_PRIMARY as readonly string[]).includes(l.href));
+  // No desktop, Configurações abre pelo menu da pessoa (rodapé); no celular continua em "Mais".
+  const sideLinks = person ? links.filter((l) => l.href !== '/configuracoes') : links;
   const restActive = rest.some((l) => isActive(pathname, l.href)) || (!!person && isActive(pathname, '/perfil'));
 
   return (
@@ -179,7 +181,7 @@ export default function Nav({
         )}
 
         <nav className="flex flex-col gap-1">
-          {links.map((l) => {
+          {sideLinks.map((l) => {
             const active = isActive(pathname, l.href);
             const badge = badgeFor(l.href);
             return (

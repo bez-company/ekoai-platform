@@ -89,7 +89,7 @@ export default function SlotsDialog({ initial, recommendation = null, onClose, o
                 <span className="inline-flex items-center gap-1.5">
                   <input type="time" value={time} step={300} onChange={(e) => setTime(e.target.value)} aria-label={`Novo horário de ${name}`} className="rounded-md border border-line bg-surface px-2 py-1 text-sm outline-none focus:border-accent" />
                   <button type="button" className="btn-primary min-h-8 px-3 py-1 text-xs" onClick={() => add(d)}>
-                    Pôr
+                    Confirmar
                   </button>
                   <button type="button" className="btn-ghost min-h-8 px-3 py-1 text-xs" onClick={() => setAdding(null)}>
                     Cancelar

@@ -54,7 +54,7 @@
    ("2 de 4"), título e subtítulo, sobre o fundo da marca. É a lâmina em que "os 3 sinais" viram 3 lâminas. Nenhum
    layout novo para quem não pediu carrossel.
 5. **Visual.** **Um visual só, na capa** (atmosfera). As outras lâminas usam a cor da marca. Pedir visual novo para
-   uma lâmina é do Estúdio completo (BEZ-196, fase 3) e conta no limite como hoje. Alternativa: o mesmo visual
+   uma lâmina é do Studio completo (BEZ-196, fase 3) e conta no limite como hoje. Alternativa: o mesmo visual
    em todas as lâminas com recortes diferentes, bonito mas repete a foto.
 6. **Revisor por lâmina.** O revisor roda em cada lâmina (contraste, fonte mínima, margem, fato fora da base,
    palavra proibida) e o aviso diz a lâmina ("Lâmina 3: ..."). Regra nova: **a lâmina não repete o título de outra**
@@ -135,7 +135,7 @@ A grade (309) não depende do carrossel e pode ir primeiro; mostra a capa quando
 
 ## Fora desta spec
 
-Reordenar, apagar e acrescentar lâmina; visual novo por lâmina (Estúdio, BEZ-196); arrastar elementos (BEZ-194);
+Reordenar, apagar e acrescentar lâmina; visual novo por lâmina (Studio, BEZ-196); arrastar elementos (BEZ-194);
 análise automática de harmonia da grade (cores, alternância entre informativo e atmosfera): a pessoa vê, a
 Ekoai não opina; Reels e vídeo; carrossel com foto da pessoa em cada lâmina; LinkedIn e X.
 

@@ -30,7 +30,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
     const [account, profile, facts, canApprove, canEdit, canManage] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), can('content.approve'), can('content.edit'), can('brand.manage')]);
     const max = account?.plan.maxPostsPerMonth ?? 20;
     const usage = await monthlyUsage(t, max);
-    // As versões do design e o atalho para o Estúdio (SPEC 019 e 024): só para post com design. Falhar aqui nunca derruba a tela.
+    // As versões do design e o atalho para o Studio (SPEC 019 e 024): só para post com design. Falhar aqui nunca derruba a tela.
     const design = p.post_design_id && p.brief_id && p.seed?.source !== 'photo' ? await designState(t, p.brief_id).catch((e) => (log('warn', 'inbox', 'não leu o design do post', { error: e instanceof Error ? e.message : String(e) }), null)) : null;
     const handle = profile?.instagramHandle ? `@${profile.instagramHandle}` : (account?.name ?? 'sua conta');
     return (
