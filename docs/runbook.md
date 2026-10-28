@@ -359,6 +359,15 @@ proteção ligada.
   mensal do plano vale na reserva do visual (gatilho `app.check_post_limit`). Para ver o uso de uma
   conta no mês: `select count(*) from generation_runs where tenant_id = '<conta>' and step = 'visual'
   and status in ('reserved','done') and created_at >= date_trunc('month', now())`.
+- Teto de gasto do Vertex (BEZ-409, feito à mão na conta de faturamento da BEZ, fora do Terraform): dois
+  orçamentos mensais filtrados pelo serviço Vertex AI (`C7E2-9256-1C43`), `ekoai-prod Vertex AI mensal R$ 100`
+  e `ekoai-staging Vertex AI mensal R$ 50`, com alertas em 50%, 80% e 100% do gasto e 100% da previsão, por
+  e-mail aos administradores da conta de faturamento. Orçamento só avisa, não corta. Cota por projeto: a de
+  imagem (`GenContentImageGenRequestsPerMinutePerProjectPerBaseModelGlobal`) é fixa e a de texto
+  (`GlobalGenerateContentRequestsPerMinutePerProjectPerBaseModel`) não aceita valor abaixo do atual (o
+  pedido de 120 por minuto foi negado), então o corte real é o limite mensal do plano no servidor e o
+  alerta de anomalia (BEZ-410). Para recriar: `gcloud billing budgets create --billing-account=<conta>
+  --filter-projects=projects/<número> --filter-services=services/C7E2-9256-1C43 ...`.
 - Pedido que falhou: a tela oferece "Tentar de novo" (`POST /api/posts/<id>/retry`); as etapas que
   deram certo são reaproveitadas. Erro do Vertex (429, 503) tenta de novo 2 vezes com espera e depois
   falha com a mensagem do provedor no brief.
