@@ -142,7 +142,7 @@ export default function TeamManager({ members, invitations, meId, planName, seat
         <div>
           <h2 className="text-lg font-semibold">Equipe</h2>
           <p className="text-sm text-muted">
-            {seats.label} no plano {planName}. Convites pendentes ocupam vaga.
+            {seats.label} no plano {planName}. {seats.unlimited ? 'Sem limite de pessoas na fase de teste.' : 'Convites pendentes ocupam vaga.'}
           </p>
         </div>
         {canInvite && (

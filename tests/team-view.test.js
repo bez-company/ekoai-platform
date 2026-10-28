@@ -12,6 +12,15 @@ describe('vagas do plano', () => {
     expect(s).toMatchObject({ used: 5, free: 0, full: true });
   });
 
+  it('plano sem limite (Time) mostra só quantas pessoas e nunca fica cheio', () => {
+    const s = v.seatUsage({ members: 3, invitations: [{ status: 'pending' }], maxSeats: 1000 });
+    expect(s).toMatchObject({ used: 4, unlimited: true, full: false, label: '4 pessoas' });
+    expect(v.seatUsage({ members: 1, invitations: [], maxSeats: 1000 }).label).toBe('1 pessoa');
+    expect(v.seatUsage({ members: 999, invitations: [{ status: 'pending' }], maxSeats: 1000 }).full).toBe(false);
+    expect(v.seatLimitLabel(7, 1000)).toBe('7 (sem limite)');
+    expect(v.seatLimitLabel(3, 5)).toBe('3 de 5');
+  });
+
   it('plano de uma pessoa fala no singular e nunca dá vaga negativa', () => {
     const s = v.seatUsage({ members: 1, invitations: [], maxSeats: 1 });
     expect(s).toMatchObject({ label: '1 de 1 pessoa', free: 0, full: true });
