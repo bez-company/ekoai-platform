@@ -72,6 +72,23 @@ O repositório é público e as marcas reais não entram nele. O que é de marca
 - `exemplars/`: PNGs de peças aprovadas com nota máxima e `notes.json` com o que funciona em cada uma. O designer as
   vê como régua de acabamento (não de layout). Sem a pasta, trabalha sem referência.
 
+## Resultado de 28/10/2026 (run-1)
+
+12 pedidos simples (3 marcas, 4 pedidos), baseline x estúdio, juiz `gemini-3.1-pro-preview`. Resumo em
+`baselines/run-1.json`.
+
+| | baseline | estúdio |
+|---|---|---|
+| Nota de design (0 a 10) | 5,8 | 8,4 |
+| Originalidade / acabamento | 3,0 / 4,3 | 8,2 / 7,6 |
+| Duelos em pares | 0 de 12 | 12 de 12 |
+| Postaria sem editar | 8 de 12 | 10 de 12 |
+| Custo por post | cerca de US$ 0,01 | US$ 0,56 |
+| Variação entre 4 tentativas do mesmo pedido | n/a | 6 de 10 (mesmo esqueleto em alguns pares) |
+
+Pontos fracos conhecidos: variação (títulos e territórios repetem entre tentativas), setas e anotações cruzando
+texto, texto sobre foto com contraste baixo. Cards: BEZ-404, BEZ-405 e BEZ-406.
+
 ## Limites
 
 - O juiz é um modelo e erra; o estúdio e o juiz são da mesma família de modelo, o que pode inflar a nota do
