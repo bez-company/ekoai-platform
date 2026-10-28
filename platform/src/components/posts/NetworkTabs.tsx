@@ -5,7 +5,8 @@ import type { Channel } from '@/lib/types';
 // As abas de uma ideia (SPEC 028): uma por rede, cada uma abre a pendência da rede. Rede que não saiu aparece sem link.
 const NAME: Record<Channel, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
 
-export default function NetworkTabs({ tabs, current }: { tabs: IdeaTab[]; current: Channel }) {
+// Rede que não saiu: a aba leva à tela do pedido, onde "Tentar de novo" refaz só ela (BEZ-437).
+export default function NetworkTabs({ tabs, current, briefId }: { tabs: IdeaTab[]; current: Channel; briefId?: string | null }) {
   if (tabs.length < 2) return null;
   return (
     <nav aria-label="Redes deste post" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -15,10 +16,17 @@ export default function NetworkTabs({ tabs, current }: { tabs: IdeaTab[]; curren
         const body = (
           <>
             <strong className="block">{NAME[tab.channel]}</strong>
-            <span className={`block text-xs ${tab.state === 'missing' ? 'text-warning' : 'text-muted'}`}>{TAB_STATE_LABEL[tab.state]}</span>
+            <span className={`block text-xs ${tab.state === 'missing' ? 'text-warning' : 'text-muted'}`}>{tab.state === 'missing' && briefId ? 'Não gerado · tentar de novo' : TAB_STATE_LABEL[tab.state]}</span>
           </>
         );
-        if (!tab.pendingId) return <div key={tab.channel} className={className}>{body}</div>;
+        if (!tab.pendingId) {
+          if (!briefId) return <div key={tab.channel} className={className}>{body}</div>;
+          return (
+            <Link key={tab.channel} href={`/criar/${briefId}`} className={className}>
+              {body}
+            </Link>
+          );
+        }
         return (
           <Link key={tab.channel} href={`/aprovar/${encodeURIComponent(tab.pendingId)}`} aria-current={on ? 'page' : undefined} className={className}>
             {body}

@@ -63,6 +63,7 @@ const EXPECTED = {
   'account/plan': ['billing.manage'],
   'account/plan/agency': ['billing.manage'],
   'posts/[id]/retry': ['content.create'],
+  'posts/[id]/retry-network': ['content.create'],
   'posts/[id]/direction': ['content.edit'],
   'posts/[id]/caption': ['content.edit'],
   'posts/[id]/design/ask': ['content.edit'],
