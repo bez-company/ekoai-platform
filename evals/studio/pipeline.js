@@ -9,17 +9,17 @@
 import { clicheIssues } from '../../platform/src/lib/off-topic-facts.ts';
 import { blocking, reviewText } from '../../platform/src/lib/design/review.ts';
 import { artDirector, copywriter, critic, designer, director, polisher, reviewer, strategist, totalScore } from './agents.js';
-import { makeImage, newLedger } from './llm.js';
+import { makeImage, MODELS, newLedger } from './llm.js';
 import { renderHtml } from './render.js';
 import { pickTerritories, TERRITORY_BY_ID } from './territories.js';
 
 const MAX_COPY_ROUNDS = 3;
 const MAX_POLISH_ROUNDS = 2;
 const MAX_GATE_REPAIRS = 2;
-const DRAFTS = Math.max(1, Number(process.env.STUDIO_DRAFTS ?? 2));
+const DEFAULT_DRAFTS = Math.max(1, Number(process.env.STUDIO_DRAFTS ?? 2));
 const SHIP_SCORE = 8;
 // O que o render mede e conta como defeito de layout (fonte desconhecida é só aviso).
-const LAYOUT_BLOCKING = new Set(['safe_margin', 'font_size', 'off_canvas', 'text_clipped', 'logo_small', 'logo_contrast']);
+const LAYOUT_BLOCKING = new Set(['safe_margin', 'font_size', 'off_canvas', 'text_clipped', 'logo_small', 'logo_contrast', 'text_overlap', 'arrow_over_text', 'contrast_low']);
 
 const layoutBlocking = (issues) => issues.filter((i) => LAYOUT_BLOCKING.has(i.rule));
 
@@ -44,12 +44,12 @@ function textIssues({ company, request, copy }) {
   return issues;
 }
 
-async function writeCopy({ company, request, route, sharpen, territory, ledger, trace }) {
+async function writeCopy({ company, request, route, sharpen, territory, recentTitles, model, ledger, trace }) {
   let previous = null;
   let feedback = [];
   let best = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const copy = await copywriter({ company, request, route, sharpen, territory, feedback, previous, ledger });
+    const copy = await copywriter({ company, request, route, sharpen, territory, feedback, previous, recentTitles, model, ledger });
     copy.extras = Array.isArray(copy.extras) ? copy.extras.filter((x) => typeof x === 'string' && x.trim()) : [];
     copy.hashtags = Array.isArray(copy.hashtags) ? copy.hashtags : [];
     const issues = blocking(textIssues({ company, request, copy }));
@@ -98,7 +98,12 @@ function record(trace, piece, review, round) {
 
 const feedbackText = (issues) => issues.map((i) => `- ${i.rule}: ${i.detail}${i.fix ? ` (${i.fix})` : ''}`).join('\n');
 
-export async function makePost({ company, request, ratio = '4:5', seed = 1, recent = [], only = null, onStage = () => {} }) {
+// `config` liga as variações do experimento (F0 da SPEC 028): `drafts` (rascunhos do designer), `lightModel` ('flash' usa o
+// modelo rápido em marketing, diretor, redator e revisor) e `skipDirection` (sem marketing nem diretor: o código escolhe o
+// primeiro território sorteado). `recentTitles`: títulos recentes da conta, que o diretor e o redator evitam repetir.
+export async function makePost({ company, request, ratio = '4:5', seed = 1, recent = [], recentTitles = [], only = null, config = {}, onStage = () => {} }) {
+  const DRAFTS = Math.max(1, config.drafts ?? DEFAULT_DRAFTS);
+  const light = config.lightModel === 'flash' ? MODELS.fast : MODELS.smart;
   const ledger = newLedger();
   const trace = { request, seed, recent, copy: [], iterations: [], review: [] };
   const stage = (name, info) => onStage(name, info);
@@ -107,19 +112,25 @@ export async function makePost({ company, request, ratio = '4:5', seed = 1, rece
   const territories = only?.length ? only.map((id) => TERRITORY_BY_ID[id]).filter(Boolean) : pickTerritories({ count: 4, seed, recent });
   trace.territories = territories.map((t) => t.id);
 
-  stage('marketing', trace.territories);
-  const strategy = await strategist({ company, request, territories, ledger });
-  trace.strategy = strategy;
-  strategy.routes = (strategy.routes ?? []).filter((r) => TERRITORY_BY_ID[r.territory]);
-  if (!strategy.routes.length) throw new Error('O estrategista não devolveu rota válida.');
-
-  stage('diretor', strategy.routes.map((r) => r.territory));
-  const pick = await director({ request, strategy, recent, company, ledger });
+  let pick;
+  if (config.skipDirection) {
+    const first = territories[0];
+    pick = { route: { territory: first.id, bigIdea: `Responder ao pedido: ${request}`, hook: '', visual: '' }, why: 'sem marketing nem diretor', sharpen: 'Execute o território sobre o pedido, sem rota prévia.', avoid: [] };
+    trace.strategy = null;
+  } else {
+    stage('marketing', trace.territories);
+    const strategy = await strategist({ company, request, territories, model: light, ledger });
+    trace.strategy = strategy;
+    strategy.routes = (strategy.routes ?? []).filter((r) => TERRITORY_BY_ID[r.territory]);
+    if (!strategy.routes.length) throw new Error('O estrategista não devolveu rota válida.');
+    stage('diretor', strategy.routes.map((r) => r.territory));
+    pick = await director({ request, strategy, recent, recentTitles, company, model: light, ledger });
+  }
   trace.director = { chosen: pick.route.territory, why: pick.why, sharpen: pick.sharpen, avoid: pick.avoid };
   const territory = TERRITORY_BY_ID[pick.route.territory];
 
   stage('redator', territory.id);
-  const written = await writeCopy({ company, request, route: pick.route, sharpen: pick.sharpen, territory, ledger, trace });
+  const written = await writeCopy({ company, request, route: pick.route, sharpen: pick.sharpen, territory, recentTitles, model: light, ledger, trace });
   const copy = written.copy;
   trace.finalCopyIssues = written.issues.map((i) => i.message);
 
@@ -199,13 +210,13 @@ export async function makePost({ company, request, ratio = '4:5', seed = 1, rece
   // duas voltas de conserto do designer, e a peça só troca se a nova versão tiver menos problemas que a anterior.
   stage('revisor', best.kind);
   let final = { html: best.html, png: best.png, issues: best.issues };
-  let gate = await reviewer({ company, copy, png: final.png, ledger });
+  let gate = await reviewer({ company, copy, png: final.png, model: light, ledger });
   trace.review.push({ round: 1, ok: gate.ok, issues: gate.issues ?? [] });
   for (let repair = 1; repair <= MAX_GATE_REPAIRS && !gate.ok && gate.issues?.length; repair += 1) {
     stage('conserto-final', gate.issues.map((i) => i.rule));
     const fixed = await designer({ company, request, copy, art, territory, ratio, images, feedback: `${feedbackText(gate.issues)}\n\nHTML anterior:\n${final.html}`, temperature: 0.5, thinking: 'low', step: 'conserto', ledger });
     const again = await render({ html: fixed.html, ratio, images, company });
-    const recheck = await reviewer({ company, copy, png: again.png, ledger });
+    const recheck = await reviewer({ company, copy, png: again.png, model: light, ledger });
     trace.review.push({ round: repair + 1, ok: recheck.ok, issues: recheck.issues ?? [] });
     const worse = layoutBlocking(again.issues).length > layoutBlocking(final.issues).length;
     if (!worse && (recheck.ok || (recheck.issues?.length ?? 0) <= gate.issues.length)) {
