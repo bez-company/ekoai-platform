@@ -13,11 +13,11 @@ import { afterAll, describe, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
-import { COMPANIES, CRAFT } from './cases.js';
+import { COMPANIES, CRAFT, LINKEDIN_CRAFT, sendRequirement } from './cases.js';
 import { ALL_CASES as CASES } from './all-cases.js';
 import { produce } from './pipeline.js';
-import { buildJudgePrompt, parseJudge, verdictOf } from './judge.js';
-import { codeChecks, compareDirectives, compareNotApplied } from './metrics.js';
+import { buildJudgePrompt, buildLinkedInJudgePrompt, parseJudge, verdictOf } from './judge.js';
+import { codeChecks, compareDirectives, compareNotApplied, linkedinChecks } from './metrics.js';
 import { renderSummary, summarize } from './report.js';
 
 const live = process.env.EVAL_LIVE === '1';
@@ -37,7 +37,7 @@ function loadMade(dir, company) {
   const t = JSON.parse(readFileSync(join(dir, 'trace.json'), 'utf8'));
   const saved = existsSync(join(dir, 'made.json')) ? JSON.parse(readFileSync(join(dir, 'made.json'), 'utf8')) : {};
   const imageTexts = saved.imageTexts ?? [t.copy.texts.kicker, t.copy.texts.title, t.copy.texts.sub, ...(t.copy.texts.items ?? []), `@${company.handle}`].filter(Boolean);
-  return { copy: t.copy, spec: { layout: t.layout }, png: readFileSync(join(dir, 'post.png')), imageTexts, textIssues: t.textIssues, layoutIssues: t.layoutIssues, trace: t.rounds, costUsd: saved.costUsd ?? 0, visualPng: null, visualPrompt: t.visualPrompt, directives: t.directives ?? null, applied: t.applied ?? [], notApplied: t.notApplied ?? [] };
+  return { critic: saved.critic ?? null, linkedin: saved.linkedin ?? null, copy: t.copy, spec: { layout: t.layout }, png: readFileSync(join(dir, 'post.png')), imageTexts, textIssues: t.textIssues, layoutIssues: t.layoutIssues, trace: t.rounds, costUsd: saved.costUsd ?? 0, visualPng: null, visualPrompt: t.visualPrompt, directives: t.directives ?? null, applied: t.applied ?? [], notApplied: t.notApplied ?? [] };
 }
 
 const write = (path, data) => writeFileSync(path, typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data, null, 2));
@@ -66,10 +66,10 @@ describe.skipIf(!live)('eval da geração de post', () => {
           const made = from ? loadMade(from, company) : await produce({ model, brief, fontDir: join(root, 'platform/fonts') });
           write(join(dir, 'post.png'), made.png);
           if (made.visualPng) write(join(dir, 'visual.png'), made.visualPng);
-          write(join(dir, 'made.json'), { imageTexts: made.imageTexts, costUsd: made.costUsd });
+          write(join(dir, 'made.json'), { imageTexts: made.imageTexts, costUsd: made.costUsd, critic: made.critic ?? null, linkedin: made.linkedin ?? null });
           write(join(dir, 'trace.json'), { idea: brief.idea, directives: made.directives, applied: made.applied, notApplied: made.notApplied, copy: made.copy, layout: made.spec.layout, visualPrompt: made.visualPrompt, textIssues: made.textIssues, layoutIssues: made.layoutIssues, rounds: made.trace });
 
-          const requirements = [...brief.requirements.map((r) => ({ ...r, group: 'pedido' })), ...CRAFT.map((r) => ({ ...r, group: 'oficio' }))];
+          const requirements = [...brief.requirements.map((r) => ({ ...r, group: 'pedido' })), ...CRAFT.map((r) => ({ ...r, group: 'oficio' })), ...(brief.sendTarget ? [{ ...sendRequirement(brief.sendTarget), group: 'envio' }] : [])];
           const prompt = buildJudgePrompt({ idea: brief.idea, requirements, caption: made.copy.caption, company });
           // O juiz falha de vez em quando (formato, corte). Uma segunda chamada resolve quase sempre; se não
           // resolver, a rodada sai da nota (summary.meta.judgeFailures) em vez de contar como post reprovado.
@@ -102,8 +102,30 @@ describe.skipIf(!live)('eval da geração de post', () => {
             const na = compareNotApplied(brief.notApplied, made.notApplied ?? []);
             verdicts.push({ id: 'nao-aplicado', pass: na.pass, reason: na.pass ? '' : na.reason, group: 'leitor', by: 'code' });
           }
-          write(join(dir, 'verdicts.json'), { seen: judged.seen, verdicts });
-          keep({ caseId: brief.id, run, tags: brief.tags, rounds: made.trace.length, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + judgeCost });
+          // O texto do LinkedIn (SPEC 028), nos casos que pedem: um juiz só do texto e as checagens por código. Se o juiz do
+          // LinkedIn falhar, o LinkedIn sai da nota desta rodada; o resto do post segue.
+          let linkedinSeen = null;
+          if (made.linkedin) {
+            const liReqs = LINKEDIN_CRAFT.map((r) => ({ ...r, group: 'linkedin' }));
+            const liPrompt = buildLinkedInJudgePrompt({ idea: brief.idea, requirements: liReqs, text: made.linkedin.body, company });
+            let liJudged = null;
+            for (let attempt = 1; attempt <= 2 && !liJudged?.answered; attempt += 1) {
+              try {
+                const out = await judge.generateJson({ prompt: liPrompt, labels: { step: 'eval-judge-linkedin', case: brief.id }, temperature: 0, maxOutputTokens: 4096 });
+                judgeCost += out.costUsd;
+                liJudged = parseJudge(out.json, liReqs);
+              } catch {
+                liJudged = null;
+              }
+            }
+            if (liJudged?.answered) {
+              linkedinSeen = liJudged.seen;
+              verdicts.push(...liReqs.map((req, i) => ({ id: req.id, pass: liJudged.items[i].pass, reason: liJudged.items[i].reason, by: 'judge', group: 'linkedin' })));
+              verdicts.push(...linkedinChecks({ post: made.linkedin.post, issues: made.linkedin.issues }).map((c) => ({ ...c, reason: c.pass ? '' : c.reason, group: 'linkedin-codigo', by: 'code' })));
+            }
+          }
+          write(join(dir, 'verdicts.json'), { seen: judged.seen, linkedinSeen, verdicts });
+          keep({ caseId: brief.id, run, tags: brief.tags, critic: made.critic ? { band: made.critic.band, fixed: !!made.critic.fixed } : null, linkedinCritic: made.linkedin?.critic ? { band: made.linkedin.critic.band, fixed: !!made.linkedin.critic.fixed } : null, rounds: made.trace.length, seen: judged.seen, kind: made.copy.kind, layout: made.spec.layout, imageTexts: made.imageTexts, verdicts, costUsd: made.costUsd + judgeCost });
         });
       }
     }

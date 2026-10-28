@@ -175,6 +175,25 @@ export const CRAFT = [
   { id: 'ofc-postaria', in: 'image', text: 'O dono de uma pequena empresa postaria este post sem editar nada: ele cumpre o que foi pedido, lê bem e não tem nada estranho. Falta de gancho não conta contra um texto ou uma composição que a própria pessoa ditou. O que a plataforma não consegue cumprir por regra (mais de 4 itens numa lista, logo ou @ que a conta não tem) não conta contra o post.' },
 ];
 
+// O teste do envio (SPEC 028, BEZ-417): para o caso que declara `sendTarget` (quem receberia o post, escrito à mão olhando o
+// pedido, nunca pelo modelo medido), o juiz responde se alguém mandaria o post a essa pessoa. Entra na nota de envio.
+export const sendRequirement = (sendTarget) => ({
+  id: 'envio',
+  in: 'caption',
+  text: `Alguém mandaria este post a ${sendTarget}? A legenda e a imagem dão, juntas, um motivo claro para isso: algo útil para guardar, um aviso para um grupo ou algo com que essa pessoa se identifica. Post que só serve para curtir, ou que pede "manda para um amigo" sem dar o motivo, não passa.`,
+});
+
+// A régua do texto de LinkedIn (SPEC 028): vale para o caso que declara `linkedin: true`. O juiz lê só o texto do post.
+export const LINKEDIN_CRAFT = [
+  { id: 'li-gancho', in: 'caption', text: 'As duas primeiras linhas prometem algo específico e dão motivo para abrir o "ver mais": situação, problema ou número. Definição, rótulo de tema ou frase que serviria a qualquer empresa não passa.' },
+  { id: 'li-primeira-pessoa', in: 'caption', text: 'O texto está em primeira pessoa, na voz de quem faz o trabalho, e traz uma situação ou cena concreta do dia a dia da empresa, não tom de manual.' },
+  { id: 'li-especificidade', in: 'caption', text: 'Usa um fato da base de fatos ou um detalhe específico do negócio; nada que serviria a qualquer empresa do ramo.' },
+  { id: 'li-leitura', in: 'caption', text: 'Cada parágrafo dá um motivo para continuar lendo: não repete a mesma ideia nem enche linha.' },
+  { id: 'li-pergunta', in: 'caption', text: 'Termina com UMA pergunta que um colega de profissão responde com a experiência dele. "O que vocês acham?", pedido de curtida ou de compartilhamento não passam.' },
+  { id: 'li-voz', in: 'caption', text: 'O jeito de falar combina com a voz da empresa descrita acima e o texto não usa clichê de vendedor nem de IA ("descubra", "jornada", "essência", "mergulhe", "rigor técnico").' },
+  { id: 'li-fatos', in: 'caption', text: 'Número, preço, prazo ou promessa só aparecem se estiverem no pedido ou na base de fatos acima; nada de garantia de resultado.' },
+];
+
 export const CASES = [
   // Padaria Casa Aurora
   {
@@ -213,6 +232,8 @@ export const CASES = [
   },
   {
     id: 'dicas-em-lista',
+    sendTarget: 'quem tem um amigo ou familiar que faz pão em casa e reclama que ele endurece',
+    linkedin: true,
     directives: { itemsCount: 3 },
     company: 'aurora',
     tags: ['lista'],
@@ -242,6 +263,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-cafe-da-manha',
+    sendTarget: 'alguém com quem a pessoa combina um café da manhã de domingo',
     directives: {},
     company: 'aurora',
     tags: ['atmosfera'],
@@ -288,6 +310,8 @@ export const CASES = [
   },
   {
     id: 'aviso-de-horario',
+    sendTarget: 'quem costuma buscar o pão no domingo com a família e precisa saber do horário',
+    linkedin: true,
     directives: {},
     company: 'aurora',
     tags: ['fato'],
@@ -303,6 +327,8 @@ export const CASES = [
   },
   {
     id: 'post-vago',
+    sendTarget: 'um amigo que gosta de pão de fermentação natural',
+    linkedin: true,
     directives: {},
     company: 'aurora',
     tags: ['vago'],
@@ -364,6 +390,8 @@ export const CASES = [
   // Vértice Engenharia
   {
     id: 'sinais-de-laje',
+    sendTarget: 'o síndico ou o dono de imóvel que notou trincas na laje e não sabe a quem chamar',
+    linkedin: true,
     directives: { itemsCount: 3 },
     company: 'vertice',
     tags: ['lista', 'voz'],
@@ -380,6 +408,8 @@ export const CASES = [
   },
   {
     id: 'prova-de-experiencia',
+    sendTarget: 'um colega construtor que procura um engenheiro estrutural de confiança',
+    linkedin: true,
     directives: {},
     company: 'vertice',
     tags: ['fato', 'vago'],
@@ -410,6 +440,8 @@ export const CASES = [
   },
   {
     id: 'convite-palestra',
+    sendTarget: 'um colega engenheiro que se interessa pela NBR 6118',
+    linkedin: true,
     directives: {},
     company: 'vertice',
     tags: ['fato'],
@@ -457,6 +489,8 @@ export const CASES = [
   // Clínica Sorriso Vivo
   {
     id: 'escovacao-infantil',
+    sendTarget: 'outro pai ou mãe de criança pequena que sofre na hora de escovar os dentes',
+    linkedin: true,
     directives: { itemsCount: 3 },
     company: 'sorriso',
     tags: ['lista', 'voz'],
@@ -487,6 +521,8 @@ export const CASES = [
   },
   {
     id: 'convite-primeira-consulta',
+    sendTarget: 'um amigo que está adiando ir ao dentista',
+    linkedin: true,
     directives: {},
     company: 'sorriso',
     tags: ['fato'],
@@ -502,6 +538,7 @@ export const CASES = [
   },
   {
     id: 'atmosfera-recepcao',
+    sendTarget: 'um pai ou mãe que procura uma clínica acolhedora para o filho',
     directives: {},
     company: 'sorriso',
     tags: ['atmosfera'],

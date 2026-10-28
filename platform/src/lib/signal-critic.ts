@@ -49,6 +49,7 @@ export type PostView = {
   text: string; // a legenda (Instagram) ou o texto do post (LinkedIn)
   hashtags: string[];
   coverText?: string; // Instagram: o texto da capa (título e selo)
+  imageTexts?: string[]; // Instagram: todo o texto que já está desenhado na imagem (capa e itens)
   shareReason: string;
   signal: Signal;
 };
@@ -68,6 +69,7 @@ export function buildCriticPrompt(channel: CriticChannel, post: PostView, ctx: C
   lines.push('');
   lines.push(`## O post de ${label}`);
   if (post.coverText) lines.push(`Texto da capa: ${post.coverText}`);
+  if (post.imageTexts?.length) lines.push(`Todo o texto que já está desenhado na imagem: ${post.imageTexts.join(' | ')}`);
   lines.push(`${channel === 'instagram' ? 'Legenda' : 'Texto'}:\n"""\n${post.text}\n"""`);
   if (post.hashtags.length) lines.push(`Hashtags: ${post.hashtags.map((h) => `#${h}`).join(' ')}`);
   lines.push(`O redator declarou que o post pede à pessoa "${post.signal}" porque: ${post.shareReason}. Confira se o texto sustenta isso.`);
@@ -78,6 +80,7 @@ export function buildCriticPrompt(channel: CriticChannel, post: PostView, ctx: C
   lines.push('## Regras da resposta');
   lines.push('- evidence: para nota 1 ou 2, COPIE um trecho exato do post que prova a nota (sem reescrever). Sem trecho exato, a nota cai. Para nota 0, diga em uma frase curta o que falta.');
   lines.push('- suggestion: só quando a nota é menor que 2. UMA frase, no imperativo, do que mudar neste post (concreta, que um redator aplica sem perguntar nada). Não invente fato, número nem prazo.');
+  if (post.imageTexts?.length) lines.push('- O que está na imagem já aparece para quem vê o post: a legenda não deve repetir esse texto, e nenhuma sugestão pode pedir para repeti-lo na legenda. Dê crédito ao que a imagem já traz (lista, passo a passo) quando o critério for de salvamento.');
   lines.push('- Seja exigente: 2 é para o que está claramente bem feito, não para o que é aceitável.');
   lines.push('');
   lines.push('## Formato (JSON)');
@@ -91,7 +94,7 @@ const plain = (s: string): string => s.toLowerCase().normalize('NFD').replace(/[
 export function evidenceIsInPost(evidence: string, post: PostView): boolean {
   const needle = plain(evidence);
   if (needle.length < 4) return false;
-  return plain([post.coverText ?? '', post.text, post.hashtags.join(' ')].join(' ')).includes(needle);
+  return plain([post.coverText ?? '', ...(post.imageTexts ?? []), post.text, post.hashtags.join(' ')].join(' ')).includes(needle);
 }
 
 const clean = (v: unknown, max: number): string | null => {
@@ -166,6 +169,7 @@ export type FixInput = {
   never: string[];
   banned: string[];
   limit: number; // o teto de caracteres do texto
+  imageTexts?: string[]; // o texto que já está na imagem: o conserto não o repete
 };
 
 export function buildFixPrompt(input: FixInput): string {
@@ -182,6 +186,7 @@ export function buildFixPrompt(input: FixInput): string {
   if (input.never.length) lines.push(`\n## Nunca afirma\n${input.never.map((f) => `- ${f}`).join('\n')}`);
   if (input.banned.length) lines.push(`\n## Palavras proibidas: ${input.banned.join(', ')}`);
   lines.push('');
+  if (input.imageTexts?.length) lines.push(`## O que já está desenhado na imagem (NÃO repita na legenda)\n${input.imageTexts.map((t) => `- ${t}`).join('\n')}\n`);
   lines.push(`## Regras: frase curta, voz ativa, sem travessão (— ou –), até ${input.limit} caracteres. Hashtags não entram no texto.`);
   lines.push('');
   lines.push(`## ${label[0].toUpperCase()}${label.slice(1)} atual\n"""\n${input.text}\n"""`);

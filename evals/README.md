@@ -24,6 +24,14 @@ Para cada caso de `cases.js` (23 pedidos, 3 empresas fictícias de jeitos de fal
    - **Código**: `metrics.js` (travessão, emoji na imagem, hashtags, revisor ainda reprovando o resultado).
    - **Leitor**: nos casos com `directives`, o que o leitor de instruções anotou contra o que uma pessoa esperava
      (nota própria; `npm run eval:directives` mede só ele, por frações de centavo).
+   - **Envio** (SPEC 028, BEZ-417): o caso que declara `sendTarget` (quem receberia o post, escrito à mão olhando o pedido)
+     ganha a exigência `envio`, o teste "alguém mandaria isso a essa pessoa?". Nota própria, "Envio".
+   - **LinkedIn** (SPEC 028): o caso com `linkedin: true` também gera o texto do LinkedIn, a partir do núcleo da ideia, como o
+     `generatePost`. Um juiz só do texto (`buildLinkedInJudgePrompt`, régua `LINKEDIN_CRAFT`) e as checagens por código
+     (`linkedinChecks`) dão a nota "LinkedIn".
+   - **Avaliador de sinais** (BEZ-425): o pipeline roda o mesmo avaliador e o mesmo conserto de uma volta da geração, então a
+     legenda medida é a final. O relatório conta quantos posts caíram em cada faixa e em quantos o conserto valeu.
+     `EVAL_CRITIC=off` mede sem ele (para comparar o ganho do avaliador).
 4. `report.js` resume por caso, por exigência e por tag (`marca`, `texto-exato`, `lista`, `atmosfera`, `fato`,
    `vago`, `voz`), com rodadas do redator e custo por post.
 
@@ -59,6 +67,9 @@ inventado, hashtag com ano e chamada final numa conta que a omitiu. Custa menos 
 `hashtag_city` e `link_bio` no revisor.
 
 ## Baselines
+
+`baseline-9-envio-e-rede-2026-10-28` é o primeiro com a nota de Envio, a de LinkedIn e o avaliador de sinais: compare com o
+`baseline-6` para ver o que a SPEC 028 mudou no pedido e no ofício, e leia o Envio e o LinkedIn só nele (os anteriores não medem).
 
 `evals/baselines/` guarda o resumo (sem imagem) de cada marco. A PR que muda a geração anexa o antes e o
 depois do `eval:compare` no corpo. `baseline-0` é o código de 23/10/2026, antes de qualquer correção (pedido 66%); `baseline-1` tem o número do pedido e a volta do revisor (72%); `baseline-2` tem o leitor de instruções, o cartão de marca e a obediência (93%).
