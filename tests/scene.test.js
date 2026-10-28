@@ -7,7 +7,7 @@ import { compose } from '../platform/src/lib/design/families.ts';
 import { brandFromProfile } from '../platform/src/lib/design/model.ts';
 import { renderPng } from '../platform/src/lib/design/render.ts';
 import { openScene, sceneContext } from '../platform/src/lib/design/scene-render.ts';
-import { layerHeight, layerLines, parseScene, sceneBoxes, sceneSvg } from '../platform/src/lib/design/scene.ts';
+import { layerHeight, layerLines, parseScene, sceneBoxes, sceneSvg, sceneTexts } from '../platform/src/lib/design/scene.ts';
 import { fontDir, fontFilesFor } from '../platform/src/lib/design/fonts.ts';
 import { COMPANIES } from '../evals/cases.js';
 
@@ -123,5 +123,25 @@ describe('validação da cena na fronteira', () => {
     expect(parseScene(s, limits).value.layers[0].text).toBe('oi mundo');
     const big = good(); big.layers[0].text = 'a'.repeat(601);
     expect(parseScene(big, limits).ok).toBe(false);
+  });
+});
+
+describe('o que o revisor de texto lê da cena (BEZ-338)', () => {
+  it('a lâmina de item do carrossel não entrega o contador "N de M" nem o número do círculo ao revisor', () => {
+    const { scene } = openScene(SPECS['lamina-item']);
+    const all = scene.layers.filter((l) => l.type === 'text').map((l) => l.text);
+    expect(all.some((t) => /^\d+ de \d+$/i.test(t.trim())), 'o selo da lâmina leva o contador').toBe(true);
+    const read = sceneTexts(scene);
+    expect(read.some((t) => /^\d+ de \d+$/i.test(t.trim()))).toBe(false);
+    expect(read).toContain('A massa desgruda da borda');
+  });
+
+  it('só o texto inteiro no formato do contador sai: "3 de 4 clientes recomendam" continua sendo conferido', () => {
+    const { scene } = openScene(SPECS['titulo-destaque']);
+    const first = scene.layers.find((l) => l.type === 'text');
+    const claim = { ...scene, layers: scene.layers.map((l) => (l === first ? { ...l, text: '3 de 4 clientes recomendam' } : l)) };
+    expect(sceneTexts(claim)).toContain('3 de 4 clientes recomendam');
+    const counter = { ...scene, layers: scene.layers.map((l) => (l === first ? { ...l, text: '3 DE 4' } : l)) };
+    expect(sceneTexts(counter)).not.toContain('3 DE 4');
   });
 });
