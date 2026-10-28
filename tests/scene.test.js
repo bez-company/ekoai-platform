@@ -39,7 +39,7 @@ describe('abrir o layout numa cena', () => {
     it(`${name}: a cena sem mexer desenha o mesmo post`, () => {
       const { scene, ctx } = openScene(spec);
       expect(scene.layers.length, name).toBeGreaterThan(0);
-      expect(diff(raster(compose(spec).svg), raster(sceneSvg(scene, ctx))), name).toBeLessThan(0.002);
+      expect(diff(raster(compose(spec).svg), raster(sceneSvg(scene, ctx))), name).toBeLessThan(0.0002);
     });
   }
 

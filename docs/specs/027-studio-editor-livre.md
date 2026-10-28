@@ -1,6 +1,6 @@
 # SPEC 027: Studio como editor livre, no estilo do Canva
 
-- **Status:** rascunho; falta o protótipo no Claude Design e a aprovação do Matheus antes de qualquer código de tela
+- **Status:** protótipo v21 aprovado pelo Matheus em 28/10/2026 (artifact `55avs7v…`, `version_id` 1793153886-3da7, grupo "Fase 8"); F1 a F3 e o download implementados na PR do BEZ-381. Decisão técnica: [ADR 0026](../adr/0026-studio-em-camadas-sobre-o-fundo-do-layout.md)
 - **Data:** 2026-10-27
 - **Card:** BEZ-381 (pai); filhos criados quando o protótipo for aprovado
 - **Origem:** feedback do Matheus em 27/10/2026: "quero editar tudo por aqui, como no Canva, para o usuário não levar a imagem para o Canva". Hoje o Studio
@@ -28,6 +28,12 @@ mover o título, mudar o tamanho, pôr um segundo texto ou uma forma precisa sai
 7. **Download.** Fase 1: PNG exatamente como vai para o Instagram (a logo sem placa nem moldura). Fase 2: SVG com texto editável e PDF com camadas, para abrir no Canva ou no
    Figma. Aviso honesto: o Canva importa PDF e SVG, mas pode substituir fonte que não tenha; vale testar com a conta do Matheus antes de prometer.
 
+## Entregue na PR do BEZ-381
+
+Cena e conversão de todas as famílias (pixel a pixel), canvas (selecionar, mover com guias, redimensionar, girar, escrever no lugar, alinhar, distribuir, desfazer), inserir texto, retângulo,
+círculo e linha, camadas (ordem, travar, ocultar, duplicar), trocar a versão da logo, carrossel lâmina a lâmina, versões e "Pedir à Ekoai" embaixo do editor, baixar PNG e SVG.
+Fica para depois: imagem do banco de imagens como camada, copiar elemento para todas as lâminas, PDF com camadas e ver no Canva.
+
 ## Fases
 
 | Fase | Entrega | Verifica |
@@ -36,7 +42,7 @@ mover o título, mudar o tamanho, pôr um segundo texto ou uma forma precisa sai
 | F1 | `scene` e `scene-svg` puros; família atual convertida em camadas; PNG idêntico ao de hoje | teste de igualdade do PNG por família |
 | F2 | Canvas: selecionar, mover, redimensionar, girar, texto no lugar, desfazer | E2E de arrastar e confirmar, teste puro das guias |
 | F3 | Inserir texto, forma, imagem do banco e logo; ordem e duplicar | E2E + teste de rota de gravação (valida o shape da `scene`) |
-| F4 | Carrossel por lâmina | teste de continuidade e de cópia entre lâminas |
+| F4 | Carrossel por lâmina (a cena é por lâmina; copiar um elemento para todas fica em aberto) | teste de continuidade e de cópia entre lâminas |
 | F5 | Download PNG fiel, depois SVG e PDF com camadas | abrir o arquivo no Canva e no Figma (manual, registrado na PR) |
 
 ## Dados e rotas (a confirmar)
