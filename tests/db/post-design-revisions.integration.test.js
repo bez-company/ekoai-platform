@@ -42,7 +42,7 @@ const model = {
   async generateJson() {
     modelCalls += 1;
     return {
-      json: { kind: 'informativo', angle: 'dica', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Confira sem abrir o forno', items: ['A massa desgruda da borda', 'O palito sai limpo', 'O topo volta ao toque'] }, caption: 'Bolo bom não tem pressa.', hashtags: ['bolo'] },
+      json: { kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Confira sem abrir o forno', items: ['A massa desgruda da borda', 'O palito sai limpo', 'O topo volta ao toque'] }, caption: 'Bolo bom não tem pressa.', hashtags: ['bolo'] },
       raw: '', inputTokens: 1, outputTokens: 1, modelVersion: 'v1', durationMs: 1, costUsd: 0.0001,
     };
   },

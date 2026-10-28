@@ -11,6 +11,8 @@ export type FakeCall = { host: string; method: string; path: string; body: unkno
 export const FAKE_POST = {
   kind: 'informativo',
   angle: 'dica',
+  signal: 'salvar',
+  share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno',
   texts: {
     kicker: 'Dica da casa',
     title: 'Seu bolo está pronto?',

@@ -39,7 +39,7 @@ const store = {
   removePrefix: async () => {},
 };
 
-const ATM = { kind: 'informativo', angle: 'bastidor', texts: { kicker: 'Quarta de massa', title: 'Bolo bom não tem pressa' }, caption: 'Bastidor de hoje.', hashtags: ['bastidores'], visual_prompt: 'flour on a wooden table, warm light' };
+const ATM = { kind: 'informativo', angle: 'bastidor', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { kicker: 'Quarta de massa', title: 'Bolo bom não tem pressa' }, caption: 'Bastidor de hoje.', hashtags: ['bastidores'], visual_prompt: 'flour on a wooden table, warm light' };
 function fakeModel() {
   const calls = [];
   return {

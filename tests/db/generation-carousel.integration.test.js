@@ -75,7 +75,7 @@ const SLIDES = [
   slide('O topo volta ao toque'),
   slide('Quer um bolo assim?', { sub: 'Chame a gente no WhatsApp.' }),
 ];
-const CAROUSEL = { kind: 'informativo', angle: 'três sinais', slides: SLIDES, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'], alt_text: 'Carrossel sobre os sinais de bolo pronto.' };
+const CAROUSEL = { kind: 'informativo', angle: 'três sinais', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', slides: SLIDES, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'], alt_text: 'Carrossel sobre os sinais de bolo pronto.' };
 
 async function carouselBrief(idea, kind = null) {
   const parsed = requests.parsePostRequest({ idea, kind, format: 'carousel' });
@@ -220,7 +220,7 @@ describe('pedido de uma imagem', () => {
     expect(parsed.value.format).toBeUndefined();
     const { id } = await requests.createPostRequest(t, ANA, parsed.value);
     expect(await one('select format from briefs where id = $1', [id])).toEqual({ format: 'single' });
-    const model = fakeModel({ text: [{ kind: 'informativo', angle: 'dica', texts: { title: 'Seu bolo está pronto?', items: ['A', 'B'] }, caption: 'Legenda boa.', hashtags: ['bolo'] }], image: [] });
+    const model = fakeModel({ text: [{ kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { title: 'Seu bolo está pronto?', items: ['A', 'B'] }, caption: 'Legenda boa.', hashtags: ['bolo'] }], image: [] });
     const out = await generatePost(t, id, { model, store, fontDir: FONT_DIR });
     expect(out.status).toBe('ready');
     expect(model.calls[0].prompt).not.toContain('CARROSSEL');

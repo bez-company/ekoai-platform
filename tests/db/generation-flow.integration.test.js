@@ -67,8 +67,8 @@ function fakeModel(script) {
   };
 }
 
-const INFO = { kind: 'informativo', angle: 'dica', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Confira sem abrir o forno', items: ['A massa desgruda da borda', 'O palito sai limpo', 'O topo volta ao toque'] }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'] };
-const ATM = { kind: 'atmosfera', angle: 'bastidor', texts: { kicker: 'Quarta de massa', title: 'Bolo bom não tem pressa' }, caption: 'Bastidor de hoje.', hashtags: ['bastidores'], visual_prompt: 'flour on a wooden table, warm light' };
+const INFO = { kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { kicker: 'Dica da casa', title: 'Seu bolo está pronto?', sub: 'Confira sem abrir o forno', items: ['A massa desgruda da borda', 'O palito sai limpo', 'O topo volta ao toque'] }, caption: 'Bolo bom não tem pressa. Três sinais para conferir. Chame no WhatsApp.', hashtags: ['bolo', 'marilia'] };
+const ATM = { kind: 'atmosfera', angle: 'bastidor', signal: 'salvar', share_reason: 'Quem faz bolo em casa guarda os sinais para consultar na hora de tirar do forno', texts: { kicker: 'Quarta de massa', title: 'Bolo bom não tem pressa' }, caption: 'Bastidor de hoje.', hashtags: ['bastidores'], visual_prompt: 'flour on a wooden table, warm light' };
 
 async function brief(idea, kind = null) {
   return (await requests.createPostRequest(tenantDb(A), ANA, { idea, kind })).id;
