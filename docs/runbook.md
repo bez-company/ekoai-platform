@@ -535,7 +535,9 @@ convite devolve o link para copiar.
    `https://www.googleapis.com/auth/gmail.send`.
 5. Gmail do usuário que envia, Configurações, Contas, "Enviar e-mail como": `Ekoai <no-reply@ekoai.com.br>`
    (resposta para `suporte@ekoai.com.br`). Sem isso o Gmail recusa o remetente.
-6. Em `envs/<ambiente>/main.tf` trocar para `mail_provider = "gmail"` e aplicar (cria o papel de assinatura e as
+6. **Produção: só com a release feita.** A imagem de produção vem da `main`; se ela ainda não tem o `GmailMailer`, ligar o
+   provedor faz o convite falhar ("não é suportado" ou "não tem implementação"). Confira que `main` tem
+   `platform/src/lib/gmail-mailer.ts` antes. Em `envs/<ambiente>/main.tf` trocar para `mail_provider = "gmail"` e aplicar (cria o papel de assinatura e as
    variáveis `MAIL_*`). Uma revisão nova do serviço lê o segredo.
 7. Testar: convidar uma pessoa na tela de Equipe e conferir o remetente na mensagem recebida.
 
