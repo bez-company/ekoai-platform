@@ -1,0 +1,31 @@
+// mail-assets.ts: o ícone da Ekoai (as cinco gotas, 96x96, o mesmo de app/icon.svg) que abre todo e-mail. Vai embutido
+// na mensagem (Content-ID), então aparece sem o cliente de e-mail precisar baixar imagem de fora.
+
+export const LOGO_CID = 'ekoai-logo';
+
+export const LOGO_PNG_BASE64 = [
+  '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',
+].join('');

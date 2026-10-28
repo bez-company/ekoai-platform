@@ -5,8 +5,13 @@
 import type { AccountDeletedMail, InviteMail } from './mailer';
 import { INVITE_TTL_DAYS } from './invitation-model';
 import { ROLE_COPY } from './auth-flow';
+import { LOGO_CID, LOGO_PNG_BASE64 } from './mail-assets';
+import type { OutgoingMail } from './mail-message';
 
-export type Rendered = { subject: string; text: string; html: string };
+export type Rendered = { subject: string; text: string; html: string; inline?: OutgoingMail['inline'] };
+
+// Todo e-mail da Ekoai abre com o ícone e o nome, e o título do assunto logo abaixo.
+const INLINE_LOGO: NonNullable<OutgoingMail['inline']> = [{ cid: LOGO_CID, contentType: 'image/png', base64: LOGO_PNG_BASE64 }];
 
 export function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -22,7 +27,8 @@ function frame(title: string, paragraphs: string[], button?: { label: string; hr
   const action = button
     ? `<p style="margin:22px 0"><a href="${escapeHtml(button.href)}" style="background:#e8825f;color:#1c1330;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;display:inline-block">${escapeHtml(button.label)}</a></p>`
     : '';
-  return `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f7f1ee;font-family:Arial,Helvetica,sans-serif;color:#1c1330"><div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px"><h1 style="font-size:20px;margin:0 0 18px">${escapeHtml(title)}</h1>${body}${action}</div></body></html>`;
+  const header = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#22122b"><tr><td style="padding:16px 28px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="padding-right:10px;vertical-align:middle"><img src="cid:${LOGO_CID}" width="36" height="36" alt="" style="display:block;border:0"></td><td style="vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.5px;color:#f7f1ef">ekoai</td></tr></table></td></tr></table>`;
+  return `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f7f1ee;font-family:Arial,Helvetica,sans-serif;color:#1c1330"><div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden">${header}<div style="padding:28px"><h1 style="font-size:20px;margin:0 0 18px">${escapeHtml(title)}</h1>${body}${action}</div></div></body></html>`;
 }
 
 export function invitationMail(mail: InviteMail): Rendered {
@@ -47,7 +53,7 @@ export function invitationMail(mail: InviteMail): Rendered {
     [escapeHtml(intro), escapeHtml(`O ${role.label.toLowerCase()} ${role.what}`), escapeHtml(expiry), 'Se você não esperava este convite, ignore esta mensagem.'],
     { label: 'Aceitar convite', href: mail.link },
   );
-  return { subject, text, html };
+  return { subject, text, html, inline: INLINE_LOGO };
 }
 
 export function accountDeletedMail(mail: AccountDeletedMail): Rendered {
@@ -57,5 +63,5 @@ export function accountDeletedMail(mail: AccountDeletedMail): Rendered {
   const line1 = `${by} excluiu a conta ${account} na Ekoai.`;
   const line2 = 'A exclusão apagou os posts, as ideias, as métricas, o perfil da empresa e a conexão com o Instagram. Não dá para desfazer.';
   const line3 = 'Se você não esperava isso, responda a este e-mail para falar com o suporte.';
-  return { subject, text: [line1, line2, '', line3].join('\n'), html: frame('Conta excluída', [escapeHtml(line1), escapeHtml(line2), escapeHtml(line3)]) };
+  return { subject, text: [line1, line2, '', line3].join('\n'), html: frame('Conta excluída', [escapeHtml(line1), escapeHtml(line2), escapeHtml(line3)]), inline: INLINE_LOGO };
 }
