@@ -185,6 +185,9 @@ Fluxo completo e motivos em [ADR 0013](adr/0013-esteira-feature-staging-producao
 
 1. **Staging** recebe tudo por PR de feature (base `staging`, merge por rebase (padrão) ou squash). Depois do merge, o
    deploy de staging é automático. Teste lá o que vai sair.
+   **URL do staging para testar login e cadastro:** `https://ekoai-platform-828171390595.southamerica-east1.run.app`.
+   A outra URL do Cloud Run (`ekoai-platform-<hash>-rj.a.run.app`) abre o app, mas a chave web do login só aceita a
+   URL acima (`google_apikeys_key.web` em `identity.tf`), então nela o cadastro e o login devolvem 403 de propósito.
 2. **Release:** `scripts/release.sh` mostra o que sai, confere que o staging publicou esse commit e
    leva a `main` até ele por fast-forward (mesmo SHA, sem PR).
 3. **Aprovar o deploy:** o push na `main` roda, no run de Deploy, o CI, a conferência "Veio da
