@@ -8,13 +8,15 @@ import { appOrigin } from '@/lib/origin';
 import { isUuid } from '@/lib/route-input';
 import { apiError, badRequest } from '@/lib/api';
 
-// Reenviar: o link antigo deixa de valer e a validade volta a 7 dias.
+// Reenviar: o link antigo deixa de valer e a validade volta a 7 dias. Com `?link=1` (Copiar link do convite) gera o link novo e o
+// devolve, sem mandar e-mail.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { t, user } = await requireUserPermission('team.manage');
     const { id } = await params;
     if (!isUuid(id)) return badRequest('Convite inválido. Recarregue a página.');
-    const mailer = getMailer(); // configuração errada falha antes de trocar o token
+    const onlyLink = new URL(req.url).searchParams.get('link') === '1';
+    const mailer = onlyLink ? null : getMailer(); // configuração errada falha antes de trocar o token
     const invite = await resendInvitation(t, user, id);
     const link = inviteLink(appOrigin(req), invite.token);
     if (!mailer) return NextResponse.json({ id, sent: false, link });

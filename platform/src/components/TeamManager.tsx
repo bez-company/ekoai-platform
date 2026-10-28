@@ -8,9 +8,10 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Modal from './Modal';
+import RowMenu, { type MenuItem } from './RowMenu';
 import { ErrorLine, Field, Spinner } from './auth/ui';
 import { ROLE_COPY } from '@/lib/auth-flow';
-import { adminCount, initials, inviteExpiry, type SeatUsage } from '@/lib/team-view';
+import { adminCount, initials, inviteExpiry, isSoleAdmin, lastAccessLabel, type SeatUsage } from '@/lib/team-view';
 import type { Role } from '@/lib/permissions';
 import type { TeamInvitation, TeamMember } from '@/lib/team';
 
@@ -32,6 +33,7 @@ type Dialog =
   | { kind: 'link'; email: string; link: string }
   | { kind: 'role'; member: TeamMember }
   | { kind: 'remove'; member: TeamMember }
+  | { kind: 'leave'; member: TeamMember }
   | { kind: 'cancel'; invite: InvitationRow };
 
 type Reply = { ok: true; data: Record<string, unknown> } | { ok: false; error: string; unauthorized: boolean };
@@ -83,11 +85,14 @@ export default function TeamManager({ members, invitations, meId, planName, seat
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('creator');
   const [copied, setCopied] = useState(false);
+  // Falha ao remover: o aviso fica na tela, com a saída "Tentar de novo" (SPEC 029, decisão 8).
+  const [failure, setFailure] = useState<{ message: string; retry: () => void } | null>(null);
   const linkField = useRef<HTMLInputElement>(null);
   const admins = adminCount(members);
 
   function open(next: Dialog, initialRole: Role = 'creator') {
     setError('');
+    setFailure(null);
     setCopied(false);
     setRole(initialRole);
     if (next.kind === 'invite') setEmail('');
@@ -136,6 +141,77 @@ export default function TeamManager({ members, invitations, meId, planName, seat
     }
   }
 
+  function removeMember(m: TeamMember) {
+    setFailure(null);
+    void (async () => {
+      setBusy(true);
+      const reply = await send(`/api/team/members/${m.userId}`, 'DELETE');
+      setBusy(false);
+      if (reply.ok) {
+        setModal(null);
+        setNotice(`${m.name ?? m.email} saiu da empresa.`);
+        router.refresh();
+        return;
+      }
+      if (reply.unauthorized) {
+        router.push('/entrar');
+        return;
+      }
+      setModal(null);
+      setFailure({ message: `Não deu para remover ${m.name ?? m.email} agora. ${reply.error} Nada mudou: a pessoa continua na equipe.`, retry: () => removeMember(m) });
+    })();
+  }
+
+  const now = Date.now();
+  const sole = (id: string) => isSoleAdmin(members, id);
+  const nameOf = (m: TeamMember) => m.name ?? m.email;
+
+  function resend(i: InvitationRow) {
+    setNotice('');
+    void run(`/api/team/invitations/${i.id}/resend`, 'POST', undefined, (d) => {
+      if (typeof d.link === 'string') showLink(d, i.email);
+      else setNotice(`Convite reenviado para ${i.email}. O link novo vale por 7 dias e o anterior deixou de funcionar.`);
+    });
+  }
+
+  function copyLink(i: InvitationRow) {
+    setNotice('');
+    void run(`/api/team/invitations/${i.id}/resend?link=1`, 'POST', undefined, (d) => {
+      if (typeof d.link !== 'string') return;
+      const link = d.link;
+      navigator.clipboard.writeText(link).then(
+        () => setNotice(`Link novo copiado para ${i.email}. O anterior deixou de funcionar.`),
+        () => showLink(d, i.email),
+      );
+    });
+  }
+
+  function memberItems(m: TeamMember): MenuItem[] {
+    const me = m.userId === meId;
+    if (me) {
+      const locked = sole(m.userId);
+      return [
+        { key: 'role', label: 'Mudar meu papel', disabled: locked, onSelect: () => open({ kind: 'role', member: m }, m.role) },
+        { key: 'leave', label: 'Sair da empresa', disabled: locked, danger: true, onSelect: () => open({ kind: 'leave', member: m }) },
+      ];
+    }
+    return [
+      { key: 'role', label: 'Mudar papel', onSelect: () => open({ kind: 'role', member: m }, m.role) },
+      'separator',
+      { key: 'remove', label: 'Remover da empresa', danger: true, onSelect: () => open({ kind: 'remove', member: m }) },
+    ];
+  }
+
+  function inviteItems(i: InvitationRow): MenuItem[] {
+    const expired = i.status === 'expired';
+    return [
+      { key: 'resend', label: expired ? 'Reenviar com novo prazo' : 'Reenviar convite', onSelect: () => resend(i) },
+      ...(expired ? [] : [{ key: 'copy', label: 'Copiar link do convite', onSelect: () => copyLink(i) } as MenuItem]),
+      'separator',
+      { key: 'cancel', label: 'Cancelar convite', danger: true, onSelect: () => open({ kind: 'cancel', invite: i }) },
+    ];
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -156,6 +232,15 @@ export default function TeamManager({ members, invitations, meId, planName, seat
         <p role="status" className="card border-success/30 bg-success/10 py-3 text-sm">
           {notice}
         </p>
+      )}
+
+      {failure && (
+        <div role="alert" className="card flex flex-wrap items-center justify-between gap-3 border-danger/30 bg-danger/10 py-3 text-sm text-danger">
+          <p>{failure.message}</p>
+          <button type="button" className="btn-ghost" onClick={failure.retry}>
+            Tentar de novo
+          </button>
+        </div>
       )}
 
       {canInvite && seats.full && (
@@ -179,78 +264,54 @@ export default function TeamManager({ members, invitations, meId, planName, seat
 
       <section aria-labelledby="members-title" className="space-y-2">
         <h3 id="members-title" className="label">
-          Na conta ({members.length})
+          Pessoas e convites ({members.length + (canInvite ? invitations.length : 0)})
         </h3>
         <ul className="card divide-y divide-line p-0">
           {members.map((m) => {
             const me = m.userId === meId;
             return (
-              <li key={m.userId} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <li key={m.userId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                 <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-inset text-xs font-semibold text-muted">
                   {initials(m.name, m.email)}
                 </span>
                 <div className="min-w-[10rem] flex-1">
                   <p className="break-words text-sm font-semibold">
-                    {m.name ?? m.email}
+                    {nameOf(m)}
                     {me && <span className="chip ml-2">Você</span>}
                   </p>
                   {m.name && <p className="break-all text-sm text-muted">{m.email}</p>}
                 </div>
                 <span className="chip">{ROLE_COPY[m.role].label}</span>
-                {!me && (
-                  <div className="flex gap-2">
-                    <button type="button" className="btn-ghost" onClick={() => open({ kind: 'role', member: m }, m.role)} aria-label={`Mudar o papel de ${m.name ?? m.email}`}>
-                      Mudar papel
-                    </button>
-                  </div>
-                )}
+                <p className="min-w-[9rem] text-sm text-muted">{lastAccessLabel(m.lastLoginAt, now)}</p>
+                <RowMenu
+                  label={me ? 'Ações para você' : `Ações para ${nameOf(m)}`}
+                  items={memberItems(m)}
+                  note={me && sole(m.userId) ? 'Você é a única pessoa administradora. Promova outra pessoa antes de mudar o seu papel ou sair.' : undefined}
+                />
               </li>
             );
           })}
+          {canInvite &&
+            invitations.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-xs font-semibold text-muted">
+                  {initials(null, i.email)}
+                </span>
+                <div className="min-w-[10rem] flex-1">
+                  <p className="break-all text-sm font-semibold">{i.email}</p>
+                </div>
+                <span className="chip">{ROLE_COPY[i.role].label}</span>
+                <p className="min-w-[9rem] text-sm text-muted">
+                  <span className={`chip mr-2 ${i.status === 'expired' ? 'border-danger/40 text-danger' : 'border-warning/40 text-warning'}`}>{i.status === 'expired' ? 'Convite venceu' : 'Convite pendente'}</span>
+                  {inviteExpiry(i.status, i.daysLeft)}
+                </p>
+                <RowMenu label={`Ações para o convite de ${i.email}`} items={inviteItems(i)} />
+              </li>
+            ))}
         </ul>
+        {canInvite && invitations.length === 0 && members.length > 0 && <p className="text-sm text-muted">Convide quem cria os posts e quem revisa. Convite pendente só conta como pessoa depois de aceito.</p>}
+        {!modal && error && <ErrorLine>{error}</ErrorLine>}
       </section>
-
-      {canInvite && (
-        <section aria-labelledby="invites-title" className="space-y-2">
-          <h3 id="invites-title" className="label">
-            Convites pendentes ({invitations.length})
-          </h3>
-          {invitations.length === 0 ? (
-            <p className="card py-4 text-sm text-muted">Nenhum convite pendente. Convide alguém para dividir o trabalho.</p>
-          ) : (
-            <ul className="card divide-y divide-line p-0">
-              {invitations.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-[14rem] flex-1">
-                    <p className="break-all text-sm font-semibold">{i.email}</p>
-                    <p className="text-sm text-muted">
-                      {ROLE_COPY[i.role].label} · {inviteExpiry(i.status, i.daysLeft)}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      disabled={busy}
-                      onClick={() => {
-                        setNotice('');
-                        void run(`/api/team/invitations/${i.id}/resend`, 'POST', undefined, (d) => showLink(d, i.email));
-                      }}
-                      aria-label={`Gerar novo link para ${i.email}`}
-                    >
-                      Reenviar
-                    </button>
-                    <button type="button" className="btn-danger" onClick={() => open({ kind: 'cancel', invite: i })} aria-label={`Cancelar o convite de ${i.email}`}>
-                      Cancelar
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!modal && error && <ErrorLine>{error}</ErrorLine>}
-        </section>
-      )}
 
       <section aria-labelledby="roles-title" className="card space-y-3">
         <h3 id="roles-title" className="text-sm font-semibold">
@@ -319,52 +380,66 @@ export default function TeamManager({ members, invitations, meId, planName, seat
       )}
 
       {modal?.kind === 'role' && (
-        <Modal title={`Papel de ${modal.member.name ?? modal.member.email}`} onClose={close}>
+        <Modal title={modal.member.userId === meId ? 'Mudar o meu papel' : `Mudar o papel de ${nameOf(modal.member)}`} onClose={close}>
+          <p className="text-sm text-muted">A mudança vale na próxima ação da pessoa.</p>
           <RolePicker value={role} onChange={setRole} disabled={busy} />
           {modal.member.role === 'admin' && admins === 1 && role !== 'admin' && (
             <p className="text-sm text-muted">Esta é a única pessoa administradora. Promova outra antes de mudar este papel.</p>
           )}
           {error && <ErrorLine>{error}</ErrorLine>}
-          <div className="flex flex-wrap justify-between gap-2">
-            <button type="button" className="btn-danger" disabled={busy} onClick={() => open({ kind: 'remove', member: modal.member })}>
-              Remover da equipe
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-ghost" onClick={close} disabled={busy}>
+              Cancelar
             </button>
-            <div className="flex gap-2">
-              <button type="button" className="btn-ghost" onClick={close} disabled={busy}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={busy || role === modal.member.role}
-                onClick={() => void run(`/api/team/members/${modal.member.userId}`, 'PATCH', { role }, () => setModal(null))}
-              >
-                {busy && <Spinner />}
-                Salvar papel
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={busy || role === modal.member.role}
+              onClick={() => void run(`/api/team/members/${modal.member.userId}`, 'PATCH', { role }, () => setModal(null))}
+            >
+              {busy && <Spinner />}
+              Salvar papel
+            </button>
           </div>
         </Modal>
       )}
 
       {modal?.kind === 'remove' && (
-        <Modal title={`Remover ${modal.member.name ?? modal.member.email}?`} onClose={close}>
-          <p className="text-sm text-muted">
-            A pessoa perde o acesso a esta conta na próxima ação. Os posts que ela criou continuam aqui. Para voltar, será preciso um novo convite.
-          </p>
+        <Modal title={`Remover ${nameOf(modal.member)} da empresa?`} onClose={close}>
+          <p className="text-sm text-muted">{nameOf(modal.member)} perde o acesso a esta conta na próxima ação.</p>
+          <div className="rounded-lg border border-line bg-inset p-3 text-sm">
+            <p className="font-semibold">O que acontece</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-muted">
+              <li>Os posts que a pessoa criou continuam na conta.</li>
+              <li>Os convites que ela enviou continuam valendo.</li>
+              <li>O login dela não é apagado: se ela tem acesso a outra conta, continua entrando nela.</li>
+            </ul>
+          </div>
+          <p className="text-sm text-muted">Para dar o acesso de volta, convide {modal.member.email} de novo.</p>
           {error && <ErrorLine>{error}</ErrorLine>}
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-ghost" onClick={close} disabled={busy}>
-              Manter na equipe
+              Cancelar
             </button>
-            <button
-              type="button"
-              className="btn-danger"
-              disabled={busy}
-              onClick={() => void run(`/api/team/members/${modal.member.userId}`, 'DELETE', undefined, () => setModal(null))}
-            >
+            <button type="button" className="btn-danger" disabled={busy} onClick={() => removeMember(modal.member)}>
               {busy && <Spinner />}
-              Remover da equipe
+              Remover da empresa
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.kind === 'leave' && (
+        <Modal title="Sair desta empresa?" onClose={close}>
+          <p className="text-sm text-muted">Você perde o acesso a esta conta na próxima ação. Os posts que você criou continuam aqui, e o seu login continua valendo em outras contas. Para voltar, alguém precisa convidar você de novo.</p>
+          {error && <ErrorLine>{error}</ErrorLine>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-ghost" onClick={close} disabled={busy}>
+              Ficar
+            </button>
+            <button type="button" className="btn-danger" disabled={busy} onClick={() => void run(`/api/team/members/${modal.member.userId}`, 'DELETE', undefined, () => window.location.assign('/entrar'))}>
+              {busy && <Spinner />}
+              Sair da empresa
             </button>
           </div>
         </Modal>

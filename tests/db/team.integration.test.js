@@ -78,6 +78,14 @@ describe('convite', () => {
     expect(JSON.stringify(list)).not.toContain('token_hash');
   });
 
+  it('a lista traz o último acesso de cada pessoa (nulo para quem nunca entrou)', async () => {
+    await admin.query("update users set last_login_at = '2026-10-27T12:00:00Z' where id = $1", [U(1)]);
+    const first = (await team.listTeam(t)).members.find((m) => m.userId === U(1));
+    expect(first.lastLoginAt).toBe('2026-10-27T12:00:00.000Z');
+    await admin.query('update users set last_login_at = null where id = $1', [U(1)]);
+    expect((await team.listTeam(t)).members.find((m) => m.userId === U(1)).lastLoginAt).toBeNull();
+  });
+
   it('aceitar entra como o papel do convite, audita e não vale duas vezes', async () => {
     const hash = await model.hashInviteToken(invite.token);
     expect(await accounts.acceptInvitation(U(2), hash)).toBe(TENANT);
