@@ -22,7 +22,8 @@ import { DEFAULT_FORMAT, DEFAULT_RATIO, GOALS, inputHash, isPostFormat, isPostGo
 import { clicheIssues, offTopicFacts, requestNumbersMissing } from './off-topic-facts';
 import { buildDirectivesPrompt, directivesFromStored, hasDirectives, parseDirectives, storedDirectives, type StoredDirectives } from './directives';
 import { composeDesign, describeEach, directiveItems, planDirectives, reviewComposed, reviewCount, writerHints, type Plan } from './directives-apply';
-import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type RewriteMode } from './agents';
+import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseCore, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type Core, type RewriteMode } from './agents';
+import { CHANNELS, type Channel } from './types';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
 import { blocking, reviewText, type Issue } from './design/review';
@@ -47,10 +48,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null; channels: Channel[]; core: Core | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count,channels,core').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -67,8 +68,19 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     directives: directivesFromStored(data.directives),
     format: isPostFormat(data.format) ? data.format : DEFAULT_FORMAT,
     slideCount: Number.isInteger(data.slide_count) ? Number(data.slide_count) : null,
+    channels: channelsOf(data.channels),
+    core: coreOf(data.core),
   };
 }
+
+// Onde o pedido publica (SPEC 028). Pedido antigo, ou valor fora da lista, é só o Instagram.
+function channelsOf(raw: unknown): Channel[] {
+  const list = (Array.isArray(raw) ? raw : []).filter((c): c is Channel => (CHANNELS as string[]).includes(c as string));
+  return list.length ? [...new Set(list)] : ['instagram'];
+}
+
+// O núcleo guardado passa pelo mesmo parser que o leu do modelo.
+const coreOf = (raw: unknown): Core | null => parseCore(raw);
 
 // A foto do banco anexada ao pedido (BEZ-237), já com os bytes. Sumiu do banco ou perdeu a
 // autorização de uso de imagem: o pedido falha com o próximo passo, sem gerar nada.
@@ -175,7 +187,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
   let feedback: Issue[] = [];
   let best: { copy: Copy; issues: Issue[] } | null = null;
   for (let round = 1; round <= MAX_COPY_ROUNDS; round += 1) {
-    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, signal: signalOfGoal(brief.goal), profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
+    const prompt = buildCopyPrompt({ idea: ideaWithPhoto(brief, photo), kind: plan?.kind ?? brief.kind, format: formatOf(brief, photo), slideCount: brief.slideCount, directives: plan ? writerHints(plan) : null, goal: brief.goal ? GOALS[brief.goal].hint || null : null, signal: signalOfGoal(brief.goal), channels: brief.channels, profile, facts: facts.facts, never: [...facts.never, ...(campaign?.restrictions ?? [])], rules, feedback, previous, direction: brief.direction, campaign: copyCampaign(campaign) });
     const model = deps.model.config.textModel;
     const hash = inputHash('writer', model, { prompt });
     const reservation = await reserveRun(t, { briefId: brief.id, step: 'writer', inputHash: hash, model }, planMax);
@@ -192,7 +204,7 @@ async function writeCopy(t: TenantDb, deps: GenerationDeps, brief: Brief, profil
         throw e;
       }
     }
-    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo), brief.slideCount, signalOfGoal(brief.goal));
+    const parsed = parseCopy(json, plan?.kind ?? brief.kind, formatOf(brief, photo), brief.slideCount, signalOfGoal(brief.goal), brief.channels.some((c) => c !== 'instagram'));
     if (!parsed.ok) {
       feedback = [{ rule: 'format', detail: parsed.error, message: parsed.error, where: 'caption' }];
       continue;
@@ -300,6 +312,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const situation = { kind: brief.kind, hasLogo: !!logo, hasHandle: !!profile.instagramHandle, brandName: account?.name ?? null };
     const plan = !photo && brief.format !== 'carousel' && directives.status === 'ok' && hasDirectives(directives.directives) ? planDirectives(directives.directives, situation) : null;
     const { copy, issues } = await writeCopy(t, deps, brief, profile, facts, rules, planMax, photo, campaign, plan);
+    // O núcleo fica no pedido: o redator de cada outra rede lê daqui, não da legenda do Instagram (SPEC 028).
+    if (copy.core) await setBrief(t, brief.id, { core: copy.core });
     const pieces = plan ? composeDesign(directives.directives, plan, copy, situation) : null;
     const directed = !!pieces?.applied.length;
     // Com foto anexada o post é de atmosfera: a foto (ou a imagem inspirada nela) é o visual.

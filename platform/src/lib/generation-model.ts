@@ -4,8 +4,12 @@
 
 import { createHash } from 'node:crypto';
 
-export const STEPS = ['directives', 'strategist', 'writer', 'art', 'visual', 'review', 'render'] as const;
+export const STEPS = ['directives', 'strategist', 'writer', 'core', 'adapt', 'art', 'visual', 'review', 'critic', 'fix', 'render', 'publish'] as const;
 export type Step = (typeof STEPS)[number];
+
+// As redes para as quais a geração já escreve um post (SPEC 028). O pedido aceita `channels`, mas só estas passam: o
+// LinkedIn entra com o redator por rede (BEZ-424, fatia 2) e o X depois da conexão (BEZ-426).
+export const GENERATED_CHANNELS: readonly Channel[] = ['instagram'];
 
 export const POST_KINDS = ['informativo', 'atmosfera'] as const;
 export type PostKind = (typeof POST_KINDS)[number];
@@ -30,6 +34,7 @@ export function isRatio(value: unknown): value is Ratio {
 // Os objetivos (SPEC 017 decisão 6) moram em post-goals.ts, sem I/O nem node:, para a tela usar.
 export { POST_GOALS, GOALS, isPostGoal, type PostGoal } from './post-goals';
 import { GOALS, type PostGoal } from './post-goals';
+import type { Channel } from './types';
 
 // A montagem que o objetivo pede. O tipo escolhido à mão (pedido antigo) vale sobre o objetivo.
 export function kindForGoal(goal: PostGoal | null, explicit: PostKind | null = null): PostKind | null {
