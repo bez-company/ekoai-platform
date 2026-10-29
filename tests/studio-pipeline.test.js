@@ -152,9 +152,9 @@ describe('pipeline do estúdio (SPEC 030, F2)', () => {
     expect(out.gate.ok).toBe(true);
   });
 
-  it('Pro faz 2 rascunhos e devolve o outro como alternativa', async () => {
+  it('Autoral faz 2 rascunhos e devolve o outro como alternativa', async () => {
     const model = fakeModel({ ...happy(), designer: (n) => html(`rascunho ${n}`), critico: (n) => critic(n === 1 ? 7 : 8.5) });
-    const out = await runStudio({ model, renderer: renderer() }, { ...base, effort: 'pro' });
+    const out = await runStudio({ model, renderer: renderer() }, { ...base, effort: 'autoral' });
     expect(model.calls.filter((c) => c.step === 'designer')).toHaveLength(2);
     expect(out.alternatives).toHaveLength(1);
   });

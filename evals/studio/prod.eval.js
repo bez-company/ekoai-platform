@@ -1,6 +1,6 @@
 // prod.eval.js: roda o estúdio de PRODUÇÃO (platform/src/lib/studio, TypeScript) nos pedidos do eval e julga com o juiz de design,
 // para provar que o código que vai ao ar reproduz a qualidade e o custo do experimento (SPEC 030, F2). Só roda com EVAL_LIVE=1.
-//   STUDIO_RUN=prod-1  STUDIO_PROD_EFFORT=refinado|autoral|pro  STUDIO_ABL_REQS=fe/amigo,...  STUDIO_CONCURRENCY=3
+//   STUDIO_RUN=prod-1  STUDIO_PROD_EFFORT=refinado|autoral  STUDIO_ABL_REQS=fe/amigo,...  STUDIO_CONCURRENCY=3
 import { describe, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

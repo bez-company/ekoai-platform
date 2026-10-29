@@ -1,6 +1,6 @@
 'use client';
 
-// StylePicker.tsx: a vitrine de estilos do Criar post (SPEC 030). "Deixar a Ekoai escolher" é o padrão; o filtro separa minimalista
+// StylePicker.tsx: a vitrine de modelos do Criar post (SPEC 030), sem preço. "Deixar a Ekoai escolher" é o padrão; o filtro separa minimalista
 // (sem imagem de IA) de com imagem de fundo; "Ver todos" abre os 15 estilos. A escolha sobe para o formulário como texto: o id do
 // estilo, ou auto, auto-minimalista e auto-imagem.
 
@@ -41,8 +41,8 @@ export default function StylePicker({ value, onChange, brand }: { value: string;
 
   return (
     <fieldset className="space-y-3">
-      <legend className="text-sm font-semibold">Estilo do post</legend>
-      <p className="text-xs text-muted">Escolha uma direção de design ou deixe a Ekoai variar. Estilo com imagem de fundo usa uma imagem gerada a partir do seu pedido.</p>
+      <legend className="text-sm font-semibold">Modelo do post</legend>
+      <p className="text-xs text-muted">Escolha o padrão de post que você quer, preenchido com o texto e as cores da sua marca, ou deixe a Ekoai variar. Modelo com imagem de fundo usa uma imagem gerada a partir do seu pedido.</p>
       <div role="group" aria-label="Tipo de post" className="flex flex-wrap gap-2">
         {FILTERS.map(([id, label]) => (
           <button
@@ -59,25 +59,25 @@ export default function StylePicker({ value, onChange, brand }: { value: string;
           </button>
         ))}
       </div>
-      <div role="radiogroup" aria-label="Estilo do post" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div role="radiogroup" aria-label="Modelo do post" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <button type="button" role="radio" aria-checked={autoOn} onClick={() => pick(autoValue)} className={`flex flex-col gap-1.5 rounded-lg border p-2 text-left transition ${autoOn ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}>
           <span className="flex aspect-[4/5] items-center justify-center rounded-md border border-line bg-inset text-accent-text" aria-hidden="true">
             ✦
           </span>
           <strong className="text-sm">Deixar a Ekoai escolher</strong>
-          <small className="text-xs leading-snug text-muted">Escolhe o estilo que melhor serve ao tema e varia a cada post.</small>
+          <small className="text-xs leading-snug text-muted">Escolhe o modelo que melhor serve ao tema e varia a cada post.</small>
         </button>
         {list.slice(0, SHOWN).map((s) => (
           <Tile key={s.id} style={s} on={value === s.id} brand={brand} onPick={() => pick(s.id)} />
         ))}
       </div>
       <button type="button" className="btn-ghost min-h-9 px-3 text-xs" onClick={() => setAll(true)}>
-        Ver todos os {STYLES.length} estilos
+        Ver todos os {STYLES.length} modelos
       </button>
       {all && (
-        <Modal title={`Os ${STYLES.length} estilos`} onClose={() => setAll(false)} wide>
-          <p className="text-sm text-muted">Cada um é uma direção de design. As prévias usam as cores da sua marca.</p>
-          <div role="radiogroup" aria-label="Todos os estilos" className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
+        <Modal title={`Os ${STYLES.length} modelos`} onClose={() => setAll(false)} wide>
+          <p className="text-sm text-muted">Cada um é um padrão de post. As prévias usam as cores da sua marca.</p>
+          <div role="radiogroup" aria-label="Todos os modelos" className="grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
             {STYLES.map((s) => (
               <Tile
                 key={s.id}

@@ -1,8 +1,9 @@
-// levels.ts: o catálogo do "Criar post" por estilo e esforço (SPEC 030, protótipo v26). Puro, sem I/O. Define os níveis de
-// esforço dos agentes, a vitrine de estilos, a qualidade da imagem e a conta da estimativa que a tela mostra antes de criar.
-// Os preços são de configuração (o preço real vem do BEZ-301 e da SPEC 031); os do código são provisórios e valem em centavos.
+// levels.ts: o catálogo do "Criar post" por modelo e qualidade (SPEC 030, protótipo v28). Puro, sem I/O. Define os 3 níveis de
+// qualidade (o esforço dos agentes), a vitrine de modelos (ids de estilo), a qualidade da imagem e as regras de imagem por modelo.
+// Não há preço aqui: o fluxo do post não mostra valor, que vive na fatura (SPEC 031, decisão de 30/10/2026).
 
-export const EFFORTS = ['instantaneo', 'padrao', 'refinado', 'autoral', 'pro'] as const;
+// O banco aceita também 'padrao' e 'pro' (migration 0055), que saíram do seletor em 30/10/2026; nenhum pedido os usa.
+export const EFFORTS = ['instantaneo', 'refinado', 'autoral'] as const;
 export type Effort = (typeof EFFORTS)[number];
 export const DEFAULT_EFFORT: Effort = 'instantaneo';
 
@@ -16,32 +17,27 @@ export const AGENT_NODES = ['Ideia', 'Texto', 'Arte', 'Design', 'Crítica', 'Ref
 export type Level = {
   id: Effort;
   name: string;
+  // O grau de qualidade em palavras, que a tela mostra no lugar de preço.
+  quality: string;
   time: string;
-  priceCents: number;
   // Índices de AGENT_NODES dos agentes acesos neste nível.
   lit: number[];
   blurb: string;
-  // Só o Instantâneo gera na F1; os outros aparecem como "em breve" até a F3 (SPEC 030, fases).
+  // Só o Rápido gera na F1; os outros aparecem como "em breve" até a F3 (SPEC 030, fases).
   available: boolean;
   extra?: string;
 };
 
+// Nomes provisórios (SPEC 030): o id `instantaneo` é o nome técnico do motor de hoje e aparece na tela como Rápido.
 export const LEVELS: readonly Level[] = [
-  { id: 'instantaneo', name: 'Instantâneo', time: 'segundos', priceCents: 50, lit: [1, 3], blurb: 'O motor da marca monta o texto e o layout a partir do perfil. Sem revisão por agentes.', available: true },
-  { id: 'padrao', name: 'Padrão', time: 'cerca de 1 minuto', priceCents: 200, lit: [1, 2, 3], blurb: 'Um agente pensa o texto e o design de uma vez. Rápido e bom para o dia a dia.', available: false },
-  { id: 'refinado', name: 'Refinado', time: 'cerca de 10 minutos', priceCents: 500, lit: [0, 1, 2, 3, 4, 6], blurb: 'Ideia, texto, arte e design, com um crítico que aponta o que melhorar e um revisor no fim.', available: false },
-  { id: 'autoral', name: 'Autoral', time: 'cerca de 12 minutos', priceCents: 800, lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Todos os agentes, com acabamento: o crítico manda corrigir e o embelezador refina a peça.', available: false },
-  { id: 'pro', name: 'Pro', time: 'cerca de 15 minutos', priceCents: 1200, lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Tudo do Autoral, com 2 rascunhos de design e 3 opções para você escolher.', available: false, extra: '3 opções' },
+  { id: 'instantaneo', name: 'Rápido', quality: 'Qualidade base', time: 'segundos', lit: [1, 3], blurb: 'Um modelo pronto da marca, preenchido com o texto do seu tema. Sem revisão por agentes; dá para refinar depois.', available: true },
+  { id: 'refinado', name: 'Refinado', quality: 'Qualidade alta', time: 'cerca de 10 minutos', lit: [0, 1, 2, 3, 4, 6], blurb: 'Ideia, texto, arte e design, com um crítico que aponta o que melhorar e um revisor no fim.', available: false },
+  { id: 'autoral', name: 'Autoral', quality: 'Qualidade máxima', time: 'cerca de 15 minutos', lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Layout pensado só para o tema, com crítica, refino e revisão. Entrega 3 opções de design para você escolher.', available: false, extra: '3 opções' },
 ];
 
 export function levelOf(effort: Effort): Level {
   return LEVELS.find((l) => l.id === effort) ?? LEVELS[0];
 }
-
-// Mostrar o preço no fluxo do post: o Matheus pediu a referência de preço em 29/10/2026 (o protótipo v26 tem a variante com e sem
-// preço), mas contradiz a decisão de 28/10/2026 sobre o X (custo na fatura) e os valores acima são provisórios: a cobrança real
-// (BEZ-301) ainda não existe. Fica desligado até haver preço real; ligar é trocar esta constante (SPEC 030, decisão 4).
-export const SHOW_PRICE_IN_FLOW = false;
 
 // ── Qualidade da imagem ────────────────────────────────────────────────────────────────────────────────────
 export const IMAGE_QUALITIES = ['padrao', 'alta'] as const;
@@ -52,12 +48,12 @@ export function isImageQuality(value: unknown): value is ImageQuality {
   return typeof value === 'string' && (IMAGE_QUALITIES as readonly string[]).includes(value);
 }
 
-export const IMAGE_QUALITY: Record<ImageQuality, { name: string; priceCents: number; hint: string; model: string }> = {
-  padrao: { name: 'Padrão', priceCents: 60, hint: 'Boa para a maioria dos posts.', model: 'gemini-3.1-flash-image' },
-  alta: { name: 'Alta', priceCents: 120, hint: 'Mais detalhe e realismo; leva mais tempo.', model: 'gemini-3-pro-image' },
+export const IMAGE_QUALITY: Record<ImageQuality, { name: string; hint: string; model: string }> = {
+  padrao: { name: 'Padrão', hint: 'Boa para a maioria dos posts.', model: 'gemini-3.1-flash-image' },
+  alta: { name: 'Alta', hint: 'Mais detalhe e realismo; leva mais tempo.', model: 'gemini-3-pro-image' },
 };
 
-// ── Estilos ───────────────────────────────────────────────────────────────────────────────────────────────
+// ── Modelos (ids de estilo) ───────────────────────────────────────────────────────────────────────────────────────────────
 // Cada estilo é uma direção de design (um território do estúdio). `image`: 'none' = só tipografia e formas, 'optional' = pode ou
 // não ter imagem, 'required' = imagem de fundo gerada. É a propriedade que separa minimalista de "com imagem de fundo".
 export type StyleImage = 'none' | 'optional' | 'required';
@@ -115,19 +111,3 @@ export function kindForStyle(style: string): 'informativo' | 'atmosfera' | null 
   const use = usesImage(style);
   return use === 'no' ? 'informativo' : use === 'yes' ? 'atmosfera' : null;
 }
-
-// ── Estimativa ────────────────────────────────────────────────────────────────────────────────────────────
-export type Estimate = { priceCents: number; maxCents: number | null; image: 'yes' | 'no' | 'maybe'; time: string };
-
-// O valor que a tela mostra: o do nível mais, com imagem, a qualidade escolhida. Quando o estilo pode ter imagem (a Ekoai escolhe),
-// `priceCents` é o piso (sem imagem) e `maxCents` o teto (com imagem).
-export function estimate(input: { effort: Effort; style: string; imageQuality: ImageQuality | null }): Estimate {
-  const level = levelOf(input.effort);
-  const image = usesImage(input.style);
-  const extra = IMAGE_QUALITY[input.imageQuality ?? DEFAULT_IMAGE_QUALITY].priceCents;
-  if (image === 'yes') return { priceCents: level.priceCents + extra, maxCents: null, image, time: level.time };
-  if (image === 'maybe') return { priceCents: level.priceCents, maxCents: level.priceCents + extra, image, time: level.time };
-  return { priceCents: level.priceCents, maxCents: null, image, time: level.time };
-}
-
-export const brl = (cents: number): string => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;

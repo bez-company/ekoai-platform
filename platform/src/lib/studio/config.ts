@@ -1,6 +1,5 @@
-// config.ts: o que cada nível de esforço faz por dentro (SPEC 030, decisão 2): quantos rascunhos, quantas voltas de refino, que modelo
-// em cada papel e o teto de custo. Só os níveis com cadeia de agentes aparecem aqui; Instantâneo é o motor atual e Padrão (uma
-// chamada) ainda não existe. Os valores vêm do eval (docs/analises/2026-10-28-custo-e-preco-por-post.md).
+// config.ts: o que cada nível de qualidade faz por dentro (SPEC 030, decisão 2): quantos rascunhos, quantas voltas de refino, que modelo
+// em cada papel e o teto de custo. Só os níveis com cadeia de agentes aparecem aqui; o Rápido (id instantaneo) é o motor de modelos. Os valores vêm do eval (docs/analises/2026-10-28-custo-e-preco-por-post.md).
 
 import type { Effort } from './levels';
 
@@ -17,15 +16,15 @@ export type LevelPlan = {
   capUsd: number; // acima disso a geração fecha com a melhor versão que existe
 };
 
-export const STUDIO_EFFORTS = ['refinado', 'autoral', 'pro'] as const;
+export const STUDIO_EFFORTS = ['refinado', 'autoral'] as const;
 export type StudioEffort = (typeof STUDIO_EFFORTS)[number];
 
 export const isStudioEffort = (e: Effort): e is StudioEffort => (STUDIO_EFFORTS as readonly string[]).includes(e);
 
 export const LEVEL_PLANS: Record<StudioEffort, LevelPlan> = {
   refinado: { drafts: 1, polishRounds: 2, gateRepairs: 2, designer: 'fast', designerThinking: 'medium', capUsd: 0.9 },
-  autoral: { drafts: 1, polishRounds: 2, gateRepairs: 2, designer: 'smart', designerThinking: 'low', capUsd: 0.9 },
-  pro: { drafts: 2, polishRounds: 2, gateRepairs: 2, designer: 'smart', designerThinking: 'medium', capUsd: 1.2 },
+  // Autoral = o antigo Pro: 2 rascunhos, tudo em Pro, 3 opções de design (o Autoral de 1 rascunho empatou com o Refinado e saiu).
+  autoral: { drafts: 2, polishRounds: 2, gateRepairs: 2, designer: 'smart', designerThinking: 'medium', capUsd: 1.2 },
 };
 
 // O estúdio usa a mesma lista de modelos do eval (STUDIO_*_MODEL só no eval); em produção os nomes vêm da configuração do Vertex.

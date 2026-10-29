@@ -66,7 +66,7 @@ export type StudioResult = {
   territory: string;
   score: number;
   verdict: Critique['verdict'];
-  // Os outros rascunhos que o crítico avaliou (o nível Pro entrega 3 opções): PNG, HTML e nota.
+  // Os outros rascunhos que o crítico avaliou (o nível Autoral entrega 3 opções): PNG, HTML e nota.
   alternatives: { png: Uint8Array; html: string; score: number }[];
   assets: Record<string, Uint8Array>;
   gate: Review;

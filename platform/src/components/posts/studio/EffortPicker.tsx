@@ -1,10 +1,10 @@
 'use client';
 
-// EffortPicker.tsx: o esforço dos agentes e a qualidade da imagem (SPEC 030, protótipo v26). Cinco níveis estilo "esforço" do ChatGPT,
-// com a imagem dos agentes acesos; o preço aparece quando SHOW_PRICE_IN_FLOW está ligado. Nível que ainda não gera fica
-// desabilitado com "Em breve" (só o Instantâneo gera na F1).
+// EffortPicker.tsx: a qualidade do post (o esforço dos agentes) e a qualidade da imagem (SPEC 030, protótipo v28). Três níveis, com a
+// imagem dos agentes acesos; sem preço (o valor fica na fatura). Nível que ainda não gera fica desabilitado com "Em breve" (só o
+// Rápido gera na F1).
 
-import { AGENT_NODES, IMAGE_QUALITIES, IMAGE_QUALITY, LEVELS, SHOW_PRICE_IN_FLOW, brl, levelOf, type Effort, type ImageQuality, type Level } from '@/lib/studio/levels';
+import { AGENT_NODES, IMAGE_QUALITIES, IMAGE_QUALITY, LEVELS, levelOf, type Effort, type ImageQuality, type Level } from '@/lib/studio/levels';
 
 function Bars({ index }: { index: number }) {
   return (
@@ -52,9 +52,9 @@ export default function EffortPicker({
   const level = levelOf(effort);
   return (
     <fieldset className="space-y-3">
-      <legend className="text-sm font-semibold">Esforço dos agentes</legend>
-      <p className="text-xs text-muted">Mais esforço dá mais cuidado com o texto e o design, e leva mais tempo. {SHOW_PRICE_IN_FLOW ? 'Você vê a estimativa antes de criar.' : ''}</p>
-      <div role="radiogroup" aria-label="Esforço dos agentes" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <legend className="text-sm font-semibold">Qualidade do post</legend>
+      <p className="text-xs text-muted">Mais qualidade põe mais agentes para trabalhar e leva mais tempo. Níveis mais altos consomem mais da sua conta.</p>
+      <div role="radiogroup" aria-label="Qualidade do post" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {LEVELS.map((l, i) => (
           <button
             key={l.id}
@@ -67,8 +67,8 @@ export default function EffortPicker({
           >
             <Bars index={i} />
             <strong className="text-sm">{l.name}</strong>
+            <small className="text-xs text-muted">{l.quality}</small>
             <small className="text-xs text-muted">{l.available ? l.time : 'Em breve'}</small>
-            {SHOW_PRICE_IN_FLOW && l.available && <span className="mt-0.5 text-[13px] font-bold tabular-nums text-accent-text">{brl(l.priceCents)}</span>}
           </button>
         ))}
       </div>
@@ -77,7 +77,7 @@ export default function EffortPicker({
       {imageMode !== 'no' ? (
         <div className="space-y-2 pt-1">
           <span className="block text-sm font-semibold">
-            Qualidade da imagem {imageMode === 'maybe' && <small className="font-normal text-muted">(só vale se o estilo usar imagem)</small>}
+            Qualidade da imagem {imageMode === 'maybe' && <small className="font-normal text-muted">(só vale se o modelo usar imagem)</small>}
           </span>
           <div role="radiogroup" aria-label="Qualidade da imagem" className="grid grid-cols-2 gap-2">
             {IMAGE_QUALITIES.map((q) => (
@@ -86,13 +86,12 @@ export default function EffortPicker({
                   <strong className="block text-sm">{IMAGE_QUALITY[q].name}</strong>
                   <small className="text-xs text-muted">{IMAGE_QUALITY[q].hint}</small>
                 </span>
-                {SHOW_PRICE_IN_FLOW && <span className="text-[13px] font-bold tabular-nums text-accent-text">+ {brl(IMAGE_QUALITY[q].priceCents)}</span>}
               </button>
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted">Este estilo não usa imagem de IA: só tipografia e formas, na cor da marca.</p>
+        <p className="text-xs text-muted">Este modelo não usa imagem de IA: só tipografia e formas, na cor da marca.</p>
       )}
     </fieldset>
   );
