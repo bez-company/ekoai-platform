@@ -76,6 +76,28 @@ agentes sem validação de formato.
     variedade pelo menos 8, zero defeito de layout medido e "postaria sem editar" de pelo menos 90% em 24 peças, **e** a aprovação
     do Matheus olhando os `compare.png`. Já houve a aprovação humana da rodada de 28/10.
 
+## Revisão de 30/10/2026: o preço vai no modelo de post
+
+O Matheus pediu que o custo seja **por modelo de post** (template da vitrine), não só por nível de esforço: há modelos mais baratos e
+mais caros, e é isso que ele quer controlar. A vitrine de estilos vira a **vitrine de modelos de post**, e cada modelo diz como é produzido:
+
+| Motor do modelo | Como produz | Custo de modelo (US$) | Tempo |
+|---|---|---|---|
+| **Template** | HTML com espaços (slots) já desenhado e verificado; uma chamada curta preenche o texto, as cores e (se o modelo tem) o prompt da imagem; o render é por código | 0,002 a 0,01, mais a imagem | segundos |
+| **Autoral** | a cadeia de agentes cria a peça do zero (níveis Refinado, Autoral e Pro desta spec) | 0,25 a 0,56, mais a imagem | minutos |
+| **Instantâneo** | o motor de layouts de hoje (SVG) | 0,002 | segundos |
+
+- **Preço por modelo, mostrado no cartão do modelo:** o motor e o uso de imagem definem uma faixa; a imagem soma à parte (qualidade
+  Padrão ou Alta). O nível de esforço deixa de ser a escolha principal: só o motor Autoral o expõe (Refinado, Autoral, Pro).
+- **Os templates saem do próprio estúdio:** o estúdio completo cria a peça, o templater a transforma em template com slots, o lint
+  confere (nenhum texto fora dos slots, nenhuma caixa que corta) e uma pessoa aprova. Custa uma vez por template, e depois cada post é
+  centavos. No spike (BEZ-447), com 8 a 10 templates a escolha falhou em parte dos pedidos (nota de 3,3 a 8,2); a biblioteca precisa
+  de dezenas de templates, e cada um é revisto antes de entrar.
+- **Qualidade que cada motor entrega (medida):** Template, 5,4 a 6,6 com 8 a 10 templates (a validar com biblioteca maior); Refinado,
+  8,0; Autoral, 8,2; Pro, 8,4 a 8,6.
+- **Protótipo:** a v26 aprovada mostra o preço por nível; esta revisão muda a hierarquia da tela (preço no cartão do modelo, esforço só
+  no motor Autoral), então pede a **v27 do protótipo** antes do código da F1 refeita (BEZ-464 já na staging com os níveis).
+
 ## Execução e dados (decisão técnica no ADR 0028)
 
 | Item | Mudança |
