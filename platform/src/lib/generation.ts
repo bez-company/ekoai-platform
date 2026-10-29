@@ -25,7 +25,7 @@ import { composeDesign, describeEach, directiveItems, planDirectives, reviewComp
 import { buildCopyPrompt, buildRewritePrompt, finalAltText, imageTextsOf, keepWhatPassed, parseCopy, parseCore, parseRewrite, signalOfGoal, visualPromptFor, type Copy, type CopySlide, type Core, type RewriteMode } from './agents';
 import { CHANNELS, type Channel } from './types';
 import { LINKEDIN_LIMITS, buildLinkedInPrompt, hookOf, linkedInBody, parseLinkedIn, type LinkedInPost } from './linkedin-post';
-import { avgScore, buildCriticPrompt, buildFixPrompt, parseCritic, parseFix, weakCriteria, type Critic, type CriticChannel, type PostView } from './signal-critic';
+import { RUBRICS, avgScore, buildCriticPrompt, buildFixPrompt, criticFromStored, parseCritic, parseFix, weakCriteria, type Critic, type CriticChannel, type PostView } from './signal-critic';
 import type { Signal } from './post-goals';
 import { brandFromProfile, brandPhotoLayout, defaultLayout, imageDataUri, storedDesignOf, type DesignSpec, type Logo, type LogoImage } from './design/model';
 import { pngSize, renderPng } from './design/render';
@@ -44,6 +44,7 @@ import { isPhotoUsage, usageShowsPhoto, type PhotoUsage } from './photo-question
 import { renderPhoto } from './design/photo';
 import { photoSource } from './photo-post';
 import { pdfFromPngs } from './pdf';
+import { hashtagsOf, joinHashtagLine, sameText, splitHashtagLine, type SignalAction } from './signal-text';
 
 // critic: liga o avaliador de sinais (SPEC 028, BEZ-425): uma chamada por rede, mais um conserto de uma volta quando algum critério
 // vem com nota 0. O worker liga por padrão; quem chama generatePost direto (testes) liga se quiser.
@@ -387,6 +388,112 @@ async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy:
     await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e));
     throw e;
   }
+}
+
+// Reavaliar o texto de uma rede e aplicar uma sugestão (SPEC 028, BEZ-441). Trabalha sobre o texto que a pessoa está vendo, editado ou não:
+// `evaluate` dá a faixa e o checklist de novo; `apply` reescreve só o ponto da sugestão (uma chamada curta, a mesma do conserto da
+// geração) e avalia o resultado. Nenhuma das duas chama o redator, nem gasta do limite de posts, nem muda o post guardado: o texto novo
+// volta para a tela, que o aprova ou desfaz. A avaliação só é guardada quando o texto é o que já estava guardado.
+export async function reviewSignal(t: TenantDb, deps: Pick<GenerationDeps, 'model'>, input: { pendingId: string; text: string; action: SignalAction }): Promise<{ critic: Critic; text: string | null; stored: boolean }> {
+  const pending = await t.select('pending_approvals', 'pending_id,channel,brief_id,generation,post_design_id').eq('pending_id', input.pendingId).maybeSingle();
+  if (pending.error) throw new Error(`pendências: ${pending.error.message}`);
+  const row = pending.data;
+  if (!row) throw new UserError('Pendência não encontrada (já resolvida?).');
+  const channel = row.channel as string;
+  if (channel !== 'instagram' && channel !== 'linkedin') throw new UserError('Esta rede ainda não tem avaliação.');
+  const briefId = row.brief_id ? String(row.brief_id) : null;
+  if (!briefId) throw new UserError('Este post não tem pedido para avaliar.');
+  const generation = (row.generation ?? {}) as { variations?: { body?: string; hashtags?: string[] }[]; share_reason?: string; signal?: string };
+  const stored = generation.variations?.[0];
+
+  const [account, profile, factRows] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t)]);
+  if (!profile) throw new UserError('Preencha o perfil da empresa antes de avaliar.');
+  const planMax = account?.plan.maxPostsPerMonth ?? 20;
+  const facts = factsForPrompt(factRows);
+  const model = deps.model.config.textModel;
+
+  // O que o avaliador lê: o texto sem a linha de hashtags, e, no Instagram, o texto que já está desenhado na imagem.
+  const { body: current, tags } = splitHashtagLine(input.text);
+  const hashtags = tags ? hashtagsOf(tags) : (stored?.hashtags ?? []);
+  let imageTexts: string[] = [];
+  let coverText: string | undefined;
+  if (channel === 'instagram' && row.post_design_id) {
+    const design = await t.select('post_designs', 'design').eq('id', String(row.post_design_id)).maybeSingle();
+    const d = (design.data?.design ?? {}) as { texts?: Record<string, unknown>; slides?: { texts?: Record<string, unknown> }[] };
+    const pieces = (x: Record<string, unknown> | undefined) => [x?.kicker, x?.title, x?.sub, ...(Array.isArray(x?.items) ? (x!.items as unknown[]) : [])].filter((v): v is string => typeof v === 'string' && !!v);
+    imageTexts = d.slides?.length ? d.slides.flatMap((s) => pieces(s.texts)) : pieces(d.texts);
+    coverText = [d.texts?.kicker, d.texts?.title, d.texts?.sub].filter((v): v is string => typeof v === 'string' && !!v).join('. ') || undefined;
+  }
+  const shareReason = typeof generation.share_reason === 'string' && generation.share_reason ? generation.share_reason : 'Quem lê o post tem um motivo para responder ou guardar.';
+  const signal = (['enviar', 'salvar', 'responder', 'assistir'] as const).find((x) => x === generation.signal) ?? (channel === 'linkedin' ? 'responder' : 'salvar');
+  const view = (text: string): PostView => ({ text, hashtags, coverText, imageTexts, shareReason, signal });
+  const limit = channel === 'linkedin' ? LINKEDIN_LIMITS.text : 2200;
+  const never = facts.never;
+
+  const call = async (step: 'critic' | 'fix', prompt: string): Promise<unknown> => {
+    const hash = inputHash(step, model, { prompt, channel });
+    const reservation = await reserveRun(t, { briefId, step, inputHash: hash, model, channel }, planMax);
+    if (!reservation.ok) throw new Error('reserva recusada');
+    if (reservation.reused && reservation.run.status === 'done') return reservation.run.result;
+    try {
+      const out = await deps.model.generateJson({ prompt, labels: { tenant: t.tenantId, step, brief: briefId }, temperature: 0 });
+      await completeRun(t, reservation.run.id, { result: out.json, modelVersion: out.modelVersion, inputTokens: out.inputTokens, outputTokens: out.outputTokens, costUsd: out.costUsd, durationMs: out.durationMs });
+      return out.json;
+    } catch (e) {
+      await failRun(t, reservation.run.id, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  };
+  const evaluate = async (text: string): Promise<Critic> => {
+    const parsed = parseCritic(await call('critic', buildCriticPrompt(channel, view(text), { niche: profile.niche, audience: profile.audience, facts: facts.facts })), channel, view(text));
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.value;
+  };
+  const unavailable = (e: unknown): UserError => {
+    log('warn', 'generation', 'não reavaliou o texto', { pendingId: input.pendingId, channel, error: e instanceof Error ? e.message : String(e) });
+    return new UserError('Não deu para avaliar agora. O post está pronto e você pode aprovar sem a avaliação.');
+  };
+
+  if ('evaluate' in input.action) {
+    let critic: Critic;
+    try {
+      critic = await evaluate(current);
+    } catch (e) {
+      throw unavailable(e);
+    }
+    // Só a avaliação do texto que já estava guardado fica guardada; a de um texto editado vale para esta tela.
+    const same = !!stored?.body && sameText(input.text, stored.body);
+    if (same) {
+      const saved = await t.update('pending_approvals', { generation: { ...(generation as object), critic } }).eq('pending_id', input.pendingId);
+      if (saved.error) log('warn', 'generation', 'não guardou a avaliação', { pendingId: input.pendingId, error: saved.error.message });
+    }
+    return { critic, text: null, stored: same };
+  }
+
+  const { criterionId, suggestion } = input.action.apply;
+  if (!RUBRICS[channel].some((r) => r.id === criterionId)) throw new UserError('Essa sugestão não é de um critério desta rede.');
+  let fixed: { ok: true; text: string } | { ok: false; error: string };
+  try {
+    fixed = parseFix(await call('fix', buildFixPrompt({ channel, text: current, instructions: [suggestion], facts: facts.facts, never, banned: profile.bannedWords, limit, imageTexts })), limit);
+  } catch (e) {
+    throw new UserError(`Não deu para aplicar agora. O texto ficou como estava. ${friendlyGenerationError(e instanceof Error ? e.message : String(e))}`);
+  }
+  // Só o que o conserto introduz conta: um problema que o texto já tinha (a pessoa pode ter editado à mão) não bloqueia a sugestão.
+  const reviewOf = (text: string) => blocking(reviewText({ imageTexts, caption: joinHashtagLine(text, tags), hashtags, facts: facts.facts, never, inactive: facts.inactive, banned: profile.bannedWords }));
+  const before = new Set(reviewOf(current).map((i) => `${i.rule}:${i.detail}`));
+  const issues = fixed.ok ? reviewOf(fixed.text).filter((i) => !before.has(`${i.rule}:${i.detail}`)) : [];
+  const usable = fixed.ok && fixed.text.trim() !== current.trim() && issues.length === 0 && (channel !== 'linkedin' || parseLinkedIn({ text: fixed.text, hashtags, share_reason: shareReason }).ok);
+  if (!fixed.ok || !usable) {
+    log('warn', 'generation', 'a sugestão do avaliador não valeu', { pendingId: input.pendingId, channel, criterion: criterionId, reason: !fixed.ok ? fixed.error : fixed.text.trim() === current.trim() ? 'texto igual ao atual' : issues.length ? issues.map((i) => i.rule).join(',') : 'texto sem abertura ou sem razão' });
+    throw new UserError('Essa sugestão não rendeu um texto melhor. O texto ficou como estava.');
+  }
+  let critic: Critic;
+  try {
+    critic = await evaluate(fixed.text);
+  } catch (e) {
+    throw unavailable(e);
+  }
+  return { critic, text: fixed.text, stored: false };
 }
 
 // A falha de uma rede do pedido (SPEC 028, BEZ-437): fica no pedido para a tela "Gerando" mostrar o motivo e oferecer "Tentar de

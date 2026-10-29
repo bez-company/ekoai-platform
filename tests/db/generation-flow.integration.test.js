@@ -13,7 +13,7 @@ process.env.MEDIA_BASE_URL = 'https://app.test/api/media';
 
 const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
-const { generatePost, retryNetwork } = await import('../../platform/src/lib/generation.ts');
+const { generatePost, retryNetwork, reviewSignal } = await import('../../platform/src/lib/generation.ts');
 const { monthlyUsage } = await import('../../platform/src/lib/generation-db.ts');
 const worker = await import('../../platform/src/lib/generation-worker.ts');
 const requests = await import('../../platform/src/lib/post-requests.ts');
@@ -754,5 +754,112 @@ describe('tentar de novo só a rede que falhou (SPEC 028, BEZ-437)', () => {
     await admin.query("delete from pending_approvals where brief_id = $1 and channel = 'linkedin'", [id]);
     await admin.query("update briefs set status = 'generating' where id = $1", [id]);
     await expect(retryNetwork(t(), id, 'linkedin', deps(fakeModel({ text: [], image: [] })))).rejects.toThrow(/ainda está sendo criado/);
+  });
+});
+
+describe('reavaliar o texto e aplicar uma sugestão (SPEC 028, BEZ-441)', () => {
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+  const LI = { text: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma e o palito sai limpo.\n\nQual sinal você confere primeiro na sua cozinha?', hashtags: ['confeitaria'], share_reason: 'Quem também faz bolo de festa responde com o sinal que confere primeiro' };
+  const LI_IDS = ['gancho', 'especificidade', 'leitura', 'pergunta', 'voz'];
+  const LI_QUOTES = ['O erro mais caro de uma confeitaria', 'Eu só abro a porta', 'o palito sai limpo', 'Qual sinal você confere primeiro', 'Eu só abro a porta quando a borda descola'];
+  const critic = (ids, quotes, scores) => ({ criteria: ids.map((id, i) => ({ id, score: scores[i], evidence: scores[i] ? quotes[i] : 'falta algo', suggestion: scores[i] === 2 ? null : 'Acrescente o fato: Entregamos no mesmo dia em Marília.' })) });
+  const t = () => tenantDb(A);
+  const deps = (model) => ({ model });
+  const stepsOf = (m) => m.calls.map((c) => c.labels.step);
+
+  // Pedido nas duas redes, pronto, sem avaliação guardada (a geração rodou sem o avaliador).
+  async function ready() {
+    const id = await brief('como saber se o bolo está pronto', 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    expect((await generatePost(t(), id, { model: fakeModel({ text: [{ ...INFO, core: CORE }, LI], image: [] }), store, fontDir: FONT_DIR })).status).toBe('ready');
+    const rows = (await admin.query('select pending_id, channel, generation from pending_approvals where brief_id = $1', [id])).rows;
+    const by = (c) => rows.find((r) => r.channel === c);
+    return { id, li: by('linkedin'), ig: by('instagram') };
+  }
+  const liText = (p) => p.generation.variations[0].body;
+
+  it('avaliar de novo o texto guardado chama só o avaliador, guarda a avaliação e não gasta do limite', async () => {
+    const { id, li } = await ready();
+    const before = await monthlyUsage(t(), 2);
+    const model = fakeModel({ text: [critic(LI_IDS, LI_QUOTES, [2, 2, 2, 1, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: liText(li), action: { evaluate: true } });
+    expect(stepsOf(model)).toEqual(['critic']);
+    expect(out).toMatchObject({ stored: true, text: null, critic: { channel: 'linkedin', band: 'forte' } });
+    expect((await one('select generation from pending_approvals where pending_id = $1', [li.pending_id])).generation.critic).toMatchObject({ channel: 'linkedin' });
+    expect((await monthlyUsage(t(), 2)).remaining).toBe(before.remaining);
+    expect((await admin.query("select count(*)::int as n from generation_runs where brief_id = $1 and step in ('writer', 'adapt')", [id])).rows[0].n).toBe(2);
+  });
+
+  it('avaliar um texto editado vale para a tela e não mexe no que está guardado', async () => {
+    const { li } = await ready();
+    const edited = `${LI.text}\nE você, de que lado do forno está?`;
+    const model = fakeModel({ text: [critic(LI_IDS, LI_QUOTES, [2, 2, 1, 2, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: edited, action: { evaluate: true } });
+    expect(out.stored).toBe(false);
+    expect(model.calls[0].prompt).toContain('E você, de que lado do forno está?');
+    expect((await one('select generation from pending_approvals where pending_id = $1', [li.pending_id])).generation.critic).toBeUndefined();
+  });
+
+  it('a linha de hashtags no fim não vira parte do texto avaliado: o texto guardado continua o mesmo', async () => {
+    const { li } = await ready();
+    const model = fakeModel({ text: [critic(LI_IDS, LI_QUOTES, [2, 2, 2, 2, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: `${LI.text}\n\n#confeitaria #bolo`, action: { evaluate: true } });
+    expect(out.stored).toBe(true);
+  });
+
+  it('aplicar uma sugestão reescreve só aquele ponto: uma chamada de conserto, outra de avaliação, sem redator e sem gastar do limite', async () => {
+    const { li } = await ready();
+    const before = await monthlyUsage(t(), 2);
+    const fixed = LI.text.replace('Eu só abro a porta', 'Eu só abro a porta do forno');
+    const model = fakeModel({ text: [{ text: fixed }, critic(LI_IDS, [...LI_QUOTES.slice(0, 1), 'Eu só abro a porta do forno', ...LI_QUOTES.slice(2)], [2, 2, 2, 2, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: LI.text, action: { apply: { criterionId: 'especificidade', suggestion: 'Acrescente o fato: Entregamos no mesmo dia em Marília.' } } });
+    expect(stepsOf(model)).toEqual(['fix', 'critic']);
+    expect(model.calls[0].prompt).toContain('Entregamos no mesmo dia em Marília');
+    expect(model.calls[0].prompt).toContain(LI.text);
+    expect(out).toMatchObject({ text: fixed, stored: false, critic: { band: 'forte' } });
+    expect((await one('select generation from pending_approvals where pending_id = $1', [li.pending_id])).generation.variations[0].body).toBe(liText(li));
+    expect((await monthlyUsage(t(), 2)).remaining).toBe(before.remaining);
+  });
+
+  it('o conserto que usa palavra proibida não vale: o texto fica como estava e a avaliação nem roda', async () => {
+    const { li } = await ready();
+    const model = fakeModel({ text: [{ text: LI.text.replace('erro mais caro', 'erro imperdível') }], image: [] });
+    await expect(reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: LI.text, action: { apply: { criterionId: 'gancho', suggestion: 'Abra com um número.' } } })).rejects.toThrow(/não rendeu um texto melhor/);
+    expect(stepsOf(model)).toEqual(['fix']);
+  });
+
+  it('um problema que o texto já tinha não bloqueia a sugestão, só o que o conserto introduz', async () => {
+    const { li } = await ready();
+    const withProblem = LI.text.replace('cedo demais', 'cedo demais, imperdível'); // palavra proibida que a pessoa digitou
+    const fixed = withProblem.replace('Eu só abro a porta', 'Eu só abro a porta do forno');
+    const model = fakeModel({ text: [{ text: fixed }, critic(LI_IDS, LI_QUOTES, [2, 2, 2, 2, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: withProblem, action: { apply: { criterionId: 'especificidade', suggestion: 'Acrescente um detalhe.' } } });
+    expect(out.text).toBe(fixed);
+    expect(stepsOf(model)).toEqual(['fix', 'critic']);
+  });
+
+  it('critério de outra rede, post de rede sem avaliação e pedido que não existe são recusados sem chamar o modelo', async () => {
+    const { li } = await ready();
+    const model = fakeModel({ text: [], image: [] });
+    await expect(reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: LI.text, action: { apply: { criterionId: 'envio', suggestion: 'Mande para alguém.' } } })).rejects.toThrow(/não é de um critério desta rede/);
+    await expect(reviewSignal(t(), deps(model), { pendingId: 'plat-nao-existe', text: LI.text, action: { evaluate: true } })).rejects.toThrow(/não encontrada/);
+    await admin.query("update pending_approvals set channel = 'twitter' where pending_id = $1", [li.pending_id]);
+    await expect(reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: LI.text, action: { evaluate: true } })).rejects.toThrow(/ainda não tem avaliação/);
+    expect(model.calls).toHaveLength(0);
+  });
+
+  it('se o avaliador falhar, a pessoa recebe o próximo passo e nada do post muda', async () => {
+    const { li } = await ready();
+    const model = fakeModel({ text: [new Error('modelo fora do ar')], image: [] });
+    await expect(reviewSignal(t(), deps(model), { pendingId: li.pending_id, text: liText(li), action: { evaluate: true } })).rejects.toThrow(/pode aprovar sem a avaliação/);
+    expect((await one('select generation from pending_approvals where pending_id = $1', [li.pending_id])).generation.critic).toBeUndefined();
+  });
+
+  it('no Instagram, o avaliador lê também o texto que já está desenhado na imagem', async () => {
+    const { ig } = await ready();
+    const model = fakeModel({ text: [critic(['envio', 'salvamento', 'gancho', 'fato', 'chamada'], ['Salve este post', 'três sinais para conferir', 'Seu bolo está pronto', 'o bolo', 'Chame no WhatsApp'], [2, 2, 2, 1, 2])], image: [] });
+    const out = await reviewSignal(t(), deps(model), { pendingId: ig.pending_id, text: ig.generation.variations[0].body, action: { evaluate: true } });
+    expect(out.critic.channel).toBe('instagram');
+    expect(model.calls[0].prompt).toContain('Seu bolo está pronto?');
   });
 });
