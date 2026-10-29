@@ -11,6 +11,8 @@ process.env.DATABASE_URL = url;
 const admin = new pg.Pool({ connectionString: url, max: 2 });
 const { financeAccounts, financePosts, financePost, getPricing, savePricing } = await import('../../platform/src/lib/console-finance.ts');
 const { costByGroup } = await import('../../platform/src/lib/console-finance-model.ts');
+const { postPriceBrl } = await import('../../platform/src/lib/price-model.ts');
+const { toBrl } = await import('../../platform/src/lib/pricing.ts');
 
 const A = 'it-fin-a';
 const B = 'it-fin-b';
@@ -121,8 +123,10 @@ describe('preço, cobrança prevista e lucro', () => {
     await savePricing(POLICY, ADMIN);
     expect(await getPricing()).toEqual(POLICY);
     const d = (await financeAccounts('2026-10')).find((a) => a.id === D);
-    // post barato: 0,01 US$ = R$ 0,055 × 4 = 0,22, vale o mínimo de 1,00. Post com imagem: 0,10 US$ = R$ 0,55 × 4 = 2,20.
-    expect(d.priceBrl).toBeCloseTo(3.2, 6);
+    // post barato: o custo × 4 fica abaixo do mínimo, vale o mínimo de 1,00. Post com imagem: 0,10 US$ na cotação do pricing.json, mais o percentual,
+    // arredondado. Calculado com o mesmo modelo, para o teste não quebrar a cada troca da cotação mensal.
+    expect(d.priceBrl).toBeCloseTo(postPriceBrl(toBrl(0.01), POLICY) + postPriceBrl(toBrl(0.1), POLICY), 6);
+    expect(postPriceBrl(toBrl(0.01), POLICY)).toBe(1);
     expect(d.postsCostUsd).toBeCloseTo(0.11, 8);
     expect(d.noRevenueCostUsd).toBeCloseTo(0.2, 8);
     expect(d.costUsd).toBeCloseTo(0.31, 8);
