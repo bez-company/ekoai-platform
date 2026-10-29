@@ -104,6 +104,9 @@ const feedbackText = (issues) => issues.map((i) => `- ${i.rule}: ${i.detail}${i.
 export async function makePost({ company, request, ratio = '4:5', seed = 1, recent = [], recentTitles = [], only = null, config = {}, onStage = () => {} }) {
   const DRAFTS = Math.max(1, config.drafts ?? DEFAULT_DRAFTS);
   const light = config.lightModel === 'flash' ? MODELS.fast : MODELS.smart;
+  // Modelo e raciocínio do designer (rascunhos, consertos e embelezador): é onde está o maior custo (SPEC 030, custo por post).
+  const dModel = config.designerModel === 'flash' ? MODELS.fast : MODELS.smart;
+  const dThink = config.designerThinking ?? 'medium';
   const ledger = newLedger();
   const trace = { request, seed, recent, copy: [], iterations: [], review: [] };
   const stage = (name, info) => onStage(name, info);
@@ -149,11 +152,11 @@ export async function makePost({ company, request, ratio = '4:5', seed = 1, rece
     await Promise.all(
       Array.from({ length: DRAFTS }, async (_, n) => {
         try {
-          let d = await designer({ company, request, copy, art, territory, ratio, images, temperature: 1, ledger });
+          let d = await designer({ company, request, copy, art, territory, ratio, images, temperature: 1, thinking: dThink, model: dModel, ledger });
           let r = await render({ html: d.html, ratio, images, company });
           const hard = layoutBlocking(r.issues);
           if (hard.length) {
-            const fixed = await designer({ company, request, copy, art, territory, ratio, images, feedback: `${feedbackText(hard)}\n\nHTML anterior:\n${d.html}`, temperature: 0.5, thinking: 'low', step: 'conserto', ledger });
+            const fixed = await designer({ company, request, copy, art, territory, ratio, images, feedback: `${feedbackText(hard)}\n\nHTML anterior:\n${d.html}`, temperature: 0.5, thinking: 'low', step: 'conserto', model: dModel, ledger });
             const again = await render({ html: fixed.html, ratio, images, company });
             if (layoutBlocking(again.issues).length <= hard.length) {
               d = fixed;
@@ -186,7 +189,7 @@ export async function makePost({ company, request, ratio = '4:5', seed = 1, rece
     if (best.score >= SHIP_SCORE && best.verdict === 'ship') break;
     stage('embelezador', round);
     const fixes = (current.fixes ?? []).slice(0, 5);
-    const polished = await polisher({ company, copy, art, ratio, html: current.html, png: current.png, fixes, audit: current.issues, images, ledger });
+    const polished = await polisher({ company, copy, art, ratio, html: current.html, png: current.png, fixes, audit: current.issues, images, model: dModel, ledger });
     for (const r of polished.regen.slice(0, 2)) {
       const target = (art.assets ?? []).find((a) => a.id === r.id);
       if (!target || !r.prompt) continue;
@@ -214,7 +217,7 @@ export async function makePost({ company, request, ratio = '4:5', seed = 1, rece
   trace.review.push({ round: 1, ok: gate.ok, issues: gate.issues ?? [] });
   for (let repair = 1; repair <= MAX_GATE_REPAIRS && !gate.ok && gate.issues?.length; repair += 1) {
     stage('conserto-final', gate.issues.map((i) => i.rule));
-    const fixed = await designer({ company, request, copy, art, territory, ratio, images, feedback: `${feedbackText(gate.issues)}\n\nHTML anterior:\n${final.html}`, temperature: 0.5, thinking: 'low', step: 'conserto', ledger });
+    const fixed = await designer({ company, request, copy, art, territory, ratio, images, feedback: `${feedbackText(gate.issues)}\n\nHTML anterior:\n${final.html}`, temperature: 0.5, thinking: 'low', step: 'conserto', model: dModel, ledger });
     const again = await render({ html: fixed.html, ratio, images, company });
     const recheck = await reviewer({ company, copy, png: again.png, model: light, ledger });
     trace.review.push({ round: repair + 1, ok: recheck.ok, issues: recheck.issues ?? [] });

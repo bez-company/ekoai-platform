@@ -330,7 +330,7 @@ export function totalScore(scores) {
 }
 
 // ───────────────────────── embelezador ─────────────────────────
-export async function polisher({ company, copy, art, ratio, html, png, fixes, audit = [], images, ledger }) {
+export async function polisher({ company, copy, art, ratio, html, png, fixes, audit = [], images, model = MODELS.smart, ledger }) {
   const prompt = `Você é o artista de acabamento da agência. Recebe uma peça pronta e a crítica do diretor de arte, e a deixa melhor sem mudar a ideia nem o texto. Você enxerga a peça renderizada (primeira imagem) e as imagens de origem.
 
 ${brandBlock(company)}
@@ -359,7 +359,7 @@ o que mudou, em 2 a 3 linhas.
 ===HTML===
 <!doctype html>...`;
   const imgs = [{ bytes: png, label: 'Peça renderizada agora:' }, ...images.map((i) => ({ bytes: i.png, label: `Imagem de origem "${i.id}":` }))];
-  const { text } = await ask({ model: MODELS.smart, prompt, images: imgs, temperature: 0.5, thinking: 'low', ledger, step: 'embelezador' });
+  const { text } = await ask({ model, prompt, images: imgs, temperature: 0.5, thinking: 'low', ledger, step: 'embelezador' });
   return parseHtmlReply(text);
 }
 
