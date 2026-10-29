@@ -7,6 +7,7 @@ import { listDiscounts } from '@/lib/console-discounts';
 import { dayOf, discountOn, isPricingSet, postPriceWithDiscountBrl, profitOf } from '@/lib/price-model';
 import { GROUPS, costByGroup, fmtBrl, fmtUsd, totalCost } from '@/lib/console-finance-model';
 import { pageConsole } from '@/lib/platform-admin';
+import { fxForMonth } from '@/lib/fx-rates';
 import { toBrl } from '@/lib/pricing';
 import { isTenantId } from '@/lib/tenant';
 import { monthKeyOf, monthLabel, parseMonth } from '@/lib/usage-model';
@@ -25,8 +26,9 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
   let data;
   let pricing;
   let discounts;
+  let fx;
   try {
-    [data, pricing, discounts] = await Promise.all([financePosts(tenant, month), getPricing(), listDiscounts(tenant)]);
+    [data, pricing, discounts, fx] = await Promise.all([financePosts(tenant, month), getPricing(), listDiscounts(tenant), fxForMonth(month)]);
   } catch (e) {
     return (
       <p role="alert" className="card border-danger/30 bg-danger/10 text-sm">
@@ -39,11 +41,11 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
   const total = totalCost(all);
   const priced = isPricingSet(pricing);
   // O desconto que valia no dia em que cada post foi criado (SPEC 032): mudar o desconto depois não reescreve o preço de um período anterior.
-  const priceOf = (p: { costUsd: number; createdAt: string }) => postPriceWithDiscountBrl(toBrl(p.costUsd), pricing, discountOn(discounts, p.createdAt.slice(0, 10))?.discountPercent ?? 0);
+  const priceOf = (p: { costUsd: number; createdAt: string }) => postPriceWithDiscountBrl(toBrl(p.costUsd, fx.usdBrl), pricing, discountOn(discounts, p.createdAt.slice(0, 10))?.discountPercent ?? 0);
   const priceTotal = data.posts.reduce((n, p) => n + priceOf(p), 0);
   const today = dayOf(now);
   const active = discountOn(discounts, today);
-  const overall = profitOf(priceTotal, toBrl(total));
+  const overall = profitOf(priceTotal, toBrl(total, fx.usdBrl));
 
   return (
     <div className="space-y-4">
@@ -53,7 +55,7 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
       <div>
         <h1 className="text-2xl font-semibold">{data.name}</h1>
         <p className="text-sm text-muted">
-          {monthLabel(month)} · {data.total} {data.total === 1 ? 'post' : 'posts'} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))}){priced ? ` · cobrança prevista ${fmtBrl(priceTotal)} · lucro ${fmtBrl(overall.profitBrl)} (${overall.marginPercent.toFixed(0)}%)` : ''} nos {data.posts.length} mais novos
+          {monthLabel(month)} · {data.total} {data.total === 1 ? 'post' : 'posts'} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total, fx.usdBrl))}){priced ? ` · cobrança prevista ${fmtBrl(priceTotal)} · lucro ${fmtBrl(overall.profitBrl)} (${overall.marginPercent.toFixed(0)}%)` : ''} nos {data.posts.length} mais novos
         </p>
       </div>
       <DiscountForm accountId={tenant} pricing={pricing} active={active} history={discounts} today={today} />
@@ -93,7 +95,7 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
                     ))}
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums">{fmtUsd(p.costUsd)}</td>
                     {priced && <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBrl(priceOf(p))}</td>}
-                    {priced && <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBrl(profitOf(priceOf(p), toBrl(p.costUsd)).profitBrl)}</td>}
+                    {priced && <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBrl(profitOf(priceOf(p), toBrl(p.costUsd, fx.usdBrl)).profitBrl)}</td>}
                   </tr>
                 );
               })}

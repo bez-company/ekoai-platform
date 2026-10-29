@@ -1,5 +1,6 @@
-// pricing.ts: a cotação do dólar em reais, de um arquivo de configuração datado (SPEC 031). Só o console da BEZ usa: o custo nasce em dólar e a
-// fatura do cliente é em reais. Sem busca automática: a data de revisão tem teto, como o perfil de sinais das redes.
+// pricing.ts: a cotação de RESERVA do dólar em reais, de um arquivo de configuração datado (SPEC 031). A taxa de cada mês vem do banco
+// (`platform_fx_rates`, BEZ-475); este valor só vale quando não há taxa nenhuma cadastrada. Só o console da BEZ usa: o custo nasce em dólar e a
+// fatura do cliente é em reais. A data de revisão tem teto, como o perfil de sinais das redes.
 
 import data from './pricing.json';
 

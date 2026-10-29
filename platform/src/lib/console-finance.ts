@@ -9,7 +9,8 @@ import { postTitle } from './usage-posts-model';
 import { recordAudit } from './audit';
 import { EMPTY_PRICING, dayOf, discountOn, isPricingSet, postPriceWithDiscountBrl, type PricingConfig } from './price-model';
 import { discountsByAccount } from './console-discounts';
-import { FX_USD_BRL, toBrl } from './pricing';
+import { toBrl } from './pricing';
+import { fxForMonth } from './fx-rates';
 
 const iso = (v: unknown): string => (v instanceof Date ? v.toISOString() : String(v ?? ''));
 const num = (v: unknown): number => {
@@ -54,7 +55,7 @@ export type FinanceAccount = {
 export async function financeAccounts(month: MonthKey, pricing?: PricingConfig): Promise<FinanceAccount[]> {
   const { start, end } = monthRange(month);
   const config = pricing ?? (await getPricing());
-  const [accounts, postCosts, discounts] = await Promise.all([
+  const [accounts, postCosts, discounts, fx] = await Promise.all([
     db().query(
       `select t.id, t.name, t.kind, t.plan_id,
               coalesce(r.cost, 0) as cost, coalesce(r.runs, 0) as runs, coalesce(b.posts, 0) as posts, coalesce(n.cost, 0) as no_revenue
@@ -80,6 +81,7 @@ export async function financeAccounts(month: MonthKey, pricing?: PricingConfig):
       [start, end],
     ),
     discountsByAccount(),
+    fxForMonth(month), // a taxa do Google do mês (BEZ-475)
   ]);
   const byTenant = new Map<string, { cost: number; price: number }>();
   for (const row of postCosts.rows as Record<string, unknown>[]) {
@@ -88,7 +90,7 @@ export async function financeAccounts(month: MonthKey, pricing?: PricingConfig):
     entry.cost += cost;
     // O desconto que valia no dia em que o post foi criado: mudar o desconto depois não reescreve o preço de um período anterior.
     const off = discountOn(discounts.get(String(row.tenant_id)) ?? [], String(row.day))?.discountPercent ?? 0;
-    entry.price += postPriceWithDiscountBrl(toBrl(cost, FX_USD_BRL), config, off);
+    entry.price += postPriceWithDiscountBrl(toBrl(cost, fx.usdBrl), config, off);
     byTenant.set(String(row.tenant_id), entry);
   }
   const priced = isPricingSet(config);
