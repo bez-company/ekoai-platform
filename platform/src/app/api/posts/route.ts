@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission, requireSession } from '@/lib/session';
 import { apiError, badRequest } from '@/lib/api';
 import { track } from '@/lib/analytics';
+import { studioJobName } from '@/lib/studio/dispatch';
 import { createPostRequest, parsePostRequest, wakeWorker } from '@/lib/post-requests';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
   try {
     const t = await requirePermission('content.create');
     const { user } = await requireSession();
-    const parsed = parsePostRequest(await req.json().catch(() => null));
+    const parsed = parsePostRequest(await req.json().catch(() => null), { studio: !!studioJobName() });
     if (!parsed.ok) return NextResponse.json({ error: parsed.error, field: parsed.field ?? null }, { status: 400 });
     const { id } = await createPostRequest(t, user, parsed.value);
     wakeWorker();

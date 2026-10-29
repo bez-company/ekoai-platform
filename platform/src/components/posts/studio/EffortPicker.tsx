@@ -4,7 +4,7 @@
 // imagem dos agentes acesos; sem preço (o valor fica na fatura). Nível que ainda não gera fica desabilitado com "Em breve" (só o
 // Rápido gera na F1).
 
-import { AGENT_NODES, IMAGE_QUALITIES, IMAGE_QUALITY, LEVELS, levelOf, type Effort, type ImageQuality, type Level } from '@/lib/studio/levels';
+import { AGENT_NODES, IMAGE_QUALITIES, IMAGE_QUALITY, LEVELS, levelAvailable, levelOf, type Effort, type ImageQuality, type Level } from '@/lib/studio/levels';
 
 function Bars({ index }: { index: number }) {
   return (
@@ -42,12 +42,14 @@ export default function EffortPicker({
   quality,
   onQuality,
   imageMode,
+  studio = false,
 }: {
   effort: Effort;
   onEffort: (e: Effort) => void;
   quality: ImageQuality;
   onQuality: (q: ImageQuality) => void;
   imageMode: 'yes' | 'no' | 'maybe';
+  studio?: boolean;
 }) {
   const level = levelOf(effort);
   return (
@@ -61,14 +63,14 @@ export default function EffortPicker({
             type="button"
             role="radio"
             aria-checked={l.id === effort}
-            disabled={!l.available}
+            disabled={!levelAvailable(l, studio)}
             onClick={() => onEffort(l.id)}
             className={`flex flex-col rounded-lg border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${l.id === effort ? 'border-accent bg-accent/10' : 'border-line hover:border-line-strong'}`}
           >
             <Bars index={i} />
             <strong className="text-sm">{l.name}</strong>
             <small className="text-xs text-muted">{l.quality}</small>
-            <small className="text-xs text-muted">{l.available ? l.time : 'Em breve'}</small>
+            <small className="text-xs text-muted">{levelAvailable(l, studio) ? l.time : 'Em breve'}</small>
           </button>
         ))}
       </div>

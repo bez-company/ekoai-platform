@@ -23,17 +23,20 @@ export type Level = {
   // Índices de AGENT_NODES dos agentes acesos neste nível.
   lit: number[];
   blurb: string;
-  // Só o Rápido gera na F1; os outros aparecem como "em breve" até a F3 (SPEC 030, fases).
-  available: boolean;
+  // `quick` roda no worker; `studio` roda no job do estúdio (SPEC 030 F3c) e só fica disponível onde o job existe (levelAvailable).
+  engine: 'quick' | 'studio';
   extra?: string;
 };
 
 // Nomes provisórios (SPEC 030): o id `instantaneo` é o nome técnico do motor de hoje e aparece na tela como Rápido.
 export const LEVELS: readonly Level[] = [
-  { id: 'instantaneo', name: 'Rápido', quality: 'Qualidade base', time: 'segundos', lit: [1, 3], blurb: 'Um modelo pronto da marca, preenchido com o texto do seu tema. Sem revisão por agentes; dá para refinar depois.', available: true },
-  { id: 'refinado', name: 'Refinado', quality: 'Qualidade alta', time: 'cerca de 10 minutos', lit: [0, 1, 2, 3, 4, 6], blurb: 'Ideia, texto, arte e design, com um crítico que aponta o que melhorar e um revisor no fim.', available: false },
-  { id: 'autoral', name: 'Autoral', quality: 'Qualidade máxima', time: 'cerca de 15 minutos', lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Layout pensado só para o tema, com crítica, refino e revisão. Entrega 3 opções de design para você escolher.', available: false, extra: '3 opções' },
+  { id: 'instantaneo', name: 'Rápido', quality: 'Qualidade base', time: 'segundos', lit: [1, 3], blurb: 'Um modelo pronto da marca, preenchido com o texto do seu tema. Sem revisão por agentes; dá para refinar depois.', engine: 'quick' },
+  { id: 'refinado', name: 'Refinado', quality: 'Qualidade alta', time: 'cerca de 10 minutos', lit: [0, 1, 2, 3, 4, 6], blurb: 'Ideia, texto, arte e design, com um crítico que aponta o que melhorar e um revisor no fim.', engine: 'studio' },
+  { id: 'autoral', name: 'Autoral', quality: 'Qualidade máxima', time: 'cerca de 15 minutos', lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Layout pensado só para o tema, com crítica, refino e revisão. Entrega 3 opções de design para você escolher.', engine: 'studio', extra: '3 opções' },
 ];
+
+// O nível da cadeia de agentes só vale onde o job do estúdio existe (STUDIO_JOB_NAME na plataforma); sem ele, aparece como "em breve".
+export const levelAvailable = (level: Level, studio: boolean): boolean => level.engine === 'quick' || studio;
 
 export function levelOf(effort: Effort): Level {
   return LEVELS.find((l) => l.id === effort) ?? LEVELS[0];

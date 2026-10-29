@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import CreatePostForm from '@/components/posts/CreatePostForm';
+import { studioJobName } from '@/lib/studio/dispatch';
 import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
@@ -63,7 +64,7 @@ export default async function CreatePostPage({ searchParams }: { searchParams: P
             <strong>Você usou os {usage.max} posts deste mês.</strong> O limite volta no dia 1º. Você ainda pode editar e aprovar os posts que já existem.
           </div>
         )}
-        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} networks={networks} brand={{ primary: profile!.colorPrimary || '#4A2C2A', accent: profile!.colorAccent || '#B83262' }} initialAssetId={initialAssetId} />
+        <CreatePostForm studio={!!studioJobName()} usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} networks={networks} brand={{ primary: profile!.colorPrimary || '#4A2C2A', accent: profile!.colorAccent || '#B83262' }} initialAssetId={initialAssetId} />
       </div>
     );
   } catch (e) {
