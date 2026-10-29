@@ -61,6 +61,7 @@ locals {
     "tenant-create"  = { cron = "", cpu = "1", memory = "512Mi", timeout = "120s" }
     "access-grant"   = { cron = "", cpu = "1", memory = "512Mi", timeout = "120s" }
     "platform-admin" = { cron = "", cpu = "1", memory = "512Mi", timeout = "120s" }
+    "person-purge"   = { cron = "", cpu = "1", memory = "512Mi", timeout = "120s" }
   }
 
   # Segredos que o Terraform gera. O resto (redes, Gemini) o dono preenche depois.

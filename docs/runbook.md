@@ -142,6 +142,27 @@ Cria a linha em `tenants` (publicação pausada) e dá acesso ao primeiro admini
 slots em `/configuracoes` e retomar. Os jobs rodam com `TENANT_ID=acme`; sem ele, recusam subir
 (ADR 0010). **Pendente:** cadastro, perfil da empresa e convites pela tela (SPEC 011).
 
+## Apagar uma pessoa (BEZ-433)
+
+Para tirar de um ambiente uma pessoa criada por engano ou de teste, sem sobrar linha no banco nem login. O banco é
+privado, então a limpeza é um Cloud Run Job (`ekoai-person-purge`, criado pelo Terraform e com a imagem do último
+deploy). Primeiro o ensaio, que só conta:
+
+```
+gcloud run jobs execute ekoai-person-purge --project=<projeto> --region=southamerica-east1 --wait \
+  --args=person-purge,--email,<e-mail>
+```
+
+Leia a saída: o `idp_uid`, as tabelas que apontam para a pessoa (e se é `cascade` ou `set null`) e quantos convites
+saem. Se for a pessoa certa, repita com `--apply` no fim dos argumentos. O job recusa a administradora da plataforma
+(`platform-admin --revoke` antes) e confere, depois de apagar, que não sobrou linha em `users` nem em convites.
+
+- **Fica de propósito:** `audit_events` (só de inserção, migration 0019) com o id da pessoa, sem e-mail na coluna, e o
+  evento `person.purged` que a própria limpeza grava. Apagar isso é uma migration revisada.
+- **Login:** o job não toca o Identity Platform. Apague o `idp_uid` que o ensaio mostrou, depois do `--apply`
+  (`accounts:delete` do Identity Toolkit com a conta de administração, ou o console do Firebase Authentication).
+- **Fora do banco:** confira PostHog e Sentry se a pessoa chegou a entrar.
+
 ## Exportar os dados de um tenant (LGPD)
 
 Logado no tenant, `/configuracoes` > Seus dados > Baixar meus dados. Vem um JSON com todas as
