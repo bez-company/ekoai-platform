@@ -1,0 +1,357 @@
+{
+  "effort": "refinado",
+  "n": 6,
+  "design": 7.518518518518519,
+  "costUsd": 0.2443225,
+  "seconds": 673.2336666666666,
+  "postaria": 5,
+  "gateOk": 5,
+  "layoutIssues": 9,
+  "rows": [
+    {
+      "request": "fe/dia",
+      "effort": "refinado",
+      "territory": "numero-gigante",
+      "design": 8.11111111111111,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 8.1,
+      "layoutIssues": [
+        "off_canvas"
+      ],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.16460399999999997,
+      "seconds": 500.183,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.034124
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.02237
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.026938
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.028532
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.0107305
+        },
+        "conserto": {
+          "calls": 1,
+          "usd": 0.008627
+        },
+        "critico": {
+          "calls": 2,
+          "usd": 0.020606
+        },
+        "embelezador": {
+          "calls": 1,
+          "usd": 0.0090745
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.003602
+        }
+      },
+      "headline": "36"
+    },
+    {
+      "request": "bez/execucao",
+      "effort": "refinado",
+      "territory": "bilhete-e-notas",
+      "design": 7.777777777777778,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 6.9,
+      "layoutIssues": [
+        "safe_margin",
+        "safe_margin",
+        "off_canvas"
+      ],
+      "gateOk": false,
+      "capped": false,
+      "costUsd": 0.25333600000000006,
+      "seconds": 765.225,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.040376
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.025184
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.039672
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.034936
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.012196
+        },
+        "conserto": {
+          "calls": 3,
+          "usd": 0.032043499999999996
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.032558
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.0216765
+        },
+        "revisor": {
+          "calls": 3,
+          "usd": 0.014693999999999999
+        }
+      },
+      "headline": "Ideia sem time técnico é só rascunho."
+    },
+    {
+      "request": "fe/amigo",
+      "effort": "refinado",
+      "territory": "objeto-heroi",
+      "design": 8.777777777777779,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 8.1,
+      "layoutIssues": [
+        "safe_margin"
+      ],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.31240200000000007,
+      "seconds": 901.09,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.037822
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.021978
+        },
+        "redator": {
+          "calls": 2,
+          "usd": 0.04314
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.038524
+        },
+        "imagem": {
+          "calls": 1,
+          "usd": 0.067284
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.017726
+        },
+        "conserto": {
+          "calls": 3,
+          "usd": 0.027769500000000003
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.031338
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.015192500000000001
+        },
+        "revisor": {
+          "calls": 3,
+          "usd": 0.011628000000000001
+        }
+      },
+      "headline": "O melhor investimento do seu CNPJ."
+    },
+    {
+      "request": "bez/planilha",
+      "effort": "refinado",
+      "territory": "cartaz-retro",
+      "design": 7.888888888888889,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 7.3,
+      "layoutIssues": [
+        "text_overlap",
+        "text_overlap",
+        "text_overlap"
+      ],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.2572255,
+      "seconds": 740.581,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.031336
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.04294
+        },
+        "redator": {
+          "calls": 2,
+          "usd": 0.055765999999999996
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.035086
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.014478
+        },
+        "conserto": {
+          "calls": 2,
+          "usd": 0.022650999999999998
+        },
+        "critico": {
+          "calls": 2,
+          "usd": 0.021834
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.0183025
+        },
+        "revisor": {
+          "calls": 2,
+          "usd": 0.014832000000000001
+        }
+      },
+      "headline": "Sua empresa não pode depender de planilhas instáveis."
+    },
+    {
+      "request": "ekoai/cansaco",
+      "effort": "refinado",
+      "territory": "citacao-grande",
+      "design": 8.444444444444445,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 7.9,
+      "layoutIssues": [
+        "text_overlap"
+      ],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.21123199999999998,
+      "seconds": 608.402,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.04243
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.033224
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.034244
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.029634
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.012182
+        },
+        "conserto": {
+          "calls": 1,
+          "usd": 0.009149
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.029547999999999998
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.015019000000000001
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.005802
+        }
+      },
+      "headline": "Queria empreender, mas virei criador de conteúdo."
+    },
+    {
+      "request": "ekoai/voz",
+      "effort": "refinado",
+      "territory": "colagem-editorial",
+      "design": 4.111111111111111,
+      "postaria": false,
+      "defeitos": [
+        "Recorte amador do megafone com sobras verdes",
+        "Uso de cor verde não especificada na paleta da marca",
+        "Redundância de '@ekoai' e logo 'ekoai' juntos no canto",
+        "Excesso de caixas de texto soltas estilo etiqueta"
+      ],
+      "criticScore": 6.7,
+      "layoutIssues": [],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.2671355,
+      "seconds": 523.921,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.03101
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.018392
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.02874
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.029986
+        },
+        "imagem": {
+          "calls": 1,
+          "usd": 0.0672575
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.019078
+        },
+        "conserto": {
+          "calls": 1,
+          "usd": 0.013433
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.034544
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.021394999999999997
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.0033
+        }
+      },
+      "headline": "Ninguém aguenta mais texto com cara de robô."
+    }
+  ]
+}

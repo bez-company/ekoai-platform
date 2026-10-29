@@ -138,6 +138,21 @@ slots é o mais rápido e barato, mas com 8 a 10 templates o casamento entre ped
 A biblioteca precisa ser grande e com lint (texto fixo fora dos slots, caixa que corta) antes de valer; isso custa
 cerca de US$ 0,56 por template na cadeia completa. Latência do modelo varia muito com a carga (o mesmo passo levou de 5 a 72 s).
 
+## Estúdio de produção no eval (F2 da SPEC 030, `prod.eval.js`)
+
+O código de produção (`platform/src/lib/studio`, TypeScript) roda nos mesmos pedidos pelo `StudioModel` do Vertex e pelo render
+do eval. Nível Refinado, 6 pedidos, `ekoai-staging`:
+
+| | Nota | Postaria | Custo (US$) |
+|---|---|---|---|
+| Experimento, designer em Flash (`k1`, 12 pedidos) | 8,04 | 11 de 12 | 0,245 |
+| Produção sem imagens de referência | 6,78 | 3 de 6 | 0,23 |
+| Produção com 5 imagens de referência | 7,52 | 5 de 6 | 0,24 |
+
+As imagens de referência (peças nota máxima de marcas reais, só em `.context/studio/exemplars/`) valem cerca de 0,7 ponto. Em
+produção não há como usar peça de marca de cliente: precisa de uma galeria de referências genéricas (BEZ-470). A diferença que
+sobra para o experimento (0,5) está dentro do ruído de 6 pedidos.
+
 ## Limites
 
 - O juiz é um modelo e erra; o estúdio e o juiz são da mesma família de modelo, o que pode inflar a nota do

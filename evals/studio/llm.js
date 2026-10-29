@@ -22,6 +22,11 @@ export const MODELS = {
 const modelsUrl = (project) => `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google/models`;
 
 let cached = null;
+// Descarta o token em cache (o gcloud invalida a credencial no meio de uma rodada longa; a próxima chamada pede outro).
+export function resetToken() {
+  cached = null;
+}
+
 export function token() {
   if (cached && Date.now() - cached.at < 20 * 60_000) return cached.value;
   const value = execFileSync('gcloud', ['auth', 'print-access-token'], { encoding: 'utf8' }).trim();

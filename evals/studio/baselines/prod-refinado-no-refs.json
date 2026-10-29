@@ -1,0 +1,360 @@
+{
+  "effort": "refinado",
+  "n": 6,
+  "design": 6.777777777777778,
+  "costUsd": 0.22839349999999994,
+  "seconds": 589.5278333333334,
+  "postaria": 3,
+  "gateOk": 4,
+  "layoutIssues": 5,
+  "rows": [
+    {
+      "request": "fe/amigo",
+      "effort": "refinado",
+      "territory": "objeto-heroi",
+      "design": 7.666666666666667,
+      "postaria": true,
+      "defeitos": [
+        "Texto no cartão de visitas com perspectiva e mesclagem artificiais (sombra/artefato estranho na palavra 'propósito')"
+      ],
+      "criticScore": 6.4,
+      "layoutIssues": [],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.2505805,
+      "seconds": 453.271,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.047986
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.016226
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.048348
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.041202
+        },
+        "imagem": {
+          "calls": 1,
+          "usd": 0.067288
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.0100555
+        },
+        "critico": {
+          "calls": 1,
+          "usd": 0.0084
+        },
+        "embelezador": {
+          "calls": 1,
+          "usd": 0.007459
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.003616
+        }
+      },
+      "headline": "A sua empresa entra em campo."
+    },
+    {
+      "request": "bez/execucao",
+      "effort": "refinado",
+      "territory": "mockup-anotado",
+      "design": 5.666666666666667,
+      "postaria": false,
+      "defeitos": [
+        "Erro de ortografia ('constrir' em vez de 'construir')",
+        "Texto manuscrito sobreposto de forma ilegível ao texto do wireframe ('painel principal')"
+      ],
+      "criticScore": 5.3,
+      "layoutIssues": [
+        "safe_margin",
+        "text_overlap",
+        "arrow_over_text"
+      ],
+      "gateOk": false,
+      "capped": false,
+      "costUsd": 0.18705199999999997,
+      "seconds": 598.532,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.032564
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.017
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.028704
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.027916
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.011236
+        },
+        "conserto": {
+          "calls": 3,
+          "usd": 0.030315500000000002
+        },
+        "critico": {
+          "calls": 1,
+          "usd": 0.010124
+        },
+        "embelezador": {
+          "calls": 1,
+          "usd": 0.0096025
+        },
+        "revisor": {
+          "calls": 3,
+          "usd": 0.01959
+        }
+      },
+      "headline": "Um layout bonito não escreve o próprio código."
+    },
+    {
+      "request": "fe/dia",
+      "effort": "refinado",
+      "territory": "numero-gigante",
+      "design": 3.111111111111111,
+      "postaria": false,
+      "defeitos": [
+        "Texto explicativo cortado e ilegível dentro do número 6",
+        "Logo parcialmente cortado pelo número 3 no canto inferior esquerdo",
+        "Texto de rodapé (arroba) cortado no canto inferior direito"
+      ],
+      "criticScore": 6.6,
+      "layoutIssues": [
+        "off_canvas"
+      ],
+      "gateOk": false,
+      "capped": false,
+      "costUsd": 0.19980899999999996,
+      "seconds": 649.535,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.035828
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.024326
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.031256
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.0267
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.009744
+        },
+        "conserto": {
+          "calls": 3,
+          "usd": 0.0212515
+        },
+        "critico": {
+          "calls": 2,
+          "usd": 0.022342
+        },
+        "embelezador": {
+          "calls": 1,
+          "usd": 0.0060595
+        },
+        "revisor": {
+          "calls": 3,
+          "usd": 0.022302000000000002
+        }
+      },
+      "headline": "R$ 36"
+    },
+    {
+      "request": "bez/planilha",
+      "effort": "refinado",
+      "territory": "cartaz-retro",
+      "design": 7.222222222222222,
+      "postaria": false,
+      "defeitos": [
+        "Etiqueta 'SISTEMA INSTÁVEL' sobreposta à palavra 'EMPRESA' prejudicando a leitura",
+        "Etiquetas flutuantes ('ERRO IMINENTE') poluem o layout sem necessidade"
+      ],
+      "criticScore": 6.6,
+      "layoutIssues": [
+        "arrow_over_text"
+      ],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.19891549999999994,
+      "seconds": 673.231,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.037048
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.018228
+        },
+        "redator": {
+          "calls": 2,
+          "usd": 0.058594
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.025066
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.012426
+        },
+        "conserto": {
+          "calls": 2,
+          "usd": 0.020467
+        },
+        "critico": {
+          "calls": 1,
+          "usd": 0.009562
+        },
+        "embelezador": {
+          "calls": 1,
+          "usd": 0.0099165
+        },
+        "revisor": {
+          "calls": 2,
+          "usd": 0.007608
+        }
+      },
+      "headline": "Uma célula errada trava a sua empresa."
+    },
+    {
+      "request": "ekoai/cansaco",
+      "effort": "refinado",
+      "territory": "objeto-heroi",
+      "design": 8.777777777777779,
+      "postaria": true,
+      "defeitos": [],
+      "criticScore": 8.7,
+      "layoutIssues": [],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.255841,
+      "seconds": 594.327,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.041278
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.01675
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.032334
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.03314
+        },
+        "imagem": {
+          "calls": 1,
+          "usd": 0.067284
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.0091875
+        },
+        "conserto": {
+          "calls": 1,
+          "usd": 0.0070275
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.027139999999999997
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.014915999999999999
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.006784
+        }
+      },
+      "headline": "O peso de postar todo dia."
+    },
+    {
+      "request": "ekoai/voz",
+      "effort": "refinado",
+      "territory": "colagem-editorial",
+      "design": 8.222222222222221,
+      "postaria": true,
+      "defeitos": [
+        "mão esquerda da silhueta deformada (artefato de IA)"
+      ],
+      "criticScore": 7.8,
+      "layoutIssues": [],
+      "gateOk": true,
+      "capped": false,
+      "costUsd": 0.278163,
+      "seconds": 568.271,
+      "costByStep": {
+        "marketing": {
+          "calls": 1,
+          "usd": 0.038126
+        },
+        "diretor": {
+          "calls": 1,
+          "usd": 0.01929
+        },
+        "redator": {
+          "calls": 1,
+          "usd": 0.03607
+        },
+        "arte": {
+          "calls": 1,
+          "usd": 0.04595
+        },
+        "imagem": {
+          "calls": 1,
+          "usd": 0.0672665
+        },
+        "designer": {
+          "calls": 1,
+          "usd": 0.0125575
+        },
+        "conserto": {
+          "calls": 1,
+          "usd": 0.008594
+        },
+        "critico": {
+          "calls": 3,
+          "usd": 0.029446
+        },
+        "embelezador": {
+          "calls": 2,
+          "usd": 0.017578999999999997
+        },
+        "revisor": {
+          "calls": 1,
+          "usd": 0.003284
+        }
+      },
+      "headline": "A gente escreve do jeito que você fala."
+    }
+  ]
+}
