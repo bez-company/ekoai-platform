@@ -15,12 +15,13 @@ import { getMediaAsset } from './media-assets';
 import { canUseInPost } from './media-asset-model';
 import { MAX_SLIDES, MIN_SLIDES } from './design/model';
 import { CHANNELS, type Channel } from './types';
+import { DEFAULT_EFFORT, DEFAULT_STYLE, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, usesImage, type Effort, type ImageQuality } from './studio/levels';
 
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
 // photo: foto do banco anexada e como usá-la (SPEC 017 decisão 7, BEZ-237).
 // format: uma imagem ou carrossel, escolha da pessoa (SPEC 023); sem ele, uma imagem.
-export type PostRequestInput = { channels?: Channel[]; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; slideCount?: number; photo?: { assetId: string; usage: PhotoUsage } | null };
+export type PostRequestInput = { effort?: Effort; style?: string; imageQuality?: ImageQuality; channels?: Channel[]; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; format?: PostFormat; slideCount?: number; photo?: { assetId: string; usage: PhotoUsage } | null };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: string };
 
@@ -58,10 +59,23 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
     if (notYet.length) return { ok: false, error: `Ainda não dá para criar posts para ${notYet.map((c) => (c === 'twitter' ? 'o X' : 'o LinkedIn')).join(' e ')}. Escolha só o Instagram por enquanto.`, field: 'channels' };
     channels = unique;
   }
+  // Estilo, esforço e qualidade da imagem (SPEC 030). Ausentes = Instantâneo, a Ekoai escolhe o estilo e não há qualidade de imagem.
+  if (b.effort != null && b.effort !== '' && !isEffort(b.effort)) return { ok: false, error: 'Escolha um dos níveis de esforço da lista.', field: 'effort' };
+  const effort: Effort = isEffort(b.effort) ? b.effort : DEFAULT_EFFORT;
+  if (!levelOf(effort).available) return { ok: false, error: `O nível ${levelOf(effort).name} chega em breve. Escolha Instantâneo por enquanto.`, field: 'effort' };
+  if (b.style != null && b.style !== '' && !isStyleChoice(b.style)) return { ok: false, error: 'Escolha um estilo da vitrine ou deixe a Ekoai escolher.', field: 'style' };
+  const style = isStyleChoice(b.style) ? b.style : DEFAULT_STYLE;
+  if (b.image_quality != null && b.image_quality !== '' && !isImageQuality(b.image_quality)) return { ok: false, error: 'Escolha a qualidade da imagem: Padrão ou Alta.', field: 'image_quality' };
+  // A qualidade só vale quando o estilo usa imagem de IA; para estilo minimalista ela é descartada em vez de recusada.
+  const imageQuality: ImageQuality | null = isImageQuality(b.image_quality) && usesImage(style) !== 'no' ? b.image_quality : null;
   const goal = isPostGoal(b.goal) ? b.goal : null;
   // Com a foto à mostra, a imagem manda: o post é de atmosfera (foto com título, ou a foto como está).
-  const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : null);
+  // O tipo vem, nesta ordem, do `kind` escolhido à mão (pedido antigo), do estilo (minimalista ou com imagem) e do objetivo.
+  const kind = photo.value ? 'atmosfera' : kindForGoal(goal, isPostKind(b.kind) ? b.kind : kindForStyle(style));
   const value: PostRequestInput = { idea, kind, goal, ratio: isRatio(b.ratio) ? b.ratio : DEFAULT_RATIO };
+  if (effort !== DEFAULT_EFFORT) value.effort = effort;
+  if (style !== DEFAULT_STYLE) value.style = style;
+  if (imageQuality) value.imageQuality = imageQuality;
   if (channels) value.channels = channels;
   if (b.format === 'carousel') value.format = 'carousel';
   if (slideCount) value.slideCount = slideCount;
@@ -93,6 +107,9 @@ export async function createPostRequest(t: TenantDb, actor: SessionUser | null, 
       asset_id: photo?.assetId ?? null,
       photo_usage: photo?.usage ?? null,
       campaign_id: input.campaignId ?? null,
+      effort: input.effort ?? DEFAULT_EFFORT,
+      style: input.style ?? DEFAULT_STYLE,
+      image_quality: input.imageQuality ?? null,
       status: 'queued',
       source: 'platform',
       requested_by: actor?.id ?? null,
