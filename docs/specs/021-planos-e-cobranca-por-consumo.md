@@ -1,7 +1,7 @@
 # SPEC 021: planos individual, time e agência, com assinatura de créditos e recarga automática
 
-- **Status:** regras revisadas em 29/10/2026 pela [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md); planos e preços
-  aprovados pelo Matheus em 29/10/2026 (R$ 149, 299, 599 e 1.499); preço do pacote, marca extra, gateway e impostos em aberto
+- **Status:** regras revisadas em 29/10/2026 pela [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md); planos, preços,
+  pacote (R$ 0,60 por crédito), marca extra (R$ 150) e pessoa extra (R$ 10) aprovados pelo Matheus em 29/10/2026; teto de recarga, gateway e impostos em aberto
 - **Data:** 2026-10-23, revisada em 2026-10-29
 - **Cards:** BEZ-135 (cobrança, pai), BEZ-489 (modelo de cobrança), BEZ-301 (cobrança real, adiada), BEZ-265 (modelo de agência)
 - **Depende de:** [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md) (que substitui parte da
@@ -30,20 +30,23 @@ assinatura com créditos e recarga antes do uso, para a BEZ não gerar sem ter r
 
 ### Planos
 
-Decisão do Matheus em 29/10/2026: quatro planos. O Individual se divide pelo número de redes; o Time e a Agência incluem **só o dono**, e cada
-pessoa a mais custa R$ 10 por mês.
+Decisão do Matheus em 29/10/2026: quatro planos. O Individual se divide pelo número de redes; o Time inclui **só o dono** e a Agência
+inclui **3 pessoas**; cada pessoa a mais custa R$ 10 por mês, em qualquer papel.
 
 | Plano | Para quem | Redes | Pessoas incluídas | Marcas | Créditos por mês | Preço por mês |
 | --- | --- | --- | --- | --- | --- | --- |
 | Individual, 1 rede | uma pessoa, uma rede (ex.: Instagram) | 1 | 1 (o dono); não aceita mais | 1 | 300 | **R$ 149** |
 | Individual, 3 redes | uma pessoa, até três redes | até 3 | 1 (o dono); não aceita mais | 1 | 600 | **R$ 299** |
 | Time | uma marca com equipe | até 3 | 1 (o dono) + R$ 10 por pessoa a mais | 1 | 1.200 | **R$ 599** |
-| Agência | várias marcas | até 3 por marca | 1 (o dono) + R$ 10 por pessoa a mais | 5 incluídas; marca extra em aberto | 3.500 | **R$ 1.499** |
+| Agência | várias marcas | até 3 por marca | 3 (o dono + 2) + R$ 10 por pessoa a mais | 5 incluídas + R$ 150 por marca extra | 3.500 | **R$ 1.499** |
 
-- **Pessoa a mais: R$ 10 por mês, em qualquer papel**, no Time e na Agência. Não custa nada à BEZ (os créditos já estão no plano e são da conta);
-  é receita extra e trava contra dividir uma conta entre várias pessoas. Um Time de 5 pessoas custa R$ 599 + 4 × R$ 10 = **R$ 639**.
-- **Redes:** o plano limita quantas redes a conta conecta. Quem tenta conectar além do limite vê o aviso e o caminho para o plano seguinte.
-  O Individual de 3 redes só é vendido quando LinkedIn e X estiverem no menu (hoje só o Instagram está).
+- **Pessoa a mais: R$ 10 por mês, em qualquer papel** (inclusive quem só vê e aprova), no Time e na Agência. Não custa nada à BEZ (os créditos já estão no plano e são da conta);
+  é receita extra e trava contra dividir uma conta entre várias pessoas. Um Time de 5 pessoas custa R$ 599 + 4 × R$ 10 = **R$ 639**; uma
+  Agência de 5 pessoas, R$ 1.499 + 2 × R$ 10 = R$ 1.519.
+- **Marca extra da Agência: R$ 150 por mês**, sem créditos adicionais (a marca usa o saldo da conta, que é um só).
+- **Redes:** o plano limita quantas redes a conta conecta (o banco recusa a conexão além do limite). Quem tenta vê o aviso e o caminho para
+  o plano seguinte. O limite vale para toda rede conectada em `social_accounts`; o X entra quando a conexão dele existir. O Individual de
+  3 redes só é vendido quando LinkedIn e X estiverem de pé.
 - **Créditos são da conta**, divididos entre todas as pessoas e marcas. Gastou o saldo, a geração de **todos** para até o administrador
   recarregar (ver "Recarga automática"): quanto mais a equipe gera, mais rápido o saldo acaba e mais pacotes se vendem.
 - Entrar no meio do mês paga o mês cheio. Sair vale a partir do mês seguinte.
@@ -74,7 +77,7 @@ R$ 25.000 (uso de 100%) e R$ 27.500 (uso de 40%). Se o custo de IA for o dobro d
 | Unidade | crédito. Cada item gerado debita conforme a tabela por tipo e nível de qualidade (abaixo) |
 | O que debita | **tudo que custa token ou dinheiro à BEZ**: gerar, regenerar, ajuste, aplicar sugestão, avaliar de novo, tentar de novo a rede, regenerar o PDF e a publicação no X. O peso de cada um vem do custo medido; o que não tem custo mensurável pesa zero |
 | Regeneração | debita como uma geração nova |
-| Preço do crédito | dois: o do plano e o do pacote de recarga. O do pacote é de **10% a 25% mais caro** (proposta: 20%, ver "Preço do crédito"). Não existe crédito avulso fora de um plano |
+| Preço do crédito | dois: o do plano e o do pacote de recarga. O do pacote é de **10% a 25% mais caro** (20%, aprovado em 29/10/2026, ver "Preço do crédito"). Não existe crédito avulso fora de um plano |
 | Validade do plano | **vence no fim do ciclo e não acumula** |
 | Validade do pacote | **não vence e não tem reembolso**: usa até acabar |
 | Ordem de consumo | primeiro o saldo do plano (vence), depois o do pacote |
@@ -113,7 +116,7 @@ Google Cloud. Taxa do gateway e impostos não entram aqui: são custo da venda e
 Os pesos finais saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só
 exemplos ("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
 
-### Preço do crédito (proposta, aguardando aprovação do Matheus)
+### Preço do crédito (aprovado em 29/10/2026)
 
 Custo de um crédito: US$ 0,01, ou **R$ 0,0593** (câmbio de `pricing.json`). Como o preço de cada plano é fechado (tabela acima), o preço do
 crédito dentro do plano é o preço dividido pelos créditos: **R$ 0,50** no Individual e no Time, **R$ 0,43** na Agência. O de pacote segue a
@@ -213,9 +216,8 @@ ficou de fora.
 
 1. **Aviso de saldo sem mostrar o saldo no fluxo de post:** como a pessoa sabe que o saldo está acabando, se só Fatura e uso mostra? Os
    avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
-2. **Preço do pacote e teto de recarga:** proposta de R$ 0,60 por crédito (20% acima do R$ 0,50 do plano), pacotes de 100, 250 e 500
-   créditos e um teto padrão de recarga por mês. Os preços dos planos já estão decididos; falta aprovar estes três. Dependem do custo real
-   (BEZ-260).
+2. **Teto padrão de recarga por mês:** o preço do pacote (R$ 0,60 por crédito, 20% acima do plano) e os tamanhos (100, 250 e 500
+   créditos) foram aprovados em 29/10/2026. Falta o valor padrão do teto de recarga e conferir os pesos com o custo real (BEZ-260).
 3. **Tabela de créditos:** os pesos de partida estão na tabela acima; confirmar os de Refinado e Autoral com a medida em produção, e medir carrossel, ajuste,
    avaliar de novo, X, Cloud Run Job e PDF (BEZ-490).
 4. **Carência da mensalidade:** quantas tentativas e quantos dias antes de bloquear (proposta: 3 tentativas em até 7 dias).
@@ -229,13 +231,8 @@ ficou de fora.
    conta de pessoa física, e como escrever o termo. Para empresa (CNPJ) a regra não se aplica do mesmo jeito.
 10. **Crédito bônus** (convidar, indicação, cortesia): fora do escopo; o desconto por conta da SPEC 032 cobre cortesia por enquanto.
 
-11. **Marca extra da Agência:** quanto cobrar por marca além das 5 incluídas (cada marca incluída sai a cerca de R$ 300). O Matheus vai
-    decidir; a SPEC de 23/10 dizia R$ 100, que ficou abaixo do valor de uma marca incluída.
-12. **Quem só vê e aprova paga R$ 10?** Pela decisão de 29/10 toda pessoa a mais paga, em qualquer papel. Quem só aprova não gera post e não
-    gasta crédito; cobrar dessa pessoa pode frear a aprovação, que é o que prende a equipe ao produto. Confirmar com o ADR 0007.
-13. **Pessoa extra na Agência:** a regra de R$ 10 por pessoa foi estendida da decisão sobre o Time; confirmar que vale igual na Agência.
-14. **Limite de redes por plano:** exige mudar o modelo de planos (`plans`, `PLAN_BY_KIND`) e travar a conexão de rede além do limite
-    (card de implementação, BEZ-491).
+11. **Limite de redes por plano:** decidido e em implementação (`plans.max_networks` e gatilho no banco). Falta a troca de plano pela
+    própria pessoa (Individual de 1 rede para 3 redes), que hoje só o console faz.
 
 ## Verificação
 
