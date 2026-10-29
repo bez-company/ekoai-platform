@@ -65,7 +65,15 @@ type DbFailure = { code?: string | null; hint?: string | null; message: string }
 // Traduz a recusa do banco em algo que a pessoa entende: limite do plano ou conta já usada em outra.
 function connectFailure(error: DbFailure): Error {
   if (error.hint === 'plan_instagram') return new ConnectError('limit');
+  if (error.hint === 'plan_networks') return new ConnectError('networks');
   if (error.code === '23505') return new ConnectError('taken');
+  return new Error(`social_accounts: ${error.message}`);
+}
+
+// Mesma tradução para o LinkedIn: limite de redes do plano ou perfil já usado em outra conta.
+function linkedinConnectFailure(error: DbFailure): Error {
+  if (error.hint === 'plan_networks') return new LinkedInConnectError('networks');
+  if (error.code === '23505') return new LinkedInConnectError('taken');
   return new Error(`social_accounts: ${error.message}`);
 }
 
@@ -340,7 +348,7 @@ export async function saveLinkedInConnection(
     const saved = same
       ? await scoped.update('social_accounts', fields).eq('id', id)
       : await scoped.insert('social_accounts', { id, channel: 'linkedin', external_id: connected.profile.memberId, ...fields });
-    if (saved.error) throw saved.error.code === '23505' ? new LinkedInConnectError('taken') : new Error(`social_accounts: ${saved.error.message}`);
+    if (saved.error) throw linkedinConnectFailure(saved.error);
     const secret = await tx
       .from('social_account_secrets')
       .upsert({ social_account_id: id, access_token_ciphertext: sealed.ciphertext, refresh_token_ciphertext: sealedRefresh?.ciphertext ?? null, key_version: sealed.keyVersion }, { onConflict: 'social_account_id' });

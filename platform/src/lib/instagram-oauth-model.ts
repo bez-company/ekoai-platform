@@ -76,7 +76,7 @@ export function parseCallbackQuery(params: URLSearchParams): CallbackQuery {
 }
 
 // O que a tela de redes mostra depois de voltar da Meta (`?ig=<chave>`).
-export type FlashKey = 'connected' | 'denied' | 'invalid' | 'failed' | 'not_professional' | 'no_publish' | 'limit' | 'taken' | 'unavailable' | 'disconnected';
+export type FlashKey = 'connected' | 'denied' | 'invalid' | 'failed' | 'not_professional' | 'no_publish' | 'limit' | 'networks' | 'taken' | 'unavailable' | 'disconnected';
 
 export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   connected: { tone: 'ok', text: 'Instagram conectado. Os posts aprovados já podem ir para ele.' },
@@ -90,6 +90,7 @@ export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   },
   no_publish: { tone: 'warn', text: 'A permissão de publicar não foi concedida. Conecte de novo e deixe todas as permissões marcadas.' },
   limit: { tone: 'warn', text: 'O plano da conta não inclui mais contas de Instagram. Desconecte uma ou mude de plano.' },
+  networks: { tone: 'warn', text: 'O plano da conta não inclui mais redes. Desconecte uma rede ou mude de plano para conectar o Instagram.' },
   taken: { tone: 'warn', text: 'Esse Instagram já está conectado a outra conta da Ekoai. Desconecte lá primeiro.' },
   unavailable: { tone: 'warn', text: 'A conexão com o Instagram ainda não está ativa neste ambiente. Avise o suporte.' },
 };

@@ -25,6 +25,7 @@ export default async function ConsoleAccount({ params }: { params: Promise<{ id:
   const u = a.usage;
   const usage: [string, string][] = [
     ['Pessoas', seatLimitLabel(u.seats, a.plan.maxSeats)],
+    ['Redes conectadas', `${new Set(a.networks.filter((n) => n.status !== 'revoked').map((n) => n.channel)).size} de ${a.plan.maxNetworks}`],
     ['Contas de Instagram', `${u.instagram} de ${a.plan.maxInstagramAccounts}`],
     ['Posts publicados', `${u.postsPublished} de ${a.plan.maxPostsPerMonth}`],
     ['Gerações com IA', String(u.generations)],

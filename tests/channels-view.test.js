@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { instagramView } from '../platform/src/lib/channels-view.ts';
+import { instagramView, linkedinView, networkLimitReached, NETWORK_LIMIT_REASON } from '../platform/src/lib/channels-view.ts';
 
 const NOW = Date.UTC(2026, 9, 22);
 const day = (n) => new Date(NOW + n * 86_400_000).toISOString();
@@ -39,5 +39,45 @@ describe('instagramView', () => {
 
   it('só o canal do Instagram entra na conta', () => {
     expect(instagramView({ ...base, accounts: [acc({ channel: 'linkedin' })] })).toMatchObject({ kind: 'none' });
+  });
+});
+
+describe('limite de redes do plano (SPEC 021)', () => {
+  const li = (over = {}) => acc({ id: 'l1', channel: 'linkedin', handle: 'Ana', ...over });
+  const liBase = { accounts: [], configured: true, canManage: true, nowMs: NOW };
+
+  it('plano de 1 rede com o Instagram conectado: o LinkedIn fica bloqueado, com o motivo', () => {
+    const v = linkedinView({ ...liBase, accounts: [acc()], maxNetworks: 1 });
+    expect(v).toEqual({ kind: 'none', canConnect: false, blockedReason: NETWORK_LIMIT_REASON });
+  });
+
+  it('plano de 1 rede: a rede que já está conectada continua conectada', () => {
+    expect(instagramView({ ...base, accounts: [acc()], maxNetworks: 1 })).toMatchObject({ kind: 'connected' });
+    expect(linkedinView({ ...liBase, accounts: [li()], maxNetworks: 1 })).toMatchObject({ kind: 'connected' });
+  });
+
+  it('plano de 3 redes com duas conectadas libera a terceira', () => {
+    expect(linkedinView({ ...liBase, accounts: [acc()], maxNetworks: 3 })).toMatchObject({ kind: 'none', canConnect: true });
+    expect(networkLimitReached([acc(), li()], 'x', 3)).toBe(false);
+    expect(networkLimitReached([acc(), li(), acc({ id: 'x1', channel: 'x' })], 'tiktok', 3)).toBe(true);
+  });
+
+  it('duas contas da mesma rede contam como uma rede só', () => {
+    expect(networkLimitReached([acc(), acc({ id: 'a2' })], 'linkedin', 2)).toBe(false);
+  });
+
+  it('conta revogada não ocupa vaga', () => {
+    expect(networkLimitReached([acc({ status: 'revoked' })], 'linkedin', 1)).toBe(false);
+  });
+
+  it('sem limite no plano (ausente ou null) nunca bloqueia', () => {
+    expect(networkLimitReached([acc(), li()], 'x', null)).toBe(false);
+    expect(networkLimitReached([acc(), li()], 'x', undefined)).toBe(false);
+    expect(linkedinView({ ...liBase, accounts: [acc()] })).toMatchObject({ kind: 'none', canConnect: true });
+  });
+
+  it('quem não administra continua recebendo o aviso de administrador, não o do plano', () => {
+    const v = linkedinView({ ...liBase, canManage: false, accounts: [acc()], maxNetworks: 1 });
+    expect(v.blockedReason).toMatch(/administradores/);
   });
 });

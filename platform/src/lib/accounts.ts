@@ -175,7 +175,7 @@ export async function createAccount(input: { userId: string; name: string; kind:
   throw new Error('não achei um identificador livre para a conta');
 }
 
-export type PlanInfo = { id: string; name: string; kind: AccountKind; maxSeats: number; maxInstagramAccounts: number; maxPostsPerMonth: number };
+export type PlanInfo = { id: string; name: string; kind: AccountKind; maxSeats: number; maxInstagramAccounts: number; maxPostsPerMonth: number; maxNetworks: number };
 export type AccountInfo = { id: string; name: string; kind: AccountKind; plan: PlanInfo };
 
 // Nome, tipo e limites do plano da conta (a tela de equipe mostra "3 de 5 pessoas").
@@ -183,7 +183,7 @@ export async function accountOf(tenantId: string): Promise<AccountInfo | null> {
   const t = await db().from('tenants').select('id,name,kind,plan_id').eq('id', tenantId).maybeSingle();
   if (t.error) throw new Error(`tenants: ${t.error.message}`);
   if (!t.data) return null;
-  const p = await db().from('plans').select('id,name,kind,max_seats,max_instagram_accounts,max_posts_per_month').eq('id', t.data.plan_id).single();
+  const p = await db().from('plans').select('id,name,kind,max_seats,max_instagram_accounts,max_posts_per_month,max_networks').eq('id', t.data.plan_id).single();
   if (p.error) throw new Error(`plans: ${p.error.message}`);
   const plan: PlanInfo = {
     id: String(p.data.id),
@@ -192,6 +192,7 @@ export async function accountOf(tenantId: string): Promise<AccountInfo | null> {
     maxSeats: Number(p.data.max_seats),
     maxInstagramAccounts: Number(p.data.max_instagram_accounts),
     maxPostsPerMonth: Number(p.data.max_posts_per_month ?? 20),
+    maxNetworks: Number(p.data.max_networks ?? 1),
   };
   return { id: String(t.data.id), name: String(t.data.name), kind: t.data.kind as AccountKind, plan };
 }
