@@ -43,6 +43,7 @@ import { canUseInPost, type MediaAsset } from './media-asset-model';
 import { isPhotoUsage, usageShowsPhoto, type PhotoUsage } from './photo-question-model';
 import { renderPhoto } from './design/photo';
 import { photoSource } from './photo-post';
+import { IMAGE_QUALITY, isImageQuality, type ImageQuality } from './studio/levels';
 import { pdfFromPngs } from './pdf';
 import { hashtagsOf, joinHashtagLine, sameText, splitHashtagLine, type SignalAction } from './signal-text';
 
@@ -56,10 +57,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null; channels: Channel[]; core: Core | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null; channels: Channel[]; core: Core | null; imageQuality: ImageQuality | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count,channels,core').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count,channels,core,image_quality').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -78,6 +79,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     slideCount: Number.isInteger(data.slide_count) ? Number(data.slide_count) : null,
     channels: channelsOf(data.channels),
     core: coreOf(data.core),
+    imageQuality: isImageQuality(data.image_quality) ? data.image_quality : null,
   };
 }
 
@@ -367,7 +369,8 @@ async function readDirectives(t: TenantDb, deps: GenerationDeps, brief: Brief, c
 // O visual gerado, em cache por hash do pedido (prompt, modelo, formato). Só aqui o limite mensal vale.
 async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy: Copy, planMax: number, store: BlobStore, reference: BriefPhoto | null = null): Promise<{ key: string } | { limit: number }> {
   const prompt = visualPromptFor(copy);
-  const model = deps.model.config.imageModel;
+  // Qualidade da imagem escolhida no Criar post (SPEC 030): "Alta" usa o modelo de imagem mais forte; sem escolha vale o da configuração.
+  const model = brief.imageQuality ? IMAGE_QUALITY[brief.imageQuality].model : deps.model.config.imageModel;
   const hash = inputHash('visual', model, { prompt, aspect: brief.ratio, ...(reference ? { reference: reference.asset.id } : {}) });
   const reservation = await reserveRun(t, { briefId: brief.id, step: 'visual', inputHash: hash, model }, planMax);
   if (!reservation.ok) return { limit: reservation.usage.max };
@@ -378,6 +381,7 @@ async function makeVisual(t: TenantDb, deps: GenerationDeps, brief: Brief, copy:
       prompt,
       aspect: brief.ratio,
       labels: { tenant: t.tenantId, step: 'visual', brief: brief.id },
+      ...(brief.imageQuality ? { model } : {}),
       ...(reference ? { reference: { bytes: reference.bytes, mimeType: reference.asset.contentType } } : {}),
     });
     const key = `images/${randomUUID()}.png`;
