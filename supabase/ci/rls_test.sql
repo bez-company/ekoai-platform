@@ -508,7 +508,7 @@ begin
   end;
 
   -- conta empresa com limite: o plano Time real não limita a equipe (migration 0051), então o gatilho se testa num plano de 5 vagas
-  insert into plans (id, name, kind, max_seats, max_instagram_accounts) values ('rls-5-vagas', 'Cinco vagas', 'empresa', 5, 1);
+  insert into plans (id, name, kind, max_seats, max_instagram_accounts, max_networks) values ('rls-5-vagas', 'Cinco vagas', 'empresa', 5, 1, 3);
   insert into tenants (id, name, kind, plan_id) values ('lim', 'Lim', 'empresa', 'rls-5-vagas');
   insert into tenant_members (tenant_id, user_id, role)
     values ('lim', u1, 'admin'), ('lim', u2, 'creator'), ('lim', u3, 'creator'), ('lim', u4, 'viewer'), ('lim', u5, 'viewer');
