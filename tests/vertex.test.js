@@ -46,6 +46,17 @@ describe('cliente do Vertex', () => {
     expect(out.costUsd).toBeCloseTo((100 * 2 + 1120 * 120) / 1e6, 6);
   });
 
+  it('texto livre: modelo e raciocínio por chamada, imagens de entrada com rótulo, custo pelo preço do modelo', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: { candidates: [{ content: { parts: [{ text: 'pensando', thought: true }, { text: '<html></html>' }] } }], usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 500, thoughtsTokenCount: 500 } } }]);
+    const client = vertexClient({ config: cfg, fetchImpl: impl, token: async () => 'tok' });
+    const out = await client.generateText({ prompt: 'p', labels: { step: 'studio-designer' }, model: 'gemini-3.1-pro-preview', thinking: 'low', images: [{ bytes: new Uint8Array([1, 2]), label: 'Imagem "hero":' }] });
+    expect(out.text).toBe('<html></html>');
+    expect(calls[0].url).toContain('gemini-3.1-pro-preview:generateContent');
+    expect(calls[0].body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    expect(calls[0].body.contents[0].parts.map((p) => p.text ?? 'img')).toEqual(['p', 'Imagem "hero":', 'img']);
+    expect(out.costUsd).toBeCloseTo((1000 * 2 + 1000 * 12) / 1e6, 8);
+  });
+
   it('429 e 503 tentam de novo com espera crescente; depois a falha diz o modelo e o motivo', async () => {
     const waits = [];
     const sleep = async (ms) => void waits.push(ms);

@@ -12,6 +12,19 @@ export type ImageResult = { png: Buffer; inputTokens: number; outputTokens: numb
 
 export type Labels = Record<string, string>;
 
+// Texto livre (o HTML do designer do estúdio, SPEC 030): sem JSON, com várias imagens de entrada e o raciocínio escolhido por chamada.
+export type TextInput = {
+  prompt: string;
+  labels: Labels;
+  model?: string; // outro modelo de texto só para esta chamada; sem ele vale o da configuração
+  images?: { bytes: Uint8Array; mimeType?: string; label?: string }[];
+  thinking?: 'minimal' | 'low' | 'medium' | 'high';
+  temperature?: number;
+  maxOutputTokens?: number;
+  json?: boolean; // pede application/json; o texto continua em `text`
+};
+export type TextOutput = { text: string; inputTokens: number; outputTokens: number; modelVersion: string | null; durationMs: number; costUsd: number };
+
 export interface ModelClient {
   readonly config: VertexConfig;
   // `image`: foto que o modelo de texto olha junto do pedido (visão), como no banco de imagens.
@@ -19,6 +32,7 @@ export interface ModelClient {
   // `reference`: foto da empresa que o modelo usa como inspiração (BEZ-237, uso "inspiração").
   // `model`: outro modelo de imagem só para esta chamada (a qualidade "Alta" do Criar post, SPEC 030); sem ele vale o da configuração.
   generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels; reference?: { bytes: Uint8Array; mimeType: string }; model?: string }): Promise<ImageResult>;
+  generateText(input: TextInput): Promise<TextOutput>;
 }
 
 // Preço de lista (catálogo do Cloud Billing, endpoint global, lido em 21/10/2026), em US$ por
@@ -34,6 +48,19 @@ export const IMAGE_PRICING: Record<string, { imageIn: number; imageOut: number }
   'gemini-2.5-flash-image': { imageIn: 0.3, imageOut: 30 },
   'gemini-3-pro-image': { imageIn: 2, imageOut: 120 },
 };
+
+// Texto por modelo (US$ por milhão de tokens, lista de 28/10/2026). Modelo fora da lista cai no preço do Pro, o mais caro, para a
+// estimativa nunca ficar abaixo do real. O raciocínio do modelo (tokens de pensamento) cobra como saída.
+export const TEXT_PRICING: Record<string, { in: number; out: number }> = {
+  'gemini-3.1-pro-preview': { in: 2, out: 12 },
+  'gemini-3-flash-preview': { in: 0.5, out: 3 },
+  'gemini-2.5-flash': { in: 0.3, out: 2.5 },
+};
+
+export function textCostFor(model: string, inputTokens: number, outputTokens: number): number {
+  const price = TEXT_PRICING[model] ?? TEXT_PRICING['gemini-3.1-pro-preview'];
+  return (inputTokens * price.in + outputTokens * price.out) / 1e6;
+}
 
 export function textCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens * PRICING.textIn + outputTokens * PRICING.textOut) / 1e6;
@@ -143,6 +170,27 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
         throw e;
       }
       return { json, raw, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCost(inputTokens, outputTokens) };
+    },
+    async generateText({ prompt, labels, model, images = [], thinking, temperature = 0.8, maxOutputTokens = 32768, json = false }) {
+      const started = Date.now();
+      const textModel = model ?? config.textModel;
+      const parts: Record<string, unknown>[] = [{ text: prompt }];
+      for (const img of images) {
+        if (img.label) parts.push({ text: img.label });
+        parts.push({ inlineData: { mimeType: img.mimeType ?? 'image/png', data: Buffer.from(img.bytes).toString('base64') } });
+      }
+      const data = await call(textModel, {
+        contents: [{ role: 'user', parts }],
+        generationConfig: { temperature, maxOutputTokens, ...(json ? { responseMimeType: 'application/json' } : {}), ...(thinking ? { thinkingConfig: { thinkingLevel: thinking } } : {}) },
+        labels: cleanLabels(labels),
+      });
+      const cand = data.candidates?.[0];
+      const text: string = (cand?.content?.parts ?? []).filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text ?? '').join('');
+      if (!text) throw new Error(`O modelo de texto não devolveu conteúdo (${cand?.finishReason ?? 'sem candidato'}).`);
+      if (cand?.finishReason === 'MAX_TOKENS') throw new Error('A resposta do modelo veio cortada (limite de tokens).');
+      const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? 0);
+      const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0) + Number(data.usageMetadata?.thoughtsTokenCount ?? 0);
+      return { text, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCostFor(textModel, inputTokens, outputTokens) };
     },
     async generateImage({ prompt, aspect, labels, reference, model }) {
       const started = Date.now();
