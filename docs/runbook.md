@@ -294,9 +294,9 @@ caminho de sempre. Hoje só o staging liga (`studio_job_enabled`).
 **Ligar no staging (uma vez):** o primeiro deploy do staging depois desta mudança empurra a imagem `studio` para o registry. Aí:
 
 ```bash
-SHA=<commit do deploy>; REG=southamerica-east1-docker.pkg.dev/ekoai-staging/ekoai
-CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/tf-plan.sh staging      # o plano não inclui o job: studio_image vazio
-cd infra/terraform/envs/staging && terraform apply -var deploy_workloads=true -var platform_image=<...> -var jobs_image=<...> -var studio_image=$REG/studio:$SHA
+SHA=<commit completo do deploy>
+STUDIO_IMAGE=southamerica-east1-docker.pkg.dev/ekoai-staging/ekoai/studio:$SHA CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/tf-plan.sh staging
+cd infra/terraform/envs/staging && terraform apply tfplan   # só depois de ler o plano: deve criar o job, o papel e a variável STUDIO_JOB_NAME
 ```
 
 Depois disso o deploy do CI atualiza a imagem do job sozinho e o `scripts/tf-plan.sh` a lê do ambiente.
