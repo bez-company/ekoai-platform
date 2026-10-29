@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/session';
 import { appOrigin } from '@/lib/origin';
 import { oauthApp } from '@/lib/linkedin-oauth';
-import { buildAuthorizeUrl, callbackUrl } from '@/lib/linkedin-oauth-model';
+import { buildAuthorizeUrl, callbackUrl, pagesEnabled } from '@/lib/linkedin-oauth-model';
 import { createState } from '@/lib/instagram-oauth-model';
 import { apiError } from '@/lib/api';
 
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     if (!app) return NextResponse.redirect(new URL('/configuracoes/canais?li=unavailable', origin));
 
     const state = createState({ tenantId: t.tenantId, secret: app.clientSecret });
-    return NextResponse.redirect(buildAuthorizeUrl({ clientId: app.clientId, redirectUri: callbackUrl(origin), state }));
+    return NextResponse.redirect(buildAuthorizeUrl({ clientId: app.clientId, redirectUri: callbackUrl(origin), state, pages: pagesEnabled() }));
   } catch (e) {
     return apiError(e, 'api/linkedin/connect');
   }

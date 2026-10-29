@@ -11,20 +11,30 @@ import { daysUntil } from './instagram-oauth-model';
 export const AUTHORIZE_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 export const TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 export const USERINFO_URL = 'https://api.linkedin.com/v2/userinfo';
+export const REST_URL = 'https://api.linkedin.com/rest';
+// LinkedIn desativa cada versão ~1 ano depois; versão vencida devolve erro em toda chamada (publicação e leitura de páginas).
+export const API_VERSION = process.env.LINKEDIN_VERSION || '202610';
 
 // Só o que o app usa. `w_member_social` publica; `openid` e `profile` dizem quem é a pessoa (o `sub` vira o autor do post).
 export const REQUIRED_SCOPES = ['w_member_social'] as const;
 export const SCOPES = ['openid', 'profile', ...REQUIRED_SCOPES] as const;
 
+// Publicar como página (BEZ-455): `r_organization_admin` lista as páginas que a pessoa administra e `w_organization_social` publica
+// nelas. São da Community Management API (produto restrito, com revisão do LinkedIn); pedir sem o produto aprovado quebra a
+// autorização inteira, então só entram quando `LINKEDIN_PAGES=1` no ambiente.
+export const PAGE_SCOPES = ['r_organization_admin', 'w_organization_social'] as const;
+export const pagesEnabled = (env: Record<string, string | undefined> = process.env): boolean => env.LINKEDIN_PAGES === '1';
+export const hasPageScopes = (granted: readonly string[]): boolean => PAGE_SCOPES.every((s) => granted.includes(s));
+
 // A conexão fica de pé um mês e meio; o aviso e a renovação agem dentro desta janela antes do vencimento.
 export const REFRESH_WINDOW_DAYS = 15;
 
-export function buildAuthorizeUrl(input: { clientId: string; redirectUri: string; state: string }): string {
+export function buildAuthorizeUrl(input: { clientId: string; redirectUri: string; state: string; pages?: boolean }): string {
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', input.clientId);
   url.searchParams.set('redirect_uri', input.redirectUri);
-  url.searchParams.set('scope', SCOPES.join(' '));
+  url.searchParams.set('scope', [...SCOPES, ...(input.pages ? PAGE_SCOPES : [])].join(' '));
   url.searchParams.set('state', input.state);
   return url.toString();
 }
@@ -48,7 +58,7 @@ export function parseCallbackQuery(params: URLSearchParams): CallbackQuery {
 }
 
 // O que a tela de redes mostra depois de voltar do LinkedIn (`?li=<chave>`).
-export type FlashKey = 'connected' | 'disconnected' | 'denied' | 'invalid' | 'failed' | 'no_publish' | 'taken' | 'unavailable';
+export type FlashKey = 'connected' | 'disconnected' | 'denied' | 'invalid' | 'failed' | 'no_publish' | 'taken' | 'unavailable' | 'choose_page' | 'no_pages' | 'page_saved';
 
 export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   connected: { tone: 'ok', text: 'LinkedIn conectado. Os posts aprovados já podem ir para ele.' },
@@ -59,6 +69,9 @@ export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   no_publish: { tone: 'warn', text: 'A permissão de publicar no seu nome não foi concedida. Conecte de novo e aceite "Publicar no seu nome".' },
   taken: { tone: 'warn', text: 'Esse perfil do LinkedIn já está conectado a outra conta da Ekoai. Desconecte lá primeiro.' },
   unavailable: { tone: 'warn', text: 'A conexão com o LinkedIn ainda não está ativa neste ambiente. Avise o suporte.' },
+  choose_page: { tone: 'ok', text: 'LinkedIn conectado. Escolha abaixo onde os posts saem: no seu perfil ou em uma página que você administra.' },
+  no_pages: { tone: 'warn', text: 'LinkedIn conectado, mas nenhuma página apareceu. Para publicar em uma página, a conta que conecta precisa ser administradora dela no LinkedIn.' },
+  page_saved: { tone: 'ok', text: 'Pronto. Os próximos posts saem no destino que você escolheu.' },
 };
 
 export function isFlashKey(value: unknown): value is FlashKey {
@@ -163,4 +176,48 @@ const PERMANENT_ERRORS = new Set(['invalid_grant', 'invalid_token', 'invalid_req
 export function isPermanentFailure(f: LinkedInFailure): boolean {
   if (f.status === 401) return true;
   return f.status === 400 && f.error !== null && PERMANENT_ERRORS.has(f.error);
+}
+
+// ── Páginas que a pessoa administra (BEZ-455) ───────────────────────────────────────────────────
+
+export type LinkedInPage = { urn: string; name: string };
+
+const ORG_URN = /^urn:li:organization:[0-9]{1,20}$/;
+export const isOrganizationUrn = (value: unknown): value is string => typeof value === 'string' && ORG_URN.test(value);
+
+// Quem pode publicar na página: administrador, quem posta anúncio e administrador de conteúdo (as três funções que a documentação
+// do `w_organization_social` aceita).
+const POSTING_ROLES = new Set(['ADMINISTRATOR', 'DIRECT_SPONSORED_CONTENT_POSTER', 'CONTENT_ADMINISTRATOR', 'CONTENT_ADMIN']);
+export const MAX_PAGES = 20;
+
+// GET /rest/organizationAcls?q=roleAssignee: cada elemento diz a função da pessoa numa organização (urn:li:organization:<id>).
+export function parseAcls(json: unknown): string[] {
+  const elements = (json && typeof json === 'object' && Array.isArray((json as { elements?: unknown }).elements) ? (json as { elements: unknown[] }).elements : []) as Record<string, unknown>[];
+  const urns: string[] = [];
+  for (const e of elements) {
+    const urn = e?.organization ?? e?.organizationTarget;
+    if (!isOrganizationUrn(urn) || e.state !== 'APPROVED' || !POSTING_ROLES.has(String(e.role))) continue;
+    if (!urns.includes(urn)) urns.push(urn);
+  }
+  return urns.slice(0, MAX_PAGES);
+}
+
+export const organizationId = (urn: string): string => urn.slice(urn.lastIndexOf(':') + 1);
+
+// GET /rest/organizationsLookup?ids=List(...): `results` é um mapa id -> organização, com `localizedName`. Página sem nome legível fica com
+// o número, para a pessoa ainda poder escolher.
+export function parsePages(urns: readonly string[], lookup: unknown): LinkedInPage[] {
+  const results = (lookup && typeof lookup === 'object' && (lookup as { results?: unknown }).results && typeof (lookup as { results: unknown }).results === 'object' ? (lookup as { results: Record<string, { localizedName?: unknown }> }).results : {}) as Record<string, { localizedName?: unknown }>;
+  return urns.map((urn) => {
+    const name = results[organizationId(urn)]?.localizedName;
+    return { urn, name: typeof name === 'string' && name.trim() ? name.trim().slice(0, 100) : `Página ${organizationId(urn)}` };
+  });
+}
+
+// O que está guardado no banco (jsonb) volta pelo mesmo formato.
+export function storedPages(raw: unknown): LinkedInPage[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((p) => p as Partial<LinkedInPage> | null)
+    .filter((p): p is LinkedInPage => !!p && isOrganizationUrn(p.urn) && typeof p.name === 'string' && p.name.length > 0)
+    .slice(0, MAX_PAGES);
 }

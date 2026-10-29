@@ -3,7 +3,7 @@ import LinkedInConnection from '@/components/LinkedInConnection';
 import { accountOf } from '@/lib/accounts';
 import { instagramView, linkedinView } from '@/lib/channels-view';
 import { oauthApp } from '@/lib/linkedin-oauth';
-import { FLASH as LI_FLASH, isFlashKey as isLiFlashKey } from '@/lib/linkedin-oauth-model';
+import { FLASH as LI_FLASH, isFlashKey as isLiFlashKey, pagesEnabled } from '@/lib/linkedin-oauth-model';
 import { instagramApp } from '@/lib/instagram-oauth';
 import { FLASH, isFlashKey } from '@/lib/instagram-oauth-model';
 import { pageError } from '@/lib/api';
@@ -26,11 +26,11 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
       maxAccounts: account?.plan.maxInstagramAccounts ?? null,
       nowMs: Date.now(),
     });
-    const liView = linkedinView({ accounts, configured: oauthApp() !== null, canManage, nowMs: Date.now() });
+    const liView = linkedinView({ accounts, configured: oauthApp() !== null, canManage, nowMs: Date.now(), pagesEnabled: pagesEnabled() });
     return (
       <div className="space-y-8">
         <InstagramConnection view={view} canManage={canManage} flash={flash} />
-        <LinkedInConnection view={liView} canManage={canManage} flash={liFlash} />
+        <LinkedInConnection view={liView} canManage={canManage} pagesEnabled={pagesEnabled()} flash={liFlash} />
       </div>
     );
   } catch (e) {

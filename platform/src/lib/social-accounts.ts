@@ -12,7 +12,7 @@ import { kmsBox, socialTokenContext, type SecretBox } from './secret-box';
 import { ConnectError, REFRESH_WINDOW_DAYS } from './instagram-oauth-model';
 import type { ConnectedInstagram } from './instagram-oauth';
 import type { InstagramCredentials } from './channels/instagram';
-import { ConnectError as LinkedInConnectError, EXPIRING_REASON as LINKEDIN_EXPIRING_REASON, REFRESH_WINDOW_DAYS as LINKEDIN_REFRESH_WINDOW_DAYS, authorUrn as linkedinAuthorUrn } from './linkedin-oauth-model';
+import { ConnectError as LinkedInConnectError, EXPIRING_REASON as LINKEDIN_EXPIRING_REASON, REFRESH_WINDOW_DAYS as LINKEDIN_REFRESH_WINDOW_DAYS, authorUrn as linkedinAuthorUrn, isOrganizationUrn, storedPages, type LinkedInPage } from './linkedin-oauth-model';
 import type { ConnectedLinkedIn } from './linkedin-oauth';
 
 // Único acesso cru ao banco deste módulo: os tokens não têm tenant_id, então não passam pelo tenantDb.
@@ -29,9 +29,12 @@ export type SocialAccount = {
   connectedAt: string;
   // Permissões que a pessoa concedeu no Instagram (a de insights é opcional).
   scopes: string[];
+  // LinkedIn (BEZ-455): as páginas que a pessoa administra e a escolhida como autora dos posts (null = o perfil pessoal).
+  pages: LinkedInPage[];
+  publishAs: string | null;
 };
 
-const COLUMNS = 'id,channel,handle,status,expires_at,connected_at,scopes';
+const COLUMNS = 'id,channel,handle,status,expires_at,connected_at,scopes,pages,publish_as';
 
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v ? String(v) : null);
 
@@ -46,6 +49,8 @@ export async function listSocialAccounts(t: TenantDb): Promise<SocialAccount[]> 
     expiresAt: iso(r.expires_at),
     connectedAt: iso(r.connected_at) ?? '',
     scopes: Array.isArray(r.scopes) ? (r.scopes as unknown[]).map(String) : [],
+    pages: storedPages(r.pages),
+    publishAs: isOrganizationUrn(r.publish_as) ? r.publish_as : null,
   }));
 }
 
@@ -318,10 +323,15 @@ export async function saveLinkedInConnection(
       const revoked = await scoped.update('social_accounts', { status: 'revoked', status_reason: 'replaced' }).eq('id', old);
       if (revoked.error) throw new Error(`social_accounts: ${revoked.error.message}`);
     }
+    // Reconectar mantém a página escolhida se a pessoa ainda a administra; senão volta ao perfil pessoal.
+    const previous = same ? await scoped.select('social_accounts', 'publish_as').eq('id', id).maybeSingle() : null;
+    const keep = isOrganizationUrn(previous?.data?.publish_as) && (connected.pages ?? []).some((p) => p.urn === previous?.data?.publish_as) ? (previous!.data!.publish_as as string) : null;
     const fields = {
       handle: connected.profile.name,
       status: 'active',
       status_reason: null,
+      pages: connected.pages ?? [],
+      publish_as: keep,
       scopes: connected.scopes,
       expires_at: connected.expiresAt.toISOString(),
       connected_by: input.userId,
@@ -345,7 +355,7 @@ export async function saveLinkedInConnection(
 // passo e nunca cai no token de outra conta.
 export async function linkedinCredentials(t: TenantDb, box?: SecretBox, nowMs: number = Date.now()): Promise<LinkedInCredentials> {
   const { data, error } = await t
-    .select('social_accounts', 'id,external_id,expires_at')
+    .select('social_accounts', 'id,external_id,expires_at,publish_as,pages,scopes')
     .eq('channel', 'linkedin')
     .eq('status', 'active')
     .order('connected_at', { ascending: false })
@@ -356,7 +366,13 @@ export async function linkedinCredentials(t: TenantDb, box?: SecretBox, nowMs: n
   const expires = iso(data.expires_at);
   if (expires && new Date(expires).getTime() <= nowMs) throw new UserError('A conexão do LinkedIn venceu. Reconecte em Configurações, Redes.');
   const token = await openToken(String(data.id), box);
-  return { token, authorUrn: linkedinAuthorUrn(String(data.external_id)) };
+  // A página escolhida é a autora, desde que ainda esteja na lista de páginas da pessoa e o acesso tenha o escopo de publicar nela;
+  // senão o post sairia num destino que a pessoa não vê. Sem escolha, o perfil pessoal.
+  const scopes = Array.isArray(data.scopes) ? (data.scopes as unknown[]).map(String) : [];
+  const page = isOrganizationUrn(data.publish_as) ? storedPages(data.pages).find((p) => p.urn === data.publish_as) : undefined;
+  if (data.publish_as && !page) throw new UserError('A página escolhida no LinkedIn não está mais na lista. Escolha o destino de novo em Configurações, Redes.');
+  if (page && !scopes.includes('w_organization_social')) throw new UserError('O acesso do LinkedIn não permite publicar em página. Reconecte em Configurações, Redes.');
+  return { token, authorUrn: page ? page.urn : linkedinAuthorUrn(String(data.external_id)) };
 }
 
 export type LinkedInRefreshTarget = RefreshTarget & { hasRefreshToken: boolean; expiringNotified: boolean };
@@ -441,4 +457,20 @@ export async function markExpiringNotified(target: Pick<RefreshTarget, 'id' | 't
     .maybeSingle();
   if (error) throw new Error(`social_accounts: ${error.message}`);
   return Boolean(data);
+}
+
+// Onde os posts do LinkedIn saem (BEZ-455): o perfil pessoal (`null`) ou uma das páginas que a pessoa administra, lidas na conexão.
+export async function setLinkedInPublishAs(t: TenantDb, userId: string | null, urn: string | null): Promise<{ publishAs: string | null; name: string }> {
+  const { data, error } = await t.select('social_accounts', 'id,handle,pages,scopes').eq('channel', 'linkedin').eq('status', 'active').order('connected_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`social_accounts: ${error.message}`);
+  if (!data) throw new UserError('Conecte o LinkedIn antes de escolher onde publicar.');
+  const pages = storedPages(data.pages);
+  const page = urn === null ? null : pages.find((p) => p.urn === urn);
+  if (urn !== null && !page) throw new UserError('Essa página não está na lista das que você administra. Reconecte o LinkedIn para atualizar.');
+  const scopes = Array.isArray(data.scopes) ? (data.scopes as unknown[]).map(String) : [];
+  if (page && !scopes.includes('w_organization_social')) throw new UserError('O acesso do LinkedIn não permite publicar em página. Reconecte em Configurações, Redes.');
+  const saved = await t.update('social_accounts', { publish_as: urn }).eq('id', String(data.id));
+  if (saved.error) throw new Error(`social_accounts: ${saved.error.message}`);
+  await auditSafely(t, userId, 'social_account.publish_as_changed', String(data.id), page?.name ?? (data.handle as string | null) ?? null, 'linkedin');
+  return { publishAs: urn, name: page?.name ?? String(data.handle ?? 'perfil pessoal') };
 }

@@ -2,14 +2,22 @@
 // de quem é a pessoa e renovação. O token e o segredo do app nunca vão para o log nem para o navegador. Server-only.
 
 import {
+  API_VERSION,
+  REST_URL,
   TOKEN_URL,
   USERINFO_URL,
   ConnectError,
   expiresAtFrom,
+  MAX_PAGES,
+  hasPageScopes,
   isPermanentFailure,
   missingScopes,
+  organizationId,
+  parseAcls,
+  parsePages,
   parseProfile,
   parseToken,
+  type LinkedInPage,
   type LinkedInProfile,
 } from './linkedin-oauth-model';
 import { log } from './log';
@@ -31,6 +39,7 @@ export type ConnectedLinkedIn = {
   refreshToken: string | null;
   scopes: string[];
   profile: LinkedInProfile;
+  pages: LinkedInPage[]; // as páginas que a pessoa administra (vazio sem os escopos de página)
 };
 
 // O LinkedIn recusou ou não respondeu. Só o passo, o status e o código curto do erro: nunca a URL nem o corpo (levam segredo).
@@ -97,7 +106,22 @@ export async function connectWithCode(
   );
   if (missingScopes(token.scopes).length > 0) throw new ConnectError('no_publish');
   const profile = parseProfile(await call('profile', fetchFn, USERINFO_URL, { headers: { Authorization: `Bearer ${token.accessToken}` } }));
-  return { accessToken: token.accessToken, expiresAt: expiresAtFrom(nowMs, token.expiresInSeconds), refreshToken: token.refreshToken, scopes: token.scopes, profile };
+  // As páginas só são lidas quando a pessoa concedeu os escopos de página. Falhar aqui não derruba a conexão do perfil: a pessoa
+  // conecta e vê que nenhuma página apareceu.
+  const pages = hasPageScopes(token.scopes) ? await fetchPages(token.accessToken, fetchFn).catch(() => []) : [];
+  return { accessToken: token.accessToken, expiresAt: expiresAtFrom(nowMs, token.expiresInSeconds), refreshToken: token.refreshToken, scopes: token.scopes, profile, pages };
+}
+
+// As páginas que a pessoa administra, com o nome de cada uma: a lista de funções (organizationAcls) e, para os nomes, o lookup de
+// organizações (que não exige ser administrador).
+export async function fetchPages(accessToken: string, fetchFn: FetchFn = fetch): Promise<LinkedInPage[]> {
+  const headers = { Authorization: `Bearer ${accessToken}`, 'LinkedIn-Version': API_VERSION, 'X-Restli-Protocol-Version': '2.0.0' };
+  const acls = await call('pages', fetchFn, `${REST_URL}/organizationAcls?q=roleAssignee&state=APPROVED&count=${MAX_PAGES}`, { headers });
+  const urns = parseAcls(acls);
+  if (!urns.length) return [];
+  const ids = urns.map(organizationId).join(',');
+  const lookup = await call('page_names', fetchFn, `${REST_URL}/organizationsLookup?ids=List(${ids})`, { headers }).catch(() => null);
+  return parsePages(urns, lookup);
 }
 
 export type RefreshedLinkedIn = { accessToken: string; expiresAt: Date; refreshToken: string | null };

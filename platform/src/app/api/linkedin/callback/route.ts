@@ -3,7 +3,7 @@ import { requireUserPermission, ForbiddenError, UnauthorizedError } from '@/lib/
 import { appOrigin } from '@/lib/origin';
 import { connectWithCode, oauthApp } from '@/lib/linkedin-oauth';
 import { saveLinkedInConnection } from '@/lib/social-accounts';
-import { ConnectError, callbackUrl, connectedProps, parseCallbackQuery, type FlashKey } from '@/lib/linkedin-oauth-model';
+import { ConnectError, callbackUrl, connectedProps, hasPageScopes, parseCallbackQuery, type FlashKey } from '@/lib/linkedin-oauth-model';
 import { stateValid } from '@/lib/instagram-oauth-model';
 import { track } from '@/lib/analytics';
 import { apiError } from '@/lib/api';
@@ -25,10 +25,12 @@ export async function GET(req: Request) {
     if (!stateValid(query.state, { tenantId: t.tenantId, secret: app.clientSecret })) return back('invalid');
     const connected = await connectWithCode({ code: query.code, redirectUri: callbackUrl(origin), app });
     await saveLinkedInConnection(t, { userId: user.id, connected });
-    const props = connectedProps(connected);
-    log('info', 'linkedin', 'conexão concluída', { tenantId: t.tenantId, hasRefresh: props.has_refresh });
+    const props = { ...connectedProps(connected), pages: connected.pages.length };
+    log('info', 'linkedin', 'conexão concluída', { tenantId: t.tenantId, hasRefresh: props.has_refresh, pages: props.pages });
     await track(t.tenantId, 'linkedin_connected', props);
-    return back('connected');
+    // Com páginas na lista, a pessoa escolhe onde publicar; pediu página e nenhuma apareceu, o aviso diz o que falta.
+    if (connected.pages.length) return back('choose_page');
+    return back(hasPageScopes(connected.scopes) ? 'no_pages' : 'connected');
   } catch (e) {
     if (e instanceof ConnectError) return back(e.flash);
     if (e instanceof UnauthorizedError || e instanceof ForbiddenError) return apiError(e, 'api/linkedin/callback');

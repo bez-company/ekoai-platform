@@ -3,9 +3,7 @@
 // initializeUpload (a API exige PUT binário, não aceita URL remota).
 // Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api
 
-const API_BASE = 'https://api.linkedin.com/rest';
-// LinkedIn desativa cada versão ~1 ano depois; versão vencida devolve erro em toda chamada.
-const VERSION = process.env.LINKEDIN_VERSION || '202610';
+import { API_VERSION as VERSION, REST_URL as API_BASE } from '../linkedin-oauth-model';
 
 // A credencial da conta que publica (SPEC 028, BEZ-423): o token e o autor (`urn:li:person:<id>`) vêm da conexão da conta, cifrados no
 // banco, e nunca de variável de ambiente. Quem chama pega com `linkedinCredentials(t)`.
