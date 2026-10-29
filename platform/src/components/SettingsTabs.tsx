@@ -12,7 +12,8 @@ export default function SettingsTabs({ tabs }: { tabs: SettingsTab[] }) {
   return (
     <nav aria-label="Seções de configurações" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
       {tabs.map((tab) => {
-        const current = pathname === tab.href;
+        // A aba continua marcada nas páginas de dentro dela (Fatura e uso › um post); a raiz de Configurações só marca a si mesma.
+        const current = pathname === tab.href || (tab.href !== '/configuracoes' && pathname.startsWith(`${tab.href}/`));
         return (
           <Link
             key={tab.href}
