@@ -27,6 +27,10 @@ const VARIANTS = {
   v1: { drafts: 1 },
   v2: { drafts: 1, lightModel: 'flash' },
   v3: { drafts: 1, skipDirection: true },
+  // Fronteira de custo (SPEC 030): onde o custo está é o designer; testa-se modelo e raciocínio dele.
+  k1: { drafts: 1, designerModel: 'flash' },
+  k2: { drafts: 1, designerThinking: 'low' },
+  k3: { drafts: 1, designerModel: 'flash', designerThinking: 'low' },
 };
 const variants = (process.env.STUDIO_VARIANTS ?? 'v1,v2,v3').split(',').map((s) => s.trim()).filter((v) => VARIANTS[v]);
 const defaultReqs = 'fe/amigo,fe/dia,bez/execucao,bez/planilha,ekoai/cansaco,ekoai/voz';
