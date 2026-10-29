@@ -7,6 +7,7 @@ import { accountOf } from '@/lib/accounts';
 import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
 import { fmtDateTime } from '@/lib/format';
+import { networkLabel } from '@/lib/networks-model';
 import { fmtCount, fmtRate, getPublished, type PublishedItem } from '@/lib/published-feed';
 import { isUuid } from '@/lib/route-input';
 import { can, pageTenant } from '@/lib/session';
@@ -23,6 +24,9 @@ function Metric({ value, label }: { value: string; label: string }) {
 }
 
 function Metrics({ p }: { p: PublishedItem }) {
+  if (p.channel !== 'instagram') {
+    return <p className="text-sm text-muted">A Ekoai ainda não lê os números do {networkLabel(p.channel)}. Veja a resposta ao post direto na rede.</p>;
+  }
   if (!p.metrics) {
     return (
       <p className="text-sm text-muted">
@@ -75,7 +79,7 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
       </Link>
       <div>
         <h1 className="text-xl font-semibold">{p.title}</h1>
-        <p className="mt-1 text-sm text-muted">{p.publishedAt ? `Publicado ${fmtDateTime(p.publishedAt)}` : 'Publicado'} no Instagram</p>
+        <p className="mt-1 text-sm text-muted">{p.publishedAt ? `Publicado ${fmtDateTime(p.publishedAt)}` : 'Publicado'} no {networkLabel(p.channel)}</p>
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
@@ -95,7 +99,7 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
 
           {canRemove && (
             <section className="card flex flex-wrap items-center justify-between gap-3">
-              <p className="min-w-0 flex-1 text-sm text-muted">Apagou o post no Instagram, ou não quer mais vê-lo aqui? Tire da lista. O post continua no Instagram até você apagá-lo lá.</p>
+              <p className="min-w-0 flex-1 text-sm text-muted">Apagou o post no {networkLabel(p.channel)}, ou não quer mais vê-lo aqui? Tire da lista. O post continua no {networkLabel(p.channel)} até você apagá-lo lá.</p>
               <RemovePublished id={p.id} />
             </section>
           )}

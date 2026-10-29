@@ -21,12 +21,14 @@ async function withoutRemoved(t: TenantDb, posts: AgendaPost[]): Promise<AgendaP
   return posts.filter((p) => !(p.status === 'published' && p.post_id && removed.has(String(p.post_id))));
 }
 
-export async function getAgenda(t: TenantDb, query: AgendaQuery, options: { nowMs?: number; channel?: Channel } = {}): Promise<Agenda> {
+// `channel` filtra horários e posts de uma rede só. `slotChannel` filtra só os horários (a grade que a pessoa edita é a do
+// Instagram) e deixa os posts de todas as redes na Agenda: um post do LinkedIn aparece fora de horário, como "extra".
+export async function getAgenda(t: TenantDb, query: AgendaQuery, options: { nowMs?: number; channel?: Channel; slotChannel?: Channel } = {}): Promise<Agenda> {
   const tz = tzOffsetHours();
   const { fromIso, toIso } = agendaWindow(query, tz);
   const now = options.nowMs ?? Date.now();
   const [slots, timed, queued, suggestions] = await Promise.all([
-    getActiveSlots(t, options.channel),
+    getActiveSlots(t, options.slotChannel ?? options.channel),
     t.select('scheduled_posts', COLUMNS).in('status', OPEN).gte('scheduled_for', fromIso).lt('scheduled_for', toIso).order('scheduled_for', { ascending: true }),
     t.select('scheduled_posts', COLUMNS).eq('status', 'queued').order('approved_at', { ascending: true }),
     options.channel && options.channel !== 'instagram' ? Promise.resolve([]) : listSuggestions(t, new Date(now)),
@@ -34,5 +36,5 @@ export async function getAgenda(t: TenantDb, query: AgendaQuery, options: { nowM
   if (timed.error) throw new Error(`Falha ao ler a agenda: ${timed.error.message}`);
   if (queued.error) throw new Error(`Falha ao ler a fila: ${queued.error.message}`);
   const posts = await withoutRemoved(t, [...(timed.data ?? []), ...(queued.data ?? [])] as AgendaPost[]);
-  return buildAgenda({ query, slots, posts: options.channel ? posts.filter((p) => p.channel === options.channel) : posts, nowMs: now, tzHours: tz, channel: options.channel, suggestions });
+  return buildAgenda({ query, slots, posts: options.channel ? posts.filter((p) => p.channel === options.channel) : posts, nowMs: now, tzHours: tz, channel: options.slotChannel ?? options.channel, suggestions });
 }
