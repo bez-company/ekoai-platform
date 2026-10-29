@@ -7,14 +7,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ErrorLine, Spinner } from '../auth/ui';
-import { isBelowTarget, parsePricing, postPriceBrl, profitOf, type PricingConfig } from '@/lib/price-model';
-
-// Custos de exemplo, em reais: um post só de texto, um com imagem gerada por IA e um caro.
-const EXAMPLES: { label: string; costBrl: number }[] = [
-  { label: 'Post só de texto', costBrl: 0.04 },
-  { label: 'Post com imagem gerada', costBrl: 0.41 },
-  { label: 'Post caro (várias imagens)', costBrl: 1.2 },
-];
+import { EXAMPLE_COSTS, isBelowTarget, parsePricing, postPriceBrl, profitOf, type PricingConfig } from '@/lib/price-model';
 
 const brl = (n: number) => `R$ ${n.toFixed(2).replace('.', ',')}`;
 const txt = (n: number) => String(n).replace('.', ',');
@@ -95,7 +88,7 @@ export default function PricingForm({ initial }: { initial: PricingConfig }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {EXAMPLES.map((e) => {
+              {EXAMPLE_COSTS.map((e) => {
                 const price = postPriceBrl(e.costBrl, parsed.value);
                 const p = profitOf(price, e.costBrl);
                 const low = isBelowTarget(p.marginPercent, parsed.value);

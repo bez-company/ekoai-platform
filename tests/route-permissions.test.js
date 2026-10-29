@@ -17,7 +17,7 @@ const PUBLIC = new Set(['login', 'logout', 'health', 'version', 'live', 'ambient
 
 // As rotas do console do administrador da plataforma (BEZ-303) não usam a matriz de papéis das contas: cada
 // uma passa por requirePlatformAdmin(), o portão de uma pessoa só (docs/arquitetura/ultra-admin.md).
-const CONSOLE = new Set(['console/accounts', 'console/accounts/[id]/suspend', 'console/accounts/[id]/reactivate', 'console/pricing']);
+const CONSOLE = new Set(['console/accounts', 'console/accounts/[id]/suspend', 'console/accounts/[id]/reactivate', 'console/accounts/[id]/discount', 'console/pricing']);
 
 const EXPECTED = {
   approve: ['content.approve'],
@@ -151,8 +151,8 @@ describe('permissão por rota', () => {
       expect(gate, key).toBeGreaterThan(-1);
       // o portão vem antes de ler o corpo ou de tocar no banco
       if (src.includes('req.json')) expect(src.indexOf('req.json'), key).toBeGreaterThan(gate);
-      // a primeira coisa que toca em dados vem depois do portão (as rotas de conta chamam uma função `...Account(`; o preço, `savePricing(`)
-      expect(src.indexOf(key === 'console/pricing' ? 'savePricing(' : 'Account('), key).toBeGreaterThan(gate);
+      // a primeira coisa que toca em dados vem depois do portão (as rotas de conta chamam uma função `...Account(`; o preço, `savePricing(`; o desconto, `...Discount(`)
+      expect(src.indexOf(key === 'console/pricing' ? 'savePricing(' : key.endsWith('/discount') ? 'Discount(' : 'Account('), key).toBeGreaterThan(gate);
     }
   });
 });

@@ -7,7 +7,8 @@ import { monthRange, type MonthKey } from './usage-model';
 import { stepRank, toRunCost, totalCost, type RunCost } from './console-finance-model';
 import { postTitle } from './usage-posts-model';
 import { recordAudit } from './audit';
-import { EMPTY_PRICING, isPricingSet, postPriceBrl, type PricingConfig } from './price-model';
+import { EMPTY_PRICING, dayOf, discountOn, isPricingSet, postPriceWithDiscountBrl, type PricingConfig } from './price-model';
+import { discountsByAccount } from './console-discounts';
 import { FX_USD_BRL, toBrl } from './pricing';
 
 const iso = (v: unknown): string => (v instanceof Date ? v.toISOString() : String(v ?? ''));
@@ -45,14 +46,15 @@ export type FinanceAccount = {
   costUsd: number; // todo o custo das chamadas do mês, com ou sem post
   postsCostUsd: number; // o custo dos posts do mês (a parte que gera receita)
   noRevenueCostUsd: number; // chamadas do mês de pedidos que não viraram post (falhou, está na fila): custo sem receita
-  priceBrl: number | null; // a cobrança prevista dos posts do mês; null com o preço indefinido
+  priceBrl: number | null; // a cobrança prevista dos posts do mês, já com o desconto da conta; null com o preço indefinido
+  discountPercent: number | null; // o desconto que vale hoje na conta (SPEC 032); null sem desconto
 };
 
 // O custo do mês de cada conta que teve uso, da mais cara para a mais barata, com a cobrança prevista quando o preço está definido.
 export async function financeAccounts(month: MonthKey, pricing?: PricingConfig): Promise<FinanceAccount[]> {
   const { start, end } = monthRange(month);
   const config = pricing ?? (await getPricing());
-  const [accounts, postCosts] = await Promise.all([
+  const [accounts, postCosts, discounts] = await Promise.all([
     db().query(
       `select t.id, t.name, t.kind, t.plan_id,
               coalesce(r.cost, 0) as cost, coalesce(r.runs, 0) as runs, coalesce(b.posts, 0) as posts, coalesce(n.cost, 0) as no_revenue
@@ -71,22 +73,26 @@ export async function financeAccounts(month: MonthKey, pricing?: PricingConfig):
     ),
     // O custo de cada post do mês (todas as chamadas do pedido): o preço é por post, com mínimo, então precisa do custo de cada um.
     db().query(
-      `select b.tenant_id, b.id, coalesce(sum(r.cost_usd), 0) as cost
+      `select b.tenant_id, b.id, to_char(b.created_at at time zone 'utc', 'YYYY-MM-DD') as day, coalesce(sum(r.cost_usd), 0) as cost
          from briefs b left join generation_runs r on r.brief_id = b.id and r.tenant_id = b.tenant_id
         where b.status in ('ready', 'approved') and b.created_at >= $1 and b.created_at < $2
-        group by b.tenant_id, b.id`,
+        group by b.tenant_id, b.id, b.created_at`,
       [start, end],
     ),
+    discountsByAccount(),
   ]);
   const byTenant = new Map<string, { cost: number; price: number }>();
   for (const row of postCosts.rows as Record<string, unknown>[]) {
     const cost = num(row.cost);
     const entry = byTenant.get(String(row.tenant_id)) ?? { cost: 0, price: 0 };
     entry.cost += cost;
-    entry.price += postPriceBrl(toBrl(cost, FX_USD_BRL), config);
+    // O desconto que valia no dia em que o post foi criado: mudar o desconto depois não reescreve o preço de um período anterior.
+    const off = discountOn(discounts.get(String(row.tenant_id)) ?? [], String(row.day))?.discountPercent ?? 0;
+    entry.price += postPriceWithDiscountBrl(toBrl(cost, FX_USD_BRL), config, off);
     byTenant.set(String(row.tenant_id), entry);
   }
   const priced = isPricingSet(config);
+  const today = dayOf(new Date());
   return (accounts.rows as Record<string, unknown>[]).map((r) => {
     const mine = byTenant.get(String(r.id));
     return {
@@ -100,6 +106,7 @@ export async function financeAccounts(month: MonthKey, pricing?: PricingConfig):
       postsCostUsd: mine?.cost ?? 0,
       noRevenueCostUsd: num(r.no_revenue),
       priceBrl: priced ? (mine?.price ?? 0) : null,
+      discountPercent: discountOn(discounts.get(String(r.id)) ?? [], today)?.discountPercent ?? null,
     };
   });
 }
