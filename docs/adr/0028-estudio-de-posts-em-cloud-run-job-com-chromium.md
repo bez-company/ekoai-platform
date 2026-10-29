@@ -45,7 +45,7 @@ trabalha dentro de 240 s, abaixo do timeout de 300 s do Cloud Run. A imagem dos 
 
 - Nova imagem, novo job e conta de serviço no Terraform; custo por execução (vCPU e memória durante a geração) soma-se ao
   custo de modelo, e entra no teto por post.
-- O tempo do post autoral deixa de ser limitado pelo worker, mas passa a depender da latência do modelo: a meta (p50 8 min,
-  p95 15) é requisito da tiering de modelos (SPEC 030, F0).
+- O tempo do post autoral deixa de ser limitado pelo worker e passa a depender da latência do modelo. Não há meta de tempo
+  (decisão de 29/10/2026: não se cobra por tempo); o que limita é o teto de custo por post (SPEC 030, decisão 9).
 - Uma segunda cadeia de render existe (Chromium e resvg): o contraste, as margens e os tamanhos mínimos são medidos nos dois
   pelas mesmas regras, em módulos próprios de cada um.
