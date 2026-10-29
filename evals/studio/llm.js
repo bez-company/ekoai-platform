@@ -3,7 +3,7 @@
 // designer não passa por JSON. Toda chamada soma tokens e custo estimado em `ledger`, para o relatório do eval.
 
 import { execFileSync } from 'node:child_process';
-import { evalLabels, evalProject } from '../guard.js';
+import { assertBudget, chargeEval, evalLabels, evalProject } from '../guard.js';
 
 // US$ por milhão de tokens (lista de 28/10/2026). Estimativa: a fatura real é a do provedor.
 export const PRICE = {
@@ -103,6 +103,7 @@ export async function ask({ model = MODELS.smart, prompt, images = [], json = fa
     if (img.label) parts.push({ text: img.label });
     parts.push({ inlineData: { mimeType: img.mimeType ?? 'image/png', data: b64(img.bytes) } });
   }
+  assertBudget();
   const generationConfig = { temperature, maxOutputTokens, ...(json ? { responseMimeType: 'application/json' } : {}), ...(thinking ? { thinkingConfig: { thinkingLevel: thinking } } : {}) };
   const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig, labels: evalLabels(`studio-${step}`, { run: process.env.EVAL_RUN_ID }) });
   const cand = data.candidates?.[0];
@@ -112,6 +113,7 @@ export async function ask({ model = MODELS.smart, prompt, images = [], json = fa
   const price = PRICE[model] ?? PRICE['gemini-3.1-pro-preview'];
   const usd = (inTok * price.in + outTok * price.out) / 1e6;
   ledger?.add(step, usd, inTok + outTok, Date.now() - started);
+  chargeEval(usd);
   if (!text) throw new Error(`${model} não devolveu texto (${cand?.finishReason ?? 'sem candidato'}).`);
   if (cand?.finishReason === 'MAX_TOKENS') throw new Error(`${model} cortou a resposta no limite de tokens (${step}).`);
   return { text, usd };
@@ -148,6 +150,7 @@ export function parseJson(text) {
 // Imagem: devolve { png, usd }. `refs` = [{ bytes, mimeType }] entram como referência visual.
 export async function makeImage({ model = MODELS.image, prompt, aspect = '4:5', refs = [], ledger, step = 'image' }) {
   const started = Date.now();
+  assertBudget();
   const parts = [{ text: prompt }, ...refs.map((r) => ({ inlineData: { mimeType: r.mimeType ?? 'image/png', data: b64(r.bytes) } }))];
   const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: aspect } }, labels: evalLabels(`studio-${step}`, { run: process.env.EVAL_RUN_ID }) });
   const part = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
@@ -157,5 +160,6 @@ export async function makeImage({ model = MODELS.image, prompt, aspect = '4:5', 
   const price = PRICE[model] ?? PRICE['gemini-3-pro-image'];
   const usd = (inTok * price.in + outTok * price.out) / 1e6;
   ledger?.add(step, usd, inTok + outTok, Date.now() - started);
+  chargeEval(usd);
   return { png: Buffer.from(part.inlineData.data, 'base64'), usd };
 }

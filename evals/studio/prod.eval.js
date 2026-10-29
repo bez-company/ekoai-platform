@@ -8,7 +8,7 @@ import { vertexClient, vertexConfig } from '../../platform/src/lib/vertex.ts';
 import { studioBrandOf } from '../../platform/src/lib/studio/context.ts';
 import { runStudio } from '../../platform/src/lib/studio/pipeline.ts';
 import { vertexStudioModel } from '../../platform/src/lib/studio/vertex-model.ts';
-import { evalEnv, evalLabels } from '../guard.js';
+import { budgetedClient, evalEnv, evalLabels } from '../guard.js';
 import { DIMENSIONS, loadExemplars } from './agents.js';
 import { score } from './design-judge.js';
 import { newLedger, resetToken, token } from './llm.js';
@@ -36,7 +36,7 @@ describe.skipIf(!live)('estúdio de produção (TypeScript) no eval', () => {
       resetToken();
       return fetch(url, { ...init, headers: { ...init.headers, authorization: `Bearer ${token()}` }, signal: AbortSignal.timeout(12 * 60_000) });
     };
-    const client = vertexClient({ config: vertexConfig(evalEnv()), token: async () => token(), fetchImpl: resilientFetch });
+    const client = budgetedClient(vertexClient({ config: vertexConfig(evalEnv()), token: async () => token(), fetchImpl: resilientFetch }));
     const companies = {};
     for (const id of ['fe', 'bez', 'ekoai']) companies[id] = JSON.parse(readFileSync(join(root, '.context/studio/brands', `${id}.json`), 'utf8'));
     const jobs = reqs.map((r) => ({ r, brand: r.split('/')[0], id: r.split('/')[1] }));
