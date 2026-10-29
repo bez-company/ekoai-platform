@@ -1,0 +1,28 @@
+{
+  "id": "grade-modular-1",
+  "territory": "grade-modular",
+  "meta": {
+    "tone": "dark",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 60
+      },
+      "extra1": {
+        "max": 50
+      },
+      "extra2": {
+        "max": 50
+      },
+      "extra3": {
+        "max": 50
+      },
+      "extra4": {
+        "max": 50
+      }
+    },
+    "summary": "Frase de abertura e quatro cartões em mosaico."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"UTF-8\">\n<style>\n  :root {\n    --bg: #16161A; --ink: #F5F5F2; --accent: #E8A33D; --muted: #8A8A90;\n    --display: 'Inter', sans-serif; --body: 'Inter', sans-serif;\n  }\n  body { margin: 0; width: 1080px; height: 1350px; position: relative; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); }\n  .logo { position: absolute; left: 80px; top: 80px; height: 56px; max-width: 240px; object-fit: contain; }\n  .handle { position: absolute; left: 80px; bottom: 80px; margin: 0; font: 600 28px/34px var(--body); color: var(--ink); letter-spacing: 0.01em; }\n  .rule { position: absolute; width: 120px; height: 12px; border-radius: 6px; background: var(--accent); }\n  .headline { position: absolute; left: 80px; top: 200px; width: 920px; height: 230px; margin: 0; overflow: hidden; font: 800 92px/1 var(--display); letter-spacing: -0.03em; color: var(--ink); }\n  .cell { position: absolute; width: 440px; height: 330px; box-sizing: border-box; border-radius: 28px; background: color-mix(in srgb, var(--ink) 10%, var(--bg)); border: 2px solid color-mix(in srgb, var(--ink) 22%, transparent); }\n  .cell i { position: absolute; left: 36px; top: 36px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); }\n  .cell p { position: absolute; left: 36px; top: 96px; width: 366px; height: 190px; margin: 0; overflow: hidden; font: 600 40px/1.2 var(--body); color: var(--ink); }\n  .c1 { left: 80px; top: 470px; } .c2 { left: 560px; top: 470px; } .c3 { left: 80px; top: 840px; } .c4 { left: 560px; top: 840px; }\n</style>\n</head>\n<body>\n  <h1 class=\"headline\" data-fit=\"headline\">{{slot:headline}}</h1>\n  <div class=\"cell c1\"><i></i><p data-fit=\"extra1\">{{slot:extra1}}</p></div>\n  <div class=\"cell c2\"><i></i><p data-fit=\"extra2\">{{slot:extra2}}</p></div>\n  <div class=\"cell c3\"><i></i><p data-fit=\"extra3\">{{slot:extra3}}</p></div>\n  <div class=\"cell c4\"><i></i><p data-fit=\"extra4\">{{slot:extra4}}</p></div>\n  <img class=\"logo\" src=\"{{logo:on-dark}}\" alt=\"Logo\">\n  <p class=\"handle\">{{handle}}</p>\n</body>\n</html>\n"
+}

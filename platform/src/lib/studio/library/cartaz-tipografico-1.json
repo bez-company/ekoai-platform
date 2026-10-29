@@ -1,0 +1,22 @@
+{
+  "id": "cartaz-tipografico-1",
+  "territory": "cartaz-tipografico",
+  "meta": {
+    "tone": "dark",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 40
+      },
+      "support": {
+        "max": 90
+      },
+      "extra1": {
+        "max": 24
+      }
+    },
+    "summary": "Cartaz tipográfico: etiqueta, frase grande, linha de apoio."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"UTF-8\">\n<style>\n  :root {\n    --bg: #16161A; --ink: #F5F5F2; --accent: #E8A33D; --muted: #8A8A90;\n    --display: 'Inter', sans-serif; --body: 'Inter', sans-serif;\n  }\n  body { margin: 0; width: 1080px; height: 1350px; position: relative; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); }\n  .logo { position: absolute; left: 80px; top: 80px; height: 56px; max-width: 240px; object-fit: contain; }\n  .handle { position: absolute; left: 80px; bottom: 80px; margin: 0; font: 600 28px/34px var(--body); color: var(--ink); letter-spacing: 0.01em; }\n  .rule { position: absolute; width: 120px; height: 12px; border-radius: 6px; background: var(--accent); }\n  .tag { position: absolute; left: 80px; top: 200px; width: 760px; height: 40px; margin: 0; overflow: hidden; white-space: nowrap; font: 700 26px/40px var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }\n  .rule { left: 80px; top: 268px; }\n  .headline { position: absolute; left: 80px; top: 330px; width: 920px; height: 560px; margin: 0; overflow: hidden; font: 800 150px/0.95 var(--display); letter-spacing: -0.03em; color: var(--ink); }\n  .support { position: absolute; left: 80px; top: 940px; width: 800px; height: 200px; margin: 0; overflow: hidden; font: 400 42px/1.3 var(--body); color: var(--ink); }\n</style>\n</head>\n<body>\n  <p class=\"tag\" data-fit=\"extra1\">{{slot:extra1}}</p>\n  <div class=\"rule\"></div>\n  <h1 class=\"headline\" data-fit=\"headline\">{{slot:headline}}</h1>\n  <p class=\"support\" data-fit=\"support\">{{slot:support}}</p>\n  <img class=\"logo\" src=\"{{logo:on-dark}}\" alt=\"Logo\">\n  <p class=\"handle\">{{handle}}</p>\n</body>\n</html>\n"
+}
