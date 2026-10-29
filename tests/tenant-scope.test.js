@@ -25,7 +25,7 @@ const RAW_DB_ALLOWED = {
   'lib/campaigns.ts': 1, // campanhas vencidas de todas as contas: o encerramento do job diário (SPEC 018)
   'lib/fact-expiry.ts': 1, // fatos a vencer de todas as contas: o aviso de vencimento do job diário (SPEC 018)
   'lib/console-accounts.ts': 4, // o console do administrador da plataforma lê e grava contas de todos os tenants (BEZ-303)
-  'lib/console-finance.ts': 8, // o custo real por conta, por post e por chamada, para o Console › Financeiro: atravessa as contas de propósito (SPEC 031, entrega 3)
+  'lib/console-finance.ts': 12, // o custo real por conta, por post e por chamada, para o Console › Financeiro: atravessa as contas de propósito (SPEC 031, entrega 3)
   'lib/cost-anomaly.ts': 1, // mediana do custo por post aprovado de todas as contas: o alerta de anomalia (BEZ-410)
   'lib/platform-admin.ts': 1, // o portão do console: a tabela platform_admins não tem tenant_id nem policy (BEZ-303)
   'lib/accounts.ts': Infinity, // login e sessão: uma pessoa atravessa contas (SPEC 009)

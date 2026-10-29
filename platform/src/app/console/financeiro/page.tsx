@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { pageError } from '@/lib/api';
-import { financeAccounts } from '@/lib/console-finance';
+import PricingForm from '@/components/console/PricingForm';
+import { financeAccounts, getPricing } from '@/lib/console-finance';
+import { isBelowTarget, isPricingSet, profitOf } from '@/lib/price-model';
 import { fmtBrl, fmtUsd } from '@/lib/console-finance-model';
 import { FX_REVIEWED_AT, FX_USD_BRL, fxIsStale, toBrl } from '@/lib/pricing';
 import { pageConsole } from '@/lib/platform-admin';
@@ -34,8 +36,10 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
   );
 
   let accounts;
+  let pricing;
   try {
-    accounts = await financeAccounts(month);
+    pricing = await getPricing();
+    accounts = await financeAccounts(month, pricing);
   } catch (e) {
     return (
       <div className="space-y-4">
@@ -49,6 +53,12 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
   }
   const cost = accounts.reduce((n, a) => n + a.costUsd, 0);
   const posts = accounts.reduce((n, a) => n + a.posts, 0);
+  const postsCost = accounts.reduce((n, a) => n + a.postsCostUsd, 0);
+  const noRevenue = accounts.reduce((n, a) => n + a.noRevenueCostUsd, 0);
+  const priced = isPricingSet(pricing);
+  const price = accounts.reduce((n, a) => n + (a.priceBrl ?? 0), 0);
+  const overall = profitOf(price, toBrl(postsCost));
+  const low = priced && isBelowTarget(overall.marginPercent, pricing);
   const href = (id: string) => `/console/financeiro/${id}${month === monthKeyOf(now) ? '' : `?mes=${month}`}`;
 
   return (
@@ -60,8 +70,13 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
         </p>
       )}
       <p role="status" className="card border-info/30 bg-info/10 text-sm">
-        <strong>A cobrança ainda não começou.</strong> Por isso não há valor cobrado nem margem: só o custo.
+        <strong>A cobrança ainda não começou.</strong> A cobrança prevista abaixo é o que seria cobrado com o preço atual, para você ver o lucro antes de cobrar de verdade.
       </p>
+      {!isPricingSet(pricing) && (
+        <p role="status" className="card border-warning/30 bg-warning/10 text-sm">
+          <strong>O preço ainda não foi definido.</strong> Defina o percentual sobre o custo e o preço mínimo em “Preço e margem”, no fim da página, para ver a cobrança prevista e o lucro.
+        </p>
+      )}
       {nav}
       {accounts.length === 0 ? (
         <div className="card text-center">
@@ -70,7 +85,7 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
             <div className="card space-y-1 p-4">
               <p className="text-xs text-muted">Custo do mês</p>
               <p className="text-2xl font-bold">{fmtUsd(cost)}</p>
@@ -79,17 +94,22 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
             <div className="card space-y-1 p-4">
               <p className="text-xs text-muted">Posts</p>
               <p className="text-2xl font-bold">{posts}</p>
-              <p className="text-xs text-muted">uma ideia, um post</p>
+              <p className="text-xs text-muted">custo médio {posts ? fmtUsd(postsCost / posts) : '-'}</p>
             </div>
             <div className="card space-y-1 p-4">
-              <p className="text-xs text-muted">Custo médio por post</p>
-              <p className="text-2xl font-bold">{posts ? fmtUsd(cost / posts) : '-'}</p>
-              <p className="text-xs text-muted">{posts ? fmtBrl(toBrl(cost / posts)) : ''}</p>
+              <p className="text-xs text-muted">Cobrança prevista</p>
+              <p className="text-2xl font-bold">{priced ? fmtBrl(price) : '-'}</p>
+              <p className="text-xs text-muted">{priced ? 'dos posts do mês' : 'defina o preço'}</p>
             </div>
             <div className="card space-y-1 p-4">
-              <p className="text-xs text-muted">Contas com uso</p>
-              <p className="text-2xl font-bold">{accounts.length}</p>
-              <p className="text-xs text-muted">no mês</p>
+              <p className="text-xs text-muted">Lucro bruto</p>
+              <p className="text-2xl font-bold">{priced ? fmtBrl(overall.profitBrl) : '-'}</p>
+              <p className={`text-xs ${low ? 'text-warning' : 'text-muted'}`}>{priced ? `margem ${overall.marginPercent.toFixed(0)}%${low ? ' (abaixo da meta)' : ''}` : ''}</p>
+            </div>
+            <div className="card space-y-1 p-4">
+              <p className="text-xs text-muted">Custo sem receita</p>
+              <p className="text-2xl font-bold">{fmtUsd(noRevenue)}</p>
+              <p className="text-xs text-muted">pedidos que não viraram post</p>
             </div>
           </div>
           <div className="card overflow-x-auto p-0">
@@ -101,6 +121,8 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
                   <th className="px-4 py-3 text-right">Posts</th>
                   <th className="px-4 py-3 text-right">Custo (US$)</th>
                   <th className="px-4 py-3 text-right">Custo (R$)</th>
+                  <th className="px-4 py-3 text-right">Cobrança prevista</th>
+                  <th className="px-4 py-3 text-right">Lucro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -115,6 +137,8 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
                     <td className="px-4 py-3 text-right tabular-nums">{a.posts}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{fmtUsd(a.costUsd)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{fmtBrl(toBrl(a.costUsd))}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{a.priceBrl === null ? '-' : fmtBrl(a.priceBrl)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{a.priceBrl === null ? '-' : fmtBrl(profitOf(a.priceBrl, toBrl(a.postsCostUsd)).profitBrl)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -122,6 +146,7 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
           </div>
         </>
       )}
+      <PricingForm initial={pricing} />
     </div>
   );
 }
