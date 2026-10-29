@@ -69,3 +69,36 @@ describe('foto do banco no pedido (BEZ-237)', () => {
     expect(parsePostRequest({ idea: 'x', format: 'single', slide_count: 4 })).toMatchObject({ ok: false, field: 'slide_count' });
   });
 });
+
+describe('estilo, esforço e qualidade da imagem (SPEC 030)', () => {
+  it('sem nada, o pedido continua igual: Instantâneo, a Ekoai escolhe o estilo', () => {
+    const r = parsePostRequest({ idea: 'x' });
+    expect(r).toEqual({ ok: true, value: { idea: 'x', kind: null, goal: null, ratio: '4:5' } });
+  });
+
+  it('o estilo minimalista vira o tipo informativo, e o com imagem vira atmosfera', () => {
+    expect(parsePostRequest({ idea: 'x', style: 'auto-minimalista' })).toMatchObject({ ok: true, value: { kind: 'informativo', style: 'auto-minimalista' } });
+    expect(parsePostRequest({ idea: 'x', style: 'surreal-fotografico', image_quality: 'alta' })).toMatchObject({ ok: true, value: { kind: 'atmosfera', style: 'surreal-fotografico', imageQuality: 'alta' } });
+    // O tipo escolhido à mão (pedido antigo) vale sobre o estilo.
+    expect(parsePostRequest({ idea: 'x', style: 'auto-minimalista', kind: 'atmosfera' })).toMatchObject({ ok: true, value: { kind: 'atmosfera' } });
+  });
+
+  it('a qualidade da imagem é descartada quando o estilo não usa imagem', () => {
+    const r = parsePostRequest({ idea: 'x', style: 'cartaz-tipografico', image_quality: 'alta' });
+    expect(r).toMatchObject({ ok: true });
+    expect(r.value.imageQuality).toBeUndefined();
+  });
+
+  it('recusa estilo, qualidade e esforço desconhecidos, com o campo', () => {
+    expect(parsePostRequest({ idea: 'x', style: 'cartaz-feio' })).toMatchObject({ ok: false, field: 'style' });
+    expect(parsePostRequest({ idea: 'x', image_quality: 'ultra' })).toMatchObject({ ok: false, field: 'image_quality' });
+    expect(parsePostRequest({ idea: 'x', effort: 'turbo' })).toMatchObject({ ok: false, field: 'effort' });
+  });
+
+  it('nível que ainda não gera volta com o motivo, em vez de ser aceito em silêncio', () => {
+    const r = parsePostRequest({ idea: 'x', effort: 'autoral' });
+    expect(r).toMatchObject({ ok: false, field: 'effort' });
+    expect(r.error).toContain('chega em breve');
+    expect(parsePostRequest({ idea: 'x', effort: 'instantaneo' })).toMatchObject({ ok: true });
+  });
+});
