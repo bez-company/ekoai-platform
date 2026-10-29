@@ -1,0 +1,22 @@
+{
+  "id": "numero-gigante-1",
+  "territory": "numero-gigante",
+  "meta": {
+    "tone": "dark",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 50
+      },
+      "support": {
+        "max": 90
+      },
+      "figure": {
+        "max": 6
+      }
+    },
+    "summary": "Número gigante com uma linha de contexto e apoio."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"UTF-8\">\n<style>\n  :root {\n    --bg: #16161A; --ink: #F5F5F2; --accent: #E8A33D; --muted: #8A8A90;\n    --display: 'Inter', sans-serif; --body: 'Inter', sans-serif;\n  }\n  body { margin: 0; width: 1080px; height: 1350px; position: relative; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); }\n  .logo { position: absolute; left: 80px; top: 80px; height: 56px; max-width: 240px; object-fit: contain; }\n  .handle { position: absolute; left: 80px; bottom: 80px; margin: 0; font: 600 28px/34px var(--body); color: var(--ink); letter-spacing: 0.01em; }\n  .rule { position: absolute; width: 120px; height: 12px; border-radius: 6px; background: var(--accent); }\n  .disc { position: absolute; left: 800px; top: 80px; width: 200px; height: 200px; border-radius: 50%; background: var(--accent); }\n  .figure { position: absolute; left: 80px; top: 260px; width: 920px; height: 520px; margin: 0; overflow: hidden; white-space: nowrap; font: 800 440px/520px var(--display); letter-spacing: -0.05em; color: var(--ink); }\n  .rule { left: 80px; top: 800px; }\n  .headline { position: absolute; left: 80px; top: 850px; width: 920px; height: 150px; margin: 0; overflow: hidden; font: 700 60px/1.1 var(--display); letter-spacing: -0.01em; color: var(--ink); }\n  .support { position: absolute; left: 80px; top: 1030px; width: 800px; height: 150px; margin: 0; overflow: hidden; font: 400 38px/1.35 var(--body); color: var(--ink); }\n</style>\n</head>\n<body>\n  <div class=\"disc\"></div>\n  <h1 class=\"figure\" data-fit=\"figure\">{{slot:figure}}</h1>\n  <div class=\"rule\"></div>\n  <h2 class=\"headline\" data-fit=\"headline\">{{slot:headline}}</h2>\n  <p class=\"support\" data-fit=\"support\">{{slot:support}}</p>\n  <img class=\"logo\" src=\"{{logo:on-dark}}\" alt=\"Logo\">\n  <p class=\"handle\">{{handle}}</p>\n</body>\n</html>\n"
+}
