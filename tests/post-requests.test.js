@@ -101,4 +101,10 @@ describe('estilo, esforço e qualidade da imagem (SPEC 030)', () => {
     expect(r.error).toContain('chega em breve');
     expect(parsePostRequest({ idea: 'x', effort: 'instantaneo' })).toMatchObject({ ok: true });
   });
+
+  it('com o job do estúdio no ambiente, Refinado e Autoral são aceitos e seguem no pedido', () => {
+    expect(parsePostRequest({ idea: 'x', effort: 'refinado' }, { studio: true })).toMatchObject({ ok: true, value: { effort: 'refinado' } });
+    expect(parsePostRequest({ idea: 'x', effort: 'autoral' }, { studio: true })).toMatchObject({ ok: true, value: { effort: 'autoral' } });
+    expect(parsePostRequest({ idea: 'x', effort: 'autoral' }, { studio: false })).toMatchObject({ ok: false, field: 'effort' });
+  });
 });

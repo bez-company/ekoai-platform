@@ -15,7 +15,7 @@ import { getMediaAsset } from './media-assets';
 import { canUseInPost } from './media-asset-model';
 import { MAX_SLIDES, MIN_SLIDES } from './design/model';
 import { CHANNELS, type Channel } from './types';
-import { DEFAULT_EFFORT, DEFAULT_STYLE, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, usesImage, type Effort, type ImageQuality } from './studio/levels';
+import { DEFAULT_EFFORT, DEFAULT_STYLE, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelAvailable, levelOf, usesImage, type Effort, type ImageQuality } from './studio/levels';
 
 // goal e ratio vêm da SPEC 017 (decisões 5 e 6); kind segue aceito para a tela de hoje e, quando
 // vem, manda na montagem. Sem nenhum dos dois, o estrategista escolhe.
@@ -27,7 +27,8 @@ type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; field?: st
 
 export { IDEA_MAX };
 
-export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
+// `studio`: o job do estúdio existe neste ambiente (os níveis Refinado e Autoral valem).
+export function parsePostRequest(body: unknown, options: { studio?: boolean } = {}): Parsed<PostRequestInput> {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
   const idea = typeof b.idea === 'string' ? b.idea.trim().replace(/\s+/g, ' ') : '';
   if (!idea) return { ok: false, error: 'Diga em uma frase sobre o que é o post.', field: 'idea' };
@@ -62,7 +63,7 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
   // Modelo (estilo), qualidade (esforço) e qualidade da imagem (SPEC 030). Ausentes = Rápido, a Ekoai escolhe o modelo e não há qualidade de imagem.
   if (b.effort != null && b.effort !== '' && !isEffort(b.effort)) return { ok: false, error: 'Escolha um dos níveis de qualidade da lista.', field: 'effort' };
   const effort: Effort = isEffort(b.effort) ? b.effort : DEFAULT_EFFORT;
-  if (!levelOf(effort).available) return { ok: false, error: `O nível ${levelOf(effort).name} chega em breve. Escolha Rápido por enquanto.`, field: 'effort' };
+  if (!levelAvailable(levelOf(effort), !!options.studio)) return { ok: false, error: `O nível ${levelOf(effort).name} chega em breve. Escolha Rápido por enquanto.`, field: 'effort' };
   if (b.style != null && b.style !== '' && !isStyleChoice(b.style)) return { ok: false, error: 'Escolha um modelo da vitrine ou deixe a Ekoai escolher.', field: 'style' };
   const style = isStyleChoice(b.style) ? b.style : DEFAULT_STYLE;
   if (b.image_quality != null && b.image_quality !== '' && !isImageQuality(b.image_quality)) return { ok: false, error: 'Escolha a qualidade da imagem: Padrão ou Alta.', field: 'image_quality' };

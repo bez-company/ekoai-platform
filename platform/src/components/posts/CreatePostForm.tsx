@@ -50,6 +50,7 @@ export default function CreatePostForm({
   networks,
   brand,
   initialAssetId = null,
+  studio = false,
 }: {
   usage: { used: number; max: number };
   handle: string;
@@ -58,6 +59,7 @@ export default function CreatePostForm({
   networks: NetworkChip[]; // as redes que a empresa pode escolher (SPEC 028)
   brand: { primary: string; accent: string }; // as cores do perfil, para as prévias da vitrine de modelos (SPEC 030)
   initialAssetId?: string | null;
+  studio?: boolean; // o job do estúdio existe neste ambiente: Refinado e Autoral valem (SPEC 030 F3c)
 }) {
   const router = useRouter();
   const [idea, setIdea] = useState('');
@@ -270,7 +272,7 @@ export default function CreatePostForm({
         </div>
 
         {!photo && <StylePicker value={style} onChange={setStyle} brand={brand} />}
-        <EffortPicker effort={effort} onEffort={setEffort} quality={quality} onQuality={setQuality} imageMode={imageMode} />
+        <EffortPicker effort={effort} onEffort={setEffort} quality={quality} onQuality={setQuality} imageMode={imageMode} studio={studio} />
 
         {/* No celular a prévia fica embaixo do formulário: a proporção vem aqui, antes de criar. */}
         <div className="flex items-center justify-between gap-2 lg:hidden">

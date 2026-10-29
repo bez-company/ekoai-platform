@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
+import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, levelAvailable, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
 
 describe('níveis de qualidade (SPEC 030)', () => {
-  it('são três, do mais simples ao mais cuidadoso, e só o Rápido gera na F1', () => {
+  it('são três, do mais simples ao mais cuidadoso, e só o Rápido vale sem o job do estúdio', () => {
     expect(EFFORTS).toEqual(['instantaneo', 'refinado', 'autoral']);
     expect(LEVELS.map((l) => l.id)).toEqual([...EFFORTS]);
     expect(LEVELS.map((l) => l.name)).toEqual(['Rápido', 'Refinado', 'Autoral']);
-    expect(LEVELS.filter((l) => l.available).map((l) => l.id)).toEqual(['instantaneo']);
+    expect(LEVELS.filter((l) => l.engine === 'quick').map((l) => l.id)).toEqual(['instantaneo']);
+    // Sem o job do estúdio só o Rápido vale; com ele, os três.
+    expect(LEVELS.filter((l) => levelAvailable(l, false)).map((l) => l.id)).toEqual(['instantaneo']);
+    expect(LEVELS.filter((l) => levelAvailable(l, true)).map((l) => l.id)).toEqual(['instantaneo', 'refinado', 'autoral']);
     expect(DEFAULT_EFFORT).toBe('instantaneo');
   });
 
