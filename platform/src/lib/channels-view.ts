@@ -48,10 +48,18 @@ export function instagramView(input: InstagramViewInput): InstagramView {
 // LinkedIn (SPEC 028, BEZ-423): perfil pessoal, um por conta da Ekoai, sem limite de plano. O nome do perfil faz o papel do @.
 export type LinkedInView =
   | { kind: 'none'; canConnect: boolean; blockedReason: string | null }
-  | { kind: 'connected'; id: string; handle: string | null; daysLeft: number | null; expiringSoon: boolean }
+  | { kind: 'connected'; id: string; handle: string | null; daysLeft: number | null; expiringSoon: boolean; destination: LinkedInDestination }
   | { kind: 'reauth'; id: string; handle: string | null };
 
-export type LinkedInViewInput = { accounts: readonly SocialAccount[]; configured: boolean; canManage: boolean; nowMs: number };
+// Onde os posts do LinkedIn saem (BEZ-455): o perfil pessoal ou uma das páginas que a pessoa administra.
+export type LinkedInDestination = {
+  pagesEnabled: boolean; // o ambiente pede os escopos de página (Community Management API aprovada)
+  publishAs: string | null; // urn da página escolhida; null é o perfil
+  pages: { urn: string; name: string }[];
+  publishingAs: string; // nome de quem aparece como autor
+};
+
+export type LinkedInViewInput = { accounts: readonly SocialAccount[]; configured: boolean; canManage: boolean; nowMs: number; pagesEnabled?: boolean };
 
 export function linkedinView(input: LinkedInViewInput): LinkedInView {
   const live = input.accounts.filter((a) => a.channel === 'linkedin' && a.status !== 'revoked');
@@ -60,7 +68,9 @@ export function linkedinView(input: LinkedInViewInput): LinkedInView {
   if (current) {
     const daysLeft = daysUntil(current.expiresAt, input.nowMs);
     if (current.status === 'reauth_required' || daysLeft === 0) return { kind: 'reauth', id: current.id, handle: current.handle };
-    return { kind: 'connected', id: current.id, handle: current.handle, daysLeft, expiringSoon: daysLeft !== null && daysLeft <= EXPIRING_SOON_DAYS };
+    const page = current.publishAs ? current.pages.find((p) => p.urn === current.publishAs) : undefined;
+    const destination: LinkedInDestination = { pagesEnabled: input.pagesEnabled ?? false, publishAs: page ? page.urn : null, pages: current.pages, publishingAs: page ? page.name : current.handle ?? 'o seu perfil' };
+    return { kind: 'connected', id: current.id, handle: current.handle, daysLeft, expiringSoon: daysLeft !== null && daysLeft <= EXPIRING_SOON_DAYS, destination };
   }
 
   if (!input.canManage) return { kind: 'none', canConnect: false, blockedReason: 'Só administradores conectam o LinkedIn. Peça a quem administra a conta.' };

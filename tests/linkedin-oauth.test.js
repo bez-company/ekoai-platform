@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ConnectError, FLASH, REFRESH_WINDOW_DAYS, SCOPES, authorUrn, buildAuthorizeUrl, callbackUrl, connectedProps, isFlashKey, isPermanentFailure, missingScopes, parseCallbackQuery, parseProfile, parseToken, refreshDecision } from '../platform/src/lib/linkedin-oauth-model.ts';
-import { LinkedInApiError, connectWithCode, oauthApp, refreshWithToken } from '../platform/src/lib/linkedin-oauth.ts';
+import { ConnectError, FLASH, REFRESH_WINDOW_DAYS, SCOPES, authorUrn, buildAuthorizeUrl, callbackUrl, connectedProps, isFlashKey, isPermanentFailure, missingScopes, parseCallbackQuery, parseProfile, parseToken, refreshDecision, API_VERSION, PAGE_SCOPES, hasPageScopes, isOrganizationUrn, organizationId, pagesEnabled, parseAcls, parsePages, storedPages } from '../platform/src/lib/linkedin-oauth-model.ts';
+import { LinkedInApiError, connectWithCode, fetchPages, oauthApp, refreshWithToken } from '../platform/src/lib/linkedin-oauth.ts';
 import { createState, stateValid } from '../platform/src/lib/instagram-oauth-model.ts';
 import { linkedinView } from '../platform/src/lib/channels-view.ts';
 
@@ -174,7 +174,7 @@ describe('a tela de redes do LinkedIn', () => {
   });
 
   it('conectado mostra os dias que faltam e destaca quando vence em breve', () => {
-    expect(linkedinView(input({ accounts: [acc()] }))).toEqual({ kind: 'connected', id: 'a1', handle: 'Ana Ribeiro', daysLeft: 40, expiringSoon: false });
+    expect(linkedinView(input({ accounts: [acc()] }))).toMatchObject({ kind: 'connected', id: 'a1', handle: 'Ana Ribeiro', daysLeft: 40, expiringSoon: false });
     expect(linkedinView(input({ accounts: [acc({ expiresAt: new Date(NOW + 5 * D).toISOString() })] }))).toMatchObject({ kind: 'connected', daysLeft: 5, expiringSoon: true });
   });
 
@@ -185,13 +185,13 @@ describe('a tela de redes do LinkedIn', () => {
   });
 });
 
-// A credencial do LinkedIn mora no banco, cifrada, por conta. Variável de ambiente só para o app (client id e secret) e a versão da API.
+// A credencial do LinkedIn mora no banco, cifrada, por conta. Variável de ambiente só para o app (client id e secret), a versão da API e a chave que liga as páginas (LINKEDIN_PAGES).
 describe('nenhuma credencial do LinkedIn vem do ambiente', () => {
   const walk = (dir) => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [join(dir, f)]));
   const files = walk(new URL('../platform/src', import.meta.url).pathname).filter((f) => /\.(ts|tsx)$/.test(f));
 
-  it('só o app (client id e secret) e a versão da API são lidos do ambiente', () => {
-    const allowed = new Set(['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET', 'LINKEDIN_VERSION']);
+  it('só o app (client id e secret), a versão da API e a chave das páginas são lidos do ambiente', () => {
+    const allowed = new Set(['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET', 'LINKEDIN_VERSION', 'LINKEDIN_PAGES']);
     for (const file of files) {
       const found = [...readFileSync(file, 'utf8').matchAll(/(?:env|process\.env)\.?\[?['"]?(LINKEDIN_[A-Z_]+)/g)].map((m) => m[1]);
       for (const name of found) expect(allowed.has(name), `${file}: ${name}`).toBe(true);
@@ -219,5 +219,116 @@ describe('evento de conexão (BEZ-450)', () => {
     const without = await connectWithCode({ code: 'c', redirectUri: 'https://app.test/api/linkedin/callback', app }, reply(base));
     expect(connectedProps(withRefresh)).toEqual({ has_refresh: true });
     expect(connectedProps(without)).toEqual({ has_refresh: false });
+  });
+});
+
+describe('publicar como página (BEZ-455)', () => {
+  const PAGE_TOKEN = { ...TOKEN_OK, scope: 'openid,profile,w_member_social,r_organization_admin,w_organization_social' };
+  const ACLS = { elements: [
+    { role: 'ADMINISTRATOR', organization: 'urn:li:organization:111', roleAssignee: 'urn:li:person:x', state: 'APPROVED' },
+    { role: 'CONTENT_ADMINISTRATOR', organizationTarget: 'urn:li:organization:222', state: 'APPROVED' },
+    { role: 'ANALYST', organization: 'urn:li:organization:333', state: 'APPROVED' },
+    { role: 'ADMINISTRATOR', organization: 'urn:li:organization:444', state: 'REQUESTED' },
+    { role: 'ADMINISTRATOR', organization: 'urn:li:organization:111', state: 'APPROVED' },
+    { role: 'ADMINISTRATOR', organization: 'urn:li:person:zzz', state: 'APPROVED' },
+  ] };
+  const LOOKUP = { results: { 111: { localizedName: 'Bez Company' }, 222: { localizedName: '  Doce Ponto  ' } } };
+
+  // LinkedIn simulado: devolve o que cada endereço pede e guarda as chamadas.
+  const linkedin = (overrides = {}) => {
+    const calls = [];
+    const fetchFn = async (url, init = {}) => {
+      const u = String(url);
+      calls.push({ url: u, headers: init.headers ?? {} });
+      const hit = Object.entries(overrides).find(([k]) => u.includes(k));
+      if (hit) return typeof hit[1] === 'function' ? hit[1]() : hit[1];
+      if (u.includes('accessToken')) return new Response(JSON.stringify(PAGE_TOKEN), { status: 200 });
+      if (u.includes('userinfo')) return new Response(JSON.stringify({ sub: 'mem-1', name: 'Ana Ribeiro' }), { status: 200 });
+      if (u.includes('organizationAcls')) return new Response(JSON.stringify(ACLS), { status: 200 });
+      if (u.includes('organizationsLookup')) return new Response(JSON.stringify(LOOKUP), { status: 200 });
+      return new Response('{}', { status: 404 });
+    };
+    return { calls, fetchFn };
+  };
+  const connect = (fetchFn) => connectWithCode({ code: 'c', redirectUri: 'https://app.test/api/linkedin/callback', app: APP }, fetchFn, NOW);
+
+  it('os escopos de página só entram na autorização quando o ambiente liga', () => {
+    const base = { clientId: 'c', redirectUri: 'https://app.test/cb', state: 's' };
+    const off = new URL(buildAuthorizeUrl(base)).searchParams.get('scope');
+    const on = new URL(buildAuthorizeUrl({ ...base, pages: true })).searchParams.get('scope');
+    expect(off).toBe(SCOPES.join(' '));
+    expect(on.split(' ')).toEqual([...SCOPES, ...PAGE_SCOPES]);
+    expect(pagesEnabled({ LINKEDIN_PAGES: '1' })).toBe(true);
+    expect(pagesEnabled({ LINKEDIN_PAGES: 'true' })).toBe(false);
+    expect(pagesEnabled({})).toBe(false);
+    expect(hasPageScopes(['r_organization_admin', 'w_organization_social', 'openid'])).toBe(true);
+    expect(hasPageScopes(['w_organization_social'])).toBe(false);
+  });
+
+  it('lê só as organizações aprovadas em que a pessoa pode publicar, sem repetir nem aceitar outro tipo de urn', () => {
+    expect(parseAcls(ACLS)).toEqual(['urn:li:organization:111', 'urn:li:organization:222']);
+    expect(parseAcls({})).toEqual([]);
+    expect(parseAcls(null)).toEqual([]);
+    expect(isOrganizationUrn('urn:li:organization:12')).toBe(true);
+    expect(isOrganizationUrn('urn:li:organization:abc')).toBe(false);
+    expect(isOrganizationUrn('urn:li:person:12')).toBe(false);
+    expect(organizationId('urn:li:organization:12')).toBe('12');
+  });
+
+  it('o nome vem do lookup; sem nome legível a página aparece com o número', () => {
+    expect(parsePages(['urn:li:organization:111', 'urn:li:organization:222', 'urn:li:organization:333'], LOOKUP)).toEqual([
+      { urn: 'urn:li:organization:111', name: 'Bez Company' },
+      { urn: 'urn:li:organization:222', name: 'Doce Ponto' },
+      { urn: 'urn:li:organization:333', name: 'Página 333' },
+    ]);
+    expect(parsePages(['urn:li:organization:5'], null)).toEqual([{ urn: 'urn:li:organization:5', name: 'Página 5' }]);
+    expect(storedPages([{ urn: 'urn:li:organization:1', name: 'A' }, { urn: 'urn:li:person:1', name: 'B' }, { urn: 'urn:li:organization:2' }, null])).toEqual([{ urn: 'urn:li:organization:1', name: 'A' }]);
+    expect(storedPages('x')).toEqual([]);
+  });
+
+  it('conectar com os escopos de página traz as páginas, e a chamada leva a versão e o token no cabeçalho', async () => {
+    const { calls, fetchFn } = linkedin();
+    const connected = await connect(fetchFn);
+    expect(connected.pages).toEqual([{ urn: 'urn:li:organization:111', name: 'Bez Company' }, { urn: 'urn:li:organization:222', name: 'Doce Ponto' }]);
+    const acls = calls.find((c) => c.url.includes('organizationAcls'));
+    expect(acls.url).toContain('q=roleAssignee');
+    expect(acls.headers).toMatchObject({ Authorization: 'Bearer AQX-token', 'LinkedIn-Version': API_VERSION, 'X-Restli-Protocol-Version': '2.0.0' });
+    expect(calls.find((c) => c.url.includes('organizationsLookup')).url).toContain('ids=List(111,222)');
+  });
+
+  it('sem os escopos de página, nenhuma chamada de página é feita', async () => {
+    const { calls, fetchFn } = linkedin({ accessToken: new Response(JSON.stringify(TOKEN_OK), { status: 200 }) });
+    const connected = await connect(fetchFn);
+    expect(connected.pages).toEqual([]);
+    expect(calls.some((c) => c.url.includes('organization'))).toBe(false);
+  });
+
+  it('falha ao ler as páginas não derruba a conexão do perfil', async () => {
+    const { fetchFn } = linkedin({ organizationAcls: () => new Response('{"message":"forbidden"}', { status: 403 }) });
+    const connected = await connect(fetchFn);
+    expect(connected.pages).toEqual([]);
+    expect(connected.profile.memberId).toBe('mem-1');
+  });
+
+  it('falha só no nome das páginas mantém a lista, com o número no lugar do nome', async () => {
+    const { fetchFn } = linkedin({ organizationsLookup: () => new Response('{}', { status: 500 }) });
+    expect((await connect(fetchFn)).pages.map((p) => p.name)).toEqual(['Página 111', 'Página 222']);
+    await expect(fetchPages('t', async () => new Response('{}', { status: 401 }))).rejects.toBeInstanceOf(LinkedInApiError);
+  });
+
+  it('a tela mostra o destino: perfil por padrão, página quando escolhida, e se o ambiente já libera páginas', () => {
+    const account = { id: 'a1', channel: 'linkedin', handle: 'Ana Ribeiro', status: 'active', expiresAt: new Date(NOW + 40 * D).toISOString(), connectedAt: '', scopes: [], pages: [{ urn: 'urn:li:organization:111', name: 'Bez Company' }], publishAs: null };
+    const view = (over, pagesEnabled = true) => linkedinView({ accounts: [{ ...account, ...over }], configured: true, canManage: true, nowMs: NOW, pagesEnabled }).destination;
+    expect(view({})).toMatchObject({ pagesEnabled: true, publishAs: null, publishingAs: 'Ana Ribeiro' });
+    expect(view({ publishAs: 'urn:li:organization:111' })).toMatchObject({ publishAs: 'urn:li:organization:111', publishingAs: 'Bez Company' });
+    expect(view({ publishAs: 'urn:li:organization:999' })).toMatchObject({ publishAs: null, publishingAs: 'Ana Ribeiro' }); // página que saiu da lista
+    expect(view({}, false).pagesEnabled).toBe(false);
+  });
+
+  it('os avisos novos existem e não têm travessão', () => {
+    for (const key of ['choose_page', 'no_pages', 'page_saved']) {
+      expect(isFlashKey(key)).toBe(true);
+      expect(FLASH[key].text).not.toMatch(/[–—]/);
+    }
   });
 });

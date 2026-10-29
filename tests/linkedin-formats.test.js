@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { uploadVideoFromUrl } from '../platform/src/lib/channels/linkedin.ts';
+import { publishText, uploadVideoFromUrl } from '../platform/src/lib/channels/linkedin.ts';
 
 // A credencial vem da conta conectada (SPEC 028, BEZ-423), não do ambiente.
 const CREDS = { token: 'tok', authorUrn: 'urn:li:person:abc' };
@@ -65,5 +65,28 @@ describe('vídeo no LinkedIn', () => {
     ];
     vi.stubGlobal('fetch', vi.fn(async () => responses.shift()()));
     await expect(uploadVideoFromUrl(CREDS, 'https://cdn/v.mp4')).rejects.toThrow(/ETag/);
+  });
+});
+
+describe('publicar como página (BEZ-455)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('o post sai com a página como autora e o upload da imagem tem a página como dona', async () => {
+    const calls = [];
+    const responses = [
+      () => new Response(JSON.stringify({ value: { uploadUrl: 'https://up/img', image: 'urn:li:image:I1' } }), { status: 200 }), // initializeUpload
+      () => new Response(new Uint8Array(4), { status: 200 }), // baixa a imagem
+      () => new Response(null, { status: 201 }), // envia a imagem
+      () => new Response(JSON.stringify({}), { status: 201, headers: { 'x-restli-id': 'urn:li:share:S1' } }), // cria o post
+    ];
+    vi.stubGlobal('fetch', vi.fn(async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      return responses.shift()();
+    }));
+    await publishText({ token: 'tok', authorUrn: 'urn:li:organization:111' }, 'Texto do post', 'https://cdn/img.png');
+    const init = calls.find((c) => c.url.includes('initializeUpload'));
+    expect(JSON.parse(init.init.body).initializeUploadRequest.owner).toBe('urn:li:organization:111');
+    const post = calls.find((c) => c.url.endsWith('/posts'));
+    expect(JSON.parse(post.init.body)).toMatchObject({ author: 'urn:li:organization:111', commentary: 'Texto do post', lifecycleState: 'PUBLISHED' });
   });
 });

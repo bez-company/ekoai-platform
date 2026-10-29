@@ -83,6 +83,7 @@ const EXPECTED = {
   'instagram/callback': ['channels.manage'],
   'linkedin/connect': ['channels.manage'],
   'linkedin/callback': ['channels.manage'],
+  'linkedin/publish-as': ['channels.manage'],
   'social-accounts/[id]': ['channels.manage'],
   facts: ['profile.view', 'brand.manage'],
   'facts/[id]': ['brand.manage', 'brand.manage'],

@@ -243,3 +243,80 @@ describe('renovação do LinkedIn', () => {
     expect(summary).toEqual({ checked: 2, refreshed: 0, warned: 0, retry: 1, reauth: 0 });
   });
 });
+
+// Publicar como página (BEZ-455): as páginas lidas na conexão ficam na conta, a pessoa escolhe o destino, a publicação usa a página
+// como autora e nunca uma página que a pessoa deixou de administrar.
+describe('publicar como página', () => {
+  const admin = new pg.Pool({ connectionString: url, max: 2 }); // o pool do arquivo é encerrado no describe anterior
+  const C = 'it-li-pg';
+  const tc = tenantDb(C);
+  const PAGES = [{ urn: 'urn:li:organization:111', name: 'Bez Company' }, { urn: 'urn:li:organization:222', name: 'Doce Ponto' }];
+  const withPages = (memberId, pages = PAGES, scopes = ['openid', 'profile', 'w_member_social', 'r_organization_admin', 'w_organization_social']) => ({ ...connected(memberId), scopes, pages });
+  const creds = () => social.linkedinCredentials(tc, box);
+
+  beforeAll(async () => {
+    await resetTenantData(admin, [C]);
+    await admin.query('insert into tenants (id, name) values ($1, $1) on conflict (id) do nothing', [C]);
+  });
+  afterAll(async () => {
+    await resetTenantData(admin, [C, 'it-li-pg-none']);
+    await admin.end();
+  });
+
+  it('as páginas da conexão ficam na conta e o autor continua o perfil até a pessoa escolher', async () => {
+    const saved = await social.saveLinkedInConnection(tc, { userId: null, connected: withPages('mem-pg1') }, box);
+    const [account] = await social.listSocialAccounts(tc);
+    expect(account).toMatchObject({ id: saved.id, publishAs: null, pages: PAGES });
+    expect(await creds()).toMatchObject({ authorUrn: 'urn:li:person:mem-pg1' });
+  });
+
+  it('escolher uma página faz dela a autora, e voltar ao perfil desfaz', async () => {
+    const picked = await social.setLinkedInPublishAs(tc, null, 'urn:li:organization:222');
+    expect(picked).toEqual({ publishAs: 'urn:li:organization:222', name: 'Doce Ponto' });
+    expect((await creds()).authorUrn).toBe('urn:li:organization:222');
+    expect((await social.listSocialAccounts(tc))[0].publishAs).toBe('urn:li:organization:222');
+    await social.setLinkedInPublishAs(tc, null, null);
+    expect((await creds()).authorUrn).toBe('urn:li:person:mem-pg1');
+    const audits = (await admin.query("select metadata from audit_events where tenant_id = $1 and action = 'social_account.publish_as_changed' order by created_at", [C])).rows.map((r) => r.metadata);
+    expect(audits).toEqual([{ channel: 'linkedin', handle: 'Doce Ponto' }, { channel: 'linkedin', handle: 'Ana Ribeiro' }]);
+  });
+
+  it('recusa página que não está na lista e o token nunca aparece', async () => {
+    const e = await rejects(social.setLinkedInPublishAs(tc, null, 'urn:li:organization:999'));
+    expect(e).toBeInstanceOf(UserError);
+    expect(e.message).toMatch(/não está na lista/);
+    expect(JSON.stringify(await social.listSocialAccounts(tc))).not.toContain('AQX-token');
+  });
+
+  it('reconectar mantém a página escolhida se a pessoa ainda a administra e volta ao perfil se não', async () => {
+    await social.setLinkedInPublishAs(tc, null, 'urn:li:organization:111');
+    await social.saveLinkedInConnection(tc, { userId: null, connected: withPages('mem-pg1') }, box);
+    expect((await creds()).authorUrn).toBe('urn:li:organization:111');
+    await social.saveLinkedInConnection(tc, { userId: null, connected: withPages('mem-pg1', [PAGES[1]]) }, box);
+    expect((await social.listSocialAccounts(tc))[0].publishAs).toBeNull();
+    expect((await creds()).authorUrn).toBe('urn:li:person:mem-pg1');
+  });
+
+  it('sem o escopo de publicar em página, escolher falha e a publicação não usa a página', async () => {
+    await social.saveLinkedInConnection(tc, { userId: null, connected: withPages('mem-pg1', PAGES, ['openid', 'profile', 'w_member_social']) }, box);
+    const e = await rejects(social.setLinkedInPublishAs(tc, null, 'urn:li:organization:111'));
+    expect(e.message).toMatch(/não permite publicar em página/);
+    // escolha gravada à mão com o acesso antigo: a publicação para com o próximo passo, em vez de sair no destino errado
+    await admin.query("update social_accounts set publish_as = 'urn:li:organization:111' where tenant_id = $1 and channel = 'linkedin' and status = 'active'", [C]);
+    const failed = await rejects(creds());
+    expect(failed).toBeInstanceOf(UserError);
+    expect(failed.message).toMatch(/Reconecte/);
+  });
+
+  it('página que saiu da lista também para a publicação, e a escolha inválida nem entra no banco', async () => {
+    await admin.query("update social_accounts set publish_as = 'urn:li:organization:111', pages = '[]', scopes = '{w_member_social,w_organization_social}' where tenant_id = $1 and channel = 'linkedin' and status = 'active'", [C]);
+    expect((await rejects(creds())).message).toMatch(/não está mais na lista/);
+    await expect(admin.query("update social_accounts set publish_as = 'urn:li:person:abc' where tenant_id = $1", [C])).rejects.toThrow();
+  });
+
+  it('sem LinkedIn conectado, escolher o destino pede para conectar', async () => {
+    const other = tenantDb('it-li-pg-none');
+    await admin.query("insert into tenants (id, name) values ('it-li-pg-none', 'sem') on conflict (id) do nothing");
+    expect((await rejects(social.setLinkedInPublishAs(other, null, null))).message).toMatch(/Conecte o LinkedIn/);
+  });
+});

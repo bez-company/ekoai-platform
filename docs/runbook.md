@@ -205,6 +205,12 @@ O que precisa existir uma vez, no ambiente (nada disto entra no repositório):
 3. O Client ID e o Client Secret no Secret Manager, mapeados em `LINKEDIN_CLIENT_ID` e `LINKEDIN_CLIENT_SECRET` no Cloud Run
    (`infra/terraform/modules/ekoai/locals.tf`). Sem as duas, a tela mostra "A conexão com o LinkedIn ainda não está ativa neste ambiente".
 4. O job `refresh-linkedin` do Cloud Scheduler (todo dia, 09:10 UTC) já vem no Terraform.
+5. **Publicar como página (BEZ-455), só depois da aprovação do LinkedIn.** O app começa só com o perfil pessoal. Para a página: no app do
+   LinkedIn Developers, peça o produto **Community Management API** (é restrito e passa por revisão; leva de semanas a meses) e confirme
+   que a pessoa que conecta é **administradora** da página. Com o produto aprovado, defina `LINKEDIN_PAGES=1` no Cloud Run do ambiente.
+   Aí a autorização passa a pedir `r_organization_admin` e `w_organization_social`, a conexão lê as páginas que a pessoa administra e a
+   tela Redes deixa escolher o destino (perfil ou página). **Não ligue a chave antes da aprovação:** pedir um escopo que o app não tem
+   quebra a autorização inteira. Quem já conectou antes precisa reconectar para trazer as páginas.
 
 O LinkedIn nem sempre dá refresh token. Sem ele, o acesso vale ~60 dias: 15 dias antes os administradores recebem o aviso "O acesso ao
 LinkedIn vence em breve" (uma vez) e, vencido, a conta vira "precisa reconectar" e os posts do LinkedIn esperam; o Instagram não é afetado.

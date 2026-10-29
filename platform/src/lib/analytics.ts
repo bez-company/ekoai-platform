@@ -30,6 +30,7 @@ export type ProductEvent =
   | 'instagram_reauth_required'
   | 'linkedin_connected'
   | 'linkedin_disconnected'
+  | 'linkedin_publish_as_changed'
   | 'linkedin_reauth_required'
   | 'data_exported'
   | 'account_deleted'

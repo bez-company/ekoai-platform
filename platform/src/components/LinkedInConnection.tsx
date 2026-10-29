@@ -9,18 +9,21 @@ import Modal from './Modal';
 import { ErrorLine, Spinner } from './auth/ui';
 import type { LinkedInView } from '@/lib/channels-view';
 
-type Props = { view: LinkedInView; canManage: boolean; flash: { tone: 'ok' | 'warn'; text: string } | null };
+type Props = { view: LinkedInView; canManage: boolean; pagesEnabled: boolean; flash: { tone: 'ok' | 'warn'; text: string } | null };
+
+const LI_SAVED = 'Pronto. Os próximos posts saem no destino que você escolheu.';
 
 function dayWord(n: number): string {
   return n === 1 ? '1 dia' : `${n} dias`;
 }
 
-export default function LinkedInConnection({ view, canManage, flash }: Props) {
+export default function LinkedInConnection({ view, canManage, pagesEnabled, flash }: Props) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
 
   async function disconnect(id: string) {
     setBusy(true);
@@ -46,13 +49,41 @@ export default function LinkedInConnection({ view, canManage, flash }: Props) {
     }
   }
 
+  // Onde os posts saem (BEZ-455): o perfil pessoal ou uma das páginas que a pessoa administra.
+  async function choose(urn: string | null) {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/linkedin/publish-as', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urn }) });
+      if (res.status === 401) {
+        router.push('/entrar');
+        return;
+      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? 'Não deu para salvar. Tente de novo.');
+        return;
+      }
+      setNotice(LI_SAVED);
+      router.refresh();
+    } catch {
+      setError('Sem conexão. Confira a rede e tente de novo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const banner = notice ? { tone: 'ok' as const, text: notice } : flash;
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">LinkedIn</h2>
-        <p className="text-sm text-muted">Conecte o seu perfil pessoal do LinkedIn. Os posts aprovados saem no seu nome, no horário da agenda. A página da empresa fica para depois.</p>
+        <p className="text-sm text-muted">
+          {pagesEnabled
+            ? 'Conecte o seu LinkedIn e escolha onde os posts saem: no seu perfil ou em uma página que você administra. Os posts aprovados saem no horário da agenda.'
+            : 'Conecte o seu perfil pessoal do LinkedIn. Os posts aprovados saem no seu nome, no horário da agenda.'}
+        </p>
       </div>
 
       {banner && (
@@ -66,9 +97,10 @@ export default function LinkedInConnection({ view, canManage, flash }: Props) {
           <div>
             <p className="font-semibold">Nenhum LinkedIn conectado</p>
             <p className="mt-1 text-sm text-muted">Sem a conexão, os posts aprovados ficam agendados e esperam. Nada sai sem a sua aprovação.</p>
+            {!pagesEnabled && <p className="mt-1 text-sm text-muted">Publicar como página ainda não está liberado neste ambiente: o LinkedIn exige a aprovação da Community Management API.</p>}
           </div>
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-            <li>Você entra no LinkedIn e permite que a Ekoai publique no seu nome.</li>
+            <li>Você entra no LinkedIn e permite que a Ekoai publique {pagesEnabled ? 'no seu nome e nas páginas que você administra' : 'no seu nome'}.</li>
             <li>O LinkedIn devolve você para cá, com o perfil conectado.</li>
           </ol>
           <p className="text-sm text-muted">A Ekoai só publica depois da sua aprovação, em cada post. Na janela do LinkedIn, aceite "Publicar no seu nome".</p>
@@ -95,6 +127,29 @@ export default function LinkedInConnection({ view, canManage, flash }: Props) {
                 ? `O acesso vence em ${dayWord(view.daysLeft)}. Reconecte para renovar agora.`
                 : `Acesso válido por mais ${dayWord(view.daysLeft)}. O LinkedIn nem sempre deixa renovar sozinho: a Ekoai avisa antes de vencer.`}
           </p>
+          <p className="text-sm">
+            Os posts saem em: <strong>{view.destination.publishingAs}</strong> ({view.destination.publishAs ? 'página' : 'perfil pessoal'})
+          </p>
+          {view.destination.pagesEnabled && view.destination.pages.length > 0 && canManage && (
+            <fieldset className="space-y-2" disabled={saving}>
+              <legend className="text-sm font-semibold">Onde publicar</legend>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="li-destination" checked={view.destination.publishAs === null} onChange={() => void choose(null)} />
+                <span>Meu perfil pessoal ({view.handle ?? 'LinkedIn'})</span>
+              </label>
+              {view.destination.pages.map((page) => (
+                <label key={page.urn} className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="li-destination" checked={view.destination.publishAs === page.urn} onChange={() => void choose(page.urn)} />
+                  <span>Página {page.name}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {view.destination.pagesEnabled && view.destination.pages.length === 0 && (
+            <p className="text-sm text-muted">Nenhuma página apareceu. Para publicar em uma página, a conta que conecta precisa ser administradora dela no LinkedIn. Depois de ajustar, reconecte.</p>
+          )}
+          {!view.destination.pagesEnabled && <p className="text-sm text-muted">Publicar como página ainda não está liberado neste ambiente: o LinkedIn exige a aprovação da Community Management API.</p>}
+          {error && !confirming && <ErrorLine>{error}</ErrorLine>}
           {canManage && (
             <div className="flex flex-wrap gap-2">
               <a href="/api/linkedin/connect" className="btn-ghost">
