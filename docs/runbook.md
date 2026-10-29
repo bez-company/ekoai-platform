@@ -157,8 +157,11 @@ Leia a saída: o `idp_uid`, as tabelas que apontam para a pessoa (e se é `casca
 saem. Se for a pessoa certa, repita com `--apply` no fim dos argumentos. O job recusa a administradora da plataforma
 (`platform-admin --revoke` antes) e confere, depois de apagar, que não sobrou linha em `users` nem em convites.
 
-- **Fica de propósito:** `audit_events` (só de inserção, migration 0019) com o id da pessoa, sem e-mail na coluna, e o
-  evento `person.purged` que a própria limpeza grava. Apagar isso é uma migration revisada.
+- **Auditoria:** `audit_events` só aceita inserção (migration 0019). Por padrão os eventos da pessoa ficam, com o id e
+  sem e-mail, mais o `person.purged` que a limpeza grava. Com `--apply,--with-audit` o job desliga o gatilho da tabela
+  dentro da transação, apaga os eventos em que ela é autora ou alvo (ou alvo dos convites dela), religa o gatilho e grava
+  `person.purged` sem id nenhum. É um desvio consciente da regra de só inserção: use só quando a pessoa pedir ou o
+  Matheus decidir (BEZ-433). O papel do job precisa ser o dono da tabela; se não for, a transação desfaz tudo.
 - **Login:** o job não toca o Identity Platform. Apague o `idp_uid` que o ensaio mostrou, depois do `--apply`
   (`accounts:delete` do Identity Toolkit com a conta de administração, ou o console do Firebase Authentication).
 - **Fora do banco:** confira PostHog e Sentry se a pessoa chegou a entrar.
