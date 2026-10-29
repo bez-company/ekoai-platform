@@ -3,6 +3,7 @@
 // gravação, o aviso ao administrador e as ações de aceitar, dispensar, desligar e desfazer. Tudo pelo
 // tenantDb. Nada aqui chama modelo.
 
+import { isStudioDesign } from './studio/is-studio';
 import type { TenantDb } from './tenant-db';
 import { ConflictError, NotFoundError } from './errors';
 import { log } from './log';
@@ -107,7 +108,7 @@ export async function proposeDesignRules(t: TenantDb, now: Date = new Date()): P
     const id = String(d.id);
     const first = initial.get(id);
     // A regra de marca nasce de post de uma imagem; o carrossel não entra na conta (SPEC 023).
-    if (!first || (d.design as StoredDesign).slides || !(d.approved_at || waiting.has(id))) continue;
+    if (!first || isStudioDesign(d.design) || (d.design as StoredDesign).slides || !(d.approved_at || waiting.has(id))) continue;
     const mine = rows.filter((r) => String(r.post_design_id) === id);
     posts.push({
       designId: id,
