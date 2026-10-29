@@ -29,7 +29,7 @@ describe('cotação do dólar do Console › Financeiro (SPEC 031)', () => {
 
   it('o arquivo explica de onde vem o número e não usa travessão', () => {
     const raw = readFileSync(new URL('../platform/src/lib/pricing.json', import.meta.url), 'utf8');
-    expect(JSON.parse(raw)._doc).toContain('bcb.gov.br');
+    expect(JSON.parse(raw)._doc).toContain('currency_conversion_rate');
     expect(raw).not.toMatch(/[–—]/);
   });
 });
