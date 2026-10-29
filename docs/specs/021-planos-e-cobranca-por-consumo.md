@@ -52,7 +52,7 @@ assinatura com créditos e recarga antes do uso, para a BEZ não gerar sem ter r
 | Unidade | crédito. Cada item gerado debita conforme a tabela por tipo e nível de qualidade (abaixo) |
 | O que debita | **tudo que custa token ou dinheiro à BEZ**: gerar, regenerar, ajuste, aplicar sugestão, avaliar de novo, tentar de novo a rede, regenerar o PDF e a publicação no X. O peso de cada um vem do custo medido; o que não tem custo mensurável pesa zero |
 | Regeneração | debita como uma geração nova |
-| Preço do crédito | dois: o do plano e o do pacote de recarga. O do pacote é de **10% a 25% mais caro** (percentual exato em aberto). Não existe crédito avulso fora de um plano |
+| Preço do crédito | dois: o do plano e o do pacote de recarga. O do pacote é de **10% a 25% mais caro** (proposta: 20%, ver "Preço do crédito"). Não existe crédito avulso fora de um plano |
 | Validade do plano | **vence no fim do ciclo e não acumula** |
 | Validade do pacote | **não vence e não tem reembolso**: usa até acabar |
 | Ordem de consumo | primeiro o saldo do plano (vence), depois o do pacote |
@@ -90,6 +90,43 @@ Google Cloud. Taxa do gateway e impostos não entram aqui: são custo da venda e
 
 Os pesos finais saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só
 exemplos ("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
+
+### Preço do crédito (proposta, aguardando aprovação do Matheus)
+
+Custo de um crédito: US$ 0,01, ou **R$ 0,0593** (câmbio de `pricing.json`). Proposta: margem de 75% sobre o preço, ou seja, o preço é cerca de
+4 vezes o custo (no console, `markup_percent` perto de 300 e `target_margin_percent` 75, da SPEC 031 e do BEZ-471). Como todo item é múltiplo
+do mesmo custo, todo item rende quase a mesma margem (o arredondamento dos pesos muda um pouco).
+
+| Onde | Preço do crédito | Como sai |
+| --- | --- | --- |
+| No plano | **R$ 0,24** | 4,05 vezes o custo, margem de 75% |
+| No pacote de recarga | **R$ 0,29** | 20% acima do plano (R$ 0,288 arredondado), margem de cerca de 80% |
+
+Quanto custa cada item ao cliente, ao preço do plano (R$ 0,24 por crédito):
+
+| Item | Créditos | Preço | Custo da BEZ |
+| --- | --- | --- | --- |
+| Rápido, sem imagem de IA | 1 | R$ 0,24 | R$ 0,06 |
+| Rápido, com imagem de IA | 6 | R$ 1,44 | R$ 0,36 |
+| Refinado, sem imagem | 29 | R$ 6,96 | R$ 1,72 |
+| Refinado, com imagem Flash | 36 | R$ 8,64 | R$ 2,14 |
+| Autoral, sem imagem | 60 | R$ 14,40 | R$ 3,56 |
+| Autoral, com imagem Pro | 74 | R$ 17,76 | R$ 4,39 |
+| Publicação no X, sem link ou com link | 2 ou 20 | R$ 0,48 ou R$ 4,80 | R$ 0,09 ou R$ 1,19 |
+| Avaliar de novo | 4 | R$ 0,96 | R$ 0,21 |
+
+Pacotes de exemplo (tamanho a definir): 100 créditos por R$ 29, 250 por R$ 72, 500 por R$ 144. Um pacote de 100 créditos cobre um post
+Autoral com imagem Pro (74).
+
+- **Descontando gateway e imposto:** a margem de 75% é antes da taxa do gateway e dos impostos sobre a venda. Com uma reserva de 15% da
+  receita para os dois (**suposição**, falta a taxa do Asaas e o regime tributário), a margem líquida fica perto de 60%.
+- **Comparação:** o Autoral a R$ 14 a R$ 18 fica na faixa de R$ 8 a R$ 15 da análise de 28/10 e muito abaixo de R$ 40 a R$ 290 por post em
+  agência ou freelancer.
+- **Primeiro post grátis (proposta):** vale em qualquer nível até o Refinado, uma vez por conta. Custa à BEZ até cerca de R$ 2,14 e é o nível
+  que mostra a qualidade do produto.
+- **Mensalidade do plano:** créditos incluídos vezes R$ 0,24, sem desconto por volume. Exemplo: 250 créditos = R$ 60. Os valores de cada
+  plano continuam em aberto.
+- **Não foi configurado nada:** a política de preço do console (`platform_pricing`) segue como está até o Matheus aprovar.
 
 ### Recarga automática
 
@@ -153,7 +190,7 @@ ficou de fora.
 
 1. **Aviso de saldo sem mostrar o saldo no fluxo de post:** como a pessoa sabe que o saldo está acabando, se só Fatura e uso mostra? Os
    avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
-2. **Valores:** mensalidade e franquia por plano, preço do crédito no plano, percentual do pacote (de 10% a 25%), tamanho dos pacotes e
+2. **Valores (proposta de preço do crédito acima, falta aprovar):** mensalidade e franquia por plano, preço do crédito no plano, percentual do pacote (de 10% a 25%), tamanho dos pacotes e
    teto padrão de recarga. Dependem do custo real (BEZ-260).
 3. **Tabela de créditos:** os pesos de partida estão na tabela acima; confirmar os de Refinado e Autoral com a medida em produção, e medir carrossel, ajuste,
    avaliar de novo, X, Cloud Run Job e PDF (BEZ-490).
