@@ -61,22 +61,35 @@ assinatura com créditos e recarga antes do uso, para a BEZ não gerar sem ter r
 | Primeiro post | grátis por conta, com cartão válido; um por conta |
 | Desconto por conta | SPEC 032, sobre o preço do crédito ou em créditos bônus; nunca aparece para o cliente |
 
-**Tabela de créditos (interna, valores em aberto).** O crédito equivale a um custo fixo da BEZ mais margem, e cada item custa o múltiplo
-dele. Estrutura:
+**Tabela de créditos (interna): pesos de partida, a confirmar com o BEZ-490.** O crédito equivale a um custo fixo da BEZ e cada item custa
+o múltiplo dele. **Âncora: 1 crédito = US$ 0,01 de custo** (cerca de R$ 0,059 ao câmbio de `pricing.json`, R$ 5,9309). O preço do crédito em
+reais, com a margem, é decisão à parte (SPEC 032 e o preço percentual do BEZ-471). Custo medido em 29/10/2026:
 
-| Item | Peso |
-| --- | --- |
-| Post de texto | a medir |
-| Post com layout, sem imagem de IA | a medir |
-| Post com imagem de IA | a medir, por nível de imagem |
-| Carrossel | base mais um valor por lâmina |
-| LinkedIn e X | como o Instagram, mais a publicação (o X cobra por post publicado) |
-| Regeneração | o mesmo valor do item |
-| Ajuste, aplicar sugestão, avaliar de novo | a medir (cada um chama o modelo) |
-| Tentar de novo a rede, regenerar o PDF | a medir; zero se o custo for desprezível. Tentar de novo depois de falha técnica não cobra duas vezes: a falha foi estornada |
+| Item | Custo por post (US$) | Origem do número | Créditos |
+| --- | --- | --- | --- |
+| Rápido, sem imagem de IA | 0,003 | produção, 10 posts do motor atual | 1 (mínimo) |
+| Rápido, com imagem de IA | 0,05 a 0,07 | produção, 8 posts; a imagem custou 0,050 em média | 6 |
+| Refinado, sem imagem | 0,25 + 0,04 (Cloud Run Job) | eval de 12 pedidos; o Job é estimativa | 29 |
+| Refinado, com imagem Flash | 0,25 + 0,067 + 0,04 | idem | 36 |
+| Autoral, sem imagem | 0,56 + 0,04 (Cloud Run Job) | eval de 12 pedidos (tudo Pro); o Job é estimativa | 60 |
+| Autoral, com imagem Pro | 0,56 + 0,135 + 0,04 | idem | 74 |
+| Publicação no X | 0,015, ou 0,20 com link | tabela da API do X (docs/analises) | 2 sem link, 20 com link |
+| Carrossel | base mais um valor por lâmina | a medir | a medir |
+| LinkedIn | como o Instagram | a API não cobra por post (a conferir) | como o Instagram |
+| Regeneração | o mesmo custo do item | n/a | o mesmo valor do item |
+| Avaliar de novo | cerca de 0,035 (uma chamada do crítico) | palpite, sem medida | 4 |
+| Ajuste, aplicar sugestão | cerca de 0,08 a 0,15 (conserto e embelezador) | palpite, sem medida | 8 a 15 |
+| Tentar de novo a rede, regenerar o PDF | desprezível | a medir | 0. Tentar de novo depois de falha técnica não cobra duas vezes: a falha foi estornada |
 
-Os pesos saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só exemplos
-("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
+Leitura: do post mais barato ao mais caro o custo varia **cerca de 70 vezes**. Um plano de 250 créditos rende, por exemplo, 250 posts Rápido
+sem imagem, 41 com imagem de IA, 6 Refinados com imagem ou 3 Autorais com imagem Pro.
+
+Limites do dado: só o Rápido vem de produção (18 posts de teste, PostHog `post_ready` e `cost_by_step`). Refinado e Autoral vêm do eval e
+ainda não rodaram em produção. O custo registrado (`cost_usd`) usa o preço de lista no código e não foi conferido contra a fatura do
+Google Cloud. Taxa do gateway e impostos não entram aqui: são custo da venda e entram no preço do crédito.
+
+Os pesos finais saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só
+exemplos ("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
 
 ### Recarga automática
 
@@ -142,7 +155,8 @@ ficou de fora.
    avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
 2. **Valores:** mensalidade e franquia por plano, preço do crédito no plano, percentual do pacote (de 10% a 25%), tamanho dos pacotes e
    teto padrão de recarga. Dependem do custo real (BEZ-260).
-3. **Tabela de créditos:** pesos por tipo e nível, a partir do Console › Financeiro.
+3. **Tabela de créditos:** os pesos de partida estão na tabela acima; confirmar os de Refinado e Autoral com a medida em produção, e medir carrossel, ajuste,
+   avaliar de novo, X, Cloud Run Job e PDF (BEZ-490).
 4. **Carência da mensalidade:** quantas tentativas e quantos dias antes de bloquear (proposta: 3 tentativas em até 7 dias).
 5. **Teto de segurança interno** da BEZ contra abuso e cartão roubado, além do teto de recarga do cliente (proposta: invisível no uso normal).
 6. **Limite técnico de gerações** por minuto e por dia da conta, só contra robô (proposta: invisível no uso normal).
