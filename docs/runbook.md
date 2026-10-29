@@ -285,6 +285,29 @@ Leia o plano: nada deve ser destruído sem motivo, e a imagem não muda (o Terra
 imagem; quem troca é o deploy). Os rótulos de custo (`app`, `env`, `product`, `tier`, SPEC 013) estão no
 serviço e no template das revisões e dos jobs, então um apply não cria revisão sem eles.
 
+## Estúdio de posts: o job `ekoai-studio` (SPEC 030 F3c, ADR 0028)
+
+O Refinado e o Autoral rodam num Cloud Run Job com Chromium, uma execução por pedido (30 minutos, sem nova tentativa). O worker de
+geração dispara a execução quando a plataforma tem `STUDIO_JOB_NAME`; sem a variável o estúdio fica desligado e todo pedido sai pelo
+caminho de sempre. Hoje só o staging liga (`studio_job_enabled`).
+
+**Ligar no staging (uma vez):** o primeiro deploy do staging depois desta mudança empurra a imagem `studio` para o registry. Aí:
+
+```bash
+SHA=<commit do deploy>; REG=southamerica-east1-docker.pkg.dev/ekoai-staging/ekoai
+CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/tf-plan.sh staging      # o plano não inclui o job: studio_image vazio
+cd infra/terraform/envs/staging && terraform apply -var deploy_workloads=true -var platform_image=<...> -var jobs_image=<...> -var studio_image=$REG/studio:$SHA
+```
+
+Depois disso o deploy do CI atualiza a imagem do job sozinho e o `scripts/tf-plan.sh` a lê do ambiente.
+
+**Pedido preso ou voltando como Rápido:** o job devolve o pedido à fila como Rápido quando o estúdio não entrega (erro, camada de revisão,
+exceção). O pedido que fica "em geração" por mais de 15 minutos sem batimento é refeito pelo worker como Rápido, nunca volta ao estúdio.
+Logs: `gcloud run jobs executions list --job ekoai-studio` e o escopo `studio-job` no Cloud Logging.
+
+**Desligar:** `studio_job_enabled = false` no ambiente e novo apply (a plataforma perde `STUDIO_JOB_NAME` e o job some); pedidos novos de
+Refinado e Autoral passam a sair como Rápido.
+
 ## Conexões do banco (conta do `f1-micro`)
 
 O Cloud SQL `db-f1-micro` aceita 25 conexões por padrão (`db-g1-small`, 50), e parte delas fica

@@ -78,6 +78,18 @@ variable "jobs_image" {
   default     = ""
 }
 
+variable "studio_job_enabled" {
+  description = "Liga o Cloud Run Job do estúdio de posts (SPEC 030 F3c, ADR 0028): o job `ekoai-studio` com Chromium e a variável STUDIO_JOB_NAME da plataforma. Falso: o estúdio fica desligado e todo pedido sai pelo caminho de sempre."
+  type        = bool
+  default     = false
+}
+
+variable "studio_image" {
+  description = "Imagem inicial do job do estúdio (docker/studio.Dockerfile). Depois o deploy do CI troca a imagem; o Terraform ignora a mudança. Vazia: o job não é criado."
+  type        = string
+  default     = ""
+}
+
 variable "vertex_text_model" {
   description = "Modelo de texto do Vertex AI (env VERTEX_TEXT_MODEL). Projeto novo não enxerga o gemini-2.5-flash (404); confira com generateContent antes de trocar."
   type        = string

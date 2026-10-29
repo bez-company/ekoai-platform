@@ -14,7 +14,7 @@ async function handle(req: Request) {
   if (!(await isCronAuthorized(req))) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   try {
     const summary = await runGenerateQueue();
-    return NextResponse.json({ ok: true, claimed: summary.claimed, ready: summary.ready, failed: summary.failed, limit: summary.limit });
+    return NextResponse.json({ ok: true, claimed: summary.claimed, ready: summary.ready, failed: summary.failed, limit: summary.limit, dispatched: summary.dispatched });
   } catch (e) {
     logError('cron/generate', e);
     return NextResponse.json({ error: e instanceof Error ? e.message : 'erro' }, { status: 500 });

@@ -1,6 +1,6 @@
 # ADR 0028: o estúdio de posts roda em um Cloud Run Job com Chromium
 
-- **Status:** proposto (SPEC 030, 28/10/2026)
+- **Status:** aceito; imagem, job e disparo em implementação no staging (SPEC 030 F3c, BEZ-479)
 - **Data:** 2026-10-28
 - **Specs que dependem:** [SPEC 030](../specs/030-estudio-de-posts-multiagente.md)
 - **Revisa:** o trecho "o render de artes sai e volta na fase 2" do [ADR 0010](0010-plataforma-generica-sem-pilar-no-codigo.md),

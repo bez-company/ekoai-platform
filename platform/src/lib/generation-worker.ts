@@ -9,12 +9,14 @@ import { generatePost, type GenerationDeps, type GenerationOutcome } from './gen
 import { vertexClient } from './vertex';
 import { log, logError } from './log';
 import { trackGenerationOutcome } from './product-events';
+import { dispatchStudioJob, needsStudioJob, studioJobName, type DispatchDeps } from './studio/dispatch';
 
 export const WORKER_BATCH = 3;
 export const WORKER_BUDGET_MS = 240_000; // abaixo do timeout do Cloud Run (300 s)
 export const STALE_AFTER_MINUTES = 15;
 
-type Claimed = { id: string; tenant_id: string };
+// `stale`: o pedido estava "em geração" parado (um worker ou um job caiu): não volta ao estúdio, vai para o caminho de sempre.
+type Claimed = { id: string; tenant_id: string; effort: string; stale: boolean };
 
 // Pega até N briefs da fila, marcando-os como em geração na mesma instrução (duas instâncias do
 // worker nunca pegam o mesmo). Brief "em geração" há mais de 15 minutos é de um worker que caiu:
@@ -22,7 +24,7 @@ type Claimed = { id: string; tenant_id: string };
 export async function claimQueued(limit = WORKER_BATCH, query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }> = (t, p) => db().query(t, p)): Promise<Claimed[]> {
   const { rows } = await query(
     `with picked as (
-       select id from briefs
+       select id, status as prev from briefs
        where source = 'platform'
          and not exists (select 1 from tenants t where t.id = briefs.tenant_id and t.status = 'suspended')
          and (status = 'queued' or (status = 'generating' and updated_at < now() - make_interval(mins => $2)))
@@ -32,19 +34,20 @@ export async function claimQueued(limit = WORKER_BATCH, query: (text: string, pa
      )
      update briefs b set status = 'generating', updated_at = now()
      from picked where b.id = picked.id
-     returning b.id, b.tenant_id`,
+     returning b.id, b.tenant_id, b.effort, (picked.prev = 'generating') as stale`,
     [limit, STALE_AFTER_MINUTES],
   );
   return rows as Claimed[];
 }
 
-export type WorkerSummary = { claimed: number; ready: number; failed: number; limit: number; outcomes: GenerationOutcome[] };
+export type WorkerSummary = { claimed: number; ready: number; failed: number; limit: number; dispatched: number; outcomes: GenerationOutcome[] };
 
-export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: { limit?: number; budgetMs?: number; now?: () => number } = {}): Promise<WorkerSummary> {
+export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: { limit?: number; budgetMs?: number; now?: () => number; studio?: { jobName?: string | null } & DispatchDeps } = {}): Promise<WorkerSummary> {
   const started = (options.now ?? Date.now)();
   const model = deps?.model ?? vertexClient();
   const claimed = await claimQueued(options.limit ?? WORKER_BATCH);
-  const summary: WorkerSummary = { claimed: claimed.length, ready: 0, failed: 0, limit: 0, outcomes: [] };
+  const summary: WorkerSummary = { claimed: claimed.length, ready: 0, failed: 0, limit: 0, dispatched: 0, outcomes: [] };
+  const studioJob = options.studio && 'jobName' in options.studio ? options.studio.jobName ?? null : studioJobName();
   for (const brief of claimed) {
     if ((options.now ?? Date.now)() - started > (options.budgetMs ?? WORKER_BUDGET_MS)) {
       // Devolve à fila o que não deu tempo de gerar: a próxima chamada continua.
@@ -52,6 +55,26 @@ export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: 
       continue;
     }
     try {
+      // Nível com cadeia de agentes (Refinado, Autoral): vai para o job do estúdio e o pedido segue "em geração". Sem job configurado, com o
+      // pedido parado de antes ou se o disparo falhar, o pedido vira Rápido e sai pelo caminho de sempre (SPEC 030, decisão 6).
+      if (needsStudioJob(brief.effort)) {
+        let sent = false;
+        if (studioJob && !brief.stale) {
+          try {
+            await dispatchStudioJob(studioJob, { tenantId: brief.tenant_id, briefId: brief.id }, options.studio);
+            sent = true;
+          } catch (e) {
+            logError('generation-worker', e, { briefId: brief.id, step: 'disparo do job do estúdio' });
+          }
+        }
+        if (sent) {
+          summary.dispatched += 1;
+          log('info', 'generation-worker', 'pedido enviado ao job do estúdio', { briefId: brief.id, effort: brief.effort });
+          continue;
+        }
+        const { error } = await tenantDb(brief.tenant_id).update('briefs', { effort: 'instantaneo' }).eq('id', brief.id);
+        if (error) throw new Error(`briefs: ${error.message}`);
+      }
       const t = tenantDb(brief.tenant_id);
       const startedBrief = (options.now ?? Date.now)();
       const outcome = await generatePost(t, brief.id, { critic: true, ...deps, model });

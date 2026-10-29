@@ -53,6 +53,9 @@ locals {
   # Jobs do src/jobs.js. `cron` em UTC; vazio = sem agenda (execução manual ou pelo deploy).
   # Os jobs de geração (post, resolve, reflect, funnel, engage, repurpose, reel) saíram com o
   # ADR 0010 e voltam na fase 2 do produto: quando voltarem, entram aqui.
+  # O job do estúdio existe quando está ligado e já há imagem (o deploy do CI a empurra antes do primeiro apply com `studio_image`).
+  studio_job = var.deploy_workloads && var.studio_job_enabled && var.studio_image != ""
+
   jobs = {
     "refresh-tokens" = { cron = "0 3 1 * *", cpu = "1", memory = "512Mi", timeout = "300s" }
     "token-health"   = { cron = "0 6 * * *", cpu = "1", memory = "512Mi", timeout = "120s" }
