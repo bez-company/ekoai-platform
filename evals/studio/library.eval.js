@@ -24,7 +24,7 @@ const chrome = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Conten
 const RULES = `REGRAS DURAS (um teste automático mede tudo isto em 4 marcas com cores e fontes bem diferentes e reprova o template inteiro por qualquer defeito):
 1. Tela 1080 x 1350 px: body com margin 0, width e height fixos, position relative, overflow hidden. Tudo com position absolute e caixas de tamanho fixo.
 2. Cor SÓ por variável: declare em :root { --bg; --ink; --accent; --muted; --display; --body } e use var(--...) em todo o CSS. Proibido hex, rgb ou nome de cor fora do :root (exceto #fff, #000, rgba(0,0,0,x) e rgba(255,255,255,x) em sombras). Tons derivados: color-mix(in srgb, var(--ink) 12%, var(--bg)). Em uso real --bg e --accent são cores da marca (claras ou escuras, saturadas ou neutras) e --ink é sempre legível sobre --bg. NUNCA use --accent como cor de texto nem ponha texto sobre uma forma preenchida de --accent: o contraste não é garantido. Todo texto é var(--ink) sobre --bg (ou sobre tons de --bg e --ink misturados). --accent serve para formas, linhas e marcadores.
-3. Todo texto visível é um slot {{slot:nome}}: headline (obrigatório, o texto principal), support, extra1, extra2... O @ da conta é {{handle}} (um p, 28px ou mais). Nenhuma palavra, número, nome ou rótulo fixo no HTML, nem em mockup (dado de exemplo também é slot). Aspas gigantes, setas, numeração decorativa: desenhe com CSS, SVG ou ::before, nunca como texto no HTML.
+3. Todo texto visível é um slot {{slot:nome}}: headline (obrigatório, o texto principal), support, extra1, extra2... O @ da conta é {{handle}} (um p, 28px ou mais): ele JÁ sai com o arroba, então nunca escreva '@' no HTML e nunca crie um slot chamado handle. Nenhuma palavra, número, nome ou rótulo fixo no HTML, nem em mockup (dado de exemplo também é slot). Aspas gigantes, setas, numeração decorativa: desenhe com CSS, SVG ou ::before, nunca como texto no HTML.
 4. Cada elemento de slot tem data-fit="nome" (o mesmo nome) e fica numa caixa de tamanho fixo (width e height em px, overflow hidden, margin 0); o código encolhe a fonte até caber. Corpo mínimo 28px (rótulo pequeno em caixa alta: 26px). Declare o limite de caracteres (max) de cada slot, coerente com a caixa. O teste usa frases de 3 até o max, com palavras de até 12 letras.
 5. Margem de 80px em todos os lados para todo texto. Texto nunca se sobrepõe a outro texto, nem a traço, seta ou linha desenhada.
 6. Logo: <img src="{{logo:on-dark}}" alt="Logo"> (ou on-light), altura de 56 a 80px, dentro da margem. Slots em quantidade razoável: de 2 a 9.
@@ -60,7 +60,7 @@ const fixPrompt = (meta, html, defects) => `Este template de post de Instagram r
 Defeitos medidos (marca / tamanho do texto: defeito):
 ${defects.map((d) => `- ${d}`).join('\n')}
 
-Como consertar: caixas maiores ou fonte menor onde o texto estoura a margem; mais espaço entre blocos que se sobrepõem; troque cor de texto para var(--ink) sobre fundo de --bg onde o contraste caiu; nunca texto sobre --accent; margem de 80px; corpo mínimo de 28px (26px em rótulo caixa alta). Texto fixo que sobrou vira {{slot:nome}}. Reduza o max do slot se a caixa não comporta. Atualize "slots" no META.
+Como consertar: caixas maiores ou fonte menor onde o texto estoura a margem; mais espaço entre blocos que se sobrepõem; troque cor de texto para var(--ink) sobre fundo de --bg onde o contraste caiu; nunca texto sobre --accent; margem de 80px; corpo mínimo de 28px (26px em rótulo caixa alta). Texto fixo que sobrou vira {{slot:nome}}. Reduza o max do slot se a caixa não comporta. Atualize "slots" no META. Mantenha o marcador de logo ({{logo:on-dark}} ou {{logo:on-light}}), {{handle}} e todos os slots que já existem, e as regras de cor por variável.
 
 META atual: ${JSON.stringify(meta)}
 
@@ -71,8 +71,8 @@ ${html}`;
 
 // O portão mede número; não vê texto em cima de forma decorativa nem composição torta. Um crítico visual barato (Flash) olha as 4 renderizações.
 const criticPrompt = `Você é diretor de arte e revisa um template de post de Instagram renderizado em 4 marcas (as 4 imagens, na ordem: escura, clara, vibrante, mono). O gradiente marrom, quando houver, é só a imagem de teste: aceite o espaço da imagem.
-Reprove (ok=false) se QUALQUER marca tiver: texto em cima de forma, figura, bloco, textura ou traço decorativo, mesmo que parcialmente (atrapalha a leitura); texto cortado ou colado na borda; elementos desalinhados sem intenção; composição vazia ou desequilibrada (grande área morta sem função); hierarquia confusa; texto pequeno demais para o tamanho do post; algo que pareça quebrado.
-Responda só JSON: { "ok": true|false, "problems": ["o que corrigir, uma frase curta cada, dizendo onde"] }. Em problems, no máximo 6 itens.`;
+Procure SÓ defeitos objetivos, em QUALQUER marca: (1) texto parcial ou totalmente em cima de forma, figura, bloco, textura, círculo ou traço decorativo, de modo que atrapalha a leitura; (2) texto ilegível por baixo contraste ou por sobreposição com outro texto; (3) texto cortado; (4) algo claramente quebrado (elemento fora do lugar, forma que invade o texto). NÃO reprove por gosto: espaço vazio, hierarquia, estilo e proporção não são defeito.
+Responda só JSON: { "ok": true|false, "problems": ["o que corrigir, uma frase curta cada, dizendo onde"] }. ok=true se não houver defeito objetivo. No máximo 5 itens.`;
 
 const summarize = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8'))) : []);
 
