@@ -394,12 +394,14 @@ proteção ligada.
 - **Probes:** staging em `/api/live`, para a instância subir com o banco parado e mostrar a tela; produção em `/api/health`,
   para um deploy com banco quebrado falhar no rollout (decisão do BEZ-120, SPEC 016 D8).
 
-## Câmbio do Google Cloud (BEZ-474)
+## Câmbio do Google Cloud (BEZ-474, BEZ-475)
 
 A conta do Google Cloud é faturada em reais. O Google converte o preço em dólar por uma taxa própria,
-definida no início de cada mês (não é a cotação comercial do Banco Central), e é essa taxa que o
-Console › Financeiro usa para o custo em reais (`platform/src/lib/pricing.json`). Atualize no começo de
-cada mês, e o teste `tests/pricing.test.js` reprova se passar de 40 dias:
+definida no início de cada mês (não é a cotação comercial do Banco Central), e o Console › Financeiro usa
+essa taxa para o custo em reais. A taxa de cada mês fica no banco (`platform_fx_rates`) e se cadastra no
+próprio console, em **Câmbio do mês**, no fim da página. Sem taxa cadastrada, a página avisa e usa a do mês
+anterior (ou a reserva em `platform/src/lib/pricing.json`, que o teste `tests/pricing.test.js` obriga a manter
+em dia). Faça no dia 1 de cada mês:
 
 ```sh
 bq query --use_legacy_sql=false 'SELECT FORMAT_DATE("%Y-%m", DATE(usage_start_time)) AS mes,
@@ -407,8 +409,8 @@ bq query --use_legacy_sql=false 'SELECT FORMAT_DATE("%Y-%m", DATE(usage_start_ti
   GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 3'
 ```
 
-Copie o valor do mês corrente para `usd_brl` (4 casas) e a data para `reviewed_at`. O projeto e o ID da conta
-de faturamento não ficam neste repositório público.
+Copie o `brl_por_usd` do mês para o formulário. O projeto e o ID da conta de faturamento não ficam neste
+repositório público. A busca automática pelo BigQuery fica para depois: pede acesso entre projetos.
 
 ## Geração de posts (SPEC 012, ADR 0018)
 

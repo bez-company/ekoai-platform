@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { pageError } from '@/lib/api';
+import FxForm from '@/components/console/FxForm';
 import PricingForm from '@/components/console/PricingForm';
 import { financeAccounts, getPricing } from '@/lib/console-finance';
 import { isBelowTarget, isPricingSet, profitOf } from '@/lib/price-model';
 import { fmtBrl, fmtUsd } from '@/lib/console-finance-model';
+import { resolveFx } from '@/lib/fx-model';
+import { listFxRates } from '@/lib/fx-rates';
 import { FX_REVIEWED_AT, FX_USD_BRL, fxIsStale, toBrl } from '@/lib/pricing';
 import { pageConsole } from '@/lib/platform-admin';
 import { monthLabel, parseMonth, recentMonths, monthKeyOf } from '@/lib/usage-model';
@@ -16,12 +19,15 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
   await pageConsole();
   const now = new Date();
   const month = parseMonth((await searchParams).mes, now);
-  const rate = FX_USD_BRL.toFixed(2).replace('.', ',');
+  const rates = await listFxRates().catch(() => []); // sem o banco, vale a reserva: o erro de carga aparece logo abaixo
+  const fx = resolveFx(rates, month, FX_USD_BRL);
+  const rate = fx.usdBrl.toFixed(4).replace('.', ',');
+  const source = fx.kind === 'file' ? `cotação de reserva de ${new Date(FX_REVIEWED_AT).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : `taxa do Google de ${monthLabel(fx.month as string).toLowerCase()}`;
   const head = (
     <div>
       <h1 className="text-2xl font-semibold">Financeiro</h1>
       <p className="text-sm text-muted">
-        {monthLabel(month)} · US$ 1 = R$ {rate} (cotação de {new Date(FX_REVIEWED_AT).toLocaleDateString('pt-BR', { timeZone: 'UTC' })})
+        {monthLabel(month)} · US$ 1 = R$ {rate} ({source})
       </p>
     </div>
   );
@@ -57,16 +63,21 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
   const noRevenue = accounts.reduce((n, a) => n + a.noRevenueCostUsd, 0);
   const priced = isPricingSet(pricing);
   const price = accounts.reduce((n, a) => n + (a.priceBrl ?? 0), 0);
-  const overall = profitOf(price, toBrl(postsCost));
+  const overall = profitOf(price, toBrl(postsCost, fx.usdBrl));
   const low = priced && isBelowTarget(overall.marginPercent, pricing);
   const href = (id: string) => `/console/financeiro/${id}${month === monthKeyOf(now) ? '' : `?mes=${month}`}`;
 
   return (
     <div className="space-y-4">
       {head}
-      {fxIsStale() && (
+      {fx.kind !== 'month' && (
         <p role="status" className="card border-warning/30 bg-warning/10 text-sm">
-          <strong>A cotação do dólar está velha.</strong> Atualize `usd_brl` e `reviewed_at` em pricing.json: o valor em reais abaixo pode estar errado.
+          <strong>Falta a taxa de câmbio de {monthLabel(month).toLowerCase()}.</strong> {fx.kind === 'carried' ? `O custo em reais usa a de ${monthLabel(fx.month as string).toLowerCase()}.` : 'O custo em reais usa a cotação de reserva.'} Cadastre a taxa do mês em “Câmbio do mês”, no fim da página.
+        </p>
+      )}
+      {fx.kind === 'file' && fxIsStale() && (
+        <p role="status" className="card border-warning/30 bg-warning/10 text-sm">
+          <strong>A cotação de reserva está velha.</strong> Cadastre a taxa do mês em “Câmbio do mês”: o valor em reais abaixo pode estar errado.
         </p>
       )}
       <p role="status" className="card border-info/30 bg-info/10 text-sm">
@@ -89,7 +100,7 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
             <div className="card space-y-1 p-4">
               <p className="text-xs text-muted">Custo do mês</p>
               <p className="text-2xl font-bold">{fmtUsd(cost)}</p>
-              <p className="text-xs text-muted">{fmtBrl(toBrl(cost))}</p>
+              <p className="text-xs text-muted">{fmtBrl(toBrl(cost, fx.usdBrl))}</p>
             </div>
             <div className="card space-y-1 p-4">
               <p className="text-xs text-muted">Posts</p>
@@ -137,9 +148,9 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
                     <td className="px-4 py-3">{a.planId ?? '-'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{a.posts}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{fmtUsd(a.costUsd)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{fmtBrl(toBrl(a.costUsd))}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{fmtBrl(toBrl(a.costUsd, fx.usdBrl))}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{a.priceBrl === null ? '-' : fmtBrl(a.priceBrl)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{a.priceBrl === null ? '-' : fmtBrl(profitOf(a.priceBrl, toBrl(a.postsCostUsd)).profitBrl)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{a.priceBrl === null ? '-' : fmtBrl(profitOf(a.priceBrl, toBrl(a.postsCostUsd, fx.usdBrl)).profitBrl)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -148,6 +159,7 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
         </>
       )}
       <PricingForm initial={pricing} />
+      <FxForm months={recentMonths(now).map((m) => ({ key: m, label: monthLabel(m) }))} rates={rates} defaultMonth={month} now={now.toISOString()} />
     </div>
   );
 }

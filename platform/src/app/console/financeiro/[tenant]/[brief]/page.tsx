@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { pageError } from '@/lib/api';
 import { financePost, getPricing } from '@/lib/console-finance';
-import { isPricingSet, postPriceBrl, profitOf } from '@/lib/price-model';
+import { discountOn, isPricingSet, postPriceWithDiscountBrl, profitOf } from '@/lib/price-model';
 import { GROUPS, costByChannel, costByGroup, fmtBrl, fmtUsd, percent, totalCost } from '@/lib/console-finance-model';
 import { pageConsole } from '@/lib/platform-admin';
+import { listDiscounts } from '@/lib/console-discounts';
+import { fxForMonth } from '@/lib/fx-rates';
 import { toBrl } from '@/lib/pricing';
 import { isUuid } from '@/lib/route-input';
 import { isTenantId } from '@/lib/tenant';
@@ -25,8 +27,9 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
 
   let post;
   let pricing;
+  let discounts;
   try {
-    [post, pricing] = await Promise.all([financePost(tenant, brief), getPricing()]);
+    [post, pricing, discounts] = await Promise.all([financePost(tenant, brief), getPricing(), listDiscounts(tenant)]);
   } catch (e) {
     return (
       <p role="alert" className="card border-danger/30 bg-danger/10 text-sm">
@@ -39,8 +42,10 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
   const byGroup = costByGroup(post.runs);
   const byChannel = costByChannel(post.runs);
   const priced = isPricingSet(pricing);
-  const price = postPriceBrl(toBrl(total), pricing);
-  const profit = profitOf(price, toBrl(total));
+  // A taxa do mês em que o post foi criado e o desconto que valia nesse dia (SPEC 032, BEZ-475).
+  const fx = await fxForMonth(post.createdAt.slice(0, 7));
+  const price = postPriceWithDiscountBrl(toBrl(total, fx.usdBrl), pricing, discountOn(discounts, post.createdAt.slice(0, 10))?.discountPercent ?? 0);
+  const profit = profitOf(price, toBrl(total, fx.usdBrl));
 
   return (
     <div className="space-y-4">
@@ -50,7 +55,7 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
       <div>
         <h1 className="text-2xl font-semibold">{post.title}</h1>
         <p className="text-sm text-muted">
-          {new Date(post.createdAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))}){priced ? ` · cobrança prevista ${fmtBrl(price)} · lucro ${fmtBrl(profit.profitBrl)} (${profit.marginPercent.toFixed(0)}%)` : ''}
+          {new Date(post.createdAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total, fx.usdBrl))}){priced ? ` · cobrança prevista ${fmtBrl(price)} · lucro ${fmtBrl(profit.profitBrl)} (${profit.marginPercent.toFixed(0)}%)` : ''}
         </p>
       </div>
 
