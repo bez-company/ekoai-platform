@@ -8,6 +8,7 @@ import { chromiumRenderer } from '../platform/src/lib/studio/chromium-renderer.t
 import { STYLES } from '../platform/src/lib/studio/levels.ts';
 import { parseTemplate } from '../platform/src/lib/studio/templates.ts';
 import { genericProblems, renderGate } from '../evals/studio/library-gate.js';
+import { TEMPLATE_LIBRARY } from '../platform/src/lib/studio/library/index.ts';
 
 const DIR = join(import.meta.dirname, '../platform/src/lib/studio/library');
 const library = readdirSync(DIR)
@@ -25,6 +26,10 @@ describe('biblioteca de modelos de post: estático', () => {
     expect(library.length).toBeGreaterThanOrEqual(28);
     expect(new Set(library.map((t) => t.id)).size).toBe(library.length);
     for (const t of library) expect(t.file).toBe(`${t.id}.json`);
+  });
+
+  it('o índice carrega exatamente os arquivos da pasta (o job empacota o índice)', () => {
+    expect(TEMPLATE_LIBRARY.map((t) => t.id).sort()).toEqual(library.map((t) => t.id).sort());
   });
 
   it('cobre os 15 modelos da vitrine, com pelo menos 1 template cada', () => {

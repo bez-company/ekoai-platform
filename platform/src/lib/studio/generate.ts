@@ -16,7 +16,7 @@ import { voiceLine } from '../agents';
 import { defaultStore, type BlobStore } from '../brand-logo';
 import { completeRun, failRun, monthlyUsage, reserveRun } from '../generation-db';
 import { DEFAULT_RATIO, inputHash, isRatio, type Ratio } from '../generation-model';
-import { logoFor } from '../generation';
+import { logoFor } from '../brand-logo-image';
 import { notify } from '../notifications';
 import { UserError, userMessage } from '../errors';
 import { log } from '../log';
@@ -36,6 +36,8 @@ export type StudioGenerationDeps = {
   library: PostTemplate[];
   store?: BlobStore;
   mediaBaseUrl?: string;
+  // Cada etapa da cadeia avisa aqui (o job bate o coração do pedido, para o worker não o dar por parado).
+  onStage?: (stage: string) => void;
 };
 
 export type StudioOutcome =
@@ -154,7 +156,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       if (r.textIssues.length || layoutBlocking(r.layoutIssues).length) throw new Error(`o modelo pronto não passou na revisão: ${[...r.textIssues, ...layoutBlocking(r.layoutIssues).map((i) => i.rule)].join(', ')}`);
       made = { engine: 'template', png: r.png, html: r.html, assets: r.assets, caption: r.caption, hashtags: r.hashtags, altText: r.altText, headline: r.headline, territory: deps.library.find((x) => x.id === r.template)?.territory ?? 'modelo', templateId: r.template, score: null, alternatives: [], issues: [], costUsd: r.costUsd, costByStep: model.costByStep };
     } else {
-      const r: StudioResult = await runStudio({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos });
+      const r: StudioResult = await runStudio({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, onStage: deps.onStage });
       if (!r.gate.ok || layoutBlocking(r.layoutIssues).length) throw new Error(`o estúdio não passou na revisão: ${r.gate.issues.map((i) => i.rule).join(', ')}`);
       made = { engine: 'chain', png: r.png, html: r.html, assets: r.assets, caption: r.copy.caption, hashtags: r.copy.hashtags, altText: r.copy.altText, headline: r.copy.headline, territory: r.territory, templateId: null, score: r.score, alternatives: r.alternatives, issues: [], costUsd: r.costUsd, costByStep: r.costByStep };
     }
