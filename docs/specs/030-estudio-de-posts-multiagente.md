@@ -12,8 +12,8 @@
   [SPEC 020](020-instrucoes-explicitas-do-pedido.md) (o leitor de instruções), [SPEC 018](018-objetivos-campanhas-e-fatos.md)
   (fatos e campanha), [SPEC 021](021-planos-e-cobranca-por-consumo.md) e [SPEC 031](031-fatura-e-uso.md) (consumo e fatura),
   [SPEC 026](026-logo-e-variacoes.md) (variações do logo) e [ADR 0028](../adr/0028-estudio-de-posts-em-cloud-run-job-com-chromium.md) (onde roda)
-- **Protótipo:** artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, versão 26 (`version_id` 1793276790-85ba), grupo
-  **Fase 11: estilo e esforço do post** (Criar post com 12 estados, Criando o post com 5 e Aprovar post autoral com 3), desktop e
+- **Protótipo:** artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, versão 26 (`version_id` 1793276790-85ba; a v28 de
+  30/10 refaz a tela sem preço e com 3 níveis), grupo **Fase 11: estilo e esforço do post** (Criar post com 12 estados, Criando o post com 5 e Aprovar post autoral com 3), desktop e
   celular. Fonte em `.context/proto-030` do workspace nukualofa (`phase11.js`, `phase11.css`, `build.py`).
 
 ## Problema
@@ -49,13 +49,13 @@ agentes sem validação de formato.
    do Instantâneo por margem relevante numa amostra maior, ele sai e ficam 4 níveis.
 3. **Imagem.** Padrão usa um modelo de imagem rápido e barato (Flash ou Flash Lite, 1K); Alta usa o Pro. No teste de 29/10 as quatro
    notas ficaram a 0,25 uma da outra; Alta só se justifica com algo visível (resolução, mais detalhe). No máximo 2 imagens por post.
-4. **Preço fixo por nível, mostrado antes de criar.** A pessoa vê a estimativa (nível mais qualidade da imagem) no resumo, e o que se
-   cobra é esse valor, não o custo real do post: o risco de custo é da BEZ e o teto por post (decisão 9) o limita. Cobra-se **ao
-   aprovar**; descartar ou cancelar não cobra; o primeiro ajuste está incluso. O valor de cada nível vem de uma tabela de configuração
-   (os do protótipo são fictícios) e a regra do que conta como post fica na SPEC 021 e na [SPEC 031](031-fatura-e-uso.md). Mostrar o
-   preço no fluxo do post contradiz a decisão de 28/10 sobre o X (custo na fatura, não no fluxo); como o Matheus pediu a referência de
-   preço em 29/10, o preço aparece, atrás de uma constante (`SHOW_PRICE_IN_FLOW`) que o liga ou desliga sem mexer na tela (o protótipo
-   tem a variante "Sem preço").
+4. **Sem preço no fluxo do post** (revisão de 30/10/2026, no lugar de "preço fixo mostrado antes de criar"). Como no Claude Code e
+   no ChatGPT, a pessoa escolhe e usa; o consumo aparece depois em Configurações, Fatura e uso ([SPEC 031](031-fatura-e-uso.md)).
+   Nem o cartão do modelo nem o resumo mostram valor. O que se cobra segue sendo um valor fixo por tipo de post (o risco de custo é da
+   BEZ e o teto por post, decisão 9, o limita), cobrado **ao aprovar**; descartar ou cancelar não cobra; o primeiro ajuste está
+   incluso. A tabela de valores vive na configuração (BEZ-301) e a regra do que conta como post, na SPEC 021. A tela só avisa em
+   palavras que níveis mais altos consomem mais, e o alerta de gasto (SPEC 021) continua só informando. `SHOW_PRICE_IN_FLOW` fica
+   `false` e não há variante com preço no protótipo.
 5. **Sem meta de tempo.** Níveis de Refinado para cima levam de 10 a 15 minutos; a tela "Criando o post" mostra os agentes na ordem,
    o tempo decorrido e que a pessoa pode fechar a página, e avisa por e-mail e pelo sino ao terminar. O Instantâneo sai em segundos.
 6. **Erro cai no Instantâneo, sem cobrar o que não saiu.** Se o nível escolhido não termina ou estoura o teto, o post sai no Instantâneo,
@@ -76,27 +76,30 @@ agentes sem validação de formato.
     variedade pelo menos 8, zero defeito de layout medido e "postaria sem editar" de pelo menos 90% em 24 peças, **e** a aprovação
     do Matheus olhando os `compare.png`. Já houve a aprovação humana da rodada de 28/10.
 
-## Revisão de 30/10/2026: o preço vai no modelo de post
+## Revisão de 30/10/2026: modelo na vitrine, 3 níveis de qualidade, sem preço no fluxo
 
-O Matheus pediu que o custo seja **por modelo de post** (template da vitrine), não só por nível de esforço: há modelos mais baratos e
-mais caros, e é isso que ele quer controlar. A vitrine de estilos vira a **vitrine de modelos de post**, e cada modelo diz como é produzido:
+Duas decisões do Matheus, sobre o protótipo v26 e a v27 (que mostrava preço por modelo e foi descartada):
 
-| Motor do modelo | Como produz | Custo de modelo (US$) | Tempo |
-|---|---|---|---|
-| **Template** | HTML com espaços (slots) já desenhado e verificado; uma chamada curta preenche o texto, as cores e (se o modelo tem) o prompt da imagem; o render é por código | 0,002 a 0,01, mais a imagem | segundos |
-| **Autoral** | a cadeia de agentes cria a peça do zero (níveis Refinado, Autoral e Pro desta spec) | 0,25 a 0,56, mais a imagem | minutos |
-| **Instantâneo** | o motor de layouts de hoje (SVG) | 0,002 | segundos |
+- **A pessoa escolhe o modelo de post na vitrine, sem preço.** A vitrine de estilos vira a **vitrine de modelos de post**: a pessoa
+  entende o padrão de post que quer e seleciona, como quem escolhe um modelo no ChatGPT. "Deixar a Ekoai escolher" continua o padrão.
+- **A qualidade é a base do post, em 3 níveis** (baixo, médio, alto; pode crescer até 5, mas começa com 3). Nomes provisórios:
 
-- **Preço por modelo, mostrado no cartão do modelo:** o motor e o uso de imagem definem uma faixa; a imagem soma à parte (qualidade
-  Padrão ou Alta). O nível de esforço deixa de ser a escolha principal: só o motor Autoral o expõe (Refinado, Autoral, Pro).
+  | Nível na tela | Qualidade | Motor | Tempo | O que mede |
+  |---|---|---|---|---|
+  | **Rápido** | base | modelo pronto da marca (template com slots; enquanto a biblioteca não existe, o motor SVG de hoje) | segundos | 5,4 a 6,6 (template, 8 a 10 modelos), 5,8 (SVG) |
+  | **Refinado** | alta | cadeia de agentes, 1 rascunho; designer, embelezador e conserto em Flash | cerca de 10 min | 8,06 |
+  | **Autoral** | máxima | cadeia completa, 2 rascunhos, tudo em Pro, **3 opções de design** | cerca de 15 min | 8,4 a 8,6 |
+
+  Os níveis Padrão (chamada única) e Autoral de 1 rascunho saem do seletor: o primeiro não passou do Instantâneo por margem relevante,
+  e o segundo empata com o Refinado na nota. As 3 opções são o que o topo entrega de visível.
+- **O modelo escolhido vale nos três níveis:** no Rápido ele é o template preenchido; no Refinado e no Autoral é o território criativo
+  que os agentes seguem para pensar um layout novo.
 - **Os templates saem do próprio estúdio:** o estúdio completo cria a peça, o templater a transforma em template com slots, o lint
   confere (nenhum texto fora dos slots, nenhuma caixa que corta) e uma pessoa aprova. Custa uma vez por template, e depois cada post é
   centavos. No spike (BEZ-447), com 8 a 10 templates a escolha falhou em parte dos pedidos (nota de 3,3 a 8,2); a biblioteca precisa
-  de dezenas de templates, e cada um é revisto antes de entrar.
-- **Qualidade que cada motor entrega (medida):** Template, 5,4 a 6,6 com 8 a 10 templates (a validar com biblioteca maior); Refinado,
-  8,0; Autoral, 8,2; Pro, 8,4 a 8,6.
-- **Protótipo:** a v26 aprovada mostra o preço por nível; esta revisão muda a hierarquia da tela (preço no cartão do modelo, esforço só
-  no motor Autoral), então pede a **v27 do protótipo** antes do código da F1 refeita (BEZ-464 já na staging com os níveis).
+  de dezenas de templates genéricos (sem marca de cliente), e cada um é revisto antes de entrar (BEZ-477).
+- **Protótipo:** a v28 mostra esta hierarquia (vitrine sem preço, 3 níveis, sem estimativa no resumo, "Ver fatura e uso" no lugar do
+  valor). A F1 já na staging (BEZ-464, com 5 níveis e preço atrás da constante) é refeita para 3 níveis depois da aprovação da v28.
 
 ## Execução e dados (decisão técnica no ADR 0028)
 
@@ -140,10 +143,10 @@ texto da produção.
 
 ## Perguntas abertas
 
-1. **Preço de cada nível** e da qualidade Alta (os do protótipo são fictícios): depende do BEZ-301 e da SPEC 031.
+1. **Valor cobrado por tipo de post** e pela qualidade Alta da imagem: fica só na fatura, depende do BEZ-301 e da SPEC 031.
 2. **O que conta como post** na cobrança: proposta de cobrar o aprovado, com 1 ajuste incluso (SPEC 021, pergunta 1).
 3. **Nomes dos níveis:** Instantâneo, Padrão, Refinado, Autoral e Pro são provisórios; o Matheus aceita usar os do ChatGPT.
-4. **Preço no fluxo do post** (decisão 4): ligado por padrão; confirmar com o Matheus se prefere só na fatura.
+4. **Nomes e número de níveis:** começa com 3 (Rápido, Refinado, Autoral); crescer até 5 só se o eval mostrar degrau visível.
 5. **Modelo de imagem do nível Padrão:** Flash ou Flash Lite (a confirmar o preço do Lite na Vertex).
 
 ## Riscos
