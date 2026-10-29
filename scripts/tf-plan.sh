@@ -32,8 +32,9 @@ dir="$(cd "$(dirname "$0")/.." && pwd)/infra/terraform/envs/$env"
 
 platform_image=$(gcloud run services describe ekoai-platform --project "$project" --region "$region" --format='value(spec.template.spec.containers[0].image)')
 jobs_image=$(gcloud run jobs describe ekoai-migrate --project "$project" --region "$region" --format='value(spec.template.spec.template.spec.containers[0].image)')
-# O job do estúdio é opcional: sem ele (ainda não criado) o plano usa a imagem vazia e não o inclui.
-studio_image=$(gcloud run jobs describe ekoai-studio --project "$project" --region "$region" --format='value(spec.template.spec.template.spec.containers[0].image)' 2>/dev/null || true)
+# O job do estúdio é opcional: sem ele (ainda não criado) o plano usa a imagem vazia e não o inclui. Na primeira criação, passe a
+# imagem que o deploy empurrou: STUDIO_IMAGE=<registry>/studio:<sha> scripts/tf-plan.sh staging.
+studio_image="${STUDIO_IMAGE:-$(gcloud run jobs describe ekoai-studio --project "$project" --region "$region" --format='value(spec.template.spec.template.spec.containers[0].image)' 2>/dev/null || true)}"
 tenant_id=$(gcloud run services describe ekoai-platform --project "$project" --region "$region" --format=json |
   jq -r '.spec.template.spec.containers[0].env[] | select(.name == "TENANT_ID") | .value')
 
