@@ -1,0 +1,19 @@
+{
+  "id": "cena-cotidiana-1",
+  "territory": "cena-cotidiana",
+  "meta": {
+    "tone": "light",
+    "needsImage": true,
+    "imageSlot": "Cena íntima de rotina (luz de janela, mãos, xícara de café ou bancada) ocupando a metade superior. O terço inferior deve ser livre de elementos importantes, pois a imagem desvanece para uma cor sólida onde o texto será ancorado.",
+    "slots": {
+      "headline": {
+        "max": 60
+      },
+      "support": {
+        "max": 120
+      }
+    },
+    "summary": "Estilo de revista editorial, com uma imagem rica no topo que desvanece suavemente para uma área de texto limpa e elegante na base."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #F4F1ED;\n      --ink: #2A2825;\n      --accent: #B88655;\n      --muted: #8C8881;\n      --display: 'Playfair Display', serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    * {\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    body {\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n      font-family: var(--body);\n    }\n\n    .hero {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      object-fit: cover;\n      z-index: 1;\n    }\n\n    .overlay {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      background: linear-gradient(\n        to bottom,\n        color-mix(in srgb, var(--bg) 0%, transparent) 30%,\n        color-mix(in srgb, var(--bg) 80%, transparent) 55%,\n        var(--bg) 65%,\n        var(--bg) 100%\n      );\n      z-index: 2;\n    }\n\n    .logo {\n      position: absolute;\n      top: 80px;\n      left: 80px;\n      height: 64px;\n      z-index: 3;\n    }\n\n    .headline {\n      position: absolute;\n      top: 850px;\n      left: 80px;\n      width: 920px;\n      height: 190px;\n      font-family: var(--display);\n      color: var(--ink);\n      font-size: 80px;\n      line-height: 1.1;\n      font-weight: 400;\n      overflow: hidden;\n      z-index: 3;\n    }\n\n    .accent-line {\n      position: absolute;\n      top: 1060px;\n      left: 80px;\n      width: 60px;\n      height: 2px;\n      background-color: var(--accent);\n      z-index: 3;\n    }\n\n    .support {\n      position: absolute;\n      top: 1080px;\n      left: 80px;\n      width: 600px;\n      height: 120px;\n      font-family: var(--body);\n      color: color-mix(in srgb, var(--ink) 85%, var(--bg));\n      font-size: 32px;\n      line-height: 1.4;\n      font-weight: 400;\n      overflow: hidden;\n      z-index: 3;\n    }\n\n    .handle {\n      position: absolute;\n      top: 1235px;\n      left: 80px;\n      width: 920px;\n      height: 35px;\n      font-family: var(--body);\n      color: var(--ink);\n      font-size: 28px;\n      font-weight: 400;\n      letter-spacing: 0.05em;\n      text-transform: uppercase;\n      overflow: hidden;\n      z-index: 3;\n    }\n  </style>\n</head>\n<body>\n  <img class=\"hero\" src=\"{{asset:hero}}\" alt=\"\">\n  <div class=\"overlay\"></div>\n  \n  <img class=\"logo\" src=\"{{logo:on-light}}\" alt=\"Logo\">\n  \n  <div class=\"headline\" data-fit=\"headline\">{{slot:headline}}</div>\n  <div class=\"accent-line\"></div>\n  <div class=\"support\" data-fit=\"support\">{{slot:support}}</div>\n  <div class=\"handle\" data-fit=\"handle\">{{handle}}</div>\n</body>\n</html>"
+}

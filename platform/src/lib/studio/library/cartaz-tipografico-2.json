@@ -1,0 +1,19 @@
+{
+  "id": "cartaz-tipografico-2",
+  "territory": "cartaz-tipografico",
+  "meta": {
+    "tone": "dark",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 35
+      },
+      "support": {
+        "max": 90
+      }
+    },
+    "summary": "Cartaz tipográfico com título gigantesco e um sublinhado gestual."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #0f0f0f;\n      --ink: #f8f8f8;\n      --accent: #ff4a00;\n      --muted: #666666;\n      --display: 'Oswald', sans-serif;\n      --body: 'DM Sans', sans-serif;\n    }\n\n    body {\n      margin: 0;\n      padding: 0;\n      width: 1080px;\n      height: 1350px;\n      background-color: var(--bg);\n      position: relative;\n      overflow: hidden;\n      box-sizing: border-box;\n    }\n\n    .handle {\n      position: absolute;\n      top: 80px;\n      left: 80px;\n      width: 400px;\n      height: 40px;\n      margin: 0;\n      font-family: var(--body);\n      font-size: 28px;\n      font-weight: bold;\n      color: var(--ink);\n      text-transform: uppercase;\n      letter-spacing: 2px;\n      overflow: hidden;\n    }\n\n    .logo-container {\n      position: absolute;\n      top: 80px;\n      right: 80px;\n      width: 300px;\n      height: 60px;\n      margin: 0;\n      display: flex;\n      justify-content: flex-end;\n      align-items: flex-start;\n      overflow: hidden;\n    }\n\n    .logo-container img {\n      max-width: 100%;\n      height: 60px;\n      object-fit: contain;\n    }\n\n    .headline {\n      position: absolute;\n      top: 250px;\n      left: 80px;\n      width: 920px;\n      height: 700px;\n      margin: 0;\n      font-family: var(--display);\n      font-size: 180px;\n      font-weight: bold;\n      line-height: 1.15;\n      color: var(--ink);\n      text-transform: uppercase;\n      text-align: left;\n      overflow: hidden;\n    }\n\n    .gesture {\n      position: absolute;\n      top: 980px;\n      left: 80px;\n      width: 450px;\n      height: 40px;\n      margin: 0;\n      overflow: hidden;\n    }\n\n    .gesture svg {\n      width: 100%;\n      height: 100%;\n      display: block;\n    }\n\n    .support {\n      position: absolute;\n      bottom: 80px;\n      left: 80px;\n      width: 920px;\n      height: 120px;\n      margin: 0;\n      font-family: var(--body);\n      font-size: 36px;\n      font-weight: 400;\n      line-height: 1.4;\n      color: color-mix(in srgb, var(--ink) 80%, var(--bg));\n      text-align: left;\n      overflow: hidden;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"handle\">{{handle}}</div>\n  \n  <div class=\"logo-container\">\n    <img src=\"{{logo:on-dark}}\" alt=\"Logo\">\n  </div>\n\n  <div class=\"headline\" data-fit=\"headline\">{{slot:headline}}</div>\n\n  <div class=\"gesture\">\n    <svg viewBox=\"0 0 450 40\" preserveAspectRatio=\"none\">\n      <path d=\"M5,20 Q225,35 445,5\" stroke=\"var(--accent)\" stroke-width=\"12\" fill=\"none\" stroke-linecap=\"round\"/>\n    </svg>\n  </div>\n\n  <div class=\"support\" data-fit=\"support\">{{slot:support}}</div>\n</body>\n</html>"
+}

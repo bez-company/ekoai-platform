@@ -1,0 +1,25 @@
+{
+  "id": "antes-depois-1",
+  "territory": "antes-depois",
+  "meta": {
+    "tone": "light",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "extra1": {
+        "max": 20
+      },
+      "headline": {
+        "max": 60
+      },
+      "extra2": {
+        "max": 20
+      },
+      "support": {
+        "max": 50
+      }
+    },
+    "summary": "Uma divisão diagonal marcante separando o problema da solução, com rótulos e tipografia de alto contraste."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #FAFAFA;\n      --ink: #0F0F0F;\n      --accent: #FF3366;\n      --muted: #888888;\n      --display: 'Oswald', sans-serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    body {\n      margin: 0;\n      padding: 0;\n      width: 1080px;\n      height: 1350px;\n      background-color: var(--bg);\n      position: relative;\n      overflow: hidden;\n      font-family: var(--body);\n    }\n\n    * {\n      box-sizing: border-box;\n      position: absolute;\n    }\n\n    /* Before World Background */\n    .before-bg {\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      background-color: color-mix(in srgb, var(--ink) 6%, var(--bg));\n      clip-path: polygon(0 0, 100% 0, 100% 45%, 0 65%);\n      z-index: 1;\n    }\n\n    /* Graphical Divider */\n    .divider-svg {\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      z-index: 2;\n    }\n\n    /* Typography Defaults */\n    p {\n      margin: 0;\n      color: var(--ink);\n      line-height: 1.1;\n      font-size: 28px;\n    }\n\n    /* Slots */\n    .label-before {\n      top: 80px;\n      left: 80px;\n      width: 400px;\n      height: 60px;\n      font-family: var(--body);\n      font-weight: bold;\n      text-transform: uppercase;\n      letter-spacing: 0.05em;\n      z-index: 3;\n      overflow: hidden;\n    }\n    .label-before p {\n      font-size: 26px;\n    }\n\n    .headline {\n      top: 160px;\n      left: 80px;\n      width: 920px;\n      height: 350px;\n      font-family: var(--display);\n      font-weight: 700;\n      z-index: 3;\n      overflow: hidden;\n    }\n\n    .label-after {\n      top: 900px;\n      left: 80px;\n      width: 920px;\n      height: 60px;\n      font-family: var(--body);\n      font-weight: bold;\n      text-transform: uppercase;\n      letter-spacing: 0.05em;\n      text-align: right;\n      z-index: 3;\n      overflow: hidden;\n    }\n    .label-after p {\n      font-size: 26px;\n    }\n\n    .support {\n      top: 960px;\n      left: 80px;\n      width: 920px;\n      height: 220px;\n      font-family: var(--display);\n      font-weight: 700;\n      text-align: right;\n      z-index: 3;\n      overflow: hidden;\n    }\n\n    /* Branding */\n    .logo {\n      top: 80px;\n      left: 700px;\n      width: 300px;\n      height: 60px;\n      object-fit: contain;\n      object-position: right top;\n      z-index: 4;\n    }\n\n    .handle {\n      top: 1210px;\n      left: 80px;\n      width: 920px;\n      height: 60px;\n      font-family: var(--body);\n      font-weight: bold;\n      text-align: right;\n      z-index: 4;\n      overflow: hidden;\n    }\n  </style>\n</head>\n<body>\n\n  <div class=\"before-bg\"></div>\n\n  <svg class=\"divider-svg\" viewBox=\"0 0 1080 1350\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Diagonal Line matching the clip-path -->\n    <line x1=\"0\" y1=\"877.5\" x2=\"1080\" y2=\"607.5\" stroke=\"var(--accent)\" stroke-width=\"6\" />\n    <!-- Decorative Arrow crossing worlds -->\n    <g transform=\"translate(540, 742.5) rotate(-14)\">\n      <circle cx=\"0\" cy=\"0\" r=\"48\" fill=\"var(--bg)\" stroke=\"var(--accent)\" stroke-width=\"6\" />\n      <path d=\"M-15 -15 L15 0 L-15 15 Z\" fill=\"var(--accent)\" />\n    </g>\n  </svg>\n\n  <img class=\"logo\" src=\"{{logo:on-light}}\" alt=\"Logo\">\n\n  <div class=\"label-before\" data-fit=\"extra1\">\n    <p>{{slot:extra1}}</p>\n  </div>\n\n  <div class=\"headline\" data-fit=\"headline\">\n    <p>{{slot:headline}}</p>\n  </div>\n\n  <div class=\"label-after\" data-fit=\"extra2\">\n    <p>{{slot:extra2}}</p>\n  </div>\n\n  <div class=\"support\" data-fit=\"support\">\n    <p>{{slot:support}}</p>\n  </div>\n\n  <div class=\"handle\" data-fit=\"handle\">\n    <p>{{handle}}</p>\n  </div>\n\n</body>\n</html>"
+}

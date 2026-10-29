@@ -1,0 +1,19 @@
+{
+  "id": "surreal-fotografico-2",
+  "territory": "surreal-fotografico",
+  "meta": {
+    "tone": "light",
+    "needsImage": true,
+    "imageSlot": "Cena surreal fotorrealista centralizada. A imagem será recortada em um grande formato de arco (portal) que ocupa a metade inferior da peça. O foco da cena impossível deve estar no centro/baixo.",
+    "slots": {
+      "headline": {
+        "max": 50
+      },
+      "extra1": {
+        "max": 25
+      }
+    },
+    "summary": "Composição com a imagem surreal contida em um grande arco na parte inferior, deixando o topo limpo e sólido para a tipografia."
+  },
+  "html": "<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    :root {\n      --bg: #F4F0EB;\n      --ink: #1C1917;\n      --accent: #D94826;\n      --muted: #A8A29E;\n      --display: 'Playfair Display', serif;\n      --body: 'Manrope', sans-serif;\n    }\n\n    body {\n      margin: 0;\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n    }\n\n    * {\n      position: absolute;\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    .logo-container {\n      top: 80px;\n      left: 80px;\n      width: 250px;\n      height: 56px;\n      overflow: hidden;\n    }\n\n    .logo-container img {\n      height: 100%;\n      width: auto;\n      object-fit: contain;\n      object-position: left center;\n    }\n\n    .handle {\n      top: 80px;\n      right: 80px;\n      width: 400px;\n      height: 56px;\n      font-family: var(--body);\n      font-weight: 600;\n      font-size: 28px;\n      color: var(--ink);\n      text-align: right;\n      line-height: 56px;\n      overflow: hidden;\n    }\n\n    .headline-box {\n      top: 200px;\n      left: 80px;\n      width: 920px;\n      height: 180px;\n      overflow: hidden;\n    }\n\n    .headline {\n      width: 100%;\n      height: 100%;\n      font-family: var(--display);\n      font-weight: 700;\n      font-size: 80px;\n      line-height: 1.1;\n      color: var(--ink);\n      text-align: center;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n    }\n\n    .portal {\n      top: 460px;\n      left: 80px;\n      width: 920px;\n      height: 890px;\n      border-radius: 460px 460px 0 0;\n      overflow: hidden;\n      border: 4px solid var(--accent);\n      background-color: var(--ink);\n    }\n\n    .portal img {\n      width: 100%;\n      height: 100%;\n      object-fit: cover;\n    }\n\n    .pill-box {\n      top: 430px;\n      left: 340px;\n      width: 400px;\n      height: 60px;\n      background-color: var(--bg);\n      border: 2px solid var(--accent);\n      border-radius: 30px;\n      overflow: hidden;\n      z-index: 10;\n    }\n\n    .extra1 {\n      width: 100%;\n      height: 100%;\n      font-family: var(--body);\n      font-weight: 700;\n      font-size: 26px;\n      color: var(--ink);\n      text-align: center;\n      text-transform: uppercase;\n      letter-spacing: 2px;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"logo-container\">\n    <img src=\"{{logo:on-light}}\" alt=\"Logo\">\n  </div>\n\n  <p class=\"handle\" data-fit=\"handle\">{{handle}}</p>\n\n  <div class=\"headline-box\">\n    <h1 class=\"headline\" data-fit=\"headline\">{{slot:headline}}</h1>\n  </div>\n\n  <div class=\"portal\">\n    <img src=\"{{asset:hero}}\" alt=\"Surreal scene\">\n  </div>\n\n  <div class=\"pill-box\">\n    <p class=\"extra1\" data-fit=\"extra1\">{{slot:extra1}}</p>\n  </div>\n</body>\n</html>"
+}
