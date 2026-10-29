@@ -4,6 +4,7 @@
 
 import { afterAll, describe, it } from 'vitest';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
+import { evalEnv } from './guard.js';
 import { buildDirectivesPrompt, parseDirectives } from '../platform/src/lib/directives.ts';
 import { COMPANIES } from './cases.js';
 import { ALL_CASES as CASES } from './all-cases.js';
@@ -14,7 +15,7 @@ const runs = Math.max(1, Number(process.env.EVAL_RUNS ?? 1));
 const results = [];
 
 describe.skipIf(!live)('leitor de instruções', () => {
-  const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', ...process.env });
+  const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', ...evalEnv() });
   const model = vertexClient({ config: cfg });
 
   describe.concurrent('casos', () => {

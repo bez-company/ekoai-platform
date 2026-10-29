@@ -22,6 +22,7 @@ import { makePost } from './pipeline.js';
 import { closeBrowser, contactSheet } from './render.js';
 import { REQUESTS } from './requests.js';
 import { summarize } from './report.js';
+import { evalProject } from '../guard.js';
 
 const live = process.env.EVAL_LIVE === '1';
 const list = (v, fallback) => (v ?? fallback).split(',').map((s) => s.trim()).filter(Boolean);
@@ -91,7 +92,7 @@ describe.skipIf(!live)('eval do estúdio de posts', () => {
   it('pedidos simples: baseline x estúdio', { timeout: 4 * 3600_000 }, async () => {
     mkdirSync(outDir, { recursive: true });
     loadBrands();
-    const cfg = { project: process.env.VERTEX_PROJECT_ID || 'ekoai-prod', location: 'global', textModel: 'gemini-3-flash-preview', imageModel: 'gemini-3.1-flash-image' };
+    const cfg = { project: evalProject(), location: 'global', textModel: 'gemini-3-flash-preview', imageModel: 'gemini-3.1-flash-image' };
     const baselineModel = vertexClient({ config: cfg, token: async () => token() });
     const tasks = brandIds.flatMap((brand) => REQUESTS[brand].slice(0, perBrand).map((r) => ({ brand, ...r })));
     const rows = [];

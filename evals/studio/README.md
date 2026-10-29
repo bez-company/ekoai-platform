@@ -45,7 +45,10 @@ EVAL_LIVE=1 STUDIO_BRANDS=aurora,vertice,sorriso STUDIO_REQS=4 STUDIO_VARIATIONS
 Variáveis: `STUDIO_BRANDS`, `STUDIO_ARMS` (`baseline,studio`), `STUDIO_REQS` (pedidos por marca),
 `STUDIO_VARIATIONS` (tentativas do mesmo pedido), `STUDIO_CONCURRENCY`, `STUDIO_DRAFTS` (rascunhos do designer),
 `STUDIO_SAVE` (grava o resumo em `evals/studio/baselines/`), `STUDIO_TERRITORY` (força territórios no smoke),
-`STUDIO_SMART_MODEL`, `STUDIO_FAST_MODEL`, `STUDIO_IMAGE_MODEL`, `STUDIO_JUDGE_MODEL`, `VERTEX_PROJECT_ID`.
+`STUDIO_SMART_MODEL`, `STUDIO_FAST_MODEL`, `STUDIO_IMAGE_MODEL`, `STUDIO_JUDGE_MODEL`, `VERTEX_PROJECT_ID`, `EVAL_RUN_ID` (rótulo da rodada no painel de custo).
+
+Projeto: `ekoai-staging` por padrão; `ekoai-prod` só com `EVAL_ALLOW_PROD=1` (BEZ-458). Toda chamada leva os labels
+`origin=eval`, `step=studio-<agente>` e `run`, para o custo do estúdio aparecer separado do produto.
 
 Usa o token do `gcloud auth print-access-token` (o ADC da máquina expira). Precisa do Chrome instalado
 (`CHROME_PATH` se estiver fora do lugar padrão). Resultado em `.context/studio/runs/<data>/`:

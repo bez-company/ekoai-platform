@@ -40,11 +40,16 @@ Relatório em `.context/evals/<data>/`: `report.md`, `summary.json`, `results.js
 
 ## Como rodar
 
+**Onde gasta (BEZ-458):** os evals rodam no projeto `ekoai-staging` por padrão, com o orçamento dele, e toda chamada leva
+`origin=eval` e `step` (o painel de custo da BEZ, visão `cost_ai`, separa eval de produto por esses labels). O
+`ekoai-prod` é recusado, a não ser que você mande `EVAL_ALLOW_PROD=1` de propósito: uma rodada completa já custou
+centenas de reais no outubro de 2026 e entrou na conta de produção sem dono. `VERTEX_PROJECT_ID` troca o projeto.
+
 ```bash
-VERTEX_PROJECT_ID=ekoai-prod npm run eval                       # 1 rodada de todos os casos
-VERTEX_PROJECT_ID=ekoai-prod EVAL_RUNS=2 npm run eval           # 2 rodadas por caso (o modelo varia)
-VERTEX_PROJECT_ID=ekoai-prod EVAL_TAGS=marca,fato npm run eval  # só casos com estas tags
-VERTEX_PROJECT_ID=ekoai-prod EVAL_CASES=frase-exata npm run eval
+npm run eval                                                               # 1 rodada de todos os casos
+EVAL_RUNS=2 npm run eval           # 2 rodadas por caso (o modelo varia)
+EVAL_TAGS=marca,fato npm run eval  # só casos com estas tags
+EVAL_CASES=frase-exata npm run eval
 EVAL_SAVE=nome ...                                              # grava o resumo em evals/baselines/nome.json
 EVAL_REUSE=<pasta de .context/evals> ...                        # julga de novo posts já gravados, sem gerar
 node evals/summarize.js <pasta> [nome]                          # resume (e grava baseline) de uma rodada, até interrompida
