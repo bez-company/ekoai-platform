@@ -1,12 +1,12 @@
 # SPEC 031: Configurações › Fatura e uso
 
-- **Status:** proposta, aguardando aprovação do protótipo (v25)
+- **Status:** aprovada em 29/10/2026 (protótipo v25 e as seis decisões abaixo); em construção pela entrega 1
 - **Data:** 2026-10-29
 - **Cards:** BEZ-434 (esta spec), BEZ-301 (cobrança real, adiada), BEZ-135 (cobrança, pai)
 - **Depende de:** [SPEC 028](028-um-pedido-um-post-por-rede-e-avaliador.md) (seção "Custo e cobrança": o dado existe em
   `generation_runs`), [SPEC 021](021-planos-e-cobranca-por-consumo.md) e [ADR 0023](../adr/0023-cobranca-por-consumo-com-cartao-obrigatorio.md)
   (planos, cartão, alerta de gasto), [ADR 0007](../adr/0007-tres-papeis-de-conta.md) (papéis)
-- **Protótipo:** versão 25 (`version_id` 1793275712-c835) do artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, grupo "Fase 10: fatura e uso (SPEC 031)", em desktop e celular. Aguarda a aprovação do Matheus.
+- **Protótipo:** versão 25 (`version_id` 1793275712-c835) do artifact https://claude.ai/artifact/55avs7vhgtwKFn9HMAR9Fz, grupo "Fase 10: fatura e uso (SPEC 031)", em desktop e celular. Aprovado pelo Matheus em 29/10/2026.
 
 ## Problema
 
@@ -119,15 +119,18 @@ Em ordem, cada uma numa PR. A 1 e a 2 não dependem de preço nem de gateway.
 2. **Detalhe de um post** (cobrança do post e o que não foi cobrado).
 3. **Console › Financeiro**: visão por conta, o custo de um post por grupo e rede, e o estado sem dado.
 
-## Perguntas em aberto
+## Decisões do Matheus (29/10/2026)
 
-1. **Moeda da fatura e do custo.** Proposta: fatura em reais; custo da BEZ em US$ com conversão em reais pela taxa datada.
-2. **O X na fatura.** Aparece como linha própria, "Publicações no X". Confirmar o texto e se mostra o preço unitário.
-3. **Histórico.** Quantos meses a tela guarda e mostra (proposta: 12).
-4. **Exportar.** CSV do mês para o contador? (proposta: depois da fatura real.)
-5. **A conta pessoal vê o alerta e o cartão** como administradora de si mesma (proposta: sim).
-6. **Onde mora o plano.** Hoje "Conta e plano" está no Perfil (SPEC 025). Proposta: a seção nova guarda gasto e cartão, e o plano
-   continua no Perfil, com um link entre as duas.
+1. **Moeda:** reais por padrão. O usuário pode ver em dólar também. A cotação é **um número fixo e datado** em `platform/src/lib/pricing.json`
+   (atualizado à mão uma vez por mês, com teste que reprova se a data passar de 40 dias), como `channel-signals.json`. O custo da BEZ
+   nasce em dólar (a Vertex e a API do X cobram assim) e a fatura do cliente é em reais, então a cotação só serve para o "≈ US$"
+   e para o custo no console. Buscar a PTAX do Banco Central automaticamente fica para depois, se a atualização à mão incomodar.
+   O seletor "R$ / US$" entra junto da fatura (entrega 4); antes dela não há valor para converter.
+2. **Linha do X na fatura:** "Publicações no X", com o preço unitário.
+3. **Histórico:** 12 meses.
+4. **Exportar CSV do mês:** depois da fatura real (entrega 4).
+5. **Conta pessoal** vê alerta e cartão como administradora de si mesma.
+6. **Plano** continua no Perfil (SPEC 025); a seção nova guarda gasto e cartão, com um link entre as duas.
 
 ## Como verificar
 
