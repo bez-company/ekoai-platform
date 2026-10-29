@@ -376,6 +376,18 @@ jobs:
         run: docker build -f docker/platform.Dockerfile -t ekoai-platform:ci .
       - name: Jobs
         run: docker build -f docker/jobs.Dockerfile -t ekoai-jobs:ci .
+      - name: Estúdio (job com Chromium)
+        run: docker build -f docker/studio.Dockerfile -t ekoai-studio:ci .
+      # O job do estúdio sobe com o Chromium da imagem e recusa a entrada sem pedido; sem isso o Chromium ausente só apareceria em staging.
+      - name: Estúdio sobe e abre o Chromium
+        run: |
+          set -euo pipefail
+          saida=$(docker run --rm --entrypoint chromium ekoai-studio:ci --version 2>&1)
+          echo "$saida"
+          echo "$saida" | grep -qi chromium
+          saida=$(docker run --rm ekoai-studio:ci 2>&1 || true)
+          echo "$saida"
+          echo "$saida" | grep -q "STUDIO_TENANT e STUDIO_BRIEF"
       # O container sobe e o dispatcher recusa job que não existe.
       - name: Dispatcher dos jobs
         run: |
