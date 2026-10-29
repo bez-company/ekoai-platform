@@ -40,7 +40,19 @@ antes de fixar preço).
 | Gemini 3 Pro Image | US$ 0,134 | US$ 0,134 | US$ 0,24 | US$ 0,067 em 1K |
 
 O post do Instagram tem 1080 x 1350, então 1K basta; 2K só faz diferença em corte e ampliação. A imagem do Pro leva de 60 a
-110 s, a do Flash de 10 a 30 s (medido). A qualidade relativa de cada um **ainda não foi medida** com o juiz; é o próximo teste.
+110 s, a do Flash de 10 a 30 s (medido). A qualidade relativa foi medida em 29/10/2026 (6 prompts de imagem de fundo, juiz cego, nota de 0 a 10 em realismo, impacto,
+composição, espaço para texto e ausência de defeitos; `evals/studio/image-models.js`, `baselines/image-models.json`):
+
+| Modelo | Nota | Preço por imagem (US$, lista) | Tempo |
+|---|---|---|---|
+| Gemini 3.1 Flash Lite Image | 8,60 | ~0,034 (lista do código; o ledger do teste usou o preço do Pro) | 42 s |
+| Gemini 3.1 Flash Image | 8,50 | 0,067 | 48 s |
+| Gemini 3 Pro Image | 8,67 | 0,134 | 55 s |
+| Nano Banana 2.1 | 8,73 | ~0,03 a 0,14 (a confirmar) | 55 s |
+
+As quatro notas ficam a 0,25 uma da outra, dentro do ruído do juiz (da mesma família dos modelos). **O Pro custa o dobro do Flash e
+rende cerca de 0,2 ponto a mais**, e o Lite custa a metade do Flash com nota igual. Proposta: o nível de imagem "Padrão" usa
+Flash ou Lite, e "Alta" (Pro) vira opção para quem quer o máximo; o preço de "Alta" precisa ser justificado por algo que o usuário veja.
 
 ## O seletor do usuário (proposta)
 
