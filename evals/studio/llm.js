@@ -3,6 +3,7 @@
 // designer não passa por JSON. Toda chamada soma tokens e custo estimado em `ledger`, para o relatório do eval.
 
 import { execFileSync } from 'node:child_process';
+import { evalLabels, evalProject } from '../guard.js';
 
 // US$ por milhão de tokens (lista de 28/10/2026). Estimativa: a fatura real é a do provedor.
 export const PRICE = {
@@ -18,8 +19,7 @@ export const MODELS = {
   image: process.env.STUDIO_IMAGE_MODEL || 'gemini-3-pro-image',
 };
 
-const project = process.env.VERTEX_PROJECT_ID || 'ekoai-prod';
-const base = `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google/models`;
+const modelsUrl = (project) => `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google/models`;
 
 let cached = null;
 export function token() {
@@ -34,6 +34,9 @@ const CALL_TIMEOUT_MS = 12 * 60_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function call(model, body) {
+  // O projeto sai do guard a cada chamada: ekoai-staging por padrão, ekoai-prod só com EVAL_ALLOW_PROD=1 (BEZ-458).
+  const project = evalProject();
+  const base = modelsUrl(project);
   for (let attempt = 0; ; attempt += 1) {
     let res;
     try {
@@ -96,7 +99,7 @@ export async function ask({ model = MODELS.smart, prompt, images = [], json = fa
     parts.push({ inlineData: { mimeType: img.mimeType ?? 'image/png', data: b64(img.bytes) } });
   }
   const generationConfig = { temperature, maxOutputTokens, ...(json ? { responseMimeType: 'application/json' } : {}), ...(thinking ? { thinkingConfig: { thinkingLevel: thinking } } : {}) };
-  const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig });
+  const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig, labels: evalLabels(`studio-${step}`, { run: process.env.EVAL_RUN_ID }) });
   const cand = data.candidates?.[0];
   const text = (cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? '').join('');
   const inTok = Number(data.usageMetadata?.promptTokenCount ?? 0);
@@ -141,7 +144,7 @@ export function parseJson(text) {
 export async function makeImage({ model = MODELS.image, prompt, aspect = '4:5', refs = [], ledger, step = 'image' }) {
   const started = Date.now();
   const parts = [{ text: prompt }, ...refs.map((r) => ({ inlineData: { mimeType: r.mimeType ?? 'image/png', data: b64(r.bytes) } }))];
-  const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: aspect } } });
+  const data = await call(model, { contents: [{ role: 'user', parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: aspect } }, labels: evalLabels(`studio-${step}`, { run: process.env.EVAL_RUN_ID }) });
   const part = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
   if (!part) throw new Error(`${model} não devolveu imagem (${data.candidates?.[0]?.finishReason ?? 'sem candidato'}).`);
   const inTok = Number(data.usageMetadata?.promptTokenCount ?? 0);

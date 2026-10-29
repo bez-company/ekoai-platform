@@ -10,6 +10,7 @@ import { afterAll, describe, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
+import { evalEnv } from './guard.js';
 import { CRAFT } from './cases.js';
 import { CAPTION_CASES, CAPTION_COMPANIES, CAPTION_CRAFT } from './caption-cases.js';
 import { writeCopy } from './pipeline.js';
@@ -30,7 +31,7 @@ const rows = [];
 const write = (path, data) => writeFileSync(path, typeof data === 'string' ? data : JSON.stringify(data, null, 2));
 
 describe.skipIf(!live)('eval da legenda e das hashtags', () => {
-  const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', ...process.env });
+  const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', ...evalEnv() });
   const judgeModel = process.env.EVAL_JUDGE_MODEL || 'gemini-3.1-pro-preview';
   const model = vertexClient({ config: cfg });
   const judge = vertexClient({ config: { ...cfg, textModel: judgeModel } });
