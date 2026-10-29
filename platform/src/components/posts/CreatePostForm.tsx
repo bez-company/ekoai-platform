@@ -12,11 +12,15 @@ import { ErrorLine, Spinner } from '@/components/auth/ui';
 import FeedFrame from '@/components/posts/FeedFrame';
 import AttachPhoto from '@/components/photo/AttachPhoto';
 import { ideaWithPhotoText, photoRequestFields, type AttachedPhoto } from '@/components/photo/attach-photo-model';
+import EffortPicker from '@/components/posts/studio/EffortPicker';
+import PostSummary from '@/components/posts/studio/PostSummary';
+import StylePicker from '@/components/posts/studio/StylePicker';
 import Select from '@/components/ui/Select';
 import { GOALS, POST_GOALS, type PostGoal } from '@/lib/post-goals';
 import { MAX_SLIDES, MIN_SLIDES } from '@/lib/design/slide-limits';
 import { IDEA_MAX } from '@/lib/post-limits';
 import { DEFAULT_NETWORKS, toggleNetwork, type NetworkChip } from '@/lib/networks-model';
+import { DEFAULT_EFFORT, DEFAULT_IMAGE_QUALITY, DEFAULT_STYLE, usesImage, type Effort, type ImageQuality } from '@/lib/studio/levels';
 import type { Channel } from '@/lib/types';
 
 type Ratio = '4:5' | '1:1';
@@ -44,6 +48,7 @@ export default function CreatePostForm({
   accountName,
   canEditProfile,
   networks,
+  brand,
   initialAssetId = null,
 }: {
   usage: { used: number; max: number };
@@ -51,6 +56,7 @@ export default function CreatePostForm({
   accountName: string;
   canEditProfile: boolean;
   networks: NetworkChip[]; // as redes que a empresa pode escolher (SPEC 028)
+  brand: { primary: string; accent: string }; // as cores do perfil, para as prévias da vitrine de estilos (SPEC 030)
   initialAssetId?: string | null;
 }) {
   const router = useRouter();
@@ -61,6 +67,9 @@ export default function CreatePostForm({
   const [selected, setSelected] = useState<Channel[]>([...DEFAULT_NETWORKS]);
   const [slideMode, setSlideMode] = useState<'auto' | 'exact'>('auto');
   const [slideCount, setSlideCount] = useState(6);
+  const [effort, setEffort] = useState<Effort>(DEFAULT_EFFORT);
+  const [style, setStyle] = useState<string>(DEFAULT_STYLE);
+  const [quality, setQuality] = useState<ImageQuality>(DEFAULT_IMAGE_QUALITY);
   const [photo, setPhoto] = useState<AttachedPhoto | null>(null);
   const [attaching, setAttaching] = useState(!!initialAssetId);
   const [ideas, setIdeas] = useState<{ list: Idea[]; design: Design } | null>(null);
@@ -72,6 +81,8 @@ export default function CreatePostForm({
   const [busy, setBusy] = useState(false);
   const atLimit = usage.used >= usage.max;
   const photoAsIs = photo?.usage === 'as_is';
+  // Com foto anexada a foto é o visual: a vitrine de estilos e a qualidade da imagem não se aplicam (SPEC 025, decisão 2).
+  const imageMode = photo ? 'no' : usesImage(style);
   // Com foto anexada o post é de uma imagem só: o carrossel não leva foto em cada lâmina.
   const carousel = format === 'carousel' && !photo;
   const waitingPhoto = attaching && !!photo && !photo.ready;
@@ -106,7 +117,7 @@ export default function CreatePostForm({
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, channels: selected, ...(carousel ? { format: 'carousel', ...(slideMode === 'exact' ? { slide_count: slideCount } : {}) } : {}), ...photoRequestFields(photo) }),
+      body: JSON.stringify({ idea: ideaWithPhotoText(idea, photo?.text ?? null), goal, ratio, channels: selected, effort, ...(photo ? {} : { style, ...(imageMode === 'no' ? {} : { image_quality: quality }) }), ...(carousel ? { format: 'carousel', ...(slideMode === 'exact' ? { slide_count: slideCount } : {}) } : {}), ...photoRequestFields(photo) }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
@@ -258,6 +269,9 @@ export default function CreatePostForm({
           <Select ariaLabel="Objetivo do post" describedBy="goal-label" value={goal} onChange={(v) => setGoal(v as PostGoal)} options={GOAL_OPTIONS} />
         </div>
 
+        {!photo && <StylePicker value={style} onChange={setStyle} brand={brand} />}
+        <EffortPicker effort={effort} onEffort={setEffort} quality={quality} onQuality={setQuality} imageMode={imageMode} />
+
         {/* No celular a prévia fica embaixo do formulário: a proporção vem aqui, antes de criar. */}
         <div className="flex items-center justify-between gap-2 lg:hidden">
           <span className="text-sm font-semibold">Proporção</span>
@@ -279,6 +293,7 @@ export default function CreatePostForm({
 
       <div className="space-y-5 lg:sticky lg:top-4">
         {ideasOpen && <IdeasPanel state={ideasState} error={ideasError} data={ideas} picked={picked} canEditProfile={canEditProfile} onPick={pick} onRetry={() => void suggest()} />}
+        <PostSummary effort={effort} style={photo ? 'auto-minimalista' : style} imageQuality={quality} />
         <section className="card space-y-3" aria-label="Prévia">
           <div className="hidden items-center justify-between gap-2 lg:flex">
             <span className="label">Proporção</span>

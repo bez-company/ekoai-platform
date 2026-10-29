@@ -63,7 +63,7 @@ export default async function CreatePostPage({ searchParams }: { searchParams: P
             <strong>Você usou os {usage.max} posts deste mês.</strong> O limite volta no dia 1º. Você ainda pode editar e aprovar os posts que já existem.
           </div>
         )}
-        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} networks={networks} initialAssetId={initialAssetId} />
+        <CreatePostForm usage={usage} handle={handle} accountName={accountName} canEditProfile={role === 'admin'} networks={networks} brand={{ primary: profile!.colorPrimary || '#4A2C2A', accent: profile!.colorAccent || '#B83262' }} initialAssetId={initialAssetId} />
       </div>
     );
   } catch (e) {
