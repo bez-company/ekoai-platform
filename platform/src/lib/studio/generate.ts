@@ -153,16 +153,24 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
   try {
     if (template) {
       const r: TemplatePostResult = await runTemplatePost({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, library, style: library.some((x) => x.id === brief.style) ? brief.style : undefined, seed, ratio: brief.ratio, imageQuality, colors: context.colors, logos: context.logos, recentTemplates: context.recent.templates, recentTitles: context.recent.titles });
-      if (r.textIssues.length || layoutBlocking(r.layoutIssues).length) throw new Error(`o modelo pronto não passou na revisão: ${[...r.textIssues, ...layoutBlocking(r.layoutIssues).map((i) => i.rule)].join(', ')}`);
+      const hard = layoutBlocking(r.layoutIssues);
+      if (r.textIssues.length || hard.length) {
+        await keepRejected(store, briefId, r.png, r.html);
+        throw new Error(`o modelo pronto não passou na revisão: texto=${r.textIssues.join(', ') || 'ok'}; layout=${hard.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'ok'}; custo US$ ${r.costUsd.toFixed(3)}`);
+      }
       made = { engine: 'template', png: r.png, html: r.html, assets: r.assets, caption: r.caption, hashtags: r.hashtags, altText: r.altText, headline: r.headline, territory: deps.library.find((x) => x.id === r.template)?.territory ?? 'modelo', templateId: r.template, score: null, alternatives: [], issues: [], costUsd: r.costUsd, costByStep: model.costByStep };
     } else {
       const r: StudioResult = await runStudio({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, onStage: deps.onStage });
-      if (!r.gate.ok || layoutBlocking(r.layoutIssues).length) throw new Error(`o estúdio não passou na revisão: ${r.gate.issues.map((i) => i.rule).join(', ')}`);
+      const hard = layoutBlocking(r.layoutIssues);
+      if (!r.gate.ok || hard.length) {
+        await keepRejected(store, briefId, r.png, r.html);
+        throw new Error(`o estúdio não passou na revisão: revisor=${r.gate.ok ? 'ok' : r.gate.issues.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'reprovou sem motivo'}; layout=${hard.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'ok'}; nota ${r.score} (${r.verdict}); custo US$ ${r.costUsd.toFixed(3)}${r.capped ? '; teto de custo atingido' : ''}`);
+      }
       made = { engine: 'chain', png: r.png, html: r.html, assets: r.assets, caption: r.copy.caption, hashtags: r.copy.hashtags, altText: r.copy.altText, headline: r.copy.headline, territory: r.territory, templateId: null, score: r.score, alternatives: r.alternatives, issues: [], costUsd: r.costUsd, costByStep: r.costByStep };
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    log('warn', 'generation', 'o estúdio não entregou; o gerador atual assume', { briefId, effort: brief.effort, error: message.slice(0, 400) });
+    log('warn', 'generation', 'o estúdio não entregou; o gerador atual assume', { briefId, effort: brief.effort, error: message.slice(0, 1500) });
     if (runId) await failRun(t, runId, message, Date.now() - started).catch(() => undefined);
     if (visualRun) await failRun(t, visualRun, message, Date.now() - started).catch(() => undefined);
     return { status: 'fallback', briefId, reason: message.slice(0, 300) };
@@ -236,6 +244,16 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
     if (runId) await failRun(t, runId, e instanceof Error ? e.message : String(e), Date.now() - started).catch(() => undefined);
     if (visualRun) await failRun(t, visualRun, e instanceof Error ? e.message : String(e), Date.now() - started).catch(() => undefined);
     return fail(t, brief.id, e);
+  }
+}
+
+// O que o estúdio fez e não passou no portão: guarda o PNG e o HTML para quem investiga (o custo já foi pago). Não afeta o pedido.
+async function keepRejected(store: BlobStore, briefId: string, png: Uint8Array, html: string): Promise<void> {
+  try {
+    await store.put(`studio-rejected/${briefId}/final.png`, png, 'image/png');
+    await store.put(`studio-rejected/${briefId}/final.html`, new TextEncoder().encode(html), 'text/html');
+  } catch (e) {
+    log('warn', 'generation', 'não guardou a peça recusada', { briefId, error: e instanceof Error ? e.message : String(e) });
   }
 }
 
