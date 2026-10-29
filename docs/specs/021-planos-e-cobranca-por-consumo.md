@@ -57,18 +57,20 @@ inclui **3 pessoas**; cada pessoa a mais custa R$ 10 por mês, em qualquer papel
   Time vende outra coisa (equipe, revisão, o dobro de créditos). Medir quantos convites ficam parados por causa do preço.
 - Agência não pode voltar a Time ou Individual enquanto tiver mais de uma marca.
 
-**Economia por plano** (cada crédito custa R$ 0,0593 à BEZ; gateway e imposto em 15% do preço, **suposição**; margem sobre o preço):
+**Economia por plano** (cada crédito custa R$ 0,0593 à BEZ; reserva de **19% do preço** para imposto, gateway e nota: Simples Nacional perto de
+15,5% na primeira faixa do Anexo V, Asaas de 2% a 3,3% no cartão e R$ 0,49 por nota; ver "Imposto e gateway"):
 
-| Plano | Preço | Preço efetivo do crédito | Custo de IA se usar 100% | Lucro se usar 100% | Lucro se usar 70% | Lucro se usar 40% |
-| --- | --- | --- | --- | --- | --- | --- |
-| Individual, 1 rede | R$ 149 | R$ 0,50 | R$ 17,79 | R$ 109 (73%) | R$ 114 (77%) | R$ 120 (80%) |
-| Individual, 3 redes | R$ 299 | R$ 0,50 | R$ 35,59 | R$ 219 (73%) | R$ 229 (77%) | R$ 240 (80%) |
-| Time | R$ 599 | R$ 0,50 | R$ 71,17 | R$ 438 (73%) | R$ 459 (77%) | R$ 481 (80%) |
-| Agência | R$ 1.499 | R$ 0,43 | R$ 207,58 | R$ 1.067 (71%) | R$ 1.129 (75%) | R$ 1.191 (79%) |
+| Plano | Preço | Preço efetivo do crédito | Custo de IA se usar 100% | Lucro se usar 100% | Lucro se usar 70% |
+| --- | --- | --- | --- | --- | --- |
+| Individual, 1 rede | R$ 149 | R$ 0,50 | R$ 17,79 | R$ 103 (69%) | R$ 108 (73%) |
+| Individual, 3 redes | R$ 299 | R$ 0,50 | R$ 35,59 | R$ 207 (69%) | R$ 217 (73%) |
+| Time | R$ 599 | R$ 0,50 | R$ 71,17 | R$ 414 (69%) | R$ 435 (73%) |
+| Agência | R$ 1.499 | R$ 0,43 | R$ 207,58 | R$ 1.007 (67%) | R$ 1.069 (71%) |
 
 A margem sobe quando o cliente usa menos, porque a mensalidade é fixa e o saldo do plano vence no fim do ciclo. Num mês de 100 clientes (50
-no Individual de 1 rede, 25 no de 3 redes, 20 no Time e 5 na Agência, **mistura hipotética**), a receita é R$ 34.400 e o lucro fica entre
-R$ 25.000 (uso de 100%) e R$ 27.500 (uso de 40%). Se o custo de IA for o dobro do estimado, o lucro com uso de 100% fica em cerca de 60%.
+no Individual de 1 rede, 25 no de 3 redes, 20 no Time e 5 na Agência, **mistura hipotética**), a receita é R$ 34.400 e o lucro fica em cerca
+de R$ 23.600 com uso de 100% (69%) e R$ 24.900 com uso de 70% (72%). Com o Simples no Anexo III (6%, se o fator R passar de 28%), a margem
+com uso de 100% sobe para 79%; com a alíquota do Anexo V nas faixas mais altas (cerca de 19,5%) e o cartão a 3,3%, cai para 65%.
 
 ### Créditos
 
@@ -94,9 +96,9 @@ reais, com a margem, é decisão à parte (SPEC 032 e o preço percentual do BEZ
 | --- | --- | --- | --- |
 | Rápido, sem imagem de IA | 0,003 | produção, 10 posts do motor atual | 1 (mínimo) |
 | Rápido, com imagem de IA | 0,05 a 0,07 | produção, 8 posts; a imagem custou 0,050 em média | 6 |
-| Refinado, sem imagem | 0,25 + 0,04 (Cloud Run Job) | eval de 12 pedidos; o Job é estimativa | 29 |
+| Refinado, sem imagem | 0,25 + 0,04 (Cloud Run Job) | eval de 12 pedidos; o Job sai do preço unitário da fatura | 29 |
 | Refinado, com imagem Flash | 0,25 + 0,067 + 0,04 | idem | 36 |
-| Autoral, sem imagem | 0,56 + 0,04 (Cloud Run Job) | eval de 12 pedidos (tudo Pro); o Job é estimativa | 60 |
+| Autoral, sem imagem | 0,56 + 0,04 (Cloud Run Job) | eval de 12 pedidos (tudo Pro); o Job sai do preço unitário da fatura | 60 |
 | Autoral, com imagem Pro | 0,56 + 0,135 + 0,04 | idem | 74 |
 | Publicação no X | 0,015, ou 0,20 com link | tabela da API do X (docs/analises) | 2 sem link, 20 com link |
 | Carrossel | base mais um valor por lâmina | a medir | a medir |
@@ -109,9 +111,20 @@ reais, com a margem, é decisão à parte (SPEC 032 e o preço percentual do BEZ
 Leitura: do post mais barato ao mais caro o custo varia **cerca de 70 vezes**. Um plano de 250 créditos rende, por exemplo, 250 posts Rápido
 sem imagem, 41 com imagem de IA, 6 Refinados com imagem ou 3 Autorais com imagem Pro.
 
-Limites do dado: só o Rápido vem de produção (18 posts de teste, PostHog `post_ready` e `cost_by_step`). Refinado e Autoral vêm do eval e
-ainda não rodaram em produção. O custo registrado (`cost_usd`) usa o preço de lista no código e não foi conferido contra a fatura do
-Google Cloud. Taxa do gateway e impostos não entram aqui: são custo da venda e entram no preço do crédito.
+Limites do dado: só o Rápido vem de produção (18 posts de teste, PostHog `post_ready` e `cost_by_step`, sem post novo desde 28/10).
+Refinado e Autoral vêm do eval e ainda não rodaram em produção.
+
+Conferido contra a fatura do Google Cloud em 29/10/2026 (export de faturamento, só leitura):
+
+- **Vertex AI do app, com o rótulo `tenant`:** R$ 1,40 em produção, contra cerca de R$ 2,04 registrados (`cost_usd`) nos 18 posts. Estão no
+  mesmo patamar. A conferência é aproximada: parte das chamadas do app pode estar sem rótulo, então não dá para dizer que o registro
+  superestima ou subestima. O resto do gasto de Vertex em produção (R$ 440 de R$ 442 até 29/10) é de chamadas **sem rótulo**, que pelo
+  histórico são evals, juiz e testes, não posts de cliente. Cerca de 57% dele é saída de texto do Pro.
+- **Cloud Run Job:** o preço unitário da fatura é R$ 0,000128 por vCPU-segundo e cerca de R$ 0,0000144 por GiB-segundo. Um Job de 2 vCPU e
+  4 GiB custa **R$ 0,19 (10 min) a R$ 0,28 (15 min)**, ou US$ 0,032 a 0,048. O US$ 0,04 da tabela (4 créditos) está no meio da faixa.
+- **Falta medir:** Refinado e Autoral de verdade (só depois de o estúdio rodar em produção), ajuste, avaliar de novo e PDF.
+
+Taxa do gateway e imposto não entram nos pesos: são custo da venda e entram na reserva de 19% acima.
 
 Os pesos finais saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só
 exemplos ("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
@@ -143,8 +156,12 @@ Quanto custa cada item ao cliente, ao preço efetivo do plano (R$ 0,50 por créd
 | Publicação no X, sem link ou com link | 2 ou 20 | R$ 1,00 ou R$ 10,00 | R$ 0,09 ou R$ 1,19 |
 | Avaliar de novo | 4 | R$ 2,00 | R$ 0,21 |
 
-- **Gateway e imposto:** as margens acima são antes da taxa do gateway e dos impostos sobre a venda. Com a reserva de 15% da receita para os
-  dois (**suposição**, falta a taxa do Asaas e o regime tributário), a margem líquida do plano fica perto de 73% com uso total.
+- **Imposto e gateway (levantado em 29/10/2026):** as margens da tabela de itens são antes de imposto, gateway e nota. Imposto: Simples
+  Nacional, perto de 15,5% na primeira faixa do Anexo V (sem fator R) e perto de 6% no Anexo III (com fator R acima de 28%); as faixas
+  seguintes cobram mais. **O contador confirma o anexo e a alíquota.** Gateway (Asaas, página de preços, sem data, conferir em Menu do
+  usuário > Taxas): cartão de R$ 0,49 + 1,99% a 2,99% por cobrança (a página mostra dois valores e não diz qual é o promocional de 3
+  meses), Pix de R$ 0,79 a R$ 1,99 por recebimento e nota fiscal de R$ 0,49. Sobre uma mensalidade de R$ 149 isso é de 2,3% a 3,3%; sobre
+  R$ 599, de 2,1% a 3,1%.
 - **Comparação:** ao preço do plano, o Autoral com imagem Pro custa R$ 37 e o Refinado com imagem R$ 18, abaixo de R$ 40 a R$ 290 por post em
   agência ou freelancer (análise de 28/10, não verificada de forma independente). O preço é uma aposta de mercado: o Individual de R$ 149
   fica bem acima de ferramentas de agendamento (na análise de 16/10, o mLabs ancora em cerca de R$ 30 por marca), e o que justifica a
@@ -162,6 +179,7 @@ Quanto custa cada item ao cliente, ao preço efetivo do plano (R$ 0,50 por créd
 | Cobrança do pacote recusada | não gera; aviso e link para trocar o cartão |
 | Recarga desligada ou teto mensal atingido | não gera; aviso e link para ligar a recarga ou comprar pacote |
 | Quem liga, desliga e define | só `admin` da conta: liga e desliga, escolhe o pacote e o **teto mensal de recarga** |
+| Valores padrão (proposta) | teto mensal de recarga igual ao preço do plano; pacote de 100 créditos no Individual, 250 no Time e 500 na Agência. A recarga já vem **desligada** até o administrador ligar, para ninguém ser cobrado sem ter escolhido |
 | Pessoa sem papel de administrador, saldo zerado | não gera; aviso "O saldo de créditos da conta acabou. Peça ao administrador para ligar a recarga ou comprar um pacote." |
 
 Nada fica por cobrar depois: não existe consumo pós-pago. O teto de recarga é o limite de gasto da conta, e ele **bloqueia** (a ADR 0023
@@ -216,16 +234,18 @@ ficou de fora.
 
 1. **Aviso de saldo sem mostrar o saldo no fluxo de post:** como a pessoa sabe que o saldo está acabando, se só Fatura e uso mostra? Os
    avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
-2. **Teto padrão de recarga por mês:** o preço do pacote (R$ 0,60 por crédito, 20% acima do plano) e os tamanhos (100, 250 e 500
-   créditos) foram aprovados em 29/10/2026. Falta o valor padrão do teto de recarga e conferir os pesos com o custo real (BEZ-260).
+2. **Valores padrão da recarga:** o preço do pacote (R$ 0,60 por crédito, 20% acima do plano) e os tamanhos (100, 250 e 500 créditos)
+   foram aprovados em 29/10/2026. Proposta, a confirmar: teto mensal de recarga igual ao preço do plano (a conta paga no máximo o dobro da
+   mensalidade) e recarga desligada por padrão. Pesos a conferir com o custo real (BEZ-490).
 3. **Tabela de créditos:** os pesos de partida estão na tabela acima; confirmar os de Refinado e Autoral com a medida em produção, e medir carrossel, ajuste,
    avaliar de novo, X, Cloud Run Job e PDF (BEZ-490).
 4. **Carência da mensalidade:** quantas tentativas e quantos dias antes de bloquear (proposta: 3 tentativas em até 7 dias).
 5. **Teto de segurança interno** da BEZ contra abuso e cartão roubado, além do teto de recarga do cliente (proposta: invisível no uso normal).
 6. **Limite técnico de gerações** por minuto e por dia da conta, só contra robô (proposta: invisível no uso normal).
 7. **Marca da agência:** perfil dentro da conta ou conta por cliente (BEZ-265).
-8. **Gateway, Pix e nota fiscal:** Asaas está citado em `docs/arquitetura`; falta decidir e conferir cartão recorrente, Pix Automático para a
-   mensalidade, Pix pontual para pacote e nota de serviço para CNPJ.
+8. **Gateway, Pix e nota fiscal:** Asaas está citado em `docs/arquitetura` e a taxa foi levantada (ver "Imposto e gateway"). Falta decidir o
+   gateway, abrir a conta, conferir as taxas do contrato, ver o Pix Automático para a mensalidade (a página de preços não traz taxa) e a nota
+   de serviço (NFS-e).
 9. **Pacote sem reembolso (regra do produto decidida):** quem compra pacote usa os créditos dentro da plataforma, sem devolução. Só falta
    conferir com a advogada se a lei de defesa do consumidor (direito de arrependimento em compra online, 7 dias) obriga a devolver em
    conta de pessoa física, e como escrever o termo. Para empresa (CNPJ) a regra não se aplica do mesmo jeito.
