@@ -393,6 +393,22 @@ proteção ligada.
 - **Probes:** staging em `/api/live`, para a instância subir com o banco parado e mostrar a tela; produção em `/api/health`,
   para um deploy com banco quebrado falhar no rollout (decisão do BEZ-120, SPEC 016 D8).
 
+## Câmbio do Google Cloud (BEZ-474)
+
+A conta do Google Cloud é faturada em reais. O Google converte o preço em dólar por uma taxa própria,
+definida no início de cada mês (não é a cotação comercial do Banco Central), e é essa taxa que o
+Console › Financeiro usa para o custo em reais (`platform/src/lib/pricing.json`). Atualize no começo de
+cada mês, e o teste `tests/pricing.test.js` reprova se passar de 40 dias:
+
+```sh
+bq query --use_legacy_sql=false 'SELECT FORMAT_DATE("%Y-%m", DATE(usage_start_time)) AS mes,
+  currency_conversion_rate AS brl_por_usd FROM `<projeto>.billing_export.gcp_billing_export_v1_<id-da-conta>`
+  GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 3'
+```
+
+Copie o valor do mês corrente para `usd_brl` (4 casas) e a data para `reviewed_at`. O projeto e o ID da conta
+de faturamento não ficam neste repositório público.
+
 ## Geração de posts (SPEC 012, ADR 0018)
 
 - O pedido (`POST /api/posts`) só grava o brief e acorda o worker (`/api/cron/generate`, `Bearer
