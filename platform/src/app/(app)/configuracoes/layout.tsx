@@ -11,6 +11,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if (await canAccess('profile.view')) tabs.push({ href: '/configuracoes/empresa', label: 'Empresa' });
   if (await canAccess('profile.view')) tabs.push({ href: '/configuracoes/fatos', label: 'Fatos da empresa' });
   if (await canAccess('team.manage')) tabs.push({ href: '/configuracoes/equipe', label: 'Equipe' });
+  if (await canAccess('billing.manage')) tabs.push({ href: '/configuracoes/fatura', label: 'Fatura e uso' });
   if (await canAccess('account.export')) tabs.push({ href: '/configuracoes/dados', label: 'Dados e privacidade' });
   return (
     <div className="space-y-6">
