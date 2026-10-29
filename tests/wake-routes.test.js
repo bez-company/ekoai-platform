@@ -5,13 +5,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const power = { policy: vi.fn(), lastUpdate: vi.fn(), setPolicy: vi.fn(), userRequests: vi.fn() };
 const probe = vi.fn();
 const pending = vi.fn();
-vi.mock('@/lib/publish', () => ({ hasPendingPublishes: (...a) => pending(...a) }));
+const runDue = vi.fn();
+vi.mock('@/lib/publish', () => ({ hasPendingPublishes: (...a) => pending(...a), reconcileStalePublishing: async () => ({ checked: 0 }), runPublishDue: (...a) => runDue(...a) }));
+vi.mock('@/lib/log', () => ({ log: () => undefined, logError: () => undefined }));
+vi.mock('@/lib/stale-approvals', () => ({ runStaleApprovals: async () => ({ warned: 0, asked: 0 }) }));
 vi.mock('@/lib/env-power', async (orig) => ({ ...(await orig()), powerClient: () => power, probeDb: (...a) => probe(...a) }));
 
 const { GET: live } = await import('../platform/src/app/api/live/route.ts');
 const { GET: estado } = await import('../platform/src/app/api/ambiente/route.ts');
 const { POST: ligar } = await import('../platform/src/app/api/ambiente/ligar/route.ts');
 const { POST: sleepIfIdle } = await import('../platform/src/app/api/cron/sleep-if-idle/route.ts');
+const { POST: publishDue } = await import('../platform/src/app/api/cron/publish-due/route.ts');
 const { resetWakeThrottle } = await import('../platform/src/lib/env-power.ts');
 const { middleware } = await import('../platform/src/middleware.ts');
 const { NextRequest } = await import('../platform/node_modules/next/server.js');
@@ -20,6 +24,7 @@ const saved = { ...process.env };
 const ON = { WAKE_ENABLED: 'true', WAKE_SQL_PROJECT: 'proj-staging', WAKE_SQL_INSTANCE: 'ekoai-pg', CRON_SECRET: 'segredo-do-teste' };
 const cron = (token) => new Request('http://x/api/cron/sleep-if-idle', { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {} });
 const MIN = 60_000;
+const publishCron = () => new Request('http://x/api/cron/publish-due', { method: 'POST', headers: { authorization: 'Bearer segredo-do-teste' } });
 
 beforeEach(() => {
   Object.assign(process.env, ON);
@@ -197,5 +202,32 @@ describe('middleware: o que é público sem sessão', () => {
     expect(await pass('/api/ambiente/outra')).toBe(false);
     expect(await pass('/api/live/x')).toBe(false);
     expect(await pass('/api/ambientes')).toBe(false);
+  });
+});
+
+describe('POST /api/cron/publish-due com o staging sob demanda (BEZ-482)', () => {
+  beforeEach(() => runDue.mockReset().mockResolvedValue({ due: 0, published: 0, failed: 0 }));
+
+  it('banco dormindo ou ligando responde 200 sem rodar o ciclo', async () => {
+    probe.mockResolvedValue(false);
+    const res = await publishDue(publishCron());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, skipped: 'ambiente dormindo ou ligando' });
+    expect(runDue).not.toHaveBeenCalled();
+  });
+
+  it('banco respondendo roda o ciclo normal', async () => {
+    probe.mockResolvedValue(true);
+    const res = await publishDue(publishCron());
+    expect(res.status).toBe(200);
+    expect(runDue).toHaveBeenCalledTimes(1);
+  });
+
+  it('fora do staging nem confere o banco: o ciclo roda sempre e falha de banco continua sendo erro', async () => {
+    delete process.env.WAKE_ENABLED;
+    const res = await publishDue(publishCron());
+    expect(res.status).toBe(200);
+    expect(runDue).toHaveBeenCalledTimes(1);
+    expect(probe).not.toHaveBeenCalled();
   });
 });
