@@ -59,7 +59,8 @@ export type Review = { ok: boolean; issues: ReviewIssue[] };
 export type HtmlReply = { notes: string; regen: { id: string; prompt: string }[]; html: string };
 
 export type Feedback = { message: string };
-export type Ref = { name: string; note: string };
+// Uma peça de referência de nível: o designer a vê como régua de acabamento (não de layout). `bytes` é o PNG; sem ele só a nota vai ao prompt.
+export type Ref = { name: string; note: string; bytes?: Uint8Array };
 
 // ── Entradas dos agentes (o que cada prompt usa) ─────────────────────────────────────────────────────────────
 export type StrategistInput = { brand: StudioBrand; request: string; territories: Territory[] };

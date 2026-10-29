@@ -9,9 +9,9 @@ import { studioBrandOf } from '../../platform/src/lib/studio/context.ts';
 import { runStudio } from '../../platform/src/lib/studio/pipeline.ts';
 import { vertexStudioModel } from '../../platform/src/lib/studio/vertex-model.ts';
 import { evalEnv, evalLabels } from '../guard.js';
-import { DIMENSIONS } from './agents.js';
+import { DIMENSIONS, loadExemplars } from './agents.js';
 import { score } from './design-judge.js';
-import { newLedger, token } from './llm.js';
+import { newLedger, resetToken, token } from './llm.js';
 import { closeBrowser, renderHtml } from './render.js';
 import { REQUESTS } from './requests.js';
 
@@ -29,7 +29,14 @@ const progress = (line) => writeFileSync(join(outDir, 'progress.log'), `${new Da
 describe.skipIf(!live)('estúdio de produção (TypeScript) no eval', () => {
   it('pedidos do eval pelo código de produção', { timeout: 4 * 3600_000 }, async () => {
     mkdirSync(outDir, { recursive: true });
-    const client = vertexClient({ config: vertexConfig(evalEnv()), token: async () => token() });
+    // O cliente da plataforma não renova o token em 401; o eval repete a chamada uma vez com a credencial nova.
+    const resilientFetch = async (url, init) => {
+      const res = await fetch(url, { ...init, signal: AbortSignal.timeout(12 * 60_000) });
+      if (res.status !== 401) return res;
+      resetToken();
+      return fetch(url, { ...init, headers: { ...init.headers, authorization: `Bearer ${token()}` }, signal: AbortSignal.timeout(12 * 60_000) });
+    };
+    const client = vertexClient({ config: vertexConfig(evalEnv()), token: async () => token(), fetchImpl: resilientFetch });
     const companies = {};
     for (const id of ['fe', 'bez', 'ekoai']) companies[id] = JSON.parse(readFileSync(join(root, '.context/studio/brands', `${id}.json`), 'utf8'));
     const jobs = reqs.map((r) => ({ r, brand: r.split('/')[0], id: r.split('/')[1] }));
@@ -54,7 +61,7 @@ describe.skipIf(!live)('estúdio de produção (TypeScript) no eval', () => {
           const logos = company.studio?.logos ? { 'on-light': company.studio.logos.light, 'on-dark': company.studio.logos.dark } : company.logo ? { 'on-light': company.logo.dataUri, 'on-dark': company.logo.dataUri } : {};
           const model = vertexStudioModel(client, { tenant: 'eval', brief: job.r.replace('/', '-'), labels: evalLabels('prod') });
           const renderer = { render: async ({ html, ratio, assets, logos: l }) => renderHtml(html, { ratio, assets, logos: l }) };
-          const out = await runStudio({ model, renderer }, { brand, request, effort, style: 'auto', imageQuality: 'padrao', ratio: '4:5', seed: seedOf(job.r), logos, onStage: (s, i) => progress(`${job.r} ${s} ${JSON.stringify(i)}`) });
+          const out = await runStudio({ model, renderer }, { brand, request, effort, style: 'auto', imageQuality: 'padrao', ratio: '4:5', seed: seedOf(job.r), logos, refs: loadExemplars(), onStage: (s, i) => progress(`${job.r} ${s} ${JSON.stringify(i)}`) });
           write(join(dir, 'post.png'), out.png);
           write(join(dir, 'post.html'), out.html);
           const judged = await score({ company, request, caption: out.copy.caption, png: Buffer.from(out.png), ledger: newLedger() });
