@@ -43,6 +43,7 @@ import { canUseInPost, type MediaAsset } from './media-asset-model';
 import { isPhotoUsage, usageShowsPhoto, type PhotoUsage } from './photo-question-model';
 import { renderPhoto } from './design/photo';
 import { photoSource } from './photo-post';
+import { pdfFromPngs } from './pdf';
 
 // critic: liga o avaliador de sinais (SPEC 028, BEZ-425): uma chamada por rede, mais um conserto de uma volta quando algum critério
 // vem com nota 0. O worker liga por padrão; quem chama generatePost direto (testes) liga se quiser.
@@ -413,16 +414,20 @@ export async function retryNetwork(t: TenantDb, briefId: string, channel: Channe
   if (brief.status !== 'ready') throw new UserError('O post ainda está sendo criado. Espere terminar para tentar de novo.');
   if (!brief.core) throw new UserError('O núcleo da ideia não ficou guardado. Crie o post de novo.');
 
-  const design = await t.select('post_designs', 'id,kind,layout,png_key').eq('brief_id', briefId).order('created_at', { ascending: false }).limit(1);
+  const design = await t.select('post_designs', 'id,kind,layout,png_key,design').eq('brief_id', briefId).order('created_at', { ascending: false }).limit(1);
   const d = design.data?.[0];
   if (design.error || !d?.png_key) throw new UserError('A arte do post não foi encontrada. Crie o post de novo.');
 
   const [account, profile, factRows, ruleRows, campaign] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t), campaignOf(t, brief.campaignId)]);
   if (!profile) throw new UserError('Preencha o perfil da empresa antes de tentar de novo.');
+  // Carrossel: o PDF sai das lâminas que já estão no bucket (as mesmas do Instagram).
+  const slideKeys = ((d.design as { slides?: { pngKey?: unknown }[] } | null)?.slides ?? []).map((x) => x.pngKey).filter((k): k is string => typeof k === 'string');
+  const store = deps.store ?? defaultStore();
+  const document = slideKeys.length > 1 ? await carouselDocument(store, slideKeys, await Promise.all(slideKeys.map((k) => store.get(k))).catch(() => []), brief.idea, deps.mediaBaseUrl) : null;
   try {
     const pendingId = await produceLinkedIn(t, deps, brief, {
       profile, facts: factsForPrompt(factRows), rules: ruleRows.filter((r) => r.active).map((r) => r.rule), planMax: account?.plan.maxPostsPerMonth ?? 20, campaign, core: brief.core,
-      designId: String(d.id), kind: d.kind as PostKind, layout: d.layout as DesignSpec['layout'], imageKey: String(d.png_key),
+      designId: String(d.id), kind: d.kind as PostKind, layout: d.layout as DesignSpec['layout'], imageKey: String(d.png_key), document,
     });
     await setNetworkError(t, briefId, channel, null);
     return { pendingId };
@@ -434,9 +439,25 @@ export async function retryNetwork(t: TenantDb, briefId: string, channel: Channe
   }
 }
 
+// O carrossel do Instagram como documento do LinkedIn (SPEC 028, BEZ-435): uma página por lâmina, gravada em documents/<uuid>.pdf, que
+// a rota de mídia serve e o publish envia pelo endpoint de documentos. Falhar aqui nunca derruba o post: o LinkedIn sai com a capa.
+type CarouselDocument = { url: string; slideUrls: string[] };
+
+async function carouselDocument(store: BlobStore, slideKeys: readonly string[], pngs: readonly Uint8Array[], title: string, mediaBaseUrl?: string): Promise<CarouselDocument | null> {
+  if (pngs.length < 2) return null;
+  try {
+    const key = `documents/${randomUUID()}.pdf`;
+    await store.put(key, pdfFromPngs(pngs, title), 'application/pdf');
+    return { url: mediaUrl(key, mediaBaseUrl), slideUrls: slideKeys.map((k) => mediaUrl(k, mediaBaseUrl)) };
+  } catch (e) {
+    log('warn', 'generation', 'não montou o PDF do carrossel; o LinkedIn sai com a capa', { error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
+}
+
 // O post do LinkedIn de um pedido (SPEC 028): o texto parte do núcleo, a arte é a mesma do pedido (a capa) e o avaliador confere o
 // texto. Serve ao pedido inteiro e a "Tentar de novo" só nesta rede (BEZ-437): quem chama diz de onde vêm o design e a imagem.
-type LinkedInContext = { profile: CompanyProfile; facts: ReturnType<typeof factsForPrompt>; rules: string[]; planMax: number; campaign: Campaign | null; core: Core; designId: string; kind: PostKind; layout: DesignSpec['layout']; imageKey: string };
+type LinkedInContext = { profile: CompanyProfile; facts: ReturnType<typeof factsForPrompt>; rules: string[]; planMax: number; campaign: Campaign | null; core: Core; designId: string; kind: PostKind; layout: DesignSpec['layout']; imageKey: string; document?: CarouselDocument | null };
 
 async function produceLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, c: LinkedInContext): Promise<string> {
   const { profile, facts, rules, planMax, campaign, core } = c;
@@ -464,7 +485,7 @@ async function produceLinkedIn(t: TenantDb, deps: GenerationDeps, brief: Brief, 
       signal: 'responder',
       share_reason: li.post.shareReason,
       ...(liPass.critic ? { critic: liPass.critic } : {}),
-      variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single' }],
+      variations: [{ id: 1, hook: hookOf(li.post.text), body: linkedInBody(li.post), hashtags: li.post.hashtags, format: 'single', ...(c.document ? { documentUrl: c.document.url, slideUrls: c.document.slideUrls } : {}) }],
       model: deps.model.config.textModel,
       guardrail_flags: li.issues.map((i) => i.rule),
       judge_reason: li.issues.length ? li.issues.map((i) => i.message).join(' ') : 'Conferido pelo revisor: palavras proibidas, fatos da base, promessas e travessão.',
@@ -657,7 +678,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
       const core = copy.core ?? brief.core;
       try {
         if (!core) throw new Error('o núcleo da ideia não veio do redator');
-        const linkedinId = await produceLinkedIn(t, deps, brief, { profile, facts, rules, planMax, campaign, core, designId: design.data!.id as string, kind, layout: spec.layout, imageKey: keys[0] });
+        const document = carouselRendered ? await carouselDocument(store, keys, carouselRendered.slides.map((x) => x.png), copy.texts.title, deps.mediaBaseUrl) : null;
+        const linkedinId = await produceLinkedIn(t, deps, brief, { profile, facts, rules, planMax, campaign, core, designId: design.data!.id as string, kind, layout: spec.layout, imageKey: keys[0], document });
         leadPendingId ??= linkedinId;
         await setNetworkError(t, brief.id, 'linkedin', null);
       } catch (e) {

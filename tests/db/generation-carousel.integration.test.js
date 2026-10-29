@@ -13,7 +13,7 @@ process.env.MEDIA_BASE_URL = 'https://app.test/api/media';
 
 const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
-const { generatePost } = await import('../../platform/src/lib/generation.ts');
+const { generatePost, retryNetwork } = await import('../../platform/src/lib/generation.ts');
 const requests = await import('../../platform/src/lib/post-requests.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 const facts = await import('../../platform/src/lib/company-facts.ts');
@@ -228,5 +228,85 @@ describe('pedido de uma imagem', () => {
     expect(pending.images).toHaveLength(1);
     expect(pending.generation.variations[0].format).toBe('single');
     expect((await one('select design from post_designs where id = $1', [pending.post_design_id])).design.slides).toBeUndefined();
+  });
+});
+
+describe('carrossel no LinkedIn como documento em PDF (SPEC 028, BEZ-435)', () => {
+  const CORE = { angle: 'Três sinais de bolo pronto', points: ['A massa desgruda da borda', 'O palito sai limpo no centro'], proof: 'Três sinais de bolo pronto', question: 'Qual sinal você confere primeiro?' };
+  const LI = { text: 'O erro mais caro de uma confeitaria é tirar o bolo do forno cedo demais.\nEu só abro a porta quando a borda descola da forma e o palito sai limpo.\n\nQual sinal você confere primeiro na sua cozinha?', hashtags: ['confeitaria'], share_reason: 'Quem também faz bolo de festa responde com o sinal que confere primeiro' };
+  const BASE = 'https://app.test/api/media/';
+  const both = async (idea) => {
+    const id = await carouselBrief(idea, 'informativo');
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    return id;
+  };
+  const linkedin = async (id) => (await one("select pending_id, generation, images from pending_approvals where brief_id = $1 and channel = 'linkedin'", [id]));
+  const pdfOf = (variation) => objects.get(variation.documentUrl.slice(BASE.length));
+
+  it('o LinkedIn leva um PDF com uma página por lâmina, as mesmas do Instagram', async () => {
+    const t = tenantDb(A);
+    const id = await both('pdf dos sinais de bolo pronto');
+    const out = await generatePost(t, id, { model: fakeModel({ text: [{ ...CAROUSEL, core: CORE }, LI], image: [] }), store, fontDir: FONT_DIR });
+    expect(out.status, JSON.stringify(out)).toBe('ready');
+
+    const li = await linkedin(id);
+    const variation = li.generation.variations[0];
+    expect(variation.documentUrl).toMatch(/^https:\/\/app\.test\/api\/media\/documents\/[0-9a-f-]{36}\.pdf$/);
+    expect(variation.slideUrls).toHaveLength(5);
+    const ig = await one("select generation from pending_approvals where brief_id = $1 and channel = 'instagram'", [id]);
+    expect(variation.slideUrls).toEqual(ig.generation.variations[0].slideUrls);
+    expect(ig.generation.variations[0].documentUrl).toBeUndefined();
+
+    const pdf = pdfOf(variation);
+    expect(pdf.type).toBe('application/pdf');
+    const text = pdf.bytes.toString('latin1');
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('/Count 5');
+    expect(text).toContain('/MediaBox [0 0 1080 1350]');
+
+    // ao aprovar, o agendamento do LinkedIn sai como documento
+    const scheduled = await scheduling.approvePending(t, { pendingId: li.pending_id, captionId: 1, artId: 1 });
+    expect(await one('select media_kind, document_url from scheduled_posts where id = $1', [scheduled.id])).toEqual({ media_kind: 'document', document_url: variation.documentUrl });
+  });
+
+  it('se o PDF não puder ser gravado, o LinkedIn sai com a capa e o post não cai', async () => {
+    const t = tenantDb(A);
+    const id = await both('pdf que não grava');
+    const put = store.put;
+    store.put = async (key, bytes, type) => {
+      if (key.startsWith('documents/')) throw new Error('bucket recusou o PDF');
+      return put(key, bytes, type);
+    };
+    try {
+      const out = await generatePost(t, id, { model: fakeModel({ text: [{ ...CAROUSEL, core: CORE }, LI], image: [] }), store, fontDir: FONT_DIR });
+      expect(out.status).toBe('ready');
+    } finally {
+      store.put = put;
+    }
+    const li = await linkedin(id);
+    expect(li.generation.variations[0].documentUrl).toBeUndefined();
+    expect(li.images).toHaveLength(1);
+  });
+
+  it('tentar de novo o LinkedIn refaz o PDF a partir das lâminas guardadas', async () => {
+    const t = tenantDb(A);
+    const id = await both('pdf na nova tentativa');
+    expect((await generatePost(t, id, { model: fakeModel({ text: [{ ...CAROUSEL, core: CORE }, new Error('modelo fora do ar')], image: [] }), store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect(await linkedin(id)).toBeUndefined();
+
+    await retryNetwork(t, id, 'linkedin', { model: fakeModel({ text: [LI], image: [] }), store, fontDir: FONT_DIR });
+    const variation = (await linkedin(id)).generation.variations[0];
+    expect(variation.slideUrls).toHaveLength(5);
+    expect(pdfOf(variation).bytes.toString('latin1')).toContain('/Count 5');
+  });
+
+  it('pedido de uma imagem só (sem carrossel) segue sem PDF', async () => {
+    const t = tenantDb(A);
+    const parsed = requests.parsePostRequest({ idea: 'uma imagem e o LinkedIn', kind: 'informativo' });
+    const id = (await requests.createPostRequest(t, ANA, parsed.value)).id;
+    await admin.query("update briefs set channels = '{instagram,linkedin}' where id = $1", [id]);
+    const single = { kind: 'informativo', angle: 'dica', signal: 'salvar', share_reason: CAROUSEL.share_reason, texts: { title: 'Seu bolo está pronto?', items: ['A massa desgruda da borda', 'O palito sai limpo'] }, caption: 'Bolo bom não tem pressa. Chame no WhatsApp.', hashtags: ['bolo'], core: CORE };
+    expect((await generatePost(t, id, { model: fakeModel({ text: [single, LI], image: [] }), store, fontDir: FONT_DIR })).status).toBe('ready');
+    expect((await linkedin(id)).generation.variations[0].documentUrl).toBeUndefined();
   });
 });

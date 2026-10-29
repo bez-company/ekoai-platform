@@ -9,6 +9,8 @@ import FeedbackForm from './FeedbackForm';
 import type { PendingApproval, Variation } from '@/lib/types';
 
 function carouselNote(v?: Variation): string {
+  // O LinkedIn leva as lâminas do Instagram como documento em PDF (SPEC 028, BEZ-435).
+  if (v?.documentUrl && v.format !== 'carousel') return `Documento em PDF: ${v.slideUrls?.length ?? 0} páginas, os mesmos slides do Instagram`;
   if (v?.format !== 'carousel') return '';
   const n = v.slideUrls?.length ?? 0;
   if (n < 2) return 'Carrossel sem slides renderizados: sai como imagem única';
@@ -252,6 +254,14 @@ export default function ApproveForm({
         </button>
         <span className="ml-auto self-center text-xs text-muted">
           {carouselNote(chosenVariation)}
+          {chosenVariation?.documentUrl && chosenVariation.format !== 'carousel' && (
+            <>
+              {' · '}
+              <a href={chosenVariation.documentUrl} target="_blank" rel="noreferrer" className="underline">
+                Abrir o PDF
+              </a>
+            </>
+          )}
         </span>
       </div>
     </div>
