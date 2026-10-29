@@ -1,0 +1,291 @@
+{
+  "summary": [
+    {
+      "model": "gemini-3.1-flash-lite-image",
+      "n": 6,
+      "score": 8.6,
+      "usd": 0.1347303333333333,
+      "seconds": 41.647666666666666,
+      "errors": 0
+    },
+    {
+      "model": "gemini-3.1-flash-image",
+      "n": 6,
+      "score": 8.5,
+      "usd": 0.06728258333333333,
+      "seconds": 48.0225,
+      "errors": 0
+    },
+    {
+      "model": "gemini-3-pro-image",
+      "n": 6,
+      "score": 8.666666666666666,
+      "usd": 0.1347303333333333,
+      "seconds": 54.7005,
+      "errors": 0
+    },
+    {
+      "model": "gemini-nano-banana-2.1",
+      "n": 6,
+      "score": 8.733333333333334,
+      "usd": 0.13677033333333333,
+      "seconds": 54.5045,
+      "errors": 0
+    }
+  ],
+  "rows": [
+    {
+      "prompt": "ekoai-cansaco",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 8,
+      "usd": 0.134722,
+      "seconds": 10.434,
+      "defeitos": [
+        "A corrente atravessa o celular de forma fisicamente impossível, fundindo-se com a tela e a carcaça em vez de envolvê-lo ou puxá-lo.",
+        "A parte superior da imagem tem uma grande faixa branca sólida em vez de continuar o fundo de papel rosado, quebrando a imersão e o briefing."
+      ]
+    },
+    {
+      "prompt": "ekoai-cansaco",
+      "model": "gemini-3.1-flash-image",
+      "score": 8.6,
+      "usd": 0.0672805,
+      "seconds": 14.24,
+      "defeitos": [
+        "A corrente parece fundida diretamente na tela do celular de forma irrealista, sem um ponto de fixação lógico",
+        "O celular tem proporções e detalhes levemente estranhos (botão home e câmera frontal desalinhados/imprecisos)"
+      ]
+    },
+    {
+      "prompt": "ekoai-cansaco",
+      "model": "gemini-3-pro-image",
+      "score": 8.4,
+      "usd": 0.134722,
+      "seconds": 46.921,
+      "defeitos": [
+        "A corrente parece atravessar a tela do celular de forma irrealista na parte inferior",
+        "A conexão da corrente com o celular não faz sentido físico"
+      ]
+    },
+    {
+      "prompt": "ekoai-cansaco",
+      "model": "gemini-nano-banana-2.1",
+      "score": 8.8,
+      "usd": 0.134722,
+      "seconds": 41.345,
+      "defeitos": [
+        "A conexão entre a corrente e o celular parece um pouco fundida/irreal na base do aparelho",
+        "A corrente atravessa o bloco de concreto de forma ligeiramente estranha na lateral direita"
+      ]
+    },
+    {
+      "prompt": "fe-dia",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 9,
+      "usd": 0.134784,
+      "seconds": 42.073,
+      "defeitos": [
+        "A transição do papel para a grama poderia ser um pouco mais orgânica, mas está muito bem executada",
+        "A bola de futebol tem um padrão de gomos levemente irregular"
+      ]
+    },
+    {
+      "prompt": "fe-dia",
+      "model": "gemini-3.1-flash-image",
+      "score": 8.8,
+      "usd": 0.067296,
+      "seconds": 60.074,
+      "defeitos": [
+        "A transição do papel para a grama poderia ser um pouco mais orgânica e menos abrupta",
+        "A bola de futebol tem um padrão de gomos ligeiramente irregular"
+      ]
+    },
+    {
+      "prompt": "fe-dia",
+      "model": "gemini-3-pro-image",
+      "score": 9,
+      "usd": 0.134784,
+      "seconds": 61.333,
+      "defeitos": [
+        "A transição do papel para a grama poderia ser um pouco mais orgânica, parece um pouco colado",
+        "A bola tem um aspecto ligeiramente rústico/antigo em vez de uma bola de futebol moderna padrão, mas não é um defeito grave"
+      ]
+    },
+    {
+      "prompt": "fe-dia",
+      "model": "gemini-nano-banana-2.1",
+      "score": 9,
+      "usd": 0.147024,
+      "seconds": 61.568,
+      "defeitos": [
+        "A transição do papel para a grama parece um pouco abrupta em algumas áreas, mas no geral está bem executada.",
+        "As chuteiras parecem um pouco genéricas e sem detalhes finos."
+      ]
+    },
+    {
+      "prompt": "bez-execucao",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 8.8,
+      "usd": 0.134648,
+      "seconds": 45.144,
+      "defeitos": []
+    },
+    {
+      "prompt": "bez-execucao",
+      "model": "gemini-3.1-flash-image",
+      "score": 8.2,
+      "usd": 0.067262,
+      "seconds": 45.278,
+      "defeitos": [
+        "A textura do papel em algumas bordas parece um pouco espessa demais, lembrando papel machê ou tecido engomado em vez de papel de rascunho fino."
+      ]
+    },
+    {
+      "prompt": "bez-execucao",
+      "model": "gemini-3-pro-image",
+      "score": 8.4,
+      "usd": 0.134648,
+      "seconds": 45.213,
+      "defeitos": []
+    },
+    {
+      "prompt": "bez-execucao",
+      "model": "gemini-nano-banana-2.1",
+      "score": 8.4,
+      "usd": 0.134648,
+      "seconds": 49.981,
+      "defeitos": []
+    },
+    {
+      "prompt": "smoke-bez-13-objeto-heroi",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 9,
+      "usd": 0.134698,
+      "seconds": 47.48,
+      "defeitos": [
+        "A sombra projetada à esquerda não é tão longa e dramática quanto o briefing pedia, parecendo um pouco curta e difusa."
+      ]
+    },
+    {
+      "prompt": "smoke-bez-13-objeto-heroi",
+      "model": "gemini-3.1-flash-image",
+      "score": 9,
+      "usd": 0.0672745,
+      "seconds": 46.497,
+      "defeitos": [
+        "O desenho da caneta parece um pouco limpo demais para um guardanapo amassado, faltando um pouco da textura de falha da tinta pedida no briefing."
+      ]
+    },
+    {
+      "prompt": "smoke-bez-13-objeto-heroi",
+      "model": "gemini-3-pro-image",
+      "score": 9,
+      "usd": 0.134698,
+      "seconds": 54.173,
+      "defeitos": [
+        "A sombra projetada à esquerda parece um pouco geométrica demais e não corresponde perfeitamente à forma do guardanapo amassado."
+      ]
+    },
+    {
+      "prompt": "smoke-bez-13-objeto-heroi",
+      "model": "gemini-nano-banana-2.1",
+      "score": 9,
+      "usd": 0.134698,
+      "seconds": 55.032,
+      "defeitos": [
+        "A sombra projetada à esquerda parece um pouco difusa e não tão longa/afiada quanto o briefing pedia, mas no geral a imagem está excelente e sem defeitos graves."
+      ]
+    },
+    {
+      "prompt": "smoke-fe-11-surreal-fotografico",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 7.8,
+      "usd": 0.134768,
+      "seconds": 56.636,
+      "defeitos": [
+        "A transição entre a mesa e a terra é um pouco abrupta e artificial em alguns pontos, parecendo mais uma sobreposição do que uma transformação orgânica.",
+        "A perspectiva da mesa em relação ao campo de terra parece ligeiramente distorcida.",
+        "O espaço para texto no terço superior não é totalmente limpo, pois a transição entre o teto do escritório e o céu cria uma linha divisória que pode atrapalhar a legibilidade."
+      ]
+    },
+    {
+      "prompt": "smoke-fe-11-surreal-fotografico",
+      "model": "gemini-3.1-flash-image",
+      "score": 7.6,
+      "usd": 0.067292,
+      "seconds": 73.029,
+      "defeitos": [
+        "A transição da mesa para a terra não é gradual e orgânica como pedido, mas sim uma quebra abrupta e lascada.",
+        "A bola de futebol tem um padrão de gomos estranho e assimétrico, típico de erro de IA.",
+        "As chuteiras parecem fundidas com o chão em algumas partes e os cadarços estão confusos.",
+        "Há uma linha horizontal muito marcada e artificial no terço superior, dividindo o fundo escuro do resto da sala de forma não natural."
+      ]
+    },
+    {
+      "prompt": "smoke-fe-11-surreal-fotografico",
+      "model": "gemini-3-pro-image",
+      "score": 8.2,
+      "usd": 0.134768,
+      "seconds": 73.288,
+      "defeitos": [
+        "A transição da mesa para a terra tem algumas rachaduras que parecem um pouco artificiais ou flutuantes em certas áreas",
+        "A iluminação no fundo do escritório (teto) parece um pouco inconsistente com a transição para o céu noturno"
+      ]
+    },
+    {
+      "prompt": "smoke-fe-11-surreal-fotografico",
+      "model": "gemini-nano-banana-2.1",
+      "score": 8.2,
+      "usd": 0.134768,
+      "seconds": 73.039,
+      "defeitos": [
+        "A transição entre a mesa e a terra parece um pouco abrupta e com raízes/galhos estranhos saindo da madeira",
+        "A bola de futebol tem um padrão de gomos ligeiramente irregular",
+        "A chuteira parece um pouco fundida com a terra em algumas partes"
+      ]
+    },
+    {
+      "prompt": "smoke-ekoai-12-surreal-fotografico",
+      "model": "gemini-3.1-flash-lite-image",
+      "score": 9,
+      "usd": 0.134762,
+      "seconds": 48.119,
+      "defeitos": [
+        "A sombra projetada pelo banco e pela pessoa parece um pouco difusa e não perfeitamente alinhada com a fonte de luz intensa da tela",
+        "Pequenos artefatos de poeira/ruído na parte escura podem parecer sujeira em vez de grão de filme"
+      ]
+    },
+    {
+      "prompt": "smoke-ekoai-12-surreal-fotografico",
+      "model": "gemini-3.1-flash-image",
+      "score": 8.8,
+      "usd": 0.0672905,
+      "seconds": 49.017,
+      "defeitos": [
+        "O cursor preto no centro da tela parece um pouco espesso demais e flutuante, não exatamente como um cursor de texto padrão",
+        "Há uma pequena linha vertical extra no canto superior esquerdo da caixa branca na tela"
+      ]
+    },
+    {
+      "prompt": "smoke-ekoai-12-surreal-fotografico",
+      "model": "gemini-3-pro-image",
+      "score": 9,
+      "usd": 0.134762,
+      "seconds": 47.275,
+      "defeitos": [
+        "A sombra projetada pela pessoa e pelo banco não está perfeitamente alinhada com a fonte de luz (a tela do celular), parecendo vir de um ângulo ligeiramente diferente."
+      ]
+    },
+    {
+      "prompt": "smoke-ekoai-12-surreal-fotografico",
+      "model": "gemini-nano-banana-2.1",
+      "score": 9,
+      "usd": 0.134762,
+      "seconds": 46.062,
+      "defeitos": [
+        "O botão home do celular gigante parece um pouco irregular e mal definido",
+        "A sombra projetada pela pessoa e pelo banco parece um pouco dura demais considerando a fonte de luz difusa da tela"
+      ]
+    }
+  ]
+}
