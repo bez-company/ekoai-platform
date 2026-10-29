@@ -50,6 +50,7 @@ assinatura com créditos e recarga antes do uso, para a BEZ não gerar sem ter r
 | Regra | Valor |
 | --- | --- |
 | Unidade | crédito. Cada item gerado debita conforme a tabela por tipo e nível de qualidade (abaixo) |
+| O que debita | **tudo que custa token ou dinheiro à BEZ**: gerar, regenerar, ajuste, aplicar sugestão, avaliar de novo, tentar de novo a rede, regenerar o PDF e a publicação no X. O peso de cada um vem do custo medido; o que não tem custo mensurável pesa zero |
 | Regeneração | debita como uma geração nova |
 | Preço do crédito | dois: o do plano e o do pacote de recarga. O do pacote é de **10% a 25% mais caro** (percentual exato em aberto). Não existe crédito avulso fora de um plano |
 | Validade do plano | **vence no fim do ciclo e não acumula** |
@@ -71,6 +72,8 @@ dele. Estrutura:
 | Carrossel | base mais um valor por lâmina |
 | LinkedIn e X | como o Instagram, mais a publicação (o X cobra por post publicado) |
 | Regeneração | o mesmo valor do item |
+| Ajuste, aplicar sugestão, avaliar de novo | a medir (cada um chama o modelo) |
+| Tentar de novo a rede, regenerar o PDF | a medir; zero se o custo for desprezível. Tentar de novo depois de falha técnica não cobra duas vezes: a falha foi estornada |
 
 Os pesos saem do custo real por tipo e nível, lido no Console › Financeiro (SPEC 031, entrega 3). A página pública mostra só exemplos
 ("250 créditos rendem cerca de N posts com imagem ou M só de texto"), não a tabela inteira.
@@ -127,20 +130,16 @@ flowchart TD
 | Bloqueado | somente leitura | ver, exportar, trocar o cartão; nenhum dado é apagado |
 | Pagou | total | volta na hora |
 
-## Onde o crédito aparece (decisão pendente)
+## Onde o crédito aparece
 
-A decisão de 28/10/2026 diz que nenhuma tela do fluxo de post ou de conexão mostra custo, e a SPEC 032 diz que a tela do cliente não mostra
-preço. Crédito pede ao menos o saldo à vista. Opções para o Matheus escolher:
-
-1. **Só o saldo**, no cabeçalho e em Fatura e uso. O fluxo de post não mostra custo por item.
-2. **Saldo mais o custo em créditos de cada nível** antes de gerar ("Autoral: 6 créditos"). Mostra créditos, não reais, mas é custo.
-
-Até escolher, vale o que está decidido (opção 1).
+**Decidido pelo Matheus em 29/10/2026: só o saldo, em Configurações › Fatura e uso.** O fluxo de post e a conexão não mostram custo nem
+saldo, o que mantém a decisão de 28/10/2026 e a da SPEC 032 (o cliente não vê preço). O custo em créditos de cada nível antes de gerar
+ficou de fora.
 
 ## Perguntas abertas
 
-1. **O que debita:** gerar e regenerar debitam. A SPEC 031 lista ajuste, aplicar sugestão, avaliar de novo, tentar de novo a rede e
-   regenerar o PDF como "não são posts novos e não geram cobrança". Confirmar que isso continua valendo, ou que algum debita um valor menor.
+1. **Aviso de saldo sem mostrar o saldo no fluxo de post:** como a pessoa sabe que o saldo está acabando, se só Fatura e uso mostra? Os
+   avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
 2. **Valores:** mensalidade e franquia por plano, preço do crédito no plano, percentual do pacote (de 10% a 25%), tamanho dos pacotes e
    teto padrão de recarga. Dependem do custo real (BEZ-260).
 3. **Tabela de créditos:** pesos por tipo e nível, a partir do Console › Financeiro.
@@ -150,7 +149,9 @@ Até escolher, vale o que está decidido (opção 1).
 7. **Marca da agência:** perfil dentro da conta ou conta por cliente (BEZ-265).
 8. **Gateway, Pix e nota fiscal:** Asaas está citado em `docs/arquitetura`; falta decidir e conferir cartão recorrente, Pix Automático para a
    mensalidade, Pix pontual para pacote e nota de serviço para CNPJ.
-9. **Pacote sem reembolso:** conferir com a advogada o direito de arrependimento em conta de pessoa física.
+9. **Pacote sem reembolso (regra do produto decidida):** quem compra pacote usa os créditos dentro da plataforma, sem devolução. Só falta
+   conferir com a advogada se a lei de defesa do consumidor (direito de arrependimento em compra online, 7 dias) obriga a devolver em
+   conta de pessoa física, e como escrever o termo. Para empresa (CNPJ) a regra não se aplica do mesmo jeito.
 10. **Crédito bônus** (convidar, indicação, cortesia): fora do escopo; o desconto por conta da SPEC 032 cobre cortesia por enquanto.
 
 ## Verificação
@@ -158,4 +159,4 @@ Até escolher, vale o que está decidido (opção 1).
 - LP: `npm run check` e build no ekoai-website, e a página aberta no navegador em desktop e celular.
 - Plataforma (quando houver código): teste que o único cartão não sai, que a geração nunca começa sem saldo ou recarga aprovada, que o
   saldo do plano é consumido antes do de pacote, que o saldo do plano zera no fim do ciclo e o de pacote não, que falha técnica estorna, que o
-  primeiro post é grátis uma vez só por conta, que o teto de recarga bloqueia, e que o somente leitura nunca apaga dado.
+  ajuste, avaliar de novo e regenerar debitam o peso da tabela, o primeiro post é grátis uma vez só por conta, que o teto de recarga bloqueia, e que o somente leitura nunca apaga dado.

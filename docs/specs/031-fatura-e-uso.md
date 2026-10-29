@@ -49,8 +49,10 @@ Regras já decididas e aplicadas aqui:
 
 - **Uma ideia é um post** no plano, em qualquer número de redes (SPEC 028). A fatura lista a ideia como **uma linha**, com as redes
   como chips; a cobrança dela é uma só.
-- **Ajuste, Aplicar sugestão, Avaliar de novo, Tentar de novo a rede e regenerar o PDF não são posts novos** e não geram linha de
-  cobrança. Aparecem no uso como "ajustes", sem valor.
+- **Ajuste, Aplicar sugestão, Avaliar de novo, Tentar de novo a rede e regenerar o PDF não são posts novos** e não contam na quantidade de
+  posts. Aparecem no uso como "ajustes". Revisão de 29/10/2026 ([SPEC 021](021-planos-e-cobranca-por-consumo.md), ADR 0029): cada um
+  **debita crédito** pelo peso da tabela (zero se o custo for desprezível), porque gasta token ou dinheiro. Na entrega 1 (sem preço) nada
+  muda na tela; a linha de débito nasce com a fatura (entrega 4).
 - **A publicação no X é consumo próprio** (`step = publish`, `channel = twitter`, uma vez por post, mesmo se repetir). Entra na fatura
   como uma linha separada, "Publicações no X", com quantidade e valor. Não aparece no post nem na conexão.
 - **A base do plano** (usuários adicionais e marcas, SPEC 021) é uma linha própria, antes dos posts.
