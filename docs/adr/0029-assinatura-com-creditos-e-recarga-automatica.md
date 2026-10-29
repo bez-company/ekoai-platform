@@ -25,7 +25,8 @@ fazem parte da decisão.
 ## Decisão
 
 1. **Assinatura mensal com créditos incluídos.** O crédito é a unidade de consumo. Cada item gerado debita créditos conforme uma tabela por
-   tipo de item e nível de qualidade. Regenerar debita como gerar, porque a BEZ paga o modelo de novo.
+   tipo de item e nível de qualidade. **Tudo que custa token ou dinheiro à BEZ debita**: gerar, regenerar, ajuste,
+   avaliar de novo, tentar de novo a rede e a publicação no X. O peso vem do custo medido e o que não tem custo mensurável pesa zero.
 2. **Dois preços do crédito, sem crédito avulso fora do plano:** o do plano (mais barato) e o do pacote de recarga, de **10% a 25% mais caro**
    que o do plano. Só quem tem plano compra pacote.
 3. **Validade.** O saldo do plano **vence no fim do ciclo e não acumula**. O saldo de pacote **não vence e não tem reembolso**: é usado até
@@ -62,16 +63,18 @@ flowchart TD
   com dado de produção: se a taxa de reprovação for alta, a regra pesa na confiança do usuário.
 - **A tabela de créditos precisa do custo real.** Os pesos saem do custo medido por tipo e nível (Console › Financeiro, BEZ-260 e a análise
   de 28/10). Sem esse número, não há tabela nem preço do crédito.
-- **Conflito a resolver com a decisão de 28/10/2026** ("nenhuma tela do fluxo de post mostra custo"): crédito pede saldo visível. Esta ADR
-  **não muda** aquela decisão; a SPEC 021 lista as opções (ver só o saldo, ou o custo em créditos por nível) para o Matheus escolher.
+- **Decisão de 28/10/2026 mantida** ("nenhuma tela do fluxo de post mostra custo"): o Matheus decidiu em 29/10/2026 que o saldo aparece só
+  em Configurações › Fatura e uso. Fluxo de post e conexão não mostram custo nem saldo; os avisos de saldo vão por e-mail e dentro do app.
+- **SPEC 031 ajustada:** ajuste, aplicar sugestão, avaliar de novo e tentar de novo a rede passam a debitar crédito (antes "não geravam
+  cobrança"), porque cada um chama o modelo.
 - **SPEC 032:** o desconto por conta passa a valer sobre o preço do crédito (ou créditos bônus), sem aparecer ao cliente.
 - **SPEC 031, entrega 4:** vira saldo, pacotes, recarga e fatura da mensalidade, em vez de gasto do mês em reais.
-- **Risco jurídico:** "pacote sem reembolso" pode esbarrar no direito de arrependimento do consumidor em compra online, nas contas de pessoa
-  física. Validar com a advogada antes de publicar os termos.
+- **Risco jurídico:** a regra do produto é pacote sem reembolso, usado dentro da plataforma. A lei de defesa do consumidor dá direito de
+  arrependimento de 7 dias em compra online, o que pode valer para conta de pessoa física (empresa é outro caso). Validar com a advogada
+  como escrever o termo antes de publicar.
 - **A LP (ekoai-website #9) fica desatualizada:** ela mostra Individual a R$ 0 e preço por post. Ajustar quando os valores fecharem.
 
 ## Em aberto
 
 Valores das mensalidades, dos créditos incluídos e do preço do crédito; pesos da tabela; percentual exato do pacote dentro da faixa de 10%
-a 25%; tamanho dos pacotes e do teto padrão de recarga; o que a SPEC 031 chama de "não é post novo" (ajuste, avaliar de novo) debita ou
-não; crédito bônus para quem convida; gateway e Pix. Todos listados na SPEC 021.
+a 25%; tamanho dos pacotes e do teto padrão de recarga; crédito bônus para quem convida; gateway e Pix. Todos listados na SPEC 021.
