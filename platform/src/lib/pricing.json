@@ -1,0 +1,9 @@
+{
+  "_doc": "A cotação do dólar que o Console › Financeiro usa para mostrar o custo em reais (SPEC 031). O custo da BEZ nasce em dólar (a Vertex e a API do X cobram assim); a fatura do cliente é em reais e não passa por aqui. É um número fixo e datado, atualizado à mão uma vez por mês: confira em https://www.bcb.gov.br/conversao e troque `usd_brl` e `reviewed_at`. tests/pricing.test.js reprova quando a data passa de `max_age_days` sem revisão. Valor inicial a confirmar pelo Matheus.",
+  "max_age_days": 40,
+  "fx": {
+    "usd_brl": 5.5,
+    "reviewed_at": "2026-10-29",
+    "source": "Banco Central do Brasil (cotação de venda do dólar)"
+  }
+}

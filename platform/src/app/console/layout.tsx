@@ -30,6 +30,9 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         <Link href="/console" className="rounded-md px-3 py-1.5 text-sm font-semibold hover:bg-inset">
           Contas
         </Link>
+        <Link href="/console/financeiro" className="rounded-md px-3 py-1.5 text-sm font-semibold hover:bg-inset">
+          Financeiro
+        </Link>
         <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-inset text-xs font-bold">
           {initials}
         </span>
