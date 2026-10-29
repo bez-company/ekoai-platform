@@ -1,7 +1,7 @@
 # SPEC 021: planos individual, time e agência, com assinatura de créditos e recarga automática
 
-- **Status:** regras revisadas em 29/10/2026 pela [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md) (direção aprovada
-  pelo Matheus); valores, tabela de créditos, gateway e modelo de agência em aberto
+- **Status:** regras revisadas em 29/10/2026 pela [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md); planos e preços
+  aprovados pelo Matheus em 29/10/2026 (R$ 149, 299, 599 e 1.499); preço do pacote, marca extra, gateway e impostos em aberto
 - **Data:** 2026-10-23, revisada em 2026-10-29
 - **Cards:** BEZ-135 (cobrança, pai), BEZ-489 (modelo de cobrança), BEZ-301 (cobrança real, adiada), BEZ-265 (modelo de agência)
 - **Depende de:** [ADR 0029](../adr/0029-assinatura-com-creditos-e-recarga-automatica.md) (que substitui parte da
@@ -30,20 +30,42 @@ assinatura com créditos e recarga antes do uso, para a BEZ não gerar sem ter r
 
 ### Planos
 
-| Plano | Para quem | Base fixa por mês | Créditos do mês |
-| --- | --- | --- | --- |
-| Individual | uma pessoa, um perfil | mensalidade do plano (valor aberto) | franquia do plano (valor aberto) |
-| Time | quem cria e quem aprova | mensalidade, primeiro usuário grátis, R$ 10 por usuário adicional | franquia (valor aberto) |
-| Agência | várias marcas | mensalidade, primeiro usuário grátis, R$ 10 por usuário adicional, R$ 100 por marca | franquia (valor aberto) |
+Decisão do Matheus em 29/10/2026: quatro planos. O Individual se divide pelo número de redes; o Time e a Agência incluem **só o dono**, e cada
+pessoa a mais custa R$ 10 por mês.
 
-- Os R$ 10 por usuário e os R$ 100 por marca vêm da SPEC de 23/10 e seguem até decisão em contrário. A mensalidade e a franquia de cada
-  plano dependem do custo medido (BEZ-260) e ficam em aberto.
-- Os créditos são **da conta**, divididos entre todas as pessoas e marcas.
+| Plano | Para quem | Redes | Pessoas incluídas | Marcas | Créditos por mês | Preço por mês |
+| --- | --- | --- | --- | --- | --- | --- |
+| Individual, 1 rede | uma pessoa, uma rede (ex.: Instagram) | 1 | 1 (o dono); não aceita mais | 1 | 300 | **R$ 149** |
+| Individual, 3 redes | uma pessoa, até três redes | até 3 | 1 (o dono); não aceita mais | 1 | 600 | **R$ 299** |
+| Time | uma marca com equipe | até 3 | 1 (o dono) + R$ 10 por pessoa a mais | 1 | 1.200 | **R$ 599** |
+| Agência | várias marcas | até 3 por marca | 1 (o dono) + R$ 10 por pessoa a mais | 5 incluídas; marca extra em aberto | 3.500 | **R$ 1.499** |
+
+- **Pessoa a mais: R$ 10 por mês, em qualquer papel**, no Time e na Agência. Não custa nada à BEZ (os créditos já estão no plano e são da conta);
+  é receita extra e trava contra dividir uma conta entre várias pessoas. Um Time de 5 pessoas custa R$ 599 + 4 × R$ 10 = **R$ 639**.
+- **Redes:** o plano limita quantas redes a conta conecta. Quem tenta conectar além do limite vê o aviso e o caminho para o plano seguinte.
+  O Individual de 3 redes só é vendido quando LinkedIn e X estiverem no menu (hoje só o Instagram está).
+- **Créditos são da conta**, divididos entre todas as pessoas e marcas. Gastou o saldo, a geração de **todos** para até o administrador
+  recarregar (ver "Recarga automática"): quanto mais a equipe gera, mais rápido o saldo acaba e mais pacotes se vendem.
 - Entrar no meio do mês paga o mês cheio. Sair vale a partir do mês seguinte.
-- O upgrade acontece ao convidar: antes de enviar o convite, aviso "Convidar mais uma pessoa muda seu plano para Time. O primeiro usuário
-  continua grátis e cada usuário adicional custa R$ 10 por mês", com os botões "Mudar para Time e convidar" e "Cancelar". Cobra quando o
-  convidado aceita. Voltando a 1 usuário, o plano volta a Individual.
+- **Upgrade ao convidar:** no Individual, convidar uma segunda pessoa leva ao Time. Antes de enviar o convite, aviso "Convidar mais uma pessoa
+  muda seu plano para Time (R$ 599 por mês, 1.200 créditos). Cada pessoa a mais custa R$ 10 por mês", com os botões "Mudar para Time e
+  convidar" e "Cancelar". Cobra quando o convidado aceita. Voltando a 1 pessoa, o plano volta ao Individual de antes.
+- O salto do Individual (R$ 149 ou R$ 299) para o Time (R$ 599) é grande para quem só quer convidar uma pessoa. Decisão: manter, porque o
+  Time vende outra coisa (equipe, revisão, o dobro de créditos). Medir quantos convites ficam parados por causa do preço.
 - Agência não pode voltar a Time ou Individual enquanto tiver mais de uma marca.
+
+**Economia por plano** (cada crédito custa R$ 0,0593 à BEZ; gateway e imposto em 15% do preço, **suposição**; margem sobre o preço):
+
+| Plano | Preço | Preço efetivo do crédito | Custo de IA se usar 100% | Lucro se usar 100% | Lucro se usar 70% | Lucro se usar 40% |
+| --- | --- | --- | --- | --- | --- | --- |
+| Individual, 1 rede | R$ 149 | R$ 0,50 | R$ 17,79 | R$ 109 (73%) | R$ 114 (77%) | R$ 120 (80%) |
+| Individual, 3 redes | R$ 299 | R$ 0,50 | R$ 35,59 | R$ 219 (73%) | R$ 229 (77%) | R$ 240 (80%) |
+| Time | R$ 599 | R$ 0,50 | R$ 71,17 | R$ 438 (73%) | R$ 459 (77%) | R$ 481 (80%) |
+| Agência | R$ 1.499 | R$ 0,43 | R$ 207,58 | R$ 1.067 (71%) | R$ 1.129 (75%) | R$ 1.191 (79%) |
+
+A margem sobe quando o cliente usa menos, porque a mensalidade é fixa e o saldo do plano vence no fim do ciclo. Num mês de 100 clientes (50
+no Individual de 1 rede, 25 no de 3 redes, 20 no Time e 5 na Agência, **mistura hipotética**), a receita é R$ 34.400 e o lucro fica entre
+R$ 25.000 (uso de 100%) e R$ 27.500 (uso de 40%). Se o custo de IA for o dobro do estimado, o lucro com uso de 100% fica em cerca de 60%.
 
 ### Créditos
 
@@ -93,39 +115,39 @@ exemplos ("250 créditos rendem cerca de N posts com imagem ou M só de texto"),
 
 ### Preço do crédito (proposta, aguardando aprovação do Matheus)
 
-Custo de um crédito: US$ 0,01, ou **R$ 0,0593** (câmbio de `pricing.json`). Proposta: margem de 75% sobre o preço, ou seja, o preço é cerca de
-4 vezes o custo (no console, `markup_percent` perto de 300 e `target_margin_percent` 75, da SPEC 031 e do BEZ-471). Como todo item é múltiplo
-do mesmo custo, todo item rende quase a mesma margem (o arredondamento dos pesos muda um pouco).
+Custo de um crédito: US$ 0,01, ou **R$ 0,0593** (câmbio de `pricing.json`). Como o preço de cada plano é fechado (tabela acima), o preço do
+crédito dentro do plano é o preço dividido pelos créditos: **R$ 0,50** no Individual e no Time, **R$ 0,43** na Agência. O de pacote segue a
+regra de 10% a 25% acima do plano:
 
 | Onde | Preço do crédito | Como sai |
 | --- | --- | --- |
-| No plano | **R$ 0,24** | 4,05 vezes o custo, margem de 75% |
-| No pacote de recarga | **R$ 0,29** | 20% acima do plano (R$ 0,288 arredondado), margem de cerca de 80% |
+| No plano (Individual e Time) | R$ 0,50 | 8,4 vezes o custo, margem de 88% |
+| No pacote de recarga | **R$ 0,60** | 20% acima do plano de R$ 0,50, margem de 90% |
 
-Quanto custa cada item ao cliente, ao preço do plano (R$ 0,24 por crédito):
+Pacotes de exemplo (tamanho a definir): 100 créditos por R$ 60, 250 por R$ 150, 500 por R$ 300. Um pacote de 100 créditos cobre um post
+Autoral com imagem Pro (74).
+
+Quanto custa cada item ao cliente, ao preço efetivo do plano (R$ 0,50 por crédito):
 
 | Item | Créditos | Preço | Custo da BEZ |
 | --- | --- | --- | --- |
-| Rápido, sem imagem de IA | 1 | R$ 0,24 | R$ 0,06 |
-| Rápido, com imagem de IA | 6 | R$ 1,44 | R$ 0,36 |
-| Refinado, sem imagem | 29 | R$ 6,96 | R$ 1,72 |
-| Refinado, com imagem Flash | 36 | R$ 8,64 | R$ 2,14 |
-| Autoral, sem imagem | 60 | R$ 14,40 | R$ 3,56 |
-| Autoral, com imagem Pro | 74 | R$ 17,76 | R$ 4,39 |
-| Publicação no X, sem link ou com link | 2 ou 20 | R$ 0,48 ou R$ 4,80 | R$ 0,09 ou R$ 1,19 |
-| Avaliar de novo | 4 | R$ 0,96 | R$ 0,21 |
+| Rápido, sem imagem de IA | 1 | R$ 0,50 | R$ 0,06 |
+| Rápido, com imagem de IA | 6 | R$ 3,00 | R$ 0,36 |
+| Refinado, sem imagem | 29 | R$ 14,50 | R$ 1,72 |
+| Refinado, com imagem Flash | 36 | R$ 18,00 | R$ 2,14 |
+| Autoral, sem imagem | 60 | R$ 30,00 | R$ 3,56 |
+| Autoral, com imagem Pro | 74 | R$ 37,00 | R$ 4,39 |
+| Publicação no X, sem link ou com link | 2 ou 20 | R$ 1,00 ou R$ 10,00 | R$ 0,09 ou R$ 1,19 |
+| Avaliar de novo | 4 | R$ 2,00 | R$ 0,21 |
 
-Pacotes de exemplo (tamanho a definir): 100 créditos por R$ 29, 250 por R$ 72, 500 por R$ 144. Um pacote de 100 créditos cobre um post
-Autoral com imagem Pro (74).
-
-- **Descontando gateway e imposto:** a margem de 75% é antes da taxa do gateway e dos impostos sobre a venda. Com uma reserva de 15% da
-  receita para os dois (**suposição**, falta a taxa do Asaas e o regime tributário), a margem líquida fica perto de 60%.
-- **Comparação:** o Autoral a R$ 14 a R$ 18 fica na faixa de R$ 8 a R$ 15 da análise de 28/10 e muito abaixo de R$ 40 a R$ 290 por post em
-  agência ou freelancer.
+- **Gateway e imposto:** as margens acima são antes da taxa do gateway e dos impostos sobre a venda. Com a reserva de 15% da receita para os
+  dois (**suposição**, falta a taxa do Asaas e o regime tributário), a margem líquida do plano fica perto de 73% com uso total.
+- **Comparação:** ao preço do plano, o Autoral com imagem Pro custa R$ 37 e o Refinado com imagem R$ 18, abaixo de R$ 40 a R$ 290 por post em
+  agência ou freelancer (análise de 28/10, não verificada de forma independente). O preço é uma aposta de mercado: o Individual de R$ 149
+  fica bem acima de ferramentas de agendamento (na análise de 16/10, o mLabs ancora em cerca de R$ 30 por marca), e o que justifica a
+  diferença é o post gerado e desenhado por IA.
 - **Primeiro post grátis (proposta):** vale em qualquer nível até o Refinado, uma vez por conta. Custa à BEZ até cerca de R$ 2,14 e é o nível
   que mostra a qualidade do produto.
-- **Mensalidade do plano:** créditos incluídos vezes R$ 0,24, sem desconto por volume. Exemplo: 250 créditos = R$ 60. Os valores de cada
-  plano continuam em aberto.
 - **Não foi configurado nada:** a política de preço do console (`platform_pricing`) segue como está até o Matheus aprovar.
 
 ### Recarga automática
@@ -137,6 +159,7 @@ Autoral com imagem Pro (74).
 | Cobrança do pacote recusada | não gera; aviso e link para trocar o cartão |
 | Recarga desligada ou teto mensal atingido | não gera; aviso e link para ligar a recarga ou comprar pacote |
 | Quem liga, desliga e define | só `admin` da conta: liga e desliga, escolhe o pacote e o **teto mensal de recarga** |
+| Pessoa sem papel de administrador, saldo zerado | não gera; aviso "O saldo de créditos da conta acabou. Peça ao administrador para ligar a recarga ou comprar um pacote." |
 
 Nada fica por cobrar depois: não existe consumo pós-pago. O teto de recarga é o limite de gasto da conta, e ele **bloqueia** (a ADR 0023
 chamava o alerta de gasto de "não bloqueante").
@@ -190,8 +213,9 @@ ficou de fora.
 
 1. **Aviso de saldo sem mostrar o saldo no fluxo de post:** como a pessoa sabe que o saldo está acabando, se só Fatura e uso mostra? Os
    avisos por e-mail e dentro do app (acima) cobrem; confirmar o texto e onde o aviso aparece sem virar "custo no fluxo".
-2. **Valores (proposta de preço do crédito acima, falta aprovar):** mensalidade e franquia por plano, preço do crédito no plano, percentual do pacote (de 10% a 25%), tamanho dos pacotes e
-   teto padrão de recarga. Dependem do custo real (BEZ-260).
+2. **Preço do pacote e teto de recarga:** proposta de R$ 0,60 por crédito (20% acima do R$ 0,50 do plano), pacotes de 100, 250 e 500
+   créditos e um teto padrão de recarga por mês. Os preços dos planos já estão decididos; falta aprovar estes três. Dependem do custo real
+   (BEZ-260).
 3. **Tabela de créditos:** os pesos de partida estão na tabela acima; confirmar os de Refinado e Autoral com a medida em produção, e medir carrossel, ajuste,
    avaliar de novo, X, Cloud Run Job e PDF (BEZ-490).
 4. **Carência da mensalidade:** quantas tentativas e quantos dias antes de bloquear (proposta: 3 tentativas em até 7 dias).
@@ -204,6 +228,14 @@ ficou de fora.
    conferir com a advogada se a lei de defesa do consumidor (direito de arrependimento em compra online, 7 dias) obriga a devolver em
    conta de pessoa física, e como escrever o termo. Para empresa (CNPJ) a regra não se aplica do mesmo jeito.
 10. **Crédito bônus** (convidar, indicação, cortesia): fora do escopo; o desconto por conta da SPEC 032 cobre cortesia por enquanto.
+
+11. **Marca extra da Agência:** quanto cobrar por marca além das 5 incluídas (cada marca incluída sai a cerca de R$ 300). O Matheus vai
+    decidir; a SPEC de 23/10 dizia R$ 100, que ficou abaixo do valor de uma marca incluída.
+12. **Quem só vê e aprova paga R$ 10?** Pela decisão de 29/10 toda pessoa a mais paga, em qualquer papel. Quem só aprova não gera post e não
+    gasta crédito; cobrar dessa pessoa pode frear a aprovação, que é o que prende a equipe ao produto. Confirmar com o ADR 0007.
+13. **Pessoa extra na Agência:** a regra de R$ 10 por pessoa foi estendida da decisão sobre o Time; confirmar que vale igual na Agência.
+14. **Limite de redes por plano:** exige mudar o modelo de planos (`plans`, `PLAN_BY_KIND`) e travar a conexão de rede além do limite
+    (card de implementação, BEZ-491).
 
 ## Verificação
 

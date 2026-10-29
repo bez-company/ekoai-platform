@@ -1,7 +1,7 @@
 # ADR 0023: cobrança por consumo, sem mensalidade no plano individual, com cartão obrigatório
 
 - **Status:** aceito (decisão do Matheus, 23/10/2026); as decisões 1, 4 e 5 foram substituídas pela
-  [ADR 0029](0029-assinatura-com-creditos-e-recarga-automatica.md) (29/10/2026). Valem ainda a 2, a 3 e a 6.
+  [ADR 0029](0029-assinatura-com-creditos-e-recarga-automatica.md) (29/10/2026). Valem ainda a 3 e a 6; a 2 foi ajustada pelos planos da SPEC 021.
 - **Data:** 2026-10-23
 - **Specs que dependem:** [SPEC 021](../specs/021-planos-e-cobranca-por-consumo.md),
   [SPEC 015](../specs/015-site-da-ekoai-em-ekoai-com-br.md) (a LP mostra os planos)

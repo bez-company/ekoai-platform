@@ -4,7 +4,7 @@
 - **Data:** 2026-10-29
 - **Cards:** BEZ-489 (decisão), BEZ-301 (cobrança real), BEZ-135 (cobrança, pai)
 - **Substitui em parte:** [ADR 0023](0023-cobranca-por-consumo-com-cartao-obrigatorio.md) (decisões 1, 4 e 5). Mantém as
-  decisões 2 (taxa por pessoa e por marca), 3 (cartão obrigatório) e 6 (cartão pertence à conta).
+  decisões 3 (cartão obrigatório) e 6 (cartão pertence à conta). A 2 (taxa por pessoa e por marca) virou os quatro planos da SPEC 021.
 - **Specs que dependem:** [SPEC 021](../specs/021-planos-e-cobranca-por-consumo.md) (regras), [SPEC 031](../specs/031-fatura-e-uso.md)
   (a tela), [SPEC 032](../specs/032-preco-por-conta.md) (desconto por conta)
 
@@ -38,7 +38,7 @@ fazem parte da decisão.
    crédito.
 6. **Primeiro post grátis por conta**, com cartão válido já cadastrado (exceção ao "sem franquia grátis" da ADR 0023), para a pessoa testar a
    qualidade.
-7. **Cartão obrigatório, taxa por usuário e por marca e papéis seguem como na ADR 0023.** Pix para o pacote avulso depende do gateway
+7. **Cartão obrigatório e papéis seguem como na ADR 0023.** O preço de cada plano e a taxa de R$ 10 por pessoa a mais estão na SPEC 021. Pix para o pacote avulso depende do gateway
    (SPEC 021, pergunta aberta).
 8. **Mensalidade recusada:** novas tentativas na carência e, depois dela, a conta fica somente leitura (ver, exportar, trocar o cartão),
    como na ADR 0023. Nunca se apaga dado por falta de pagamento.
