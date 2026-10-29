@@ -146,7 +146,11 @@ describe('Rápido pelo modelo pronto', () => {
     const t = tenantDb(A);
     const id = await brief(A, 'layout estourado');
     const bad = { ...deps(fakeModel([FILL, FILL])), renderer: renderer([{ rule: 'safe_margin', detail: 'título' }]) };
-    expect(await generateStudioPost(t, id, bad)).toMatchObject({ status: 'fallback' });
+    const out = await generateStudioPost(t, id, bad);
+    expect(out).toMatchObject({ status: 'fallback' });
+    // O motivo diz qual defeito foi medido e a peça recusada fica guardada para investigar.
+    expect(out.reason).toContain('safe_margin');
+    expect([...objects.keys()].some((k) => k === `studio-rejected/${id}/final.png`)).toBe(true);
   });
 });
 
