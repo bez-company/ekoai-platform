@@ -38,6 +38,14 @@ describe('cliente do Vertex', () => {
     expect(calls[0].url).toContain('gemini-3.1-flash-image:generateContent');
   });
 
+  it('imagem: o modelo da chamada (qualidade Alta, SPEC 030) vale sobre o da configuração e muda o preço', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: { candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from('png-bytes').toString('base64') } }] } }], usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 1120 } } }]);
+    const client = vertexClient({ config: cfg, fetchImpl: impl, token: async () => 'tok' });
+    const out = await client.generateImage({ prompt: 'a cake', aspect: '4:5', labels: {}, model: 'gemini-3-pro-image' });
+    expect(calls[0].url).toContain('gemini-3-pro-image:generateContent');
+    expect(out.costUsd).toBeCloseTo((100 * 2 + 1120 * 120) / 1e6, 6);
+  });
+
   it('429 e 503 tentam de novo com espera crescente; depois a falha diz o modelo e o motivo', async () => {
     const waits = [];
     const sleep = async (ms) => void waits.push(ms);

@@ -17,7 +17,8 @@ export interface ModelClient {
   // `image`: foto que o modelo de texto olha junto do pedido (visão), como no banco de imagens.
   generateJson(input: { prompt: string; labels: Labels; maxOutputTokens?: number; temperature?: number; image?: { bytes: Uint8Array; mimeType: string } }): Promise<TextResult>;
   // `reference`: foto da empresa que o modelo usa como inspiração (BEZ-237, uso "inspiração").
-  generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels; reference?: { bytes: Uint8Array; mimeType: string } }): Promise<ImageResult>;
+  // `model`: outro modelo de imagem só para esta chamada (a qualidade "Alta" do Criar post, SPEC 030); sem ele vale o da configuração.
+  generateImage(input: { prompt: string; aspect: '1:1' | '4:5'; labels: Labels; reference?: { bytes: Uint8Array; mimeType: string }; model?: string }): Promise<ImageResult>;
 }
 
 // Preço de lista (catálogo do Cloud Billing, endpoint global, lido em 21/10/2026), em US$ por
@@ -143,11 +144,12 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
       }
       return { json, raw, inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: textCost(inputTokens, outputTokens) };
     },
-    async generateImage({ prompt, aspect, labels, reference }) {
+    async generateImage({ prompt, aspect, labels, reference, model }) {
       const started = Date.now();
+      const imageModel = model ?? config.imageModel;
       const parts: Record<string, unknown>[] = [{ text: prompt }];
       if (reference) parts.push({ inlineData: { mimeType: reference.mimeType, data: Buffer.from(reference.bytes).toString('base64') } });
-      const data = await call(config.imageModel, {
+      const data = await call(imageModel, {
         contents: [{ role: 'user', parts }],
         generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: aspect } },
         labels: cleanLabels(labels),
@@ -156,7 +158,7 @@ export function vertexClient(options: { config?: VertexConfig; fetchImpl?: Fetch
       if (!part) throw new Error(`O modelo de imagem não devolveu imagem (${data.candidates?.[0]?.finishReason ?? 'sem candidato'}).`);
       const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? 0);
       const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
-      return { png: Buffer.from(part.inlineData.data, 'base64'), inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: imageCost(inputTokens, outputTokens, config.imageModel) };
+      return { png: Buffer.from(part.inlineData.data, 'base64'), inputTokens, outputTokens, modelVersion: data.modelVersion ?? null, durationMs: Date.now() - started, costUsd: imageCost(inputTokens, outputTokens, imageModel) };
     },
   };
 }
