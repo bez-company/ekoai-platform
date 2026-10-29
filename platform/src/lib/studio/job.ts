@@ -6,6 +6,7 @@
 
 import type { TenantDb } from '../tenant-db';
 import { log } from '../log';
+import { wakeWorker } from '../worker-wake';
 import { generateStudioPost, type StudioGenerationDeps, type StudioOutcome } from './generate';
 
 export type JobInput = { tenantId: string; briefId: string };
@@ -24,7 +25,10 @@ export async function requeueAsQuick(t: TenantDb, briefId: string, reason: strin
   if (error) throw new Error(`briefs: ${error.message}`);
 }
 
-export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGenerationDeps): Promise<StudioOutcome> {
+// `wake`: acorda o worker depois de devolver o pedido à fila. No staging sob demanda o Scheduler da geração fica pausado e só o pedido
+// acorda o worker; sem isto o pedido devolvido ficaria parado na fila.
+export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGenerationDeps, options: { wake?: () => void } = {}): Promise<StudioOutcome> {
+  const wake = options.wake ?? wakeWorker;
   const beat = () => void t.update('briefs', { updated_at: new Date().toISOString() }).eq('id', input.briefId).then(() => undefined, () => undefined);
   let outcome: StudioOutcome;
   try {
@@ -32,9 +36,13 @@ export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGen
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     await requeueAsQuick(t, input.briefId, reason);
+    wake();
     return { status: 'fallback', briefId: input.briefId, reason };
   }
-  if (outcome.status === 'fallback') await requeueAsQuick(t, input.briefId, outcome.reason);
+  if (outcome.status === 'fallback') {
+    await requeueAsQuick(t, input.briefId, outcome.reason);
+    wake();
+  }
   log('info', 'studio-job', 'execução concluída', { briefId: input.briefId, status: outcome.status });
   return outcome;
 }
