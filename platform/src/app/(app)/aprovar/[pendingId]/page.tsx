@@ -33,11 +33,12 @@ export default async function ApprovePage({ params }: { params: Promise<{ pendin
   // Uma ideia para mais de uma rede (SPEC 028): as abas levam de uma pendência à outra. Falhar aqui nunca derruba a tela.
   const tabs = p.brief_id ? await getIdeaTabs(t, p.brief_id).catch(() => []) : [];
   const NAMES: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
+  const canEditText = await can('content.edit');
   const tabsNav = (
     <>
       <NetworkTabs tabs={tabs} current={p.channel} briefId={p.brief_id} />
       {tabs.filter((x) => x.pendingId).length > 1 && <NetworkSwitch pendingId={p.pending_id} name={NAMES[p.channel] ?? p.channel} />}
-      <SignalPanel stored={p.generation?.critic} />
+      <SignalPanel pendingId={p.pending_id} channel={p.channel} stored={p.generation?.critic} canEdit={canEditText} />
     </>
   );
   // A barra "Aprovar as N redes" (BEZ-436): as redes prontas desta ideia, com o formato e o próximo horário de cada uma.

@@ -8,7 +8,8 @@
 // 1.91:1), com os atalhos da legenda pela rota do post de foto e sem "outra direção" (não houve geração).
 
 import { useMemo, useState } from 'react';
-import { useTextDraft } from './approve-draft';
+import { useInjectedText, useTextDraft } from './approve-draft';
+import { splitHashtagLine } from '@/lib/signal-text';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
@@ -86,7 +87,9 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const requestedPast = requested !== null && Date.parse(requested) <= Date.now();
   const caption = joinCaption(body, hashtags);
   const edited = caption !== suggested.trim();
-  useTextDraft(pending.pending_id, edited ? caption : null, designVersion);
+  useTextDraft(pending.pending_id, edited ? caption : null, designVersion, caption);
+  // O painel de potencial aplica uma sugestão (ou desfaz): só o texto da legenda muda, as hashtags ficam como estão.
+  useInjectedText(pending.pending_id, (text) => setBody(splitHashtagLine(text).body));
 
   async function call(path: string, init?: RequestInit) {
     const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, ...init });
