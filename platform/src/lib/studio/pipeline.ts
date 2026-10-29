@@ -31,7 +31,8 @@ export interface StudioModel {
 
 export type RenderInput = { html: string; ratio: Ratio; assets: Record<string, Uint8Array>; logos: Logos };
 export interface Renderer {
-  render(input: RenderInput): Promise<{ png: Uint8Array; issues: MeasureIssue[] }>;
+  // `texts`: os textos visíveis medidos no render (o lint de template confere se sobrou texto fora dos slots).
+  render(input: RenderInput): Promise<{ png: Uint8Array; issues: MeasureIssue[]; texts?: { text: string; ghost?: boolean }[] }>;
 }
 
 export class StudioError extends Error {
