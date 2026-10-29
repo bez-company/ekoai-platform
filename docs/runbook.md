@@ -435,6 +435,36 @@ bq query --use_legacy_sql=false 'SELECT FORMAT_DATE("%Y-%m", DATE(usage_start_ti
 Copie o `brl_por_usd` do mês para o formulário. O projeto e o ID da conta de faturamento não ficam neste
 repositório público. A busca automática pelo BigQuery fica para depois: pede acesso entre projetos.
 
+## Custo por post: como medir (BEZ-490)
+
+Três fontes, da mais fina para a mais fiel. Só leitura; não gera post nem gasta Vertex.
+
+1. **Custo registrado por post e por etapa (PostHog, projeto Ekoai).** Eventos `post_ready` (`kind`, `cost_usd`, `latency_ms`) e
+   `cost_by_step` (`step`, `calls`, `cost_usd`). Preço de lista no código (`platform/src/lib/vertex.ts`), não a fatura.
+
+   ```sql
+   SELECT toDate(timestamp) AS dia, properties.kind AS kind, count() AS posts,
+          round(avg(toFloat(properties.cost_usd)), 4) AS avg_usd
+   FROM events WHERE event = 'post_ready' GROUP BY dia, kind ORDER BY dia DESC
+   ```
+
+2. **Fatura do Google Cloud (export no BigQuery, `billing_export`).** O que foi cobrado de verdade. O Vertex do app leva o rótulo `tenant`
+   (e `step`, `brief`); chamada sem rótulo é de eval, juiz ou teste. O projeto e o ID da conta de faturamento não ficam neste repositório.
+
+   ```sh
+   bq query --use_legacy_sql=false 'SELECT project.id AS projeto,
+     IFNULL((SELECT value FROM UNNEST(labels) WHERE key="tenant"), "(sem rótulo)") AS tenant,
+     ROUND(SUM(cost), 2) AS brl
+   FROM `<projeto>.billing_export.gcp_billing_export_v1_<id-da-conta>`
+   WHERE service.description = "Vertex AI" GROUP BY 1, 2 ORDER BY brl DESC'
+   ```
+
+   O preço unitário do Cloud Run Job sai da mesma tabela (`service.description = "Cloud Run"`, SKUs `Jobs CPU` e `Jobs Memory`, dividindo
+   `cost` por `usage.amount`). Um Job de 2 vCPU e 4 GiB por 10 a 15 minutos custou R$ 0,19 a R$ 0,28 em 29/10/2026.
+3. **Console › Financeiro** (SPEC 031, entrega 3): custo por conta, post, grupo de etapas e rede, com a margem quando houver preço.
+
+Antes de fixar o peso de um nível em créditos (SPEC 021), repita 1 e 2 depois de o estúdio rodar em produção. Não rode eval pago para isso.
+
 ## Geração de posts (SPEC 012, ADR 0018)
 
 - O pedido (`POST /api/posts`) só grava o brief e acorda o worker (`/api/cron/generate`, `Bearer
