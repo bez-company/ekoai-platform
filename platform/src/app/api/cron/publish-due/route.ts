@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { isCronAuthorized } from '@/lib/cron-auth';
+import { powerConfig, probeDb } from '@/lib/env-power';
 import { reconcileStalePublishing, runPublishDue } from '@/lib/publish';
 import { runStaleApprovals } from '@/lib/stale-approvals';
 import { log, logError } from '@/lib/log';
@@ -13,6 +14,12 @@ export const maxDuration = 60;
 
 async function handle(req: Request) {
   if (!(await isCronAuthorized(req))) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  // Staging sob demanda (SPEC 016): com o banco dormindo ou ligando não há post a publicar (o sleep-if-idle só
+  // desliga sem post agendado esperando), e tentar o banco estoura o prazo e acende o alerta do Scheduler (BEZ-482).
+  // Fora do staging powerConfig() é nulo e nada muda: no prod uma falha de banco continua sendo erro.
+  if (powerConfig() && !(await probeDb(process.env.DATABASE_URL))) {
+    return NextResponse.json({ ok: true, skipped: 'ambiente dormindo ou ligando' });
+  }
   try {
     // Primeiro quem ficou preso em `publishing` (a Meta é consultada antes de qualquer nova tentativa);
     // falha aqui não pode impedir os vencidos de sair.

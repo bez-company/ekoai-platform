@@ -377,6 +377,7 @@ proteção ligada.
   está desligado" com o botão **Ligar o ambiente** (cerca de 15 minutos até o app abrir). Depois de 60 minutos sem
   requisição de gente, o Scheduler (`ekoai-sleep-if-idle`, a cada 15 min) desliga o banco.
 - **Ligar e desligar à mão:** `CLOUDSDK_ACTIVE_CONFIG_NAME=bez scripts/sql-power.sh staging up|down|status`. O deploy também liga.
+- **Cron com o banco dormindo (BEZ-482):** `POST /api/cron/publish-due` confere o banco (`probeDb`, 2 s) e, com o staging dormindo ou ligando, responde 200 `skipped: ambiente dormindo ou ligando` sem rodar o ciclo. Não há post a publicar nesse estado (o `sleep-if-idle` não desliga com post agendado esperando), e antes o cron estourava o prazo a cada 10 min e o alerta `Cron do Scheduler falhou (staging)` mandava e-mail sem parar. No prod nada muda: falha de banco continua sendo erro e continua alertando.
 - **Ligado só no staging:** `wake_enabled = true` em `envs/staging/main.tf` (variáveis `WAKE_*` no Cloud Run, papel `ekoaiSqlPower`
   e `monitoring.viewer` na conta do app, métrica `ekoai_user_requests`, probes em `/api/live`). Produção não tem nada disso.
 - **Por que o banco não desligou:** chame `POST /api/cron/sleep-if-idle` com `Bearer CRON_SECRET` e leia `reason`
