@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EMPTY_PRICING, isBelowTarget, isPricingSet, parsePricing, postPriceBrl, profitOf } from '../platform/src/lib/price-model.ts';
+import { EMPTY_PRICING, dayBefore, discountOn, isBelowTarget, isDay, isPricingSet, parseDiscount, parsePricing, postPriceBrl, postPriceWithDiscountBrl, profitOf } from '../platform/src/lib/price-model.ts';
 
 const C = (over = {}) => ({ markupPercent: 300, minimumPerPostBrl: 1, roundUpToBrl: 0.05, targetMarginPercent: 70, ...over });
 
@@ -45,5 +45,53 @@ describe('preço de um post a partir do custo (SPEC 031)', () => {
     expect(parsePricing({ markupPercent: 10, minimumPerPostBrl: 1, roundUpToBrl: 0 }).ok).toBe(false);
     expect(parsePricing(null).ok).toBe(false);
     expect(parsePricing([]).ok).toBe(false);
+  });
+});
+
+describe('desconto de preço por conta (SPEC 032)', () => {
+  it('o desconto é um percentual sobre o preço de lista, arredondado para cima no mesmo passo', () => {
+    expect(postPriceWithDiscountBrl(0.41, C(), 0)).toBe(1.65); // sem desconto é o preço de lista
+    expect(postPriceWithDiscountBrl(0.41, C(), 10)).toBe(1.5); // 1,65 × 0,9 = 1,485, para cima no passo de 0,05
+    expect(postPriceWithDiscountBrl(0.04, C(), 50)).toBe(0.5); // o mínimo também recebe o desconto
+    expect(postPriceWithDiscountBrl(0.41, C(), 100)).toBe(0); // cortesia
+  });
+
+  it('vale o desconto que começou até o dia e ainda não tinha terminado; com dois, o que começou por último', () => {
+    const list = [
+      { discountPercent: 10, startsOn: '2026-09-01', endsOn: '2026-09-30' },
+      { discountPercent: 20, startsOn: '2026-10-01', endsOn: null },
+      { discountPercent: 30, startsOn: '2026-10-15', endsOn: '2026-10-20' },
+    ];
+    expect(discountOn(list, '2026-08-31')).toBeNull();
+    expect(discountOn(list, '2026-09-30').discountPercent).toBe(10); // o último dia ainda vale
+    expect(discountOn(list, '2026-10-01').discountPercent).toBe(20);
+    expect(discountOn(list, '2026-10-16').discountPercent).toBe(30);
+    expect(discountOn(list, '2026-10-21').discountPercent).toBe(20);
+    expect(discountOn([], '2026-10-01')).toBeNull();
+  });
+
+  it('o formulário exige percentual válido e motivo, e o fim não pode ser antes de hoje', () => {
+    const ok = parseDiscount({ discountPercent: '10', reason: '  Piloto  ', endsOn: '2026-12-31' }, '2026-10-30');
+    expect(ok).toEqual({ ok: true, value: { discountPercent: 10, reason: 'Piloto', endsOn: '2026-12-31' } });
+    expect(parseDiscount({ discountPercent: '12,5', reason: 'Contrato anual' }, '2026-10-30')).toEqual({ ok: true, value: { discountPercent: 12.5, reason: 'Contrato anual', endsOn: null } });
+    expect(parseDiscount({ discountPercent: 10, reason: 'Piloto', endsOn: '' }, '2026-10-30').ok).toBe(true);
+    expect(parseDiscount({ discountPercent: 10, reason: 'Piloto', endsOn: '2026-10-30' }, '2026-10-30').ok).toBe(true); // hoje vale
+    expect(parseDiscount({ discountPercent: 0, reason: 'Piloto' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 101, reason: 'Piloto' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 10, reason: '  ' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 10, reason: 'x'.repeat(201) }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 10, reason: 'Piloto', endsOn: '2026-10-29' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 10, reason: 'Piloto', endsOn: '2026-02-30' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount({ discountPercent: 'abc', reason: 'Piloto' }, '2026-10-30').ok).toBe(false);
+    expect(parseDiscount(null, '2026-10-30').ok).toBe(false);
+  });
+
+  it('dias em AAAA-MM-DD: valida a data real e calcula o dia anterior na virada de mês e de ano', () => {
+    expect(isDay('2026-10-30')).toBe(true);
+    expect(isDay('2026-13-01')).toBe(false);
+    expect(isDay('30/10/2026')).toBe(false);
+    expect(isDay(20261030)).toBe(false);
+    expect(dayBefore('2026-11-01')).toBe('2026-10-31');
+    expect(dayBefore('2027-01-01')).toBe('2026-12-31');
   });
 });

@@ -132,6 +132,7 @@ export default async function ConsoleFinance({ searchParams }: { searchParams: P
                       <Link href={href(a.id)} className="font-semibold underline-offset-2 hover:underline">
                         {a.name}
                       </Link>
+                      {a.discountPercent !== null && <span className="ml-2 rounded-full bg-inset px-2 py-0.5 text-xs text-muted">desconto {String(a.discountPercent).replace('.', ',')}%</span>}
                     </td>
                     <td className="px-4 py-3">{a.planId ?? '-'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{a.posts}</td>
