@@ -102,11 +102,13 @@ jobs:
           if [ "${{ inputs.environment }}" = "staging" ]; then
             docker build -f docker/platform.Dockerfile -t "$REGISTRY/platform:$SHA" .
             docker build -f docker/jobs.Dockerfile -t "$REGISTRY/jobs:$SHA" .
+            docker build -f docker/studio.Dockerfile -t "$REGISTRY/studio:$SHA" .
             docker push "$REGISTRY/platform:$SHA"
             docker push "$REGISTRY/jobs:$SHA"
+            docker push "$REGISTRY/studio:$SHA"
           else
             SRC="$REGION-docker.pkg.dev/$STAGING_PROJECT/ekoai"
-            for img in platform jobs; do
+            for img in platform jobs studio; do
               want=$(digest "$SRC/$img:$SHA" 2>/dev/null || true)
               if [ -z "$want" ]; then
                 echo "::error::não há $img:${SHA:0:7} no registry da staging. Produção só recebe imagem que passou por lá (scripts/release.sh); refaça o deploy da staging."
@@ -122,7 +124,7 @@ jobs:
               fi
             done
           fi
-          for img in platform jobs; do
+          for img in platform jobs studio; do
             d=$(digest "$REGISTRY/$img:$SHA")
             echo "$img: $d"
             echo "${img^^}_IMAGE=$REGISTRY/$img@$d" >> "$GITHUB_ENV"
@@ -157,6 +159,16 @@ jobs:
           for job in refresh-tokens token-health weekly-report tenant-create access-grant platform-admin; do
             gcloud run jobs update "ekoai-$job" --region "$REGION" --image "$JOBS_IMAGE" --quiet
           done
+
+      # O job do estúdio (SPEC 030 F3c) só existe onde o Terraform o criou (studio_job_enabled). Onde não existe, o deploy o ignora.
+      - name: Estúdio
+        run: |
+          set -euo pipefail
+          if gcloud run jobs describe ekoai-studio --region "$REGION" >/dev/null 2>&1; then
+            gcloud run jobs update ekoai-studio --region "$REGION" --image "$STUDIO_IMAGE" --quiet
+          else
+            echo "o job ekoai-studio não existe neste ambiente: nada a atualizar"
+          fi
 
       - name: Plataforma
         run: |

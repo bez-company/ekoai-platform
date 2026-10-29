@@ -106,7 +106,7 @@ export function parseModelJson(text: string): unknown {
 }
 
 let auth: GoogleAuth | null = null;
-async function adcToken(): Promise<string> {
+export async function adcToken(): Promise<string> {
   auth ??= new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
   const client = await auth.getClient();
   const token = await client.getAccessToken();

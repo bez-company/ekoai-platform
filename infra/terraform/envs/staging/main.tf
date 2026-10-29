@@ -37,6 +37,11 @@ variable "jobs_image" {
   default = ""
 }
 
+variable "studio_image" {
+  type    = string
+  default = ""
+}
+
 variable "tenant_id" {
   description = "Conta da instalação (TF_VAR_tenant_id; o id da conta real não vai para o repositório)."
   type        = string
@@ -60,8 +65,11 @@ module "ekoai" {
   deploy_workloads = var.deploy_workloads
   platform_image   = var.platform_image
   jobs_image       = var.jobs_image
-  alert_email      = var.alert_email
-  tenant_id        = var.tenant_id
+  studio_image     = var.studio_image
+  # Estúdio de posts (SPEC 030 F3c): liga no staging primeiro. Produção liga depois do eval e da aprovação do Matheus.
+  studio_job_enabled = true
+  alert_email        = var.alert_email
+  tenant_id          = var.tenant_id
 
   # Staging: login por pessoa e cadastro aberto, para testar a entrada de verdade com dado de teste.
   # Produção segue com senha única e cadastro por convite até haver limite de taxa no cadastro.

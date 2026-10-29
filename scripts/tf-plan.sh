@@ -32,6 +32,8 @@ dir="$(cd "$(dirname "$0")/.." && pwd)/infra/terraform/envs/$env"
 
 platform_image=$(gcloud run services describe ekoai-platform --project "$project" --region "$region" --format='value(spec.template.spec.containers[0].image)')
 jobs_image=$(gcloud run jobs describe ekoai-migrate --project "$project" --region "$region" --format='value(spec.template.spec.template.spec.containers[0].image)')
+# O job do estúdio é opcional: sem ele (ainda não criado) o plano usa a imagem vazia e não o inclui.
+studio_image=$(gcloud run jobs describe ekoai-studio --project "$project" --region "$region" --format='value(spec.template.spec.template.spec.containers[0].image)' 2>/dev/null || true)
 tenant_id=$(gcloud run services describe ekoai-platform --project "$project" --region "$region" --format=json |
   jq -r '.spec.template.spec.containers[0].env[] | select(.name == "TENANT_ID") | .value')
 
@@ -41,6 +43,7 @@ tenant_id=$(gcloud run services describe ekoai-platform --project "$project" --r
 echo "ambiente:        $env ($project)"
 echo "platform_image:  $platform_image"
 echo "jobs_image:      $jobs_image"
+echo "studio_image:    ${studio_image:-(sem o job do estúdio)}"
 echo "tenant_id:       ${tenant_id:-(padrão do módulo)}"
 
 cd "$dir"
@@ -64,6 +67,7 @@ args=(-input=false -out=tfplan
   -var deploy_workloads=true
   -var "platform_image=$platform_image"
   -var "jobs_image=$jobs_image")
+[ -n "$studio_image" ] && args+=(-var "studio_image=$studio_image")
 [ -n "$tenant_id" ] && args+=(-var "tenant_id=$tenant_id")
 [ -n "$alert_email" ] && args+=(-var "alert_email=$alert_email")
 

@@ -149,6 +149,14 @@ resource "google_cloud_run_v2_service" "platform" {
         name  = "CRON_OIDC_EMAIL"
         value = google_service_account.scheduler.email
       }
+      # O worker de geração dispara este job para os níveis com cadeia de agentes (SPEC 030 F3c). Sem a variável o estúdio fica desligado.
+      dynamic "env" {
+        for_each = local.studio_job ? { STUDIO_JOB_NAME = "projects/${var.project_id}/locations/${var.region}/jobs/${local.name}-studio" } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
       # Vertex AI (SPEC 012): o projeto do ambiente, pelo endpoint global, com os modelos da prova.
       env {
         name  = "VERTEX_PROJECT_ID"
@@ -289,4 +297,126 @@ resource "google_cloud_run_v2_job" "job" {
     google_secret_manager_secret_version.integration_placeholder,
     google_secret_manager_secret_iam_member.app_reads,
   ]
+}
+
+# Estúdio de posts (SPEC 030 F3c, ADR 0028): um brief por execução, até 30 minutos, com Chromium na imagem. O worker de geração dispara a
+# execução com STUDIO_TENANT e STUDIO_BRIEF. Sem nova tentativa: o job devolve o pedido à fila como Rápido quando não entrega (a
+# idempotência é pelo pedido e por generation_runs).
+resource "google_cloud_run_v2_job" "studio" {
+  count               = local.studio_job ? 1 : 0
+  project             = var.project_id
+  name                = "${local.name}-studio"
+  location            = var.region
+  deletion_protection = var.protect_data
+  labels              = local.labels
+
+  template {
+    labels      = local.labels
+    parallelism = 1
+    task_count  = 1
+
+    template {
+      service_account = google_service_account.app.email
+      timeout         = "1800s"
+      max_retries     = 0
+
+      vpc_access {
+        egress = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = local.vpc.network
+          subnetwork = local.vpc.subnetwork
+        }
+      }
+
+      containers {
+        image = var.studio_image
+
+        resources {
+          limits = { cpu = "2", memory = "4Gi" }
+        }
+
+        env {
+          name  = "STATE_BACKEND"
+          value = "postgres"
+        }
+        env {
+          name  = "DB_POOL_MAX"
+          value = "2"
+        }
+        env {
+          name  = "STORAGE_BUCKET"
+          value = google_storage_bucket.media.name
+        }
+        env {
+          name  = "MEDIA_BASE_URL"
+          value = "${local.public_url}/api/media"
+        }
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
+        env {
+          name  = "KMS_KEY_NAME"
+          value = local.kms_key_name
+        }
+        env {
+          name  = "VERTEX_PROJECT_ID"
+          value = var.project_id
+        }
+        env {
+          name  = "VERTEX_LOCATION"
+          value = local.vertex.location
+        }
+        env {
+          name  = "VERTEX_TEXT_MODEL"
+          value = local.vertex.text_model
+        }
+        env {
+          name  = "VERTEX_IMAGE_MODEL"
+          value = local.vertex.image_model
+        }
+        dynamic "env" {
+          for_each = local.account_env
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.jobs_secret_env
+          content {
+            name = env.key
+            value_source {
+              secret_key_ref {
+                secret  = google_secret_manager_secret.s[env.value].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
+  }
+
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_version.integration_placeholder,
+    google_secret_manager_secret_iam_member.app_reads,
+    google_storage_bucket_iam_member.app_media,
+  ]
+}
+
+# A plataforma (conta do app) dispara execuções do job com as variáveis do pedido. O papel vale só sobre este job.
+resource "google_cloud_run_v2_job_iam_member" "studio_run_with_overrides" {
+  count    = local.studio_job ? 1 : 0
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.studio[0].name
+  role     = "roles/run.jobsExecutorWithOverrides"
+  member   = "serviceAccount:${google_service_account.app.email}"
 }
