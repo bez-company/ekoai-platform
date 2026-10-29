@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { pageError } from '@/lib/api';
 import { pageContext } from '@/lib/session';
 import { monthUsage } from '@/lib/usage';
+import { monthPosts } from '@/lib/usage-posts';
+import { CHANNEL_LABEL, POST_STATE_LABEL, POSTS_PER_PAGE } from '@/lib/usage-posts-model';
 import { MONTHS_SHOWN, isEmptyUsage, monthKeyOf, monthLabel, parseMonth, recentMonths, totalPublications } from '@/lib/usage-model';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +49,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   );
 
   try {
-    const usage = await monthUsage(t, month, now);
+    const [usage, posts] = await Promise.all([monthUsage(t, month, now), monthPosts(t, month)]);
     return (
       <div className="space-y-4">
         {head}
@@ -74,6 +76,32 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <Stat label="Ajustes" value={usage.adjustments} hint="não contam como post" />
               {usage.people !== null && <Stat label="Pessoas" value={usage.people} hint="com acesso à conta" />}
             </div>
+            <section aria-label="Posts do mês" className="card space-y-1 p-0">
+              <h3 className="px-4 pt-4 text-base font-semibold">Posts de {monthLabel(month).toLowerCase()}</h3>
+              <ul className="divide-y divide-line">
+                {posts.rows.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/configuracoes/fatura/post/${p.id}${month === monthKeyOf(now) ? '' : `?mes=${month}`}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 hover:bg-inset">
+                      <span className="min-w-0 basis-full md:basis-auto md:flex-1">
+                        <strong className="block text-sm md:truncate">{p.title}</strong>
+                        <span className="text-xs text-muted">{new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}</span>
+                      </span>
+                      <span className="flex flex-wrap gap-1">
+                        {p.channels.map((c) => (
+                          <span key={c} className="chip">
+                            {CHANNEL_LABEL[c]}
+                          </span>
+                        ))}
+                      </span>
+                      <span className="ml-auto text-sm text-muted md:w-28 md:text-right">{POST_STATE_LABEL[p.state]}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="px-4 pb-4 pt-2 text-xs text-muted">
+                {posts.total > posts.rows.length ? `Mostrando ${posts.rows.length} dos ${posts.total} posts do mês. ` : ''}Cada ideia é um post, em qualquer número de redes.
+              </p>
+            </section>
             <p className="text-xs text-muted">Um post é uma ideia, em qualquer número de redes. Ajustes, novas tentativas de uma rede e avaliações não contam como post novo. O mês é o de UTC, o mesmo recorte do limite do plano.</p>
           </>
         )}
