@@ -1,0 +1,21 @@
+{
+  "k1_12": {
+    "n": 12,
+    "design": 8.04,
+    "postaria": 11,
+    "usd": 0.245,
+    "layout_issues": 22
+  },
+  "k3_8": {
+    "n": 8,
+    "design": 6.82,
+    "postaria": 6,
+    "usd": 0.261,
+    "layout_issues": 9
+  },
+  "run1_full_pro_12": {
+    "n": 12,
+    "design": 8.36,
+    "usd": 0.561
+  }
+}

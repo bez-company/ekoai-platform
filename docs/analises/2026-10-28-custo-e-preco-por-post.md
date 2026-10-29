@@ -86,6 +86,11 @@ cerca de 0,5, amostra pequena). Raciocínio baixo no Pro cortou só 15% do custo
 segura a qualidade; o gerador pode ser mais barato. Falta confirmar em mais pedidos e medir `k3` completo (dois posts da `k3` ficaram
 presos em chamadas do modelo e foram interrompidos).
 
+**Confirmação em 12 pedidos (29/10/2026, `baselines/cost-frontier-12.json`):** designer e embelezador em Flash (`k1`) ficam em
+**8,04** de nota contra 8,36 do tudo-Pro (rodada completa), a **US$ 0,245 contra 0,561 por post (menos 56%)**, com 11 de 12 "postaria
+sem editar". Com raciocínio baixo no Flash (`k3`) a nota cai para 6,8 (8 posts): o Refinado mantém raciocínio médio no designer. Fica
+a diferença de cerca de 0,3 de nota para o Autoral (tudo Pro), que a SPEC 030 trata como o degrau acima.
+
 ## Combinações e custo (U$ por post)
 
 Os valores abaixo usam o custo medido da cadeia completa em Pro (teto atual). Com a configuração `k1`, a linha Autoral cai para

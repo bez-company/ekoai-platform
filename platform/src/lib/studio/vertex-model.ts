@@ -6,7 +6,8 @@ import { STUDIO_MODELS } from './config';
 import { IMAGE_QUALITY } from './levels';
 import type { ImageCall, StudioModel, TextCall } from './pipeline';
 
-export function vertexStudioModel(client: ModelClient, ctx: { tenant: string; brief: string }): StudioModel {
+// `labels` entra em toda chamada (o eval manda origin=eval para a fatura separar o teste do produto).
+export function vertexStudioModel(client: ModelClient, ctx: { tenant: string; brief: string; labels?: Labels }): StudioModel {
   let total = 0;
   const steps: Record<string, { calls: number; usd: number }> = {};
   const add = (step: string, usd: number) => {
@@ -15,7 +16,7 @@ export function vertexStudioModel(client: ModelClient, ctx: { tenant: string; br
     s.calls += 1;
     s.usd += usd;
   };
-  const labels = (step: string): Labels => ({ tenant: ctx.tenant, brief: ctx.brief, step: `studio-${step}` });
+  const labels = (step: string): Labels => ({ ...(ctx.labels ?? {}), tenant: ctx.tenant, brief: ctx.brief, step: `studio-${step}` });
 
   return {
     get costUsd() {
