@@ -3,7 +3,7 @@
 // modelo e valida a resposta é o pipeline (pipeline.ts) com os parsers (parse.ts). Instruções em português; prompt de imagem em inglês.
 
 import { FONTS } from '../design/fonts';
-import type { ArtDirectorInput, CopywriterInput, CriticInput, DesignerInput, DirectorInput, PolisherInput, ReviewerInput, StrategistInput, StudioBrand } from './model';
+import type { TemplateFillInput, ArtDirectorInput, CopywriterInput, CriticInput, DesignerInput, DirectorInput, PolisherInput, ReviewerInput, StrategistInput, StudioBrand } from './model';
 
 const WEIGHT_NAMES: Record<string, string> = { Regular: 'regular', SemiBold: 'semibold', Bold: 'bold' };
 
@@ -315,4 +315,25 @@ Confira:
 
 Responda só um JSON: { "ok": true | false, "issues": [ { "rule": "text_drift" | "ai_artifact" | "logo" | "legibilidade" | "fato", "detail": "o que viu", "fix": "como corrigir no HTML" } ] }
 Seja objetivo: só reprove por defeito que um cliente notaria.`;
+}
+
+// O preenchimento do template: uma chamada só escolhe o modelo entre os candidatos e escreve os textos de cada slot.
+export function templateFillPrompt(input: TemplateFillInput): string {
+  const { brand, request, candidates, recentTitles = [], colors } = input;
+  return `Você preenche, numa chamada só, o plano e o texto de um post de Instagram a partir de TEMPLATES prontos de agência. Escolha o template que melhor serve ao pedido e escreva os textos de cada slot.
+
+${brandBlock(brand)}
+
+PEDIDO: "${request}"
+Títulos recentes da conta (não repita nem lembre): ${recentTitles.map((t) => `"${t}"`).join('; ') || 'nenhum'}.
+
+TEMPLATES (escolha UM):
+${candidates.map((t) => `- id ${t.id}: ${t.meta.summary} Fundo ${t.meta.tone === 'dark' ? 'escuro' : 'claro'}. Slots e limites de caracteres: ${JSON.stringify(t.meta.slots)}. ${t.meta.needsImage ? `Pede imagem de IA: ${t.meta.imageSlot}` : 'Sem imagem de IA.'}`).join('\n')}
+
+Cores permitidas para a paleta (hex da marca): ${colors.join(', ')}. Escolha bg (fundo), ink (texto, contraste de 4.5:1 com o bg) e accent; o tom do fundo deve ser o do template.
+
+${TEXT_RULES}
+Cada slot respeita o limite de caracteres. headline específico e com tensão, de 1 a 8 palavras. Legenda de 250 a 600 caracteres em texto puro, abrindo com gancho e terminando com a chamada para ação da marca. Se o template pede imagem, escreva imagePrompt em inglês (sujeito, escala, câmera, luz, materiais, paleta, e o espaço livre indicado); fotografia editorial com imperfeições reais, sem texto, letras, logos, rosto reconhecível nem criança.
+
+Responda só um JSON: { "template": "<id>", "slots": { "headline": "...", ... }, "caption": "...", "hashtags": ["#..."], "altText": "...", "palette": { "bg": "#hex", "ink": "#hex", "accent": "#hex" }, "imagePrompt": "..." ou null }`;
 }

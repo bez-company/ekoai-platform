@@ -71,3 +71,27 @@ export type DesignerInput = { brand: StudioBrand; request: string; copy: StudioC
 export type CriticInput = { brand: StudioBrand; request: string; copy: StudioCopy; territory: Territory; audit: MeasureIssue[]; round: number; previous?: { fixes: Fix[] } | null };
 export type PolisherInput = { brand: StudioBrand; copy: StudioCopy; art: ArtDirection; ratio: Ratio; html: string; fixes: Fix[]; audit?: MeasureIssue[] };
 export type ReviewerInput = { brand: StudioBrand; copy: StudioCopy };
+
+// ── Modelos de post com slots (SPEC 030, revisão de 30/10/2026) ────────────────────────────────────────────────
+// Um template é um HTML já desenhado e verificado: todo texto é um slot ({{slot:nome}}), as cores e as fontes são variáveis CSS e o
+// logo e a imagem de IA são marcadores. Uma chamada curta de modelo só escolhe o template e preenche os slots.
+export type TemplateMeta = {
+  tone: 'dark' | 'light';
+  needsImage: boolean;
+  imageSlot: string | null; // o que a imagem precisa mostrar e onde fica o espaço livre para o texto
+  slots: Record<string, { max: number }>;
+  summary: string;
+};
+export type PostTemplate = { id: string; territory?: string; meta: TemplateMeta; html: string };
+
+export type TemplateFill = {
+  template: string;
+  slots: Record<string, string>;
+  caption: string;
+  hashtags: string[];
+  altText: string;
+  palette: { bg: string; ink: string; accent: string };
+  imagePrompt: string | null;
+};
+
+export type TemplateFillInput = { brand: StudioBrand; request: string; candidates: PostTemplate[]; recentTitles?: string[]; colors: string[] };
