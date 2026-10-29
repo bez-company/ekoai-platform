@@ -1,0 +1,19 @@
+{
+  "id": "numero-gigante-3",
+  "territory": "numero-gigante",
+  "meta": {
+    "tone": "light",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 15
+      },
+      "support": {
+        "max": 120
+      }
+    },
+    "summary": "Um layout arquitetônico dividido por uma linha vertical, com contexto à esquerda e um título monumental à direita."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #f5f4f1;\n      --ink: #0a0a0a;\n      --accent: #d9381e;\n      --muted: #888888;\n      --display: 'Oswald', sans-serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    * {\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    body {\n      width: 1080px;\n      height: 1350px;\n      margin: 0;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n      color: var(--ink);\n      font-family: var(--body);\n    }\n\n    .separator {\n      position: absolute;\n      top: 80px;\n      left: 480px;\n      width: 4px;\n      height: 1190px;\n      background-color: var(--accent);\n    }\n\n    .logo-container {\n      position: absolute;\n      top: 80px;\n      left: 80px;\n      width: 360px;\n      height: 60px;\n      display: flex;\n      align-items: flex-start;\n      justify-content: flex-start;\n    }\n\n    .logo-container img {\n      max-width: 100%;\n      max-height: 100%;\n      object-fit: contain;\n      object-position: left;\n    }\n\n    .support-box {\n      position: absolute;\n      top: 450px;\n      left: 80px;\n      width: 360px;\n      height: 500px;\n      overflow: hidden;\n    }\n\n    .support-box p {\n      font-family: var(--body);\n      font-weight: 400;\n      line-height: 1.3;\n      color: var(--ink);\n      font-size: 36px;\n    }\n\n    .handle-box {\n      position: absolute;\n      top: 1230px;\n      left: 80px;\n      width: 360px;\n      height: 40px;\n      overflow: hidden;\n    }\n\n    .handle-box p {\n      font-family: var(--body);\n      font-weight: 700;\n      font-size: 28px;\n      color: color-mix(in srgb, var(--ink) 60%, var(--bg));\n      text-transform: uppercase;\n      letter-spacing: 0.05em;\n    }\n\n    .headline-box {\n      position: absolute;\n      top: 80px;\n      left: 520px;\n      width: 480px;\n      height: 1190px;\n      overflow: hidden;\n      display: flex;\n      align-items: center;\n    }\n\n    .headline-box h1 {\n      font-family: var(--display);\n      font-weight: 700;\n      line-height: 1.2;\n      color: var(--ink);\n      text-transform: uppercase;\n      font-size: 90px;\n      word-wrap: break-word;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"separator\"></div>\n\n  <div class=\"logo-container\">\n    <img src=\"{{logo:on-light}}\" alt=\"Logo\">\n  </div>\n\n  <div class=\"support-box\">\n    <p data-fit=\"support\">{{slot:support}}</p>\n  </div>\n\n  <div class=\"handle-box\">\n    <p data-fit=\"handle\">{{handle}}</p>\n  </div>\n\n  <div class=\"headline-box\">\n    <h1 data-fit=\"headline\">{{slot:headline}}</h1>\n  </div>\n</body>\n</html>"
+}

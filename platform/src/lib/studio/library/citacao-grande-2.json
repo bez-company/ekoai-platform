@@ -1,0 +1,19 @@
+{
+  "id": "citacao-grande-2",
+  "territory": "citacao-grande",
+  "meta": {
+    "tone": "light",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "headline": {
+        "max": 120
+      },
+      "support": {
+        "max": 40
+      }
+    },
+    "summary": "Pôster tipográfico editorial com aspas gigantes em destaque no topo e alinhamento rígido à esquerda."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #F5F2EB;\n      --ink: #111111;\n      --accent: #D94A38;\n      --muted: #888888;\n      --display: 'Playfair Display', serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    * {\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    body {\n      width: 1080px;\n      height: 1350px;\n      margin: 0;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n      background-image: radial-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 2px, transparent 2px);\n      background-size: 32px 32px;\n      font-family: var(--body);\n      color: var(--ink);\n    }\n\n    .giant-quote {\n      position: absolute;\n      top: 120px;\n      left: 80px;\n      width: 160px;\n      height: 140px;\n      fill: var(--accent);\n    }\n\n    .headline {\n      position: absolute;\n      top: 320px;\n      left: 80px;\n      width: 920px;\n      height: 550px;\n      font-family: var(--display);\n      font-weight: 700;\n      font-style: italic;\n      font-size: 80px;\n      line-height: 1.15;\n      color: var(--ink);\n      overflow: hidden;\n      display: flex;\n      align-items: flex-start;\n      justify-content: flex-start;\n    }\n\n    .support {\n      position: absolute;\n      top: 900px;\n      left: 80px;\n      width: 920px;\n      height: 80px;\n      font-family: var(--body);\n      font-weight: 600;\n      font-size: 32px;\n      letter-spacing: 0.05em;\n      text-transform: uppercase;\n      color: var(--ink);\n      overflow: hidden;\n      display: flex;\n      align-items: flex-start;\n      justify-content: flex-start;\n    }\n\n    .support::before {\n      content: \"\";\n      display: inline-block;\n      width: 40px;\n      height: 4px;\n      background-color: var(--accent);\n      margin-right: 24px;\n      margin-top: 18px;\n      flex-shrink: 0;\n    }\n\n    .logo {\n      position: absolute;\n      bottom: 100px;\n      left: 80px;\n      height: 56px;\n      max-width: 400px;\n      object-fit: contain;\n      object-position: left bottom;\n    }\n\n    .handle {\n      position: absolute;\n      bottom: 100px;\n      right: 80px;\n      width: 400px;\n      height: 56px;\n      font-family: var(--body);\n      font-weight: 400;\n      font-size: 28px;\n      color: var(--ink);\n      text-align: right;\n      display: flex;\n      align-items: flex-end;\n      justify-content: flex-end;\n      overflow: hidden;\n    }\n  </style>\n</head>\n<body>\n\n  <!-- Aspas Gigantes como forma SVG -->\n  <svg class=\"giant-quote\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\">\n    <path d=\"M25,10 C12,10 0,22 0,40 C0,55 8,65 18,70 L8,95 L32,95 L42,50 C45,30 38,10 25,10 Z M85,10 C72,10 60,22 60,40 C60,55 68,65 78,70 L68,95 L92,95 L102,50 C105,30 98,10 85,10 Z\"/>\n  </svg>\n\n  <div class=\"headline\" data-fit=\"headline\">{{slot:headline}}</div>\n  \n  <div class=\"support\" data-fit=\"support\">{{slot:support}}</div>\n\n  <img class=\"logo\" src=\"{{logo:on-light}}\" alt=\"Logo\">\n  \n  <p class=\"handle\" data-fit=\"handle\">{{handle}}</p>\n\n</body>\n</html>"
+}

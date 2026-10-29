@@ -1,0 +1,22 @@
+{
+  "id": "ilustracao-geometrica-1",
+  "territory": "ilustracao-geometrica",
+  "meta": {
+    "tone": "dark",
+    "needsImage": false,
+    "imageSlot": null,
+    "slots": {
+      "extra": {
+        "max": 30
+      },
+      "headline": {
+        "max": 60
+      },
+      "support": {
+        "max": 120
+      }
+    },
+    "summary": "Ilustração geométrica abstrata com formas puras e texto em múltiplas camadas de profundidade."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #1e1b4b;\n      --ink: #e0e7ff;\n      --accent: #f43f5e;\n      --muted: #6366f1;\n      --display: 'Space Grotesk', sans-serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    body {\n      margin: 0;\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n    }\n\n    /* Abstract Geometric Shapes (Background/Midground) */\n    .shape-arc {\n      position: absolute;\n      top: 250px;\n      right: 0;\n      width: 320px;\n      height: 640px;\n      background-color: var(--accent);\n      border-radius: 320px 0 0 320px;\n      z-index: 1;\n    }\n\n    .shape-circle {\n      position: absolute;\n      top: 550px;\n      left: 150px;\n      width: 800px;\n      height: 800px;\n      background-color: color-mix(in srgb, var(--ink) 6%, var(--bg));\n      border-radius: 50%;\n      z-index: 2;\n    }\n\n    .shape-square {\n      position: absolute;\n      top: -100px;\n      left: 150px;\n      width: 500px;\n      height: 500px;\n      border: 3px solid color-mix(in srgb, var(--ink) 15%, var(--bg));\n      transform: rotate(45deg);\n      z-index: 1;\n    }\n\n    .shape-dot {\n      position: absolute;\n      top: 1050px;\n      left: 750px;\n      width: 30px;\n      height: 30px;\n      background-color: var(--ink);\n      border-radius: 50%;\n      z-index: 3;\n    }\n\n    /* Text Layers (Foreground) */\n    .text-layer {\n      position: absolute;\n      z-index: 10;\n      overflow: hidden;\n      margin: 0;\n    }\n\n    .extra-box {\n      top: 100px;\n      left: 80px;\n      width: 800px;\n      height: 80px;\n      font-family: var(--body);\n      font-size: 28px;\n      font-weight: bold;\n      color: var(--ink);\n      text-transform: uppercase;\n      letter-spacing: 2px;\n    }\n\n    .headline-box {\n      top: 200px;\n      left: 80px;\n      width: 800px;\n      height: 400px;\n      font-family: var(--display);\n      font-size: 85px;\n      font-weight: bold;\n      color: var(--ink);\n      line-height: 1.1;\n    }\n\n    .support-box {\n      top: 640px;\n      left: 80px;\n      width: 800px;\n      height: 300px;\n      font-family: var(--body);\n      font-size: 36px;\n      color: var(--ink);\n      line-height: 1.4;\n      font-weight: normal;\n    }\n\n    .logo-box {\n      bottom: 80px;\n      left: 80px;\n      width: 300px;\n      height: 60px;\n      display: flex;\n      align-items: center;\n      justify-content: flex-start;\n    }\n\n    .logo-box img {\n      max-width: 100%;\n      max-height: 100%;\n      object-fit: contain;\n    }\n\n    .handle-box {\n      bottom: 80px;\n      right: 80px;\n      width: 400px;\n      height: 40px;\n      font-family: var(--body);\n      font-size: 32px;\n      color: var(--ink);\n      text-align: right;\n      font-weight: bold;\n    }\n\n  </style>\n</head>\n<body>\n\n  <!-- Geometric Illustration Layers -->\n  <div class=\"shape-square\"></div>\n  <div class=\"shape-arc\"></div>\n  <div class=\"shape-circle\"></div>\n  <div class=\"shape-dot\"></div>\n\n  <!-- Content Layers -->\n  <p class=\"text-layer extra-box\" data-fit=\"extra\">{{slot:extra}}</p>\n  <h1 class=\"text-layer headline-box\" data-fit=\"headline\">{{slot:headline}}</h1>\n  <p class=\"text-layer support-box\" data-fit=\"support\">{{slot:support}}</p>\n\n  <div class=\"text-layer logo-box\">\n    <img src=\"{{logo:on-dark}}\" alt=\"Logo\">\n  </div>\n  \n  <p class=\"text-layer handle-box\" data-fit=\"handle\">{{handle}}</p>\n\n</body>\n</html>"
+}

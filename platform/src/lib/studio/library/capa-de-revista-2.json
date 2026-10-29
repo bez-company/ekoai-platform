@@ -1,0 +1,28 @@
+{
+  "id": "capa-de-revista-2",
+  "territory": "capa-de-revista",
+  "meta": {
+    "tone": "dark",
+    "needsImage": true,
+    "imageSlot": "Retrato forte e centralizado. O rosto/corpo deve ficar no meio da tela (entre 50% e 60% da largura), pois as bordas esquerda, direita, superior e inferior serão cobertas por um degradê opaco para proteger os textos.",
+    "slots": {
+      "headline": {
+        "max": 40
+      },
+      "support": {
+        "max": 80
+      },
+      "extra1": {
+        "max": 40
+      },
+      "extra2": {
+        "max": 40
+      },
+      "extra3": {
+        "max": 40
+      }
+    },
+    "summary": "Capa de revista com forte moldura em degradê, título gigante no topo e chamadas laterais alinhadas à direita com divisórias."
+  },
+  "html": "<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    :root {\n      --bg: #111111;\n      --ink: #F4F4F4;\n      --accent: #FF3366;\n      --muted: #888888;\n      --display: 'Playfair Display', serif;\n      --body: 'Inter', sans-serif;\n    }\n\n    * {\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    body {\n      margin: 0;\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n    }\n\n    .hero-image {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      object-fit: cover;\n      z-index: 1;\n    }\n\n    .gradient-frame {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      z-index: 2;\n      background:\n        linear-gradient(to bottom, var(--bg) 18%, transparent 35%),\n        linear-gradient(to top, var(--bg) 12%, transparent 30%),\n        linear-gradient(to right, var(--bg) 48%, transparent 68%),\n        linear-gradient(to left, var(--bg) 38%, transparent 58%);\n    }\n\n    .content {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      z-index: 3;\n    }\n\n    .magazine-title {\n      position: absolute;\n      top: 80px;\n      left: 80px;\n      width: 920px;\n      height: 140px;\n      overflow: hidden;\n      font-family: var(--display);\n      color: var(--ink);\n      text-align: center;\n      text-transform: uppercase;\n      font-weight: bold;\n      letter-spacing: 0.05em;\n      font-size: 48px;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n    }\n\n    .headline-box {\n      position: absolute;\n      top: 350px;\n      left: 80px;\n      width: 450px;\n      height: 400px;\n      overflow: hidden;\n      font-family: var(--display);\n      color: var(--ink);\n      line-height: 1.05;\n      font-weight: bold;\n      font-size: 64px;\n    }\n\n    .support-box {\n      position: absolute;\n      top: 780px;\n      left: 80px;\n      width: 450px;\n      height: 250px;\n      overflow: hidden;\n      font-family: var(--body);\n      color: var(--ink);\n      line-height: 1.4;\n      font-size: 32px;\n    }\n\n    .callout {\n      position: absolute;\n      left: 650px;\n      width: 350px;\n      height: 200px;\n      overflow: hidden;\n      font-family: var(--body);\n      color: var(--ink);\n      text-align: right;\n      border-top: 4px solid var(--accent);\n      padding-top: 16px;\n      line-height: 1.3;\n      font-size: 32px;\n    }\n\n    .extra1-box { top: 350px; }\n    .extra2-box { top: 580px; }\n    .extra3-box { top: 810px; }\n\n    .logo-box {\n      position: absolute;\n      top: 1190px;\n      left: 80px;\n      width: 920px;\n      height: 80px;\n      display: flex;\n      justify-content: flex-end;\n      align-items: center;\n    }\n\n    .logo-box img {\n      max-width: 300px;\n      max-height: 80px;\n      object-fit: contain;\n    }\n\n    .accent-dot {\n      color: var(--accent);\n    }\n  </style>\n</head>\n<body>\n  <img class=\"hero-image\" src=\"{{asset:hero}}\" alt=\"Hero\">\n  <div class=\"gradient-frame\"></div>\n  \n  <div class=\"content\">\n    <p class=\"magazine-title\">{{handle}}</p>\n    \n    <div class=\"headline-box\" data-fit=\"headline\">{{slot:headline}}</div>\n    <div class=\"support-box\" data-fit=\"support\">{{slot:support}}</div>\n    \n    <div class=\"callout extra1-box\" data-fit=\"extra1\">{{slot:extra1}}</div>\n    <div class=\"callout extra2-box\" data-fit=\"extra2\">{{slot:extra2}}</div>\n    <div class=\"callout extra3-box\" data-fit=\"extra3\">{{slot:extra3}}</div>\n    \n    <div class=\"logo-box\">\n      <img src=\"{{logo:on-dark}}\" alt=\"Logo\">\n    </div>\n  </div>\n</body>\n</html>"
+}

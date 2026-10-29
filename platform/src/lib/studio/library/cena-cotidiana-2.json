@@ -1,0 +1,19 @@
+{
+  "id": "cena-cotidiana-2",
+  "territory": "cena-cotidiana",
+  "meta": {
+    "tone": "light",
+    "needsImage": true,
+    "imageSlot": "Cena íntima de rotina (mãos segurando uma xícara, papelaria sobre uma mesa, luz suave de janela), com foco visual no centro e no quadrante superior esquerdo.",
+    "slots": {
+      "headline": {
+        "max": 65
+      },
+      "support": {
+        "max": 110
+      }
+    },
+    "summary": "Layout editorial assimétrico com blocos sólidos ancorados em cantos opostos, criando uma moldura geométrica para a cena."
+  },
+  "html": "<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"utf-8\">\n  <style>\n    :root {\n      --bg: #F9F7F3;\n      --ink: #2B2A28;\n      --accent: #C28E5D;\n      --muted: #7D7A75;\n      --display: 'Playfair Display', serif;\n      --body: 'DM Sans', sans-serif;\n    }\n\n    body {\n      margin: 0;\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n    }\n\n    .hero-img {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      object-fit: cover;\n      z-index: 1;\n    }\n\n    .panel-top-right {\n      position: absolute;\n      top: 0;\n      right: 0;\n      width: 380px;\n      height: 350px;\n      background-color: var(--bg);\n      z-index: 2;\n    }\n\n    .logo {\n      position: absolute;\n      top: 80px;\n      right: 80px;\n      width: 220px;\n      height: 70px;\n      object-fit: contain;\n      object-position: right top;\n    }\n\n    .handle-box {\n      position: absolute;\n      top: 180px;\n      right: 80px;\n      width: 220px;\n      height: 40px;\n      margin: 0;\n      overflow: hidden;\n    }\n\n    .handle-box p {\n      margin: 0;\n      font-family: var(--body);\n      font-size: 28px;\n      color: var(--ink);\n      text-align: right;\n      font-weight: bold;\n    }\n\n    .panel-bottom-left {\n      position: absolute;\n      bottom: 0;\n      left: 0;\n      width: 850px;\n      height: 550px;\n      background-color: var(--bg);\n      z-index: 2;\n    }\n\n    .headline-box {\n      position: absolute;\n      bottom: 240px;\n      left: 80px;\n      width: 690px;\n      height: 220px;\n      margin: 0;\n      overflow: hidden;\n    }\n\n    .headline-box h1 {\n      margin: 0;\n      font-family: var(--display);\n      font-size: 64px;\n      line-height: 1.1;\n      color: var(--ink);\n      font-weight: normal;\n    }\n\n    .divider {\n      position: absolute;\n      bottom: 215px;\n      left: 80px;\n      width: 120px;\n      height: 2px;\n      background-color: var(--accent);\n    }\n\n    .support-box {\n      position: absolute;\n      bottom: 80px;\n      left: 80px;\n      width: 690px;\n      height: 120px;\n      margin: 0;\n      overflow: hidden;\n    }\n\n    .support-box p {\n      margin: 0;\n      font-family: var(--body);\n      font-size: 28px;\n      line-height: 1.4;\n      color: color-mix(in srgb, var(--ink) 80%, var(--bg));\n    }\n  </style>\n</head>\n<body>\n  <img src=\"{{asset:hero}}\" class=\"hero-img\" alt=\"Cena do dia a dia\">\n\n  <div class=\"panel-top-right\">\n    <img src=\"{{logo:on-light}}\" class=\"logo\" alt=\"Logo\">\n    <div class=\"handle-box\" data-fit=\"handle\">\n      <p>{{handle}}</p>\n    </div>\n  </div>\n\n  <div class=\"panel-bottom-left\">\n    <div class=\"headline-box\" data-fit=\"headline\">\n      <h1>{{slot:headline}}</h1>\n    </div>\n    <div class=\"divider\"></div>\n    <div class=\"support-box\" data-fit=\"support\">\n      <p>{{slot:support}}</p>\n    </div>\n  </div>\n</body>\n</html>"
+}

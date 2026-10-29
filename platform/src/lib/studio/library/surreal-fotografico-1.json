@@ -1,0 +1,19 @@
+{
+  "id": "surreal-fotografico-1",
+  "territory": "surreal-fotografico",
+  "meta": {
+    "tone": "dark",
+    "needsImage": true,
+    "imageSlot": "Uma cena fotorrealista e surreal (ex: um objeto cotidiano gigante em uma paisagem natural ou uma cidade invertida). O elemento principal da composição deve focar do centro para baixo, deixando o terço superior em espaço negativo (céu ou área limpa) para receber o título sob um degradê.",
+    "slots": {
+      "headline": {
+        "max": 60
+      },
+      "support": {
+        "max": 100
+      }
+    },
+    "summary": "Cena surreal com a imagem ocupando toda a tela e um suave degradê superior que funde a cor de fundo com a foto, criando espaço para o título."
+  },
+  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    :root {\n      --bg: #111111;\n      --ink: #f4f4f4;\n      --accent: #ff4500;\n      --muted: #888888;\n      --display: 'Playfair Display', serif;\n      --body: 'Montserrat', sans-serif;\n    }\n\n    * {\n      box-sizing: border-box;\n      margin: 0;\n      padding: 0;\n    }\n\n    body {\n      width: 1080px;\n      height: 1350px;\n      position: relative;\n      overflow: hidden;\n      background-color: var(--bg);\n      font-family: var(--body);\n    }\n\n    .hero-image {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1350px;\n      object-fit: cover;\n      z-index: 1;\n    }\n\n    .gradient-overlay {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 1080px;\n      height: 1000px;\n      background: linear-gradient(\n        to bottom,\n        var(--bg) 35%,\n        color-mix(in srgb, var(--bg) 95%, transparent) 45%,\n        transparent 80%\n      );\n      z-index: 2;\n    }\n\n    .logo {\n      position: absolute;\n      top: 80px;\n      left: 80px;\n      height: 64px;\n      z-index: 3;\n    }\n\n    .handle {\n      position: absolute;\n      top: 80px;\n      right: 80px;\n      width: 400px;\n      height: 64px;\n      display: flex;\n      justify-content: flex-end;\n      align-items: center;\n      font-family: var(--body);\n      font-size: 28px;\n      font-weight: 700;\n      color: var(--ink);\n      z-index: 3;\n      overflow: hidden;\n    }\n\n    .headline-box {\n      position: absolute;\n      top: 200px;\n      left: 80px;\n      width: 920px;\n      height: 240px;\n      overflow: hidden;\n      z-index: 3;\n    }\n\n    .headline {\n      font-family: var(--display);\n      font-weight: 700;\n      color: var(--ink);\n      font-size: 80px;\n      line-height: 1.1;\n    }\n\n    .support-box {\n      position: absolute;\n      top: 460px;\n      left: 80px;\n      width: 920px;\n      height: 140px;\n      overflow: hidden;\n      z-index: 3;\n    }\n\n    .support {\n      font-family: var(--body);\n      font-weight: 400;\n      color: color-mix(in srgb, var(--ink) 90%, var(--bg));\n      font-size: 36px;\n      line-height: 1.4;\n    }\n\n    .accent-line {\n      position: absolute;\n      top: 450px;\n      left: 80px;\n      width: 120px;\n      height: 4px;\n      background-color: var(--accent);\n      z-index: 3;\n    }\n  </style>\n</head>\n<body>\n  <img src=\"{{asset:hero}}\" class=\"hero-image\" alt=\"Cena surreal\">\n  <div class=\"gradient-overlay\"></div>\n  \n  <img src=\"{{logo:on-dark}}\" class=\"logo\" alt=\"Logo\">\n  <p class=\"handle\">{{handle}}</p>\n\n  <div class=\"headline-box\">\n    <h1 class=\"headline\" data-fit=\"headline\">{{slot:headline}}</h1>\n  </div>\n\n  <div class=\"accent-line\"></div>\n\n  <div class=\"support-box\">\n    <p class=\"support\" data-fit=\"support\">{{slot:support}}</p>\n  </div>\n</body>\n</html>"
+}
