@@ -71,6 +71,13 @@ inventado, hashtag com ano e chamada final numa conta que a omitiu. Custa menos 
 4 de 6 legendas de conta sem chamada); `baseline-8-legenda-depois` tem o alcance e a chamada no prompt e a regra
 `hashtag_city` e `link_bio` no revisor.
 
+## Orçamento (29/10/2026)
+
+Todo eval soma o custo de cada chamada paga e, passando do orçamento (`EVAL_BUDGET_USD`, padrão US$ 1 por processo), a próxima chamada
+falha antes de gastar (`guard.js`). Rodada maior que isso só com o valor dito de propósito. Os evals do estúdio já custaram centenas de
+reais; a regra agora é **não rodar eval pago sem necessidade**, e a verificação do dia a dia usa dublês de modelo e renderer
+(`tests/studio-pipeline.test.js`), que não custam nada.
+
 ## Baselines
 
 `baseline-9-envio-e-rede-2026-10-28` é o primeiro com a nota de Envio, a de LinkedIn e o avaliador de sinais: compare com o

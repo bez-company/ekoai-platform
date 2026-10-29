@@ -13,7 +13,7 @@ import { afterAll, describe, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
-import { evalEnv } from './guard.js';
+import { evalEnv, budgetedClient } from './guard.js';
 import { COMPANIES, CRAFT, LINKEDIN_CRAFT, sendRequirement } from './cases.js';
 import { ALL_CASES as CASES } from './all-cases.js';
 import { produce } from './pipeline.js';
@@ -51,8 +51,8 @@ const keep = (row) => {
 describe.skipIf(!live)('eval da geração de post', () => {
   const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', VERTEX_IMAGE_MODEL: 'gemini-3.1-flash-image', ...evalEnv() });
   const judgeModel = process.env.EVAL_JUDGE_MODEL || 'gemini-3.1-pro-preview';
-  const model = vertexClient({ config: cfg });
-  const judge = vertexClient({ config: { ...cfg, textModel: judgeModel } });
+  const model = budgetedClient(vertexClient({ config: cfg }));
+  const judge = budgetedClient(vertexClient({ config: { ...cfg, textModel: judgeModel } }));
   mkdirSync(outDir, { recursive: true });
 
   describe.concurrent('casos', () => {

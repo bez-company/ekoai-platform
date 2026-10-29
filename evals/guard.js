@@ -27,3 +27,38 @@ export function evalLabels(step, extra = {}) {
   const labels = { origin: 'eval', step, ...extra };
   return Object.fromEntries(Object.entries(labels).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, clean(v)]));
 }
+
+// ── Orçamento do eval (29/10/2026) ───────────────────────────────────────────────────────────────────────────
+// Os evals do estúdio somaram centenas de reais em poucos dias. Agora toda chamada paga soma num contador do processo e, passando do
+// orçamento (padrão US$ 1, `EVAL_BUDGET_USD` para mudar), a próxima chamada falha antes de gastar. Uma rodada que precise de mais
+// precisa de quem rodou dizendo o valor, de propósito.
+let spent = 0;
+
+export const evalBudgetUsd = (env = process.env) => {
+  const n = Number(env.EVAL_BUDGET_USD ?? 1);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+};
+
+export const evalSpentUsd = () => spent;
+export const resetEvalSpend = () => {
+  spent = 0;
+};
+export const chargeEval = (usd) => {
+  spent += Number(usd) || 0;
+};
+
+export function assertBudget(env = process.env) {
+  const budget = evalBudgetUsd(env);
+  if (spent >= budget) throw new Error(`Orçamento do eval esgotado: US$ ${spent.toFixed(2)} de US$ ${budget.toFixed(2)}. Aumente EVAL_BUDGET_USD só de propósito.`);
+}
+
+// Embrulha o ModelClient da plataforma (vertex.ts): confere o orçamento antes de cada chamada e soma o custo depois.
+export function budgetedClient(client, env = process.env) {
+  const wrap = (fn) => async (input) => {
+    assertBudget(env);
+    const out = await fn.call(client, input);
+    chargeEval(out?.costUsd);
+    return out;
+  };
+  return { ...client, config: client.config, generateJson: wrap(client.generateJson), generateText: wrap(client.generateText), generateImage: wrap(client.generateImage) };
+}

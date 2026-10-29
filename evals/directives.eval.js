@@ -4,7 +4,7 @@
 
 import { afterAll, describe, it } from 'vitest';
 import { vertexClient, vertexConfig } from '../platform/src/lib/vertex.ts';
-import { evalEnv } from './guard.js';
+import { evalEnv, budgetedClient } from './guard.js';
 import { buildDirectivesPrompt, parseDirectives } from '../platform/src/lib/directives.ts';
 import { COMPANIES } from './cases.js';
 import { ALL_CASES as CASES } from './all-cases.js';
@@ -16,7 +16,7 @@ const results = [];
 
 describe.skipIf(!live)('leitor de instruções', () => {
   const cfg = vertexConfig({ VERTEX_LOCATION: 'global', VERTEX_TEXT_MODEL: 'gemini-3-flash-preview', ...evalEnv() });
-  const model = vertexClient({ config: cfg });
+  const model = budgetedClient(vertexClient({ config: cfg }));
 
   describe.concurrent('casos', () => {
     for (const brief of CASES.filter((c) => c.directives)) {
