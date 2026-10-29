@@ -7,6 +7,7 @@
 // violação de unicidade, que vira RevisionConflict (409). A revisão é a fonte da verdade: se o servidor
 // cair entre gravar a revisão e atualizar o post, a próxima leitura completa a atualização (reconcile).
 
+import { isStudioDesign } from './studio/is-studio';
 import { randomUUID } from 'node:crypto';
 import type { TenantDb } from './tenant-db';
 import { personProfiles } from './accounts';
@@ -107,6 +108,7 @@ async function loadTarget(t: TenantDb, briefId: string): Promise<Target> {
 }
 
 function assertEditable(target: Target): void {
+  if (isStudioDesign(target.design)) throw new ConflictError('Este post foi criado pelo estúdio e ainda não abre no editor. Peça uma nova direção para criar outro.');
   if (target.decided) throw new ConflictError('Este post já foi decidido. Peça outra direção para criar um novo.');
   if (target.photoAsIs) throw new ConflictError('Este post usa a sua foto como está, sem texto desenhado. Não há o que ajustar aqui.');
 }
