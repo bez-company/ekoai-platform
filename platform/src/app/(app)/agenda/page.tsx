@@ -37,7 +37,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   let err = '';
   const [canManage, canCreate] = await Promise.all([can('publishing.manage'), can('content.create')]);
   try {
-    [agenda, slots] = await Promise.all([getAgenda(t, query, { channel: 'instagram' }), getActiveSlots(t, 'instagram')]);
+    [agenda, slots] = await Promise.all([getAgenda(t, query, { slotChannel: 'instagram' }), getActiveSlots(t, 'instagram')]);
   } catch (e) {
     err = pageError(e, 'page/calendar');
   }

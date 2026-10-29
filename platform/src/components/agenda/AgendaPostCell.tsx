@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import Modal from '@/components/Modal';
 import ScheduledCard, { type ScheduledLike } from '@/components/ScheduledCard';
+import { networkLabel } from '@/lib/networks-model';
 
 export const STATUS: Record<string, { label: string; tone: string }> = {
   queued: { label: 'Na fila', tone: 'border-warning/30 text-warning' },
@@ -26,7 +27,7 @@ export default function AgendaPostCell({ post, time }: { post: ScheduledLike; ti
         type="button"
         onClick={() => setOpen(true)}
         className={`flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border p-2 text-left text-xs transition hover:border-accent/60 md:flex-col md:items-stretch md:gap-1.5 ${post.status === 'failed' ? 'border-danger/30 bg-danger/5' : 'border-accent/20 bg-accent/10'}`}
-        aria-label={`${time}: ${status.label}. ${text}. Ver e agir`}
+        aria-label={`${time}: ${networkLabel(post.channel)}, ${status.label}. ${text}. Ver e agir`}
       >
         {post.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -36,6 +37,7 @@ export default function AgendaPostCell({ post, time }: { post: ScheduledLike; ti
           <span className="font-mono font-semibold text-accent-text md:order-first">{time}</span>
           <span className="line-clamp-2 text-fg">{text}</span>
           <span className={`chip max-w-full self-start truncate ${status.tone}`}>{status.label}</span>
+          {post.channel !== 'instagram' && <span className="chip max-w-full self-start truncate">{networkLabel(post.channel)}</span>}
           {post.variation?.format === 'carousel' && <span className="chip max-w-full self-start truncate">Carrossel</span>}
         </span>
       </button>

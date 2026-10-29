@@ -5,6 +5,7 @@ import { pageError } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
 import { carouselBadge } from '@/lib/carousel-view';
 import { fmtDateTime } from '@/lib/format';
+import { networkLabel } from '@/lib/networks-model';
 import { averageEngagement, fmtCount, fmtRate, listPublished, type PublishedItem } from '@/lib/published-feed';
 import { pageTenant } from '@/lib/session';
 
@@ -24,7 +25,7 @@ function Glyph({ d }: { d: string }) {
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'E';
 
 function Tile({ p }: { p: PublishedItem }) {
-  const label = `${p.title}${p.publishedAt ? `, publicado ${fmtDateTime(p.publishedAt)}` : ''}${p.metrics ? `, ${fmtCount(p.metrics.likes)} curtidas` : ''}`;
+  const label = `${p.channel !== 'instagram' ? `${networkLabel(p.channel)}: ` : ''}${p.title}${p.publishedAt ? `, publicado ${fmtDateTime(p.publishedAt)}` : ''}${p.metrics ? `, ${fmtCount(p.metrics.likes)} curtidas` : ''}`;
   return (
     <Link href={`/historico/${p.id}`} aria-label={label} className="group relative block aspect-[4/5] overflow-hidden bg-inset">
       {p.imageUrl ? (
@@ -33,6 +34,7 @@ function Tile({ p }: { p: PublishedItem }) {
       ) : (
         <span className="flex h-full items-center justify-center p-3 text-center text-sm text-muted">{p.title}</span>
       )}
+      {p.channel !== 'instagram' && <span className="chip absolute left-1.5 top-1.5 bg-paper/90 text-ink">{networkLabel(p.channel)}</span>}
       {p.slides > 0 && (
         <svg className="absolute right-1.5 top-1.5 h-[18px] w-[18px] text-paper drop-shadow" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label={carouselBadge(p.slides)}>
           <path d="M7 3h12a2 2 0 0 1 2 2v12h-2V5H7z" />
@@ -77,7 +79,7 @@ export default async function HistoryPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Publicados</h1>
-        <p className="text-sm text-muted">O que já saiu no Instagram e como foi. Abra um post para ver os números e dizer o que achou.</p>
+        <p className="text-sm text-muted">O que já saiu nas suas redes e como foi. Abra um post para ver os números e dizer o que achou.</p>
       </div>
       <PublishedTabs active="posts" />
 
@@ -86,7 +88,7 @@ export default async function HistoryPage() {
       {!err && posts.length === 0 && (
         <div className="card space-y-3 py-8 text-center">
           <h2 className="text-lg font-semibold">Nada publicado ainda</h2>
-          <p className="mx-auto max-w-md text-sm text-muted">Quando um post sair no Instagram, ele aparece aqui como no seu perfil, com curtidas, comentários e alcance.</p>
+          <p className="mx-auto max-w-md text-sm text-muted">Quando um post sair no Instagram ou no LinkedIn, ele aparece aqui. No Instagram, com curtidas, comentários e alcance.</p>
           <Link href="/agenda" className="btn-primary">
             Ver a agenda
           </Link>

@@ -18,6 +18,7 @@ export type NetworkChip = {
 };
 
 const LABEL: Record<Channel, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', twitter: 'X' };
+export const networkLabel = (channel: string): string => (LABEL as Record<string, string>)[channel] ?? channel;
 const SUB: Record<Channel, string> = { instagram: 'Imagem ou carrossel', linkedin: 'Texto em primeira pessoa e a capa', twitter: 'Post de até 280 caracteres' };
 
 // `connected` são as redes com conta conectada e ativa da empresa.
