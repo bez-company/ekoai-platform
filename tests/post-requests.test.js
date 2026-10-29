@@ -71,7 +71,7 @@ describe('foto do banco no pedido (BEZ-237)', () => {
 });
 
 describe('estilo, esforço e qualidade da imagem (SPEC 030)', () => {
-  it('sem nada, o pedido continua igual: Instantâneo, a Ekoai escolhe o estilo', () => {
+  it('sem nada, o pedido continua igual: Rápido, a Ekoai escolhe o modelo', () => {
     const r = parsePostRequest({ idea: 'x' });
     expect(r).toEqual({ ok: true, value: { idea: 'x', kind: null, goal: null, ratio: '4:5' } });
   });
@@ -89,7 +89,7 @@ describe('estilo, esforço e qualidade da imagem (SPEC 030)', () => {
     expect(r.value.imageQuality).toBeUndefined();
   });
 
-  it('recusa estilo, qualidade e esforço desconhecidos, com o campo', () => {
+  it('recusa modelo, qualidade da imagem e nível desconhecidos, com o campo', () => {
     expect(parsePostRequest({ idea: 'x', style: 'cartaz-feio' })).toMatchObject({ ok: false, field: 'style' });
     expect(parsePostRequest({ idea: 'x', image_quality: 'ultra' })).toMatchObject({ ok: false, field: 'image_quality' });
     expect(parsePostRequest({ idea: 'x', effort: 'turbo' })).toMatchObject({ ok: false, field: 'effort' });

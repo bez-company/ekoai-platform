@@ -1,14 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, brl, estimate, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
+import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
 
-describe('níveis de esforço (SPEC 030)', () => {
-  it('são cinco, do mais barato ao mais caro, e só o Instantâneo gera na F1', () => {
-    expect(EFFORTS).toEqual(['instantaneo', 'padrao', 'refinado', 'autoral', 'pro']);
+describe('níveis de qualidade (SPEC 030)', () => {
+  it('são três, do mais simples ao mais cuidadoso, e só o Rápido gera na F1', () => {
+    expect(EFFORTS).toEqual(['instantaneo', 'refinado', 'autoral']);
     expect(LEVELS.map((l) => l.id)).toEqual([...EFFORTS]);
-    const prices = LEVELS.map((l) => l.priceCents);
-    expect([...prices].sort((a, b) => a - b)).toEqual(prices);
+    expect(LEVELS.map((l) => l.name)).toEqual(['Rápido', 'Refinado', 'Autoral']);
     expect(LEVELS.filter((l) => l.available).map((l) => l.id)).toEqual(['instantaneo']);
     expect(DEFAULT_EFFORT).toBe('instantaneo');
+  });
+
+  it('não carrega preço: o valor fica na fatura, nunca no fluxo do post', () => {
+    for (const l of LEVELS) expect(Object.keys(l)).not.toContain('priceCents');
+    for (const q of Object.values(IMAGE_QUALITY)) expect(Object.keys(q)).not.toContain('priceCents');
   });
 
   it('cada nível acende agentes que existem, e o esforço cresce', () => {
@@ -21,7 +25,9 @@ describe('níveis de esforço (SPEC 030)', () => {
     expect(isEffort('refinado')).toBe(true);
     expect(isEffort('turbo')).toBe(false);
     expect(isEffort(null)).toBe(false);
-    expect(levelOf('pro').extra).toBe('3 opções');
+    expect(isEffort('pro')).toBe(false);
+    expect(isEffort('padrao')).toBe(false);
+    expect(levelOf('autoral').extra).toBe('3 opções');
   });
 });
 
@@ -62,23 +68,9 @@ describe('estilos e tipo do post', () => {
   });
 });
 
-describe('estimativa de preço', () => {
-  it('sem imagem vale o preço do nível', () => {
-    expect(estimate({ effort: 'refinado', style: 'cartaz-tipografico', imageQuality: null })).toEqual({ priceCents: 500, maxCents: null, image: 'no', time: 'cerca de 10 minutos' });
-  });
-
-  it('com imagem soma a qualidade escolhida', () => {
-    expect(estimate({ effort: 'autoral', style: 'surreal-fotografico', imageQuality: 'alta' }).priceCents).toBe(800 + IMAGE_QUALITY.alta.priceCents);
-    expect(estimate({ effort: 'autoral', style: 'auto-imagem', imageQuality: 'padrao' }).priceCents).toBe(800 + IMAGE_QUALITY.padrao.priceCents);
-  });
-
-  it('quando a Ekoai escolhe entre todos, mostra o piso e o teto', () => {
-    expect(estimate({ effort: 'refinado', style: 'auto', imageQuality: 'padrao' })).toMatchObject({ priceCents: 500, maxCents: 560, image: 'maybe' });
-  });
-
-  it('formata em reais com vírgula', () => {
-    expect(brl(560)).toBe('R$ 5,60');
-    expect(brl(50)).toBe('R$ 0,50');
+describe('qualidade da imagem', () => {
+  it('reconhece padrao e alta', () => {
+    expect(isImageQuality('padrao')).toBe(true);
     expect(isImageQuality('alta')).toBe(true);
     expect(isImageQuality('ultra')).toBe(false);
   });

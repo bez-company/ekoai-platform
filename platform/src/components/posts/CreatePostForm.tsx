@@ -56,7 +56,7 @@ export default function CreatePostForm({
   accountName: string;
   canEditProfile: boolean;
   networks: NetworkChip[]; // as redes que a empresa pode escolher (SPEC 028)
-  brand: { primary: string; accent: string }; // as cores do perfil, para as prévias da vitrine de estilos (SPEC 030)
+  brand: { primary: string; accent: string }; // as cores do perfil, para as prévias da vitrine de modelos (SPEC 030)
   initialAssetId?: string | null;
 }) {
   const router = useRouter();
@@ -81,7 +81,7 @@ export default function CreatePostForm({
   const [busy, setBusy] = useState(false);
   const atLimit = usage.used >= usage.max;
   const photoAsIs = photo?.usage === 'as_is';
-  // Com foto anexada a foto é o visual: a vitrine de estilos e a qualidade da imagem não se aplicam (SPEC 025, decisão 2).
+  // Com foto anexada a foto é o visual: a vitrine de modelos e a qualidade da imagem não se aplicam (SPEC 025, decisão 2).
   const imageMode = photo ? 'no' : usesImage(style);
   // Com foto anexada o post é de uma imagem só: o carrossel não leva foto em cada lâmina.
   const carousel = format === 'carousel' && !photo;

@@ -59,11 +59,11 @@ export function parsePostRequest(body: unknown): Parsed<PostRequestInput> {
     if (notYet.length) return { ok: false, error: `Ainda não dá para criar posts para ${notYet.map((c) => (c === 'twitter' ? 'o X' : 'o LinkedIn')).join(' e ')}. Escolha só o Instagram por enquanto.`, field: 'channels' };
     channels = unique;
   }
-  // Estilo, esforço e qualidade da imagem (SPEC 030). Ausentes = Instantâneo, a Ekoai escolhe o estilo e não há qualidade de imagem.
-  if (b.effort != null && b.effort !== '' && !isEffort(b.effort)) return { ok: false, error: 'Escolha um dos níveis de esforço da lista.', field: 'effort' };
+  // Modelo (estilo), qualidade (esforço) e qualidade da imagem (SPEC 030). Ausentes = Rápido, a Ekoai escolhe o modelo e não há qualidade de imagem.
+  if (b.effort != null && b.effort !== '' && !isEffort(b.effort)) return { ok: false, error: 'Escolha um dos níveis de qualidade da lista.', field: 'effort' };
   const effort: Effort = isEffort(b.effort) ? b.effort : DEFAULT_EFFORT;
-  if (!levelOf(effort).available) return { ok: false, error: `O nível ${levelOf(effort).name} chega em breve. Escolha Instantâneo por enquanto.`, field: 'effort' };
-  if (b.style != null && b.style !== '' && !isStyleChoice(b.style)) return { ok: false, error: 'Escolha um estilo da vitrine ou deixe a Ekoai escolher.', field: 'style' };
+  if (!levelOf(effort).available) return { ok: false, error: `O nível ${levelOf(effort).name} chega em breve. Escolha Rápido por enquanto.`, field: 'effort' };
+  if (b.style != null && b.style !== '' && !isStyleChoice(b.style)) return { ok: false, error: 'Escolha um modelo da vitrine ou deixe a Ekoai escolher.', field: 'style' };
   const style = isStyleChoice(b.style) ? b.style : DEFAULT_STYLE;
   if (b.image_quality != null && b.image_quality !== '' && !isImageQuality(b.image_quality)) return { ok: false, error: 'Escolha a qualidade da imagem: Padrão ou Alta.', field: 'image_quality' };
   // A qualidade só vale quando o estilo usa imagem de IA; para estilo minimalista ela é descartada em vez de recusada.
