@@ -150,7 +150,7 @@ do eval. Nível Refinado, 6 pedidos, `ekoai-staging`:
 | Produção com 5 imagens de referência | 7,52 | 5 de 6 | 0,24 |
 
 As imagens de referência (peças nota máxima de marcas reais, só em `.context/studio/exemplars/`) valem cerca de 0,7 ponto. Em
-produção não há como usar peça de marca de cliente: precisa de uma galeria de referências genéricas (BEZ-470). A diferença que
+produção não há como usar peça de marca de cliente: precisa de uma galeria de referências genéricas (BEZ-473). A diferença que
 sobra para o experimento (0,5) está dentro do ruído de 6 pedidos.
 
 ## Limites
