@@ -375,6 +375,21 @@ resource "google_cloud_run_v2_job" "studio" {
           name  = "VERTEX_IMAGE_MODEL"
           value = local.vertex.image_model
         }
+        # O job acorda o worker de geração depois de devolver um pedido à fila como Rápido (no staging sob demanda o Scheduler da
+        # geração fica pausado): precisa do endereço da plataforma e do segredo do cron.
+        env {
+          name  = "APP_BASE_URL"
+          value = local.public_url
+        }
+        env {
+          name = "CRON_SECRET"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.s["cron-secret"].secret_id
+              version = "latest"
+            }
+          }
+        }
         dynamic "env" {
           for_each = local.account_env
           content {

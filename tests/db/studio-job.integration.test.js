@@ -59,17 +59,22 @@ describe('uma execução do job', () => {
   it('o estúdio não entregou: o pedido volta à fila como Rápido, para o gerador de sempre', async () => {
     const t = tenantDb(A);
     const id = await brief('refinado');
-    const out = await runStudioJob(t, { tenantId: A, briefId: id }, deps(model([])));
+    let woke = 0;
+    const out = await runStudioJob(t, { tenantId: A, briefId: id }, deps(model([])), { wake: () => void (woke += 1) });
     expect(out).toMatchObject({ status: 'fallback' });
     expect(await one('select status, effort from briefs where id = $1', [id])).toMatchObject({ status: 'queued', effort: 'instantaneo' });
+    // O worker é acordado: no staging sob demanda o Scheduler da geração fica pausado.
+    expect(woke).toBe(1);
   });
 
   it('exceção dentro do estúdio também devolve o pedido à fila, nunca o deixa preso em geração', async () => {
     const t = tenantDb(A);
     const id = await brief('autoral');
     const boom = { ...deps(model([])), modelFor: () => { throw new Error('credencial vencida'); } };
-    const out = await runStudioJob(t, { tenantId: A, briefId: id }, boom);
+    let woke = 0;
+    const out = await runStudioJob(t, { tenantId: A, briefId: id }, boom, { wake: () => void (woke += 1) });
     expect(out).toMatchObject({ status: 'fallback' });
+    expect(woke).toBe(1);
     expect(await one('select status, effort from briefs where id = $1', [id])).toMatchObject({ status: 'queued', effort: 'instantaneo' });
   });
 
