@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { pageError } from '@/lib/api';
-import { financePost } from '@/lib/console-finance';
+import { financePost, getPricing } from '@/lib/console-finance';
+import { isPricingSet, postPriceBrl, profitOf } from '@/lib/price-model';
 import { GROUPS, costByChannel, costByGroup, fmtBrl, fmtUsd, percent, totalCost } from '@/lib/console-finance-model';
 import { pageConsole } from '@/lib/platform-admin';
 import { toBrl } from '@/lib/pricing';
@@ -23,8 +24,9 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
   const suffix = month === monthKeyOf(new Date()) ? '' : `?mes=${month}`;
 
   let post;
+  let pricing;
   try {
-    post = await financePost(tenant, brief);
+    [post, pricing] = await Promise.all([financePost(tenant, brief), getPricing()]);
   } catch (e) {
     return (
       <p role="alert" className="card border-danger/30 bg-danger/10 text-sm">
@@ -36,6 +38,9 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
   const total = totalCost(post.runs);
   const byGroup = costByGroup(post.runs);
   const byChannel = costByChannel(post.runs);
+  const priced = isPricingSet(pricing);
+  const price = postPriceBrl(toBrl(total), pricing);
+  const profit = profitOf(price, toBrl(total));
 
   return (
     <div className="space-y-4">
@@ -45,7 +50,7 @@ export default async function ConsoleFinancePost({ params, searchParams }: { par
       <div>
         <h1 className="text-2xl font-semibold">{post.title}</h1>
         <p className="text-sm text-muted">
-          {new Date(post.createdAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))})
+          {new Date(post.createdAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))}){priced ? ` · cobrança prevista ${fmtBrl(price)} · lucro ${fmtBrl(profit.profitBrl)} (${profit.marginPercent.toFixed(0)}%)` : ''}
         </p>
       </div>
 

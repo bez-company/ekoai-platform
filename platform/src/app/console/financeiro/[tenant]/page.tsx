@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { pageError } from '@/lib/api';
-import { financePosts } from '@/lib/console-finance';
+import { financePosts, getPricing } from '@/lib/console-finance';
+import { isPricingSet, postPriceBrl, profitOf } from '@/lib/price-model';
 import { GROUPS, costByGroup, fmtBrl, fmtUsd, totalCost } from '@/lib/console-finance-model';
 import { pageConsole } from '@/lib/platform-admin';
 import { toBrl } from '@/lib/pricing';
@@ -20,8 +21,9 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
   const suffix = month === monthKeyOf(now) ? '' : `?mes=${month}`;
 
   let data;
+  let pricing;
   try {
-    data = await financePosts(tenant, month);
+    [data, pricing] = await Promise.all([financePosts(tenant, month), getPricing()]);
   } catch (e) {
     return (
       <p role="alert" className="card border-danger/30 bg-danger/10 text-sm">
@@ -32,6 +34,10 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
   if (!data) notFound();
   const all = data.posts.flatMap((p) => p.runs);
   const total = totalCost(all);
+  const priced = isPricingSet(pricing);
+  const priceOf = (costUsd: number) => postPriceBrl(toBrl(costUsd), pricing);
+  const priceTotal = data.posts.reduce((n, p) => n + priceOf(p.costUsd), 0);
+  const overall = profitOf(priceTotal, toBrl(total));
 
   return (
     <div className="space-y-4">
@@ -41,7 +47,7 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
       <div>
         <h1 className="text-2xl font-semibold">{data.name}</h1>
         <p className="text-sm text-muted">
-          {monthLabel(month)} · {data.total} {data.total === 1 ? 'post' : 'posts'} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))}) nos {data.posts.length} mais novos
+          {monthLabel(month)} · {data.total} {data.total === 1 ? 'post' : 'posts'} · custo {fmtUsd(total)} ({fmtBrl(toBrl(total))}){priced ? ` · cobrança prevista ${fmtBrl(priceTotal)} · lucro ${fmtBrl(overall.profitBrl)} (${overall.marginPercent.toFixed(0)}%)` : ''} nos {data.posts.length} mais novos
         </p>
       </div>
       {data.posts.length === 0 ? (
@@ -58,6 +64,8 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
                   </th>
                 ))}
                 <th className="px-4 py-3 text-right">Custo</th>
+                {priced && <th className="px-4 py-3 text-right">Cobrança prevista</th>}
+                {priced && <th className="px-4 py-3 text-right">Lucro</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -77,6 +85,8 @@ export default async function ConsoleFinanceAccount({ params, searchParams }: { 
                       </td>
                     ))}
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums">{fmtUsd(p.costUsd)}</td>
+                    {priced && <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBrl(priceOf(p.costUsd))}</td>}
+                    {priced && <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBrl(profitOf(priceOf(p.costUsd), toBrl(p.costUsd)).profitBrl)}</td>}
                   </tr>
                 );
               })}
