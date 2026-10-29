@@ -60,7 +60,7 @@ describe('purge-person', () => {
     expect(r.message).toMatch(/tenant_members\.user_id: 1 \(cascade\)/);
     expect(r.message).toMatch(/invitations\.invited_by: 1 \(set null\)/);
     expect(r.message).toMatch(/convites para o e-mail: 1/);
-    expect(r.message).toMatch(/audit_events com o id dela: 1/);
+    expect(r.message).toMatch(/audit_events dela: 1 \(ficam/);
     expect(r.message).toMatch(/Ensaio: nada foi apagado/);
     expect(await count("select count(*)::int as n from users where email like 'it-purge-%'")).toBe(2);
     expect(await count('select count(*)::int as n from invitations where tenant_id = $1', [TENANT])).toBe(2);
@@ -84,6 +84,29 @@ describe('purge-person', () => {
     // a auditoria de antes fica (é só de inserção) e a limpeza grava o próprio evento
     expect(await count('select count(*)::int as n from audit_events where actor_user_id = $1', [ana])).toBe(1);
     expect(await count("select count(*)::int as n from audit_events where action = 'person.purged' and target_id = $1", [String(ana)])).toBe(1);
+  });
+
+  it('--with-audit também tira os eventos da pessoa, religa o gatilho e não grava id nenhum', async () => {
+    const { ana, bia } = await scenario();
+    const inv = (await one("select id from invitations where email = 'it-purge-ana@example.test'")).id;
+    await admin.query("insert into audit_events (tenant_id, actor_user_id, action, target_type, target_id) values ($1, $2, 'team.member_removed', 'user', $3)", [TENANT, bia, String(ana)]);
+    await admin.query("insert into audit_events (tenant_id, actor_user_id, action, target_type, target_id) values ($1, $2, 'team.invitation_sent', 'invitation', $3)", [TENANT, bia, String(inv)]);
+    await admin.query("insert into audit_events (tenant_id, actor_user_id, action) values ($1, $2, 'team.member_added')", [TENANT, bia]); // da outra pessoa: fica
+
+    const dry = await run(db, { email: 'it-purge-ana@example.test', withAudit: true });
+    expect(dry.message).toMatch(/audit_events dela: 3 \(saem com --with-audit\)/);
+    expect(await count('select count(*)::int as n from audit_events where tenant_id = $1', [TENANT])).toBe(4);
+
+    const r = await run(db, { email: 'it-purge-ana@example.test', apply: true, withAudit: true });
+    expect(r.ok).toBe(true);
+    expect(r.message).toMatch(/nem em audit_events/);
+    expect(await count('select count(*)::int as n from audit_events where actor_user_id = $1 or target_id = $2 or target_id = $3', [ana, String(ana), String(inv)])).toBe(0);
+    // só sobra o evento da outra pessoa e o da limpeza, sem id nenhum
+    const left = (await admin.query("select action, target_type, target_id from audit_events where tenant_id is null or tenant_id = $1 order by action", [TENANT])).rows;
+    expect(left.filter((e) => e.action === 'person.purged')).toEqual([{ action: 'person.purged', target_type: null, target_id: null }]);
+    expect(left.some((e) => e.action === 'team.member_added')).toBe(true);
+    // o gatilho voltou: a tabela segue sem aceitar delete
+    await expect(admin.query("delete from audit_events where action = 'team.member_added'")).rejects.toThrow(/só aceita inserção/);
   });
 
   it('repetir depois de apagada não encontra nada', async () => {
