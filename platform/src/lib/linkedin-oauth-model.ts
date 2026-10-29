@@ -58,7 +58,7 @@ export function parseCallbackQuery(params: URLSearchParams): CallbackQuery {
 }
 
 // O que a tela de redes mostra depois de voltar do LinkedIn (`?li=<chave>`).
-export type FlashKey = 'connected' | 'disconnected' | 'denied' | 'invalid' | 'failed' | 'no_publish' | 'taken' | 'unavailable' | 'choose_page' | 'no_pages' | 'page_saved';
+export type FlashKey = 'connected' | 'disconnected' | 'denied' | 'invalid' | 'failed' | 'no_publish' | 'networks' | 'taken' | 'unavailable' | 'choose_page' | 'no_pages' | 'page_saved';
 
 export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   connected: { tone: 'ok', text: 'LinkedIn conectado. Os posts aprovados já podem ir para ele.' },
@@ -67,6 +67,7 @@ export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   invalid: { tone: 'warn', text: 'A conexão expirou ou veio incompleta. Clique em Conectar para começar de novo.' },
   failed: { tone: 'warn', text: 'Não deu para concluir a conexão agora. Tente de novo em instantes; se continuar, avise o suporte.' },
   no_publish: { tone: 'warn', text: 'A permissão de publicar no seu nome não foi concedida. Conecte de novo e aceite "Publicar no seu nome".' },
+  networks: { tone: 'warn', text: 'O plano da conta não inclui mais redes. Desconecte uma rede ou mude de plano para conectar o LinkedIn.' },
   taken: { tone: 'warn', text: 'Esse perfil do LinkedIn já está conectado a outra conta da Ekoai. Desconecte lá primeiro.' },
   unavailable: { tone: 'warn', text: 'A conexão com o LinkedIn ainda não está ativa neste ambiente. Avise o suporte.' },
   choose_page: { tone: 'ok', text: 'LinkedIn conectado. Escolha abaixo onde os posts saem: no seu perfil ou em uma página que você administra.' },

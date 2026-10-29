@@ -7,6 +7,17 @@ import type { SocialAccount } from './social-accounts';
 // Aviso de vencimento: o token dura 60 dias e a renovação roda antes; abaixo disto a tela destaca.
 export const EXPIRING_SOON_DAYS = 14;
 
+// Redes do plano (SPEC 021): uma rede conta uma vez, qualquer que seja o número de contas dela. A conexão que já existe nunca é
+// bloqueada; só a rede nova, quando o plano já está cheio. O banco recusa do mesmo jeito (0059); aqui a tela avisa antes do clique.
+export const NETWORK_LIMIT_REASON = 'O plano da conta não inclui mais redes. Desconecte uma rede ou mude de plano.';
+
+export function networkLimitReached(accounts: readonly SocialAccount[], channel: string, maxNetworks: number | null | undefined): boolean {
+  if (maxNetworks === null || maxNetworks === undefined) return false;
+  const live = accounts.filter((a) => a.status !== 'revoked');
+  if (live.some((a) => a.channel === channel)) return false;
+  return new Set(live.map((a) => a.channel)).size >= maxNetworks;
+}
+
 export type InstagramView =
   | { kind: 'none'; canConnect: boolean; blockedReason: string | null }
   | { kind: 'connected'; id: string; handle: string | null; daysLeft: number | null; expiringSoon: boolean }
@@ -17,6 +28,7 @@ export type InstagramViewInput = {
   configured: boolean; // INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET existem neste ambiente
   canManage: boolean; // channels.manage
   maxAccounts: number | null; // limite do plano (null = sem limite)
+  maxNetworks?: number | null; // redes que o plano permite conectar (ausente ou null = sem limite)
   nowMs: number;
 };
 
@@ -42,6 +54,7 @@ export function instagramView(input: InstagramViewInput): InstagramView {
   if (input.maxAccounts !== null && live.length >= input.maxAccounts) {
     return { kind: 'none', canConnect: false, blockedReason: 'O plano da conta não inclui mais contas de Instagram.' };
   }
+  if (networkLimitReached(input.accounts, 'instagram', input.maxNetworks)) return { kind: 'none', canConnect: false, blockedReason: NETWORK_LIMIT_REASON };
   return { kind: 'none', canConnect: true, blockedReason: null };
 }
 
@@ -59,7 +72,7 @@ export type LinkedInDestination = {
   publishingAs: string; // nome de quem aparece como autor
 };
 
-export type LinkedInViewInput = { accounts: readonly SocialAccount[]; configured: boolean; canManage: boolean; nowMs: number; pagesEnabled?: boolean };
+export type LinkedInViewInput = { accounts: readonly SocialAccount[]; configured: boolean; canManage: boolean; nowMs: number; pagesEnabled?: boolean; maxNetworks?: number | null };
 
 export function linkedinView(input: LinkedInViewInput): LinkedInView {
   const live = input.accounts.filter((a) => a.channel === 'linkedin' && a.status !== 'revoked');
@@ -75,5 +88,6 @@ export function linkedinView(input: LinkedInViewInput): LinkedInView {
 
   if (!input.canManage) return { kind: 'none', canConnect: false, blockedReason: 'Só administradores conectam o LinkedIn. Peça a quem administra a conta.' };
   if (!input.configured) return { kind: 'none', canConnect: false, blockedReason: 'A conexão com o LinkedIn ainda não está ativa neste ambiente. Avise o suporte.' };
+  if (networkLimitReached(input.accounts, 'linkedin', input.maxNetworks)) return { kind: 'none', canConnect: false, blockedReason: NETWORK_LIMIT_REASON };
   return { kind: 'none', canConnect: true, blockedReason: null };
 }

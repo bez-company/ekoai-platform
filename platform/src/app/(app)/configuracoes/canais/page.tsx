@@ -24,9 +24,10 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
       configured: instagramApp() !== null,
       canManage,
       maxAccounts: account?.plan.maxInstagramAccounts ?? null,
+      maxNetworks: account?.plan.maxNetworks ?? null,
       nowMs: Date.now(),
     });
-    const liView = linkedinView({ accounts, configured: oauthApp() !== null, canManage, nowMs: Date.now(), pagesEnabled: pagesEnabled() });
+    const liView = linkedinView({ accounts, configured: oauthApp() !== null, canManage, nowMs: Date.now(), pagesEnabled: pagesEnabled(), maxNetworks: account?.plan.maxNetworks ?? null });
     return (
       <div className="space-y-8">
         <InstagramConnection view={view} canManage={canManage} flash={flash} />

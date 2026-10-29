@@ -79,7 +79,7 @@ export type AccountDetail = {
   suspendedAt: string | null;
   suspendedReason: string | null;
   createdAt: string;
-  plan: { id: string; name: string; maxSeats: number; maxInstagramAccounts: number; maxPostsPerMonth: number };
+  plan: { id: string; name: string; maxSeats: number; maxInstagramAccounts: number; maxPostsPerMonth: number; maxNetworks: number };
   people: AccountPerson[];
   invitations: AccountInvite[];
   networks: AccountNetwork[];
@@ -91,7 +91,7 @@ export async function getAccount(id: string): Promise<AccountDetail | null> {
   const client = db();
   const t = await client.query(
     `select t.id, t.name, t.kind, t.status, t.suspended_at, t.suspended_reason, t.created_at,
-            p.id as plan_id, p.name as plan_name, p.max_seats, p.max_instagram_accounts, p.max_posts_per_month,
+            p.id as plan_id, p.name as plan_name, p.max_seats, p.max_instagram_accounts, p.max_posts_per_month, p.max_networks,
             coalesce(pc.paused, false) as paused
      from tenants t join plans p on p.id = t.plan_id left join publishing_controls pc on pc.tenant_id = t.id
      where t.id = $1`,
@@ -162,6 +162,7 @@ export async function getAccount(id: string): Promise<AccountDetail | null> {
       maxSeats: Number(row.max_seats),
       maxInstagramAccounts: Number(row.max_instagram_accounts),
       maxPostsPerMonth: Number(row.max_posts_per_month),
+      maxNetworks: Number(row.max_networks),
     },
     people,
     invitations,
