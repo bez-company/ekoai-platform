@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import { getPendings } from '@/lib/queries';
+import { listInProgress, type InProgressPost } from '@/lib/post-requests';
+import { studioSteps } from '@/lib/generation-steps';
+import { levelOf } from '@/lib/studio/levels';
+import { Spinner } from '@/components/auth/ui';
 import { fmtDateTime } from '@/lib/format';
 import { groupIdeas, reviewHref, roleOf } from '@/lib/ideas-model';
 import type { PendingApproval } from '@/lib/types';
@@ -32,9 +36,10 @@ export default async function InboxPage() {
   const t = await pageTenant();
   const canCreate = await can('content.create');
   let pendings: PendingApproval[] = [];
+  let inProgress: InProgressPost[] = [];
   let err = '';
   try {
-    pendings = await getPendings(t);
+    [pendings, inProgress] = await Promise.all([getPendings(t), listInProgress(t)]);
   } catch (e) {
     err = pageError(e, 'page/inbox');
   }
@@ -64,6 +69,33 @@ export default async function InboxPage() {
       <CoachMark id="inbox" title="Aqui ficam os posts para revisar." body="Abra um post, ajuste a legenda se quiser e aprove: ele entra no próximo horário da agenda." />
 
       {err && <DbHint message={err} />}
+
+      {inProgress.length > 0 && (
+        <section className="card space-y-3" aria-label="Posts em criação">
+          <h2 className="text-sm font-semibold">Em criação ({inProgress.length})</h2>
+          <ul className="divide-y divide-line">
+            {inProgress.map((p) => {
+              const level = levelOf(p.effort);
+              const agent = level.engine === 'studio' ? studioSteps(p.effort, p.stage, 'generating').find((s) => s.state === 'run') : null;
+              return (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Spinner />
+                    <span className="truncate">{p.idea}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3 text-muted">
+                    <span>{agent ? `${level.name}: ${agent.title}` : level.name} · {level.engine === 'studio' ? level.time : 'cerca de 1 minuto'}</span>
+                    <Link href={`/criar/${p.id}`} className="text-accent-text hover:underline">
+                      Acompanhar
+                    </Link>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-xs text-muted">Quando ficar pronto, o post aparece aqui para você aprovar e o sino avisa.</p>
+        </section>
+      )}
 
       {!err && pendings.length === 0 && (
         <div className="card space-y-3 py-8 text-center">

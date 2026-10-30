@@ -12,7 +12,10 @@ process.env.DATABASE_URL = url;
 
 const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
-const { runStudioJob, jobInputFrom } = await import('../../platform/src/lib/studio/job.ts');
+const { runStudioJob, jobInputFrom, heartbeat } = await import('../../platform/src/lib/studio/job.ts');
+const { postProgress, listInProgress } = await import('../../platform/src/lib/post-requests.ts');
+const { reserveRun } = await import('../../platform/src/lib/generation-db.ts');
+const { inputHash } = await import('../../platform/src/lib/generation-model.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 
 const A = 'it-job-a';
@@ -84,5 +87,28 @@ describe('uma execução do job', () => {
     await admin.query("update briefs set status = 'ready' where id = $1", [id]);
     await runStudioJob(t, { tenantId: A, briefId: id }, deps(model([])));
     expect((await one('select status from briefs where id = $1', [id])).status).toBe('ready');
+  });
+});
+
+describe('andamento do estúdio na tela e em Aprovar (BEZ-496)', () => {
+  it('o job grava a etapa na chamada render; o progresso e a lista em criação a mostram com o nível', async () => {
+    const t = tenantDb(A);
+    const id = await brief('refinado');
+    await reserveRun(t, { briefId: id, step: 'render', inputHash: inputHash('render', 'studio', { effort: 'refinado', style: 'auto' }), model: 'studio' }, 20);
+    expect((await postProgress(t, id))).toMatchObject({ effort: 'refinado', stage: null });
+    await heartbeat(t, id, 'designer');
+    expect(await postProgress(t, id)).toMatchObject({ effort: 'refinado', stage: 'designer', status: 'generating' });
+    const list = await listInProgress(t);
+    expect(list.find((p) => p.id === id)).toMatchObject({ effort: 'refinado', stage: 'designer' });
+  });
+
+  it('pedido pronto ou com falha não aparece em criação; o mais novo vem primeiro', async () => {
+    const t = tenantDb(A);
+    const done = await brief('refinado');
+    await admin.query("update briefs set status = 'ready' where id = $1", [done]);
+    const fresh = await brief('instantaneo', );
+    const list = await listInProgress(t);
+    expect(list.some((p) => p.id === done)).toBe(false);
+    expect(list[0].id).toBe(fresh);
   });
 });
