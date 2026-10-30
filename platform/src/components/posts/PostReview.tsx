@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { useInjectedText, useTextDraft } from './approve-draft';
 import { splitHashtagLine } from '@/lib/signal-text';
 import Link from 'next/link';
+import { levelOf } from '@/lib/studio/levels';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
@@ -78,6 +79,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const title = pending.generation?.variations?.[0]?.hook ?? '';
   const flags = pending.generation?.guardrail_flags ?? [];
   const warning = flags.length ? pending.generation?.judge_reason : null;
+  const studioFallback = pending.generation?.studio_fallback ?? null;
   const briefId = pending.brief_id ?? null;
   const photoAssetId = pending.seed?.source === 'photo' && typeof pending.seed?.media_asset_id === 'string' ? pending.seed.media_asset_id : null;
   const ratio = ratioOf(pending.seed?.ratio);
@@ -195,6 +197,17 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
         </div>
 
         <div className="space-y-4">
+          {studioFallback && (
+            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+              <p>
+                <strong>Você pediu o {levelOf(studioFallback.from).name}, mas este post saiu no Rápido</strong>: {studioFallback.reason ?? 'o estúdio não conseguiu concluir a peça'}. O nível que não saiu não entra no seu consumo.
+              </p>
+              <Link href="/criar" className="btn-ghost inline-flex">
+                Criar de novo no {levelOf(studioFallback.from).name}
+              </Link>
+            </div>
+          )}
+
           {warning && (
             <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
               <strong>O revisor tem um aviso.</strong> {warning} Edite a legenda abaixo ou aprove assim.

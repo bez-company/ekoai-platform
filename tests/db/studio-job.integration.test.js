@@ -65,7 +65,7 @@ describe('uma execução do job', () => {
     let woke = 0;
     const out = await runStudioJob(t, { tenantId: A, briefId: id }, deps(model([])), { wake: () => void (woke += 1) });
     expect(out).toMatchObject({ status: 'fallback' });
-    expect(await one('select status, effort from briefs where id = $1', [id])).toMatchObject({ status: 'queued', effort: 'instantaneo' });
+    expect(await one('select status, effort, fallback_from, fallback_reason from briefs where id = $1', [id])).toMatchObject({ status: 'queued', effort: 'instantaneo', fallback_from: 'refinado', fallback_reason: 'o estúdio não conseguiu concluir a peça' });
     // O worker é acordado: no staging sob demanda o Scheduler da geração fica pausado.
     expect(woke).toBe(1);
   });

@@ -41,7 +41,7 @@ export type StudioGenerationDeps = {
 };
 
 export type StudioOutcome =
-  | { status: 'ready'; briefId: string; pendingId: string; engine: 'template' | 'chain'; costUsd: number }
+  | { status: 'ready'; briefId: string; pendingId: string; engine: 'template' | 'chain'; costUsd: number; score: number | null }
   | { status: 'fallback'; briefId: string; reason: string }
   | { status: 'limit'; briefId: string; max: number }
   | { status: 'failed'; briefId: string; error: string };
@@ -97,7 +97,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
   const brief = await loadBrief(t, briefId);
   if (!brief) return { status: 'failed', briefId, error: 'pedido não encontrado' };
   const existing = await t.select('pending_approvals', 'pending_id').eq('brief_id', briefId).limit(1);
-  if (existing.data?.[0]) return { status: 'ready', briefId, pendingId: String(existing.data[0].pending_id), engine: 'template', costUsd: 0 };
+  if (existing.data?.[0]) return { status: 'ready', briefId, pendingId: String(existing.data[0].pending_id), engine: 'template', costUsd: 0, score: null };
   const skip = outOfScope(brief);
   if (skip) return { status: 'fallback', briefId, reason: skip };
   const template = brief.effort === 'instantaneo';
@@ -239,7 +239,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
     }
     await t.update('briefs', { status: 'ready', error: null, post_kind: kind }).eq('id', briefId);
     await notify(t, { kind: 'post.ready', title: 'Post pronto para você aprovar', body: made.headline.slice(0, 120), link: `/aprovar/${encodeURIComponent(pendingId)}`, audience: 'team' });
-    return { status: 'ready', briefId, pendingId, engine: made.engine, costUsd: made.costUsd };
+    return { status: 'ready', briefId, pendingId, engine: made.engine, costUsd: made.costUsd, score: made.score };
   } catch (e) {
     if (runId) await failRun(t, runId, e instanceof Error ? e.message : String(e), Date.now() - started).catch(() => undefined);
     if (visualRun) await failRun(t, visualRun, e instanceof Error ? e.message : String(e), Date.now() - started).catch(() => undefined);

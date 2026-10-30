@@ -45,7 +45,7 @@ describe('roteamento do worker', () => {
     const summary = await worker.runGenerateQueue({ model: brokenModel }, { limit: 5, studio: { jobName: null, fetchImpl: okFetch(calls) } });
     expect(summary.dispatched).toBe(0);
     expect(calls).toHaveLength(0);
-    expect((await one('select effort from briefs where id = $1', [id])).effort).toBe('instantaneo');
+    expect(await one('select effort, fallback_from, fallback_reason from briefs where id = $1', [id])).toEqual({ effort: 'instantaneo', fallback_from: 'autoral', fallback_reason: 'o estúdio não está disponível agora' });
   });
 
   it('disparo que falha também cai no caminho de sempre', async () => {

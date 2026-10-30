@@ -125,6 +125,20 @@ describe('post informativo', () => {
     expect(model.calls).toHaveLength(2);
   });
 
+  it('pedido que era do estúdio e saiu como Rápido leva o aviso para a pendência (BEZ-497)', async () => {
+    const t = tenantDb(A);
+    const id = await brief('pedido do estúdio que caiu no Rápido', 'informativo');
+    await admin.query("update briefs set fallback_from = 'refinado', fallback_reason = 'a peça ficou abaixo da qualidade mínima' where id = $1", [id]);
+    const model = fakeModel({ text: [INFO], image: [] });
+    expect((await generatePost(t, id, { model, store, fontDir: FONT_DIR })).status).toBe('ready');
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation.studio_fallback).toEqual({ from: 'refinado', reason: 'a peça ficou abaixo da qualidade mínima' });
+    // Pedido normal não leva a marca.
+    const normal = await brief('pedido normal sem estúdio', 'informativo');
+    await generatePost(t, normal, { model: fakeModel({ text: [INFO], image: [] }), store, fontDir: FONT_DIR });
+    expect((await one('select generation from pending_approvals where brief_id = $1', [normal])).generation.studio_fallback).toBeUndefined();
+  });
+
   it('objetivo e formato do pedido (SPEC 017): o objetivo vai ao prompt e o 1:1 sai 1080x1080', async () => {
     const t = tenantDb(A);
     const parsed = requests.parsePostRequest({ idea: 'qual sabor vocês preferem', goal: 'conversa', ratio: '1:1' });

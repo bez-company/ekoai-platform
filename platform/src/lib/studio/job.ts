@@ -7,6 +7,7 @@
 import type { TenantDb } from '../tenant-db';
 import { log } from '../log';
 import { wakeWorkerAndWait } from '../worker-wake';
+import { fallbackReasonFor } from './levels';
 import { generateStudioPost, type StudioGenerationDeps, type StudioOutcome } from './generate';
 
 export type JobInput = { tenantId: string; briefId: string };
@@ -21,7 +22,10 @@ export function jobInputFrom(env: Record<string, string | undefined>): JobInput 
 // Devolve o pedido à fila como Rápido: o worker o pega e gera pelo motor de hoje.
 export async function requeueAsQuick(t: TenantDb, briefId: string, reason: string): Promise<void> {
   log('warn', 'studio-job', 'o pedido volta para o Rápido', { briefId, reason: reason.slice(0, 300) });
-  const { error } = await t.update('briefs', { effort: 'instantaneo', status: 'queued', error: null }).eq('id', briefId).eq('status', 'generating');
+  // O nível pedido e o motivo ficam no pedido: o motor de hoje os leva para a pendência e a tela de revisão avisa (BEZ-497).
+  const current = await t.select('briefs', 'effort').eq('id', briefId).maybeSingle();
+  const asked = current.data?.effort;
+  const { error } = await t.update('briefs', { effort: 'instantaneo', status: 'queued', error: null, ...(asked === 'refinado' || asked === 'autoral' ? { fallback_from: asked, fallback_reason: fallbackReasonFor(reason) } : {}) }).eq('id', briefId).eq('status', 'generating');
   if (error) throw new Error(`briefs: ${error.message}`);
 }
 
@@ -48,6 +52,7 @@ export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGen
     await requeueAsQuick(t, input.briefId, outcome.reason);
     await wake();
   }
-  log('info', 'studio-job', 'execução concluída', { briefId: input.briefId, status: outcome.status });
+  // Na entrega o log leva o motor, a nota do crítico e o custo (sem eles só a recusa deixava rastro).
+  log('info', 'studio-job', 'execução concluída', { briefId: input.briefId, status: outcome.status, ...(outcome.status === 'ready' ? { engine: outcome.engine, score: outcome.score, costUsd: Number(outcome.costUsd.toFixed(4)) } : {}) });
   return outcome;
 }

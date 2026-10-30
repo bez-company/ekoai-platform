@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, levelAvailable, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
+import { AGENT_NODES, AUTO_STYLES, DEFAULT_EFFORT, EFFORTS, IMAGE_QUALITY, LEVELS, STYLES, levelAvailable, fallbackReasonFor, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelOf, stylesFor, usesImage } from '../platform/src/lib/studio/levels.ts';
 
 describe('níveis de qualidade (SPEC 030)', () => {
   it('são três, do mais simples ao mais cuidadoso, e só o Rápido vale sem o job do estúdio', () => {
@@ -76,5 +76,16 @@ describe('qualidade da imagem', () => {
     expect(isImageQuality('padrao')).toBe(true);
     expect(isImageQuality('alta')).toBe(true);
     expect(isImageQuality('ultra')).toBe(false);
+  });
+});
+
+describe('motivo do fallback em uma frase (BEZ-497)', () => {
+  it('traduz o motivo técnico para a pessoa', () => {
+    expect(fallbackReasonFor('o estúdio não entregou: nota 6.4 abaixo do mínimo 7; nota 6.4 (revise)')).toBe('a peça ficou abaixo da qualidade mínima');
+    expect(fallbackReasonFor('o estúdio não entregou: revisor=text_drift palavra trocada; layout=ok')).toBe('o revisor encontrou defeito no texto ou na marca');
+    expect(fallbackReasonFor('o estúdio não entregou: layout=safe_margin título')).toBe('a peça ficou com defeito de layout');
+    expect(fallbackReasonFor('o estúdio não está disponível agora')).toBe('o estúdio não está disponível agora');
+    expect(fallbackReasonFor('Vertex 503')).toBe('o estúdio não conseguiu concluir a peça');
+    expect(fallbackReasonFor(null)).toBe('o estúdio não conseguiu concluir a peça');
   });
 });

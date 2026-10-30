@@ -114,3 +114,15 @@ export function kindForStyle(style: string): 'informativo' | 'atmosfera' | null 
   const use = usesImage(style);
   return use === 'no' ? 'informativo' : use === 'yes' ? 'atmosfera' : null;
 }
+
+// O motivo, em uma frase para a pessoa, de o Refinado ou o Autoral ter saído como Rápido (SPEC 030, decisão 6). O texto técnico fica no log.
+export function fallbackReasonFor(technical: string | null | undefined): string {
+  const t = (technical ?? '').toLowerCase();
+  if (!t) return 'o estúdio não conseguiu concluir a peça';
+  if (t.includes('abaixo do mínimo')) return 'a peça ficou abaixo da qualidade mínima';
+  if (t.includes('revisor=')) return 'o revisor encontrou defeito no texto ou na marca';
+  if (t.includes('layout=')) return 'a peça ficou com defeito de layout';
+  if (t.includes('limite') || t.includes('teto')) return 'o custo da peça passou do teto';
+  if (t.includes('não está disponível') || t.includes('nao esta disponivel')) return 'o estúdio não está disponível agora';
+  return 'o estúdio não conseguiu concluir a peça';
+}

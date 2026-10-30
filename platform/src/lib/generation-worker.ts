@@ -9,6 +9,7 @@ import { generatePost, type GenerationDeps, type GenerationOutcome } from './gen
 import { vertexClient } from './vertex';
 import { log, logError } from './log';
 import { trackGenerationOutcome } from './product-events';
+import { fallbackReasonFor } from './studio/levels';
 import { dispatchStudioJob, needsStudioJob, studioJobName, type DispatchDeps } from './studio/dispatch';
 
 export const WORKER_BATCH = 3;
@@ -72,7 +73,7 @@ export async function runGenerateQueue(deps?: Partial<GenerationDeps>, options: 
           log('info', 'generation-worker', 'pedido enviado ao job do estúdio', { briefId: brief.id, effort: brief.effort });
           continue;
         }
-        const { error } = await tenantDb(brief.tenant_id).update('briefs', { effort: 'instantaneo' }).eq('id', brief.id);
+        const { error } = await tenantDb(brief.tenant_id).update('briefs', { effort: 'instantaneo', fallback_from: brief.effort, fallback_reason: fallbackReasonFor('o estúdio não está disponível agora') }).eq('id', brief.id);
         if (error) throw new Error(`briefs: ${error.message}`);
       }
       const t = tenantDb(brief.tenant_id);
