@@ -30,7 +30,7 @@ describe('níveis de qualidade (SPEC 030)', () => {
     expect(isEffort(null)).toBe(false);
     expect(isEffort('pro')).toBe(false);
     expect(isEffort('padrao')).toBe(false);
-    expect(levelOf('autoral').extra).toBe('3 opções');
+    expect(levelOf('autoral').extra).toBeUndefined();
   });
 });
 

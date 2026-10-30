@@ -23,8 +23,8 @@ export const isStudioEffort = (e: Effort): e is StudioEffort => (STUDIO_EFFORTS 
 
 export const LEVEL_PLANS: Record<StudioEffort, LevelPlan> = {
   refinado: { drafts: 1, polishRounds: 2, gateRepairs: 2, designer: 'fast', designerThinking: 'medium', capUsd: 0.9 },
-  // Autoral = o antigo Pro, com 3 rascunhos: tudo em Pro e 3 opções de design para a pessoa escolher em Aprovar (F4) (o Autoral de 1 rascunho empatou com o Refinado e saiu).
-  autoral: { drafts: 3, polishRounds: 2, gateRepairs: 2, designer: 'smart', designerThinking: 'medium', capUsd: 1.4 },
+  // Autoral = o antigo Pro: designer no modelo forte, 1 rascunho. Vários rascunhos saíram (30/10): eram quase iguais e a pessoa paga por um post, não por opções.
+  autoral: { drafts: 1, polishRounds: 2, gateRepairs: 2, designer: 'smart', designerThinking: 'medium', capUsd: 1.4 },
 };
 
 // O estúdio usa a mesma lista de modelos do eval (STUDIO_*_MODEL só no eval); em produção os nomes vêm da configuração do Vertex.

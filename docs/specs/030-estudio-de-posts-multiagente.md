@@ -121,7 +121,7 @@ Duas decisões do Matheus, sobre o protótipo v26 e a v27 (que mostrava preço p
   apontar para este código.
 - **F3, execução:** imagem do job com Chromium, Terraform, disparo pelo cron, batimento, teto de custo, a tela "Criando o post" por
   nível e o fallback para o Instantâneo. Liga Padrão, Refinado e Autoral.
-- **F4, aprovar e cobrar:** "Aprovar post autoral", cobrança ao aprovar, ajuste incluso, o nível Pro com 3 opções.
+- **F4, aprovar e cobrar (revisado em 30/10: o Autoral volta a 1 rascunho; as opções eram quase iguais e custavam sem valor, a pessoa paga por um post):** "Aprovar post autoral", cobrança ao aprovar, ajuste incluso, o nível Pro com 3 opções.
 - **F5, ajuste:** "Pedir ajuste" em post autoral.
 - **F6, portão e liberação:** eval no piso, aprovação do Matheus e liberação por conta (sinalizador), depois geral.
 

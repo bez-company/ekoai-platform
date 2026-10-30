@@ -32,7 +32,7 @@ export type Level = {
 export const LEVELS: readonly Level[] = [
   { id: 'instantaneo', name: 'Rápido', quality: 'Qualidade base', time: 'segundos', lit: [1, 3], blurb: 'Um modelo pronto da marca, preenchido com o texto do seu tema. Sem revisão por agentes; dá para refinar depois.', engine: 'quick' },
   { id: 'refinado', name: 'Refinado', quality: 'Qualidade alta', time: 'cerca de 10 minutos', lit: [0, 1, 2, 3, 4, 6], blurb: 'Ideia, texto, arte e design, com um crítico que aponta o que melhorar e um revisor no fim.', engine: 'studio' },
-  { id: 'autoral', name: 'Autoral', quality: 'Qualidade máxima', time: 'cerca de 15 minutos', lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Layout pensado só para o tema, com crítica, refino e revisão. Entrega 3 opções de design para você escolher.', engine: 'studio', extra: '3 opções' },
+  { id: 'autoral', name: 'Autoral', quality: 'Qualidade máxima', time: 'cerca de 15 minutos', lit: [0, 1, 2, 3, 4, 5, 6], blurb: 'Layout pensado só para o tema, com crítica, refino e revisão. Um design só, com o modelo mais forte em cada etapa.', engine: 'studio' },
 ];
 
 // O nível da cadeia de agentes só vale onde o job do estúdio existe (STUDIO_JOB_NAME na plataforma); sem ele, aparece como "em breve".
