@@ -126,6 +126,8 @@ export { wakeWorker } from './worker-wake';
 
 export type PostProgress = {
   id: string;
+  effort: Effort; // o nível do pedido: a tela mostra o tempo e os agentes dele
+  stage: string | null; // a etapa do estúdio em andamento (só nos níveis com cadeia de agentes)
   status: BriefStatus;
   idea: string;
   kind: PostKind | null;
@@ -142,8 +144,15 @@ export type PostProgress = {
 
 const STEP_ORDER: Step[] = ['directives', 'strategist', 'writer', 'art', 'visual', 'review', 'render'];
 
+// A etapa que o job do estúdio gravou na chamada `render` enquanto roda (generation_runs.result.stage).
+function studioStageOf(runs: { step: string; status: string; result?: unknown }[]): string | null {
+  const run = runs.find((r) => r.step === 'render' && r.status === 'reserved');
+  const stage = (run?.result as { stage?: unknown } | null | undefined)?.stage;
+  return typeof stage === 'string' ? stage : null;
+}
+
 export async function postProgress(t: TenantDb, briefId: string): Promise<PostProgress | null> {
-  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at,channels,core,network_errors').eq('id', briefId).maybeSingle();
+  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at,channels,core,network_errors,effort').eq('id', briefId).maybeSingle();
   if (brief.error) throw new Error(`briefs: ${brief.error.message}`);
   if (!brief.data) return null;
   const [runs, pending] = await Promise.all([runsOfBrief(t, briefId), t.select('pending_approvals', 'pending_id,channel').eq('brief_id', briefId)]);
@@ -158,6 +167,8 @@ export async function postProgress(t: TenantDb, briefId: string): Promise<PostPr
   const status = (BRIEF_STATUS as readonly string[]).includes(String(brief.data.status)) ? (brief.data.status as BriefStatus) : 'failed';
   return {
     id: String(brief.data.id),
+    effort: isEffort(brief.data.effort) ? brief.data.effort : DEFAULT_EFFORT,
+    stage: studioStageOf(runs),
     status,
     idea: String(brief.data.idea),
     kind: isPostKind(brief.data.post_kind) ? brief.data.post_kind : null,
@@ -194,4 +205,16 @@ export async function requestAnotherDirection(t: TenantDb, briefId: string): Pro
   if (del.error) throw new Error(`pendências: ${del.error.message}`);
   const { error } = await t.update('briefs', { direction, status: 'queued', error: null }).eq('id', briefId);
   if (error) throw new Error(`briefs: ${error.message}`);
+}
+
+// Os pedidos em criação (na fila ou em geração), do mais novo ao mais antigo: Aprovar mostra que eles existem e quanto falta.
+export type InProgressPost = { id: string; idea: string; effort: Effort; stage: string | null; createdAt: string };
+
+export async function listInProgress(t: TenantDb, limit = 10): Promise<InProgressPost[]> {
+  const { data, error } = await t.select('briefs', 'id,idea,effort,created_at').in('status', ['queued', 'generating']).eq('source', 'platform').order('created_at', { ascending: false }).limit(limit);
+  if (error) throw new Error(`briefs: ${error.message}`);
+  const rows = data ?? [];
+  const stages = new Map<string, string | null>();
+  for (const r of rows) stages.set(String(r.id), studioStageOf(await runsOfBrief(t, String(r.id))));
+  return rows.map((r) => ({ id: String(r.id), idea: String(r.idea), effort: isEffort(r.effort) ? r.effort : DEFAULT_EFFORT, stage: stages.get(String(r.id)) ?? null, createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at) }));
 }

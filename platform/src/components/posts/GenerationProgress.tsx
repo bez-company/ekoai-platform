@@ -8,7 +8,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Spinner } from '@/components/auth/ui';
 import type { PostProgress } from '@/lib/post-requests';
-import { STEPS, stateOf, type StepState } from '@/lib/generation-steps';
+import { STEPS, stateOf, studioSteps, timeSentence, type StepState } from '@/lib/generation-steps';
+import { levelOf } from '@/lib/studio/levels';
 import { friendlyGenerationError } from '@/lib/generation-errors';
 import { failedNetworks } from '@/lib/generation-networks';
 import type { Channel } from '@/lib/types';
@@ -62,7 +63,9 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
 
   const steps = progress.networks
     ? progress.networks.map((n) => (n.id === retryingNetwork ? { id: n.id, title: n.title, sub: `Escrevendo o post do ${NAME[n.id as Channel]}. As outras redes não mudam.`, state: 'run' as StepState } : { id: n.id, title: n.title, sub: n.sub, state: n.state }))
-    : STEPS.map((s) => ({ ...s, state: stateOf(progress, s.id) }));
+    : levelOf(progress.effort).engine === 'studio'
+      ? studioSteps(progress.effort, progress.stage, progress.status)
+      : STEPS.map((s) => ({ ...s, state: stateOf(progress, s.id) }));
   const failed = progress.networks && progress.status === 'ready' ? failedNetworks(progress.networks) : [];
   const limit = progress.status === 'failed' && /limite do plano/.test(progress.error ?? '');
   const friendly = friendlyGenerationError(progress.error);
@@ -117,7 +120,7 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
       )}
       {active && (
         <p className="rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
-          Leva cerca de 1 minuto. Você pode sair desta tela: o post aparece em Aprovar quando ficar pronto.
+          {timeSentence(progress.effort)} Você pode sair desta tela: a criação continua e o post aparece em Aprovar quando ficar pronto.
         </p>
       )}
       <ol className="space-y-3">

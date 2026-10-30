@@ -27,12 +27,17 @@ export async function requeueAsQuick(t: TenantDb, briefId: string, reason: strin
 
 // `wake`: acorda o worker depois de devolver o pedido à fila. No staging sob demanda o Scheduler da geração fica pausado e só o pedido
 // acorda o worker; sem isto o pedido devolvido ficaria parado na fila.
+// Bate o coração do pedido e grava a etapa na chamada `render`: a tela "Criando o post" e Aprovar mostram em que agente o estúdio está.
+export async function heartbeat(t: TenantDb, briefId: string, stage: string): Promise<void> {
+  await t.update('briefs', { updated_at: new Date().toISOString() }).eq('id', briefId);
+  await t.update('generation_runs', { result: { stage } }).eq('brief_id', briefId).eq('step', 'render').eq('status', 'reserved');
+}
+
 export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGenerationDeps, options: { wake?: () => void } = {}): Promise<StudioOutcome> {
   const wake = options.wake ?? wakeWorker;
-  const beat = () => void t.update('briefs', { updated_at: new Date().toISOString() }).eq('id', input.briefId).then(() => undefined, () => undefined);
   let outcome: StudioOutcome;
   try {
-    outcome = await generateStudioPost(t, input.briefId, { ...deps, onStage: (stage) => { beat(); deps.onStage?.(stage); } });
+    outcome = await generateStudioPost(t, input.briefId, { ...deps, onStage: (stage) => { void heartbeat(t, input.briefId, stage).catch(() => undefined); deps.onStage?.(stage); } });
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     await requeueAsQuick(t, input.briefId, reason);
