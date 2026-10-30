@@ -54,6 +54,7 @@ export type StudioInput = {
   recentTitles?: string[];
   logos: Logos;
   refs?: Ref[];
+  lessons?: string[]; // os defeitos das tentativas anteriores deste post: o designer não os repete (BEZ-479)
   onStage?: (stage: string, info?: unknown) => void;
 };
 
@@ -182,7 +183,7 @@ export async function runStudio(deps: { model: StudioModel; renderer: Renderer }
   const refsOf = input.refs;
   const refImages = (input.refs ?? []).filter((r): r is Ref & { bytes: Uint8Array } => !!r.bytes).map((r) => ({ bytes: r.bytes, label: `Referência de nível "${r.name}":` }));
   const render = (html: string) => renderer.render({ html, ratio, assets: assetsOf(images), logos: input.logos });
-  const design = (feedbackNote: string | null, temperature: number, step: string, thinking: Thinking = plan.designerThinking) => askHtml(model, { model: plan.designer, step, thinking, temperature, prompt: designerPrompt({ brand, request, copy, art, territory, ratio, images: images as StudioImage[], feedback: feedbackNote, refs: refsOf }), images: [...imagesOf(images), ...refImages] });
+  const design = (feedbackNote: string | null, temperature: number, step: string, thinking: Thinking = plan.designerThinking) => askHtml(model, { model: plan.designer, step, thinking, temperature, prompt: designerPrompt({ brand, request, copy, art, territory, ratio, images: images as StudioImage[], feedback: feedbackNote, refs: refsOf, lessons: input.lessons }), images: [...imagesOf(images), ...refImages] });
 
   // 4. Designer: N rascunhos em paralelo; defeito medido volta ao designer uma vez antes de gastar crítica.
   stage('designer', { drafts: plan.drafts });

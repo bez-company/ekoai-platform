@@ -203,7 +203,7 @@ Responda só um JSON: { "concept": "...", "composition": "...", "palette": {...}
 }
 
 export function designerPrompt(input: DesignerInput): string {
-  const { brand, request, copy, art, territory, ratio, images, feedback = null, refs = [] } = input;
+  const { brand, request, copy, art, territory, ratio, images, feedback = null, refs = [], lessons = [] } = input;
 
   return `Você é o designer da agência. Implementa a direção de arte em HTML/CSS com acabamento de estúdio. Você enxerga as imagens geradas (anexadas) e compõe em volta delas.
 
@@ -227,7 +227,7 @@ TEXTOS APROVADOS
 - extras: ${JSON.stringify(copy.extras ?? [])}
 - assinatura: ${brand.handle ? `@${brand.handle}` : brand.name}
 
-${HTML_RULES(ratio)}
+${lessons.length ? `LIÇÕES DAS TENTATIVAS ANTERIORES (já reprovadas: não repita estes defeitos, e faça uma composição diferente da que falhou):\n${lessons.map((l) => `- ${l}`).join('\n')}\n\n` : ''}${HTML_RULES(ratio)}
 
 ${DESIGN_CRAFT}
 ${refs.length ? `\nREFERÊNCIAS DE NÍVEL (anexadas depois das imagens geradas): peças de outras marcas que o cliente aprovou com nota máxima. Use como régua de acabamento: escala, respiro, tipografia, ritmo. NÃO copie layout, texto, marca nem elementos; a sua peça é de outra marca e de outra ideia.\n${refs.map((r) => `- ${r.name}: ${r.note}`).join('\n')}\n` : ''}${feedback ? `\nCORREÇÕES OBRIGATÓRIAS (a versão anterior falhou nisto; o HTML anterior está abaixo, parta dele):\n${feedback}\n` : ''}

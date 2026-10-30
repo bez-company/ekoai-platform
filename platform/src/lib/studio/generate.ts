@@ -23,7 +23,7 @@ import { log } from '../log';
 import { CHANNELS } from '../types';
 import { layoutBlocking, type Logos } from './html';
 import { isEffort, isImageQuality, isStyleChoice, usesImage, type Effort, type ImageQuality } from './levels';
-import { MIN_DELIVER_SCORE, STUDIO_MODELS, isStudioEffort } from './config';
+import { MIN_DELIVER_SCORE, RETRY_PLANS, STUDIO_MODELS, isStudioEffort } from './config';
 import { studioBrandOf, recentOf } from './context';
 import { runStudio, type Renderer, type StudioModel, type StudioResult } from './pipeline';
 import { runTemplatePost, type TemplatePostResult } from './templates';
@@ -160,13 +160,19 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       }
       made = { engine: 'template', png: r.png, html: r.html, assets: r.assets, caption: r.caption, hashtags: r.hashtags, altText: r.altText, headline: r.headline, territory: deps.library.find((x) => x.id === r.template)?.territory ?? 'modelo', templateId: r.template, score: null, alternatives: [], issues: [], costUsd: r.costUsd, costByStep: model.costByStep };
     } else {
-      const r: StudioResult = await runStudio({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, onStage: deps.onStage });
-      const problem = chainProblem(r);
-      if (problem) {
-        await keepRejected(store, briefId, r.png, r.html);
-        throw new Error(`o estúdio não entregou: ${problem}`);
-      }
-      made = { engine: 'chain', png: r.png, html: r.html, assets: r.assets, caption: r.copy.caption, hashtags: r.copy.hashtags, altText: r.copy.altText, headline: r.copy.headline, territory: r.territory, templateId: null, score: r.score, alternatives: r.alternatives, issues: [], costUsd: r.costUsd, costByStep: r.costByStep };
+      const plan = RETRY_PLANS[brief.effort as 'refinado' | 'autoral'];
+      // Uma tentativa por vez, cada uma com o próprio contador de custo e outra semente (outro território), recebendo os defeitos das anteriores.
+      const out = await withRetries<{ r: StudioResult; model: StudioModel }>(async (n, lessons) => {
+        const attemptModel = n === 1 ? model : deps.modelFor({ tenant: t.tenantId, brief: briefId });
+        const r: StudioResult = await runStudio({ model: attemptModel, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed: seed + (n - 1) * 7919, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, lessons: lessons.map(lessonOf), onStage: deps.onStage });
+        const problem = chainProblem(r);
+        if (problem) await keepRejected(store, briefId, r.png, r.html, n);
+        return { value: { r, model: attemptModel }, problem, costUsd: r.costUsd };
+      }, plan);
+      if (!out.passed) throw new Error(`o estúdio não entregou depois de ${out.tries} tentativa${out.tries === 1 ? '' : 's'} (US$ ${out.spentUsd.toFixed(3)}): ${out.problems.join(' | ')}`);
+      const r = out.passed.value.r;
+      log('info', 'generation', 'o estúdio entregou', { briefId, effort: brief.effort, tries: out.tries, spentUsd: Number(out.spentUsd.toFixed(4)), score: r.score });
+      made = { engine: 'chain', png: r.png, html: r.html, assets: r.assets, caption: r.copy.caption, hashtags: r.copy.hashtags, altText: r.copy.altText, headline: r.copy.headline, territory: r.territory, templateId: null, score: r.score, alternatives: r.alternatives, issues: [], costUsd: out.spentUsd, costByStep: r.costByStep };
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -258,11 +264,32 @@ export function chainProblem(r: Pick<StudioResult, 'gate' | 'layoutIssues' | 'sc
   return `${parts.join('; ')}; nota ${r.score} (${r.verdict}); custo US$ ${r.costUsd.toFixed(3)}${r.capped ? '; teto de custo atingido' : ''}`;
 }
 
+// Tenta de novo enquanto houver tentativas e saldo (puro, testável): cada tentativa recebe as lições das anteriores. Devolve a primeira que
+// passou, ou a última que falhou, com o gasto e os motivos de todas.
+// O defeito de uma tentativa em uma linha para o designer da próxima (sem custo e nota, que não ajudam a corrigir).
+const lessonOf = (problem: string): string => problem.replace(/;?\s*nota [\d.]+ \([a-z]+\);\s*custo US\$ [\d.]+.*$/, '').replace(/^revisor=ok;\s*/, '').slice(0, 280);
+
+export type Attempt<T> = { value: T; problem: string | null; costUsd: number };
+export async function withRetries<T>(run: (n: number, lessons: string[]) => Promise<Attempt<T>>, plan: { attempts: number; totalCapUsd: number; typicalUsd: number }): Promise<{ passed: Attempt<T> | null; last: Attempt<T>; spentUsd: number; tries: number; problems: string[] }> {
+  const problems: string[] = [];
+  let spent = 0;
+  let last: Attempt<T> | null = null;
+  for (let n = 1; n <= plan.attempts; n += 1) {
+    if (n > 1 && spent + plan.typicalUsd > plan.totalCapUsd) break;
+    last = await run(n, problems.slice());
+    spent += last.costUsd;
+    if (!last.problem) return { passed: last, last, spentUsd: spent, tries: n, problems };
+    problems.push(last.problem);
+  }
+  return { passed: null, last: last as Attempt<T>, spentUsd: spent, tries: problems.length, problems };
+}
+
 // O que o estúdio fez e não passou no portão: guarda o PNG e o HTML para quem investiga (o custo já foi pago). Não afeta o pedido.
-async function keepRejected(store: BlobStore, briefId: string, png: Uint8Array, html: string): Promise<void> {
+async function keepRejected(store: BlobStore, briefId: string, png: Uint8Array, html: string, attempt = 1): Promise<void> {
+  const name = attempt > 1 ? `final-${attempt}` : 'final';
   try {
-    await store.put(`studio-rejected/${briefId}/final.png`, png, 'image/png');
-    await store.put(`studio-rejected/${briefId}/final.html`, new TextEncoder().encode(html), 'text/html');
+    await store.put(`studio-rejected/${briefId}/${name}.png`, png, 'image/png');
+    await store.put(`studio-rejected/${briefId}/${name}.html`, new TextEncoder().encode(html), 'text/html');
   } catch (e) {
     log('warn', 'generation', 'não guardou a peça recusada', { briefId, error: e instanceof Error ? e.message : String(e) });
   }

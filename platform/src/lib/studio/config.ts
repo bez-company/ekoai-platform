@@ -35,3 +35,11 @@ export const SHIP_SCORE = 8;
 // não passa de um Rápido mais caro, e o pedido cai no Rápido de verdade. Em staging (30/10) as peças de 6,4 eram claras e quase vazias.
 export const MIN_DELIVER_SCORE = 7;
 export const MAX_COPY_ROUNDS = 3;
+
+// Quantas vezes o estúdio tenta antes de o pedido cair no Rápido, e quanto pode gastar no total (SPEC 030, decisões 6 e 9). Quem pede
+// Refinado ou Autoral quer esse nível: a recusa do portão vira nova tentativa, com as lições da anterior, e só o esgotar das tentativas ou
+// do orçamento entrega o Rápido. `typicalUsd` é o custo de uma tentativa (medido em staging em 30/10): sem esse saldo, não tenta de novo.
+export const RETRY_PLANS: Record<StudioEffort, { attempts: number; totalCapUsd: number; typicalUsd: number }> = {
+  refinado: { attempts: 2, totalCapUsd: 0.9, typicalUsd: 0.3 },
+  autoral: { attempts: 3, totalCapUsd: 1.8, typicalUsd: 0.6 },
+};
