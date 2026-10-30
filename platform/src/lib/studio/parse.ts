@@ -134,7 +134,7 @@ export function totalScore(scores: Record<string, number>): number {
   return w ? Math.round((sum / w) * 10) / 10 : 0;
 }
 
-const REVIEW_RULES = ['text_drift', 'ai_artifact', 'logo', 'legibilidade', 'fato'] as const;
+const REVIEW_RULES = ['text_drift', 'ai_artifact', 'logo', 'legibilidade', 'fato', 'pessoa'] as const;
 
 export function parseReview(raw: unknown): Parsed<Review> {
   const o = obj(unwrap(raw));

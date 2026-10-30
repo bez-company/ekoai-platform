@@ -313,8 +313,9 @@ Confira:
 3. logo: o logo aparece correto (não distorcido, não recolorido, não duplicado)? Se a conta não tem logo, a assinatura é só o nome em texto.
 4. legibilidade: algum texto está cortado, colado na borda, ilegível por contraste ou pequeno demais para o celular?
 5. fato: a peça afirma algo concreto (número, prazo, resultado) que não está nos fatos?
+6. pessoa: a imagem mostra uma criança (em qualquer ângulo, mesmo de costas) ou um adulto de rosto reconhecível? É regra do produto: reprove. Adulto só de costas, silhueta, mãos sem rosto e objetos não contam.
 
-Responda só um JSON: { "ok": true | false, "issues": [ { "rule": "text_drift" | "ai_artifact" | "logo" | "legibilidade" | "fato", "detail": "o que viu", "fix": "como corrigir no HTML" } ] }
+Responda só um JSON: { "ok": true | false, "issues": [ { "rule": "text_drift" | "ai_artifact" | "logo" | "legibilidade" | "fato" | "pessoa", "detail": "o que viu", "fix": "como corrigir no HTML" } ] }
 Seja objetivo: só reprove por defeito que um cliente notaria.`;
 }
 
