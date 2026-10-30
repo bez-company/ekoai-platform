@@ -16,6 +16,7 @@ const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
 const { generateStudioPost } = await import('../../platform/src/lib/studio/generate.ts');
 const { isStudioDesign } = await import('../../platform/src/lib/studio/is-studio.ts');
+const { chooseStudioOption } = await import('../../platform/src/lib/studio/options.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 
 const A = 'it-studio-a';
@@ -205,5 +206,58 @@ describe('erros que a pessoa conserta e limite do plano', () => {
     expect(out).toMatchObject({ status: 'ready' });
     expect((await one('select design from post_designs where brief_id = $1', [id])).design.studio.template).toBe(template.id);
     expect((await one("select count(*)::int n from generation_runs where brief_id = $1 and step = 'visual'", [id])).n).toBe(0);
+  });
+});
+
+describe('opções de design do estúdio (F4)', () => {
+  // Um post do estúdio com 3 opções: o modelo pronto gera 1; as outras 2 entram como o Autoral as deixa (mesmo texto, outras peças).
+  async function withOptions(idea) {
+    const t = tenantDb(A);
+    const id = await brief(A, idea);
+    const out = await generateStudioPost(t, id, deps(fakeModel()));
+    expect(out.status).toBe('ready');
+    const design = await one('select id, design, png_key from post_designs where brief_id = $1', [id]);
+    const main = design.design.studio.options[0];
+    expect(main.pngKey).toBe(design.png_key);
+    const alts = [{ pngKey: 'images/alt-1.png', htmlKey: 'images/alt-1.html', score: 7.4 }, { pngKey: 'images/alt-2.png', htmlKey: 'images/alt-2.html', score: 7.1 }];
+    const options = [main, ...alts];
+    await admin.query('update post_designs set design = $2 where id = $1', [design.id, { ...design.design, studio: { ...design.design.studio, options, selected: 0 } }]);
+    const pending = await one('select pending_id, generation from pending_approvals where brief_id = $1', [id]);
+    await admin.query('update pending_approvals set generation = $2 where pending_id = $1', [pending.pending_id, { ...pending.generation, studio: { ...pending.generation.studio, selected: 0, options: options.map((o, i) => ({ url: `https://app.test/api/media/${o.pngKey}`, score: o.score ?? null })) } }]);
+    return { t, id, pendingId: pending.pending_id, designId: design.id, mainKey: main.pngKey };
+  }
+
+  it('Autoral guarda todas as opções, a escolhida primeiro, e o estúdio sem alternativas não mostra opções', async () => {
+    const t = tenantDb(A);
+    const id = await brief(A, 'sem alternativas');
+    await generateStudioPost(t, id, deps(fakeModel()));
+    const pending = await one('select generation from pending_approvals where brief_id = $1', [id]);
+    expect(pending.generation.studio.selected).toBe(0);
+    expect(pending.generation.studio.options).toBeUndefined();
+    expect((await one('select design from post_designs where brief_id = $1', [id])).design.studio.options).toHaveLength(1);
+  });
+
+  it('escolher outra opção aponta o post para ela: imagem da pendência, png do design e o selecionado', async () => {
+    const { t, pendingId, designId } = await withOptions('escolha de opção');
+    const out = await chooseStudioOption(t, pendingId, 2);
+    expect(out).toEqual({ selected: 2, url: 'https://app.test/api/media/images/alt-2.png' });
+    const pending = await one('select images, generation from pending_approvals where pending_id = $1', [pendingId]);
+    expect(pending.images).toEqual([{ id: 1, url: 'https://app.test/api/media/images/alt-2.png', path: 'images/alt-2.png' }]);
+    expect(pending.generation.studio.selected).toBe(2);
+    const design = await one('select png_key, design from post_designs where id = $1', [designId]);
+    expect(design.png_key).toBe('images/alt-2.png');
+    expect(design.design.studio).toMatchObject({ selected: 2, htmlKey: 'images/alt-2.html' });
+    // Dá para voltar para a primeira: nenhuma opção se perde.
+    await chooseStudioOption(t, pendingId, 0);
+    expect((await one('select png_key from post_designs where id = $1', [designId])).png_key).not.toBe('images/alt-2.png');
+  });
+
+  it('opção que não existe, post já decidido e post que não é do estúdio são recusados', async () => {
+    const { t, pendingId } = await withOptions('recusas');
+    await expect(chooseStudioOption(t, pendingId, 3)).rejects.toThrow(/não existe/);
+    await expect(chooseStudioOption(t, pendingId, -1)).rejects.toThrow(/não existe/);
+    await admin.query("update pending_approvals set status = 'approved' where pending_id = $1", [pendingId]);
+    await expect(chooseStudioOption(t, pendingId, 1)).rejects.toThrow(/já foi decidido/);
+    await expect(chooseStudioOption(t, 'plat-inexistente', 0)).rejects.toThrow(/não encontrado/);
   });
 });

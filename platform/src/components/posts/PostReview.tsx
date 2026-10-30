@@ -12,6 +12,7 @@ import { useInjectedText, useTextDraft } from './approve-draft';
 import { splitHashtagLine } from '@/lib/signal-text';
 import Link from 'next/link';
 import { levelOf } from '@/lib/studio/levels';
+import StudioOptions from '@/components/posts/studio/StudioOptions';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
@@ -243,6 +244,8 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
               }}
             />
           )}
+
+          {pending.generation?.studio?.options && pending.generation.studio.options.length > 1 && <StudioOptions pendingId={pending.pending_id} studio={pending.generation.studio} />}
 
           {requestPanel && <RequestPanel panel={requestPanel} onAskAdjust={() => document.getElementById('pedir-ajuste')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} />}
 

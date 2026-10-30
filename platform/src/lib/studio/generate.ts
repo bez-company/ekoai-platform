@@ -201,7 +201,9 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       optionKeys.push(entry);
     }
     const kind = Object.keys(made.assets).length ? 'atmosfera' : 'informativo';
-    const studio = { engine: made.engine, effort: brief.effort, style: brief.style, territory: made.territory, ...(made.templateId ? { template: made.templateId } : {}), headline: made.headline, htmlKey, assetKeys, ...(made.score !== null ? { score: made.score } : {}), options: optionKeys, costUsd: made.costUsd };
+    // Todas as opções de design, a escolhida primeiro (o Autoral entrega até 3): a pessoa troca em Aprovar sem gerar de novo (SPEC 030, F4).
+    const allOptions = [{ pngKey, htmlKey, score: made.score }, ...optionKeys];
+    const studio = { engine: made.engine, effort: brief.effort, style: brief.style, territory: made.territory, ...(made.templateId ? { template: made.templateId } : {}), headline: made.headline, htmlKey, assetKeys, ...(made.score !== null ? { score: made.score } : {}), options: allOptions, selected: 0, costUsd: made.costUsd };
     const design = await t
       .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: 'studio', design: { layout: 'studio', studio }, visual_key: Object.values(assetKeys)[0] ?? null, png_key: pngKey, review: { issues: [] } })
       .select('id')
@@ -226,7 +228,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
         alt_text: made.altText,
         guardrail_flags: [],
         judge_reason: 'Conferido pelo estúdio: contraste, margens, texto cortado, palavras proibidas e fatos da base.',
-        studio: { engine: made.engine, effort: brief.effort, territory: made.territory },
+        studio: { engine: made.engine, effort: brief.effort, territory: made.territory, selected: 0, ...(allOptions.length > 1 ? { options: allOptions.map((o) => ({ url: mediaUrl(o.pngKey, deps.mediaBaseUrl), score: o.score })) } : {}) },
       },
       top_id: 1,
       images: [{ id: 1, url: mediaUrl(pngKey, deps.mediaBaseUrl), path: pngKey }],
