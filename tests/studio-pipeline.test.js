@@ -152,11 +152,11 @@ describe('pipeline do estúdio (SPEC 030, F2)', () => {
     expect(out.gate.ok).toBe(true);
   });
 
-  it('Autoral faz 3 rascunhos e devolve os outros 2 como alternativas', async () => {
-    const model = fakeModel({ ...happy(), designer: (n) => html(`rascunho ${n}`), critico: (n) => critic(n === 1 ? 7 : 8.5) });
+  it('Autoral faz 1 rascunho, sem alternativas (a pessoa paga por um post, não por opções)', async () => {
+    const model = fakeModel({ ...happy(), designer: (n) => html(`rascunho ${n}`), critico: () => critic(8.5) });
     const out = await runStudio({ model, renderer: renderer() }, { ...base, effort: 'autoral' });
-    expect(model.calls.filter((c) => c.step === 'designer')).toHaveLength(3);
-    expect(out.alternatives).toHaveLength(2);
+    expect(model.calls.filter((c) => c.step === 'designer')).toHaveLength(1);
+    expect(out.alternatives).toHaveLength(0);
   });
 
   it('estilo com imagem: gera a imagem na qualidade escolhida, sem rosto nem criança, e o designer a vê', async () => {
