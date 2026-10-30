@@ -65,6 +65,7 @@ const EXPECTED = {
   'posts/[id]/retry': ['content.create'],
   'posts/[id]/retry-network': ['content.create'],
   'pendings/[pendingId]/signal': ['content.edit'],
+  'pendings/[pendingId]/option': ['content.edit'],
   'posts/[id]/direction': ['content.edit'],
   'posts/[id]/caption': ['content.edit'],
   'posts/[id]/design/ask': ['content.edit'],
