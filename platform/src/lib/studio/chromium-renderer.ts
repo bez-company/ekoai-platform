@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { Browser, Page } from 'puppeteer-core';
 import { FONTS } from '../design/fonts';
 import { fillAssets, sanitizeHtml } from './html';
-import { AUDIT_PAGE, AUTOFIT, FIND_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT } from './browser-scripts';
+import { AUDIT_PAGE, AUTOFIT, FIND_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT, INK_OVERLAP } from './browser-scripts';
 import type { MeasureIssue, Ratio } from './model';
 import type { RenderInput, Renderer } from './pipeline';
 
@@ -37,7 +37,7 @@ export function fontCss(fontDir: string): string {
     .join('\n');
 }
 
-type Measured = { text: string; x: number; y: number; w: number; h: number; size: number; weight: string; family: string; color: string; ghost: boolean; issues: string[] };
+type Measured = { i: number; text: string; x: number; y: number; w: number; h: number; size: number; weight: string; family: string; color: string; ghost: boolean; issues: string[] };
 
 // Roda uma das funções de browser-scripts.ts na página, com um argumento serializado em JSON.
 const run = <T>(page: Page, script: string, ...args: unknown[]): Promise<T> => page.evaluate(`${script}(${args.map((a) => JSON.stringify(a)).join(',')})`) as Promise<T>;
@@ -62,24 +62,48 @@ async function checkLogos(page: Page, sameFile: boolean): Promise<MeasureIssue[]
   return issues;
 }
 
+const HIDE_TEXT = '*{-webkit-text-fill-color:transparent!important;text-shadow:none!important;text-decoration-color:transparent!important} svg text{fill:transparent!important;stroke:none!important}';
+
+// As letras de dois textos se tocam? Fotografa a área dos dois sem texto, só com um e só com o outro, e conta os pixels com tinta nos dois.
+async function inkOverlap(page: Page, a: Measured, b: Measured): Promise<boolean> {
+  const view = page.viewport();
+  const x = Math.max(0, Math.floor(Math.min(a.x, b.x)) - 2);
+  const y = Math.max(0, Math.floor(Math.min(a.y, b.y)) - 2);
+  const w = Math.min(view?.width ?? 1080, Math.ceil(Math.max(a.x + a.w, b.x + b.w)) + 2) - x;
+  const h = Math.min(view?.height ?? 1350, Math.ceil(Math.max(a.y + a.h, b.y + b.h)) + 2) - y;
+  if (w < 2 || h < 2) return false;
+  const clip = { x, y, width: w, height: h };
+  const shot = async (extra: string): Promise<string> => {
+    const style = await page.addStyleTag({ content: `${HIDE_TEXT}${extra}` });
+    const png = (await page.screenshot({ type: 'png', clip, encoding: 'base64' })) as string;
+    await style.evaluate((el) => el.remove());
+    return png;
+  };
+  const only = (t: Measured) => `[data-audit-i="${t.i}"]{-webkit-text-fill-color:currentColor!important}`;
+  const [base, onlyA, onlyB] = [await shot(''), await shot(only(a)), await shot(only(b))];
+  // Alguns pixels de borda suavizada não contam: precisa de tinta de verdade nos dois no mesmo lugar.
+  return (await run<number>(page, INK_OVERLAP, base, onlyA, onlyB)) > 24;
+}
+
 // Colisões e contraste (BEZ-405): texto sobre texto, traço desenhado cruzando texto e texto com pouco contraste contra o fundo.
 async function checkCollisions(page: Page, texts: Measured[]): Promise<MeasureIssue[]> {
   const solid = texts.filter((t) => !t.ghost);
   const issues: MeasureIssue[] = [];
-  const inner = (t: Measured) => ({ x: t.x, w: t.w, y: t.y + t.h * 0.2, h: t.h * 0.6 });
+  // Só as caixas que se cruzam viram candidatas; quem decide é a tinta (ink): entrelinha apertada faz a caixa de uma linha tocar a da
+  // outra sem as letras se tocarem, e isso é escolha de tipografia, não defeito.
   for (let i = 0; i < solid.length; i += 1) {
     for (let j = i + 1; j < solid.length; j += 1) {
-      // Caixa de linha com entrelinha apertada (0.9) se encosta sem colidir: compara só o miolo (60% da altura).
-      const [a, b] = [inner(solid[i]), inner(solid[j])];
+      const [a, b] = [solid[i], solid[j]];
       const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
       const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-      if (w > 4 && h > 4 && (w * h) / Math.min(a.w * a.h, b.w * b.h) > 0.15) issues.push({ rule: 'text_overlap', detail: `"${solid[i].text}" e "${solid[j].text}" se sobrepõem` });
+      if (w <= 2 || h <= 2) continue;
+      if (await inkOverlap(page, a, b)) issues.push({ rule: 'text_overlap', detail: `"${a.text}" e "${b.text}" se sobrepõem` });
     }
   }
   const crossings = await run<number[]>(page, STROKES_OVER_TEXT, solid.map(({ x, y, w, h }) => ({ x, y, w, h })));
   if (crossings.length) issues.push({ rule: 'arrow_over_text', detail: `${crossings.length} traço(s) desenhado(s) cruzam texto` });
 
-  const style = await page.addStyleTag({ content: '*{-webkit-text-fill-color:transparent!important;text-shadow:none!important;text-decoration-color:transparent!important} svg text{fill:transparent!important;stroke:none!important}' });
+  const style = await page.addStyleTag({ content: HIDE_TEXT });
   const behind = (await page.screenshot({ type: 'png', encoding: 'base64' })) as string;
   await style.evaluate((el) => el.remove());
   const low = await run<string[]>(page, LOW_CONTRAST, behind, solid.map(({ x, y, w, h, color, size, text }) => ({ x, y, w, h, color, size, text })));

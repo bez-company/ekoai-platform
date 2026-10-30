@@ -50,7 +50,8 @@ export const AUDIT_PAGE = `(function auditPage({ width, height, margin }) {
     // data-bleed marca o texto que sangra de propósito (numeral gigante, palavra cortada pela borda): vale para a margem e para o quadro.
     if (!bleed && (r.right > width + 2 || r.bottom > height + 2 || r.left < -2 || r.top < -2)) issues.push('fora do quadro');
     if (el.scrollWidth > el.clientWidth + 2 && cs.overflow !== 'visible') issues.push('texto cortado');
-    out.push({ text: text.slice(0, 80), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), size: Math.round(parseFloat(cs.fontSize)), weight: cs.fontWeight, family, color: cs.color, ghost: opacity < 0.4 || (parseFloat(cs.fontSize) >= 160 && text.length <= 3), issues });
+    el.setAttribute('data-audit-i', String(out.length));
+    out.push({ i: out.length, text: text.slice(0, 80), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), size: Math.round(parseFloat(cs.fontSize)), weight: cs.fontWeight, family, color: cs.color, ghost: opacity < 0.4 || (parseFloat(cs.fontSize) >= 160 && text.length <= 3), issues });
   }
   return out;
 })`;
@@ -143,3 +144,13 @@ export const LOW_CONTRAST = `(async (b64, rects) => {
     }
     return out;
   })`;
+
+// Quantos pixels têm tinta nos dois textos (cada um fotografado sozinho, contra o fundo sem texto): onde as letras de fato se tocam.
+export const INK_OVERLAP = `(async (base64, a64, b64) => {
+      const load = async (b) => { const img = new Image(); img.src = \`data:image/png;base64,\${b}\`; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data; };
+      const [base, a, b] = await Promise.all([load(base64), load(a64), load(b64)]);
+      let both = 0;
+      const ink = (d, p) => Math.abs(d[p] - base[p]) + Math.abs(d[p + 1] - base[p + 1]) + Math.abs(d[p + 2] - base[p + 2]) > 90;
+      for (let p = 0; p < base.length; p += 4) if (ink(a, p) && ink(b, p)) both += 1;
+      return both;
+    })`;

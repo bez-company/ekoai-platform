@@ -44,6 +44,17 @@ describe.skipIf(!renderer)('renderizador Chromium do estúdio', () => {
     expect(rules(right)).not.toContain('logo_contrast');
   }, 60_000);
 
+  it('entrelinha apertada: a caixa de uma linha toca a da outra, mas se as letras não se tocam não é defeito', async () => {
+    // Duas linhas grandes com line-height de 0.7: as caixas se cruzam, a tinta não (letras sem descendente na de cima e sem ascendente na de baixo).
+    const tight = doc('<h1 style="position:absolute;left:96px;top:200px;margin:0;font:700 200px/0.7 Inter;color:#fff">Mas ox</h1><h1 style="position:absolute;left:96px;top:370px;margin:0;font:700 200px/0.7 Inter;color:#e8522f">aoao</h1>');
+    expect(rules(await renderer.render({ ...base, html: tight }))).not.toContain('text_overlap');
+  }, 60_000);
+
+  it('letras que de fato se tocam são sobreposição', async () => {
+    const stacked = doc('<h1 style="position:absolute;left:96px;top:300px;margin:0;font:700 200px/1 Inter;color:#fff">Mensagem</h1><h1 style="position:absolute;left:96px;top:330px;margin:0;font:700 200px/1 Inter;color:#e8522f">Mensagem</h1>');
+    expect(rules(await renderer.render({ ...base, html: stacked }))).toContain('text_overlap');
+  }, 60_000);
+
   it('texto que sangra de propósito (data-bleed) não é defeito; sem a marca, fora do quadro é', async () => {
     const big = (attr) => doc(`<b ${attr} style="position:absolute;left:600px;top:-120px;font-size:900px;line-height:1;color:#e8522f">1</b><p style="position:absolute;left:96px;top:900px;font-size:48px;color:#fff;margin:0">Linha de contexto</p>`);
     const marked = await renderer.render({ ...base, html: big('data-bleed') });
