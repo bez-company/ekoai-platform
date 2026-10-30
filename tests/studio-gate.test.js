@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { chainProblem, withRetries } from '../platform/src/lib/studio/generate.ts';
 import { MIN_DELIVER_SCORE } from '../platform/src/lib/studio/config.ts';
-import { designerPrompt, reviewerPrompt } from '../platform/src/lib/studio/prompts.ts';
+import { copywriterPrompt, designerPrompt, directorPrompt, reviewerPrompt, strategistPrompt } from '../platform/src/lib/studio/prompts.ts';
 import { audienceLabel, parseCopy, parseReview } from '../platform/src/lib/studio/parse.ts';
 import { extraVariants, handleProblem, marksIn, markKey } from '../platform/src/lib/studio/marks.ts';
 
@@ -138,5 +138,23 @@ describe('revisor e a regra de pessoas na imagem (BEZ-506)', () => {
     const parsed = parseReview({ ok: false, issues: [{ rule: 'pessoa', detail: 'criança de pijama na porta', fix: 'gerar outra imagem sem pessoas' }, { rule: 'inventada', detail: 'x', fix: 'y' }] });
     expect(parsed.ok).toBe(true);
     expect(parsed.value.issues.map((i) => i.rule)).toEqual(['pessoa']);
+  });
+});
+
+
+describe('o pedido manda no assunto do post (fidelidade ao pedido)', () => {
+  const brand = { name: 'Casa Aurora', handle: 'casaaurora', facts: ['bolo sob encomenda'], never: [], voice: 'próxima', profile: { niche: 'confeitaria', offering: 'bolos', region: 'SP', audience: 'famílias' } };
+  const route = { territory: 'cartaz-tipografico', bigIdea: 'x', hook: 'y', visual: 'z', why: 'w', fit: 3 };
+  const territory = { id: 'cartaz-tipografico', name: 'Cartaz', brief: 'texto grande', image: 'none' };
+
+  it('o estrategista, o diretor e o redator tratam o assunto do pedido como tema, e o fato como detalhe', () => {
+    const strategist = strategistPrompt({ brand, request: 'festa de aniversário com bolo personalizado', territories: [territory] });
+    expect(strategist).toContain('O ASSUNTO é o do pedido');
+    expect(strategist).toContain('nunca como tema que troca o pedido');
+    const director = directorPrompt({ brand, request: 'x', strategy: { insight: 'i', routes: [route] }, recent: [] });
+    expect(director).toContain('reprove a rota que fala de outro assunto');
+    const copy = copywriterPrompt({ brand, request: 'x', route, sharpen: 's', territory });
+    expect(copy).toContain('sobre o ASSUNTO DO PEDIDO');
+    expect(copy).toContain('no máximo 40 palavras');
   });
 });

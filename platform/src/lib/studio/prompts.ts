@@ -101,7 +101,7 @@ ${brandBlock(brand)}
 PEDIDO DO CLIENTE (palavra por palavra): "${request}"
 
 Faça isto:
-1. Leia o pedido: o que a pessoa realmente quer comunicar e para quem.
+1. Leia o pedido: o que a pessoa realmente quer comunicar e para quem. O ASSUNTO é o do pedido: se ele pede festa de aniversário, o post é sobre festa de aniversário, mesmo que a empresa tenha um fato mais fácil de usar. Os fatos da empresa entram como prova ou detalhe, nunca como tema que troca o pedido.
 2. Ache a tensão humana por trás dele (o desejo, o medo, o hábito ou a contradição que faz alguém se reconhecer). Um bom post nasce de uma tensão, não de uma descrição.
 3. Proponha UMA rota criativa para cada território abaixo. Cada rota é uma ideia diferente, não a mesma ideia vestida de formas diferentes: o conceito, o gancho (a frase ou a imagem que para o scroll) e por que funciona para este público.
 
@@ -136,7 +136,7 @@ ${routes}
 Territórios já usados nos posts recentes desta conta (evite repetir o mesmo jeito): ${recent.length ? recent.join(', ') : 'nenhum'}.
 Títulos recentes da conta (reprove a rota cujo gancho repita ou lembre algum deles): ${recentTitles.length ? recentTitles.map((t) => `"${t}"`).join('; ') : 'nenhum'}.
 
-Critérios, em ordem: (1) serve ao pedido e à marca sem inventar nada; (2) uma ideia que alguém comentaria ou salvaria; (3) variedade em relação aos posts recentes; (4) viável em uma peça só de 1080 x 1350.
+Critérios, em ordem: (1) serve ao pedido e à marca sem inventar nada, e quem lê só a imagem entende de que o pedido trata (reprove a rota que fala de outro assunto); (2) uma ideia que alguém comentaria ou salvaria; (3) variedade em relação aos posts recentes; (4) viável em uma peça só de 1080 x 1350.
 Escolha UMA e afie: diga o que torna a execução memorável e o que evitar para não cair no genérico.
 
 Responda só um JSON: { "choice": <número da rota>, "why": "1 frase", "sharpen": "instruções de execução em 2 a 3 frases", "avoid": ["armadilhas específicas desta rota"] }`;
@@ -159,9 +159,9 @@ Direção do diretor criativo: ${sharpen}
 O território pede este tipo de peça (escreva textos que caibam nele): ${territory.brief}
 ${recentTitles.length ? `\nTítulos recentes desta conta (NÃO repita nem escreva algo parecido; mude o ângulo e as palavras): ${recentTitles.map((t) => `"${t}"`).join('; ')}\n` : ''}
 Escreva:
-- headline: o texto principal da imagem. De 1 a 8 palavras. Específico e com tensão; nunca um rótulo ("Sobre nós", "Dicas") nem slogan vazio. Pense em 5 opções diferentes de ângulo, escolha a mais forte e devolva as 5 em "options".
+- headline: o texto principal da imagem, sobre o ASSUNTO DO PEDIDO (o headline ou o apoio nomeia o que a pessoa pediu; fato da empresa não vira tema se o pedido é outro). De 1 a 8 palavras. Específico e com tensão; nunca um rótulo ("Sobre nós", "Dicas") nem slogan vazio. Pense em 5 opções diferentes de ângulo, escolha a mais forte e devolva as 5 em "options".
 - support: uma frase de apoio de até 14 palavras, ou null se a peça ficar mais forte sem ela (menos texto é melhor).
-- extras: textos curtos que o território exige (passos, itens, anotações à mão, rótulos, um número com a legenda dele), cada um com até 8 palavras, no máximo 6. Lista vazia se o território não pedir.
+- extras: textos curtos que o território exige (passos, itens, anotações à mão, rótulos, um número com a legenda dele), cada um com até 8 palavras, no máximo 6. Lista vazia se o território não pedir; cada extra serve à ideia do headline (nada que pareça de outro post) e a imagem inteira (headline, apoio e extras) tem no máximo 40 palavras: menos texto é melhor.
 - caption: a legenda do Instagram, texto puro (sem markdown), de 250 a 600 caracteres, que abre com um gancho, desenvolve com valor real e termina com a chamada para ação padrão da marca.
 - hashtags: 5, minúsculas, sem acento, específicas do assunto.
 - altText: descrição da imagem para acessibilidade, em uma frase.
