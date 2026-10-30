@@ -128,7 +128,8 @@ function auditPage({ width, height, margin }) {
     for (let node2 = el; node2 && node2 !== document.documentElement; node2 = node2.parentElement) opacity *= Number(getComputedStyle(node2).opacity);
     const issues = [];
     if (!bleed && (r.left < margin - 2 || r.top < margin - 2 || r.right > width - margin + 2 || r.bottom > height - margin + 2)) issues.push('margem');
-    if (r.right > width + 2 || r.bottom > height + 2 || r.left < -2 || r.top < -2) issues.push('fora do quadro');
+    // data-bleed marca o texto que sangra de propósito (numeral gigante, palavra cortada pela borda): vale para a margem e para o quadro.
+    if (!bleed && (r.right > width + 2 || r.bottom > height + 2 || r.left < -2 || r.top < -2)) issues.push('fora do quadro');
     if (el.scrollWidth > el.clientWidth + 2 && cs.overflow !== 'visible') issues.push('texto cortado');
     out.push({ text: text.slice(0, 80), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), size: Math.round(parseFloat(cs.fontSize)), weight: cs.fontWeight, family, color: cs.color, ghost: opacity < 0.4 || (parseFloat(cs.fontSize) >= 160 && text.length <= 3), issues });
   }
@@ -145,7 +146,8 @@ async function checkLogos(page, { sameFile }) {
   }));
   const issues = [];
   for (const logo of found) {
-    if (logo.h < 44 || logo.w < 110) issues.push({ rule: 'logo_small', detail: `logo com ${Math.round(logo.w)}x${Math.round(logo.h)}px (mínimo 110x44)` });
+    // Altura de 44 px e área de um lockup de 110x44: o símbolo quadrado de 72x72 passa; o logo de 100x30 e o de 40x40 não.
+    if (logo.h < 44 || logo.w * logo.h < 110 * 44) issues.push({ rule: 'logo_small', detail: `logo com ${Math.round(logo.w)}x${Math.round(logo.h)}px (mínimo 44 de altura e a área de 110x44)` });
     if (logo.w < 4 || logo.h < 4) continue;
     await page.evaluate((i) => (document.querySelector(`[data-logo-i="${i}"]`).style.visibility = 'hidden'), logo.i);
     const shot = await page.screenshot({ type: 'png', clip: { x: logo.x, y: logo.y, width: logo.w, height: logo.h }, encoding: 'base64' });

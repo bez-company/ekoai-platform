@@ -48,7 +48,8 @@ async function checkLogos(page: Page, sameFile: boolean): Promise<MeasureIssue[]
   const found = await run<{ i: number; tone: string; x: number; y: number; w: number; h: number }[]>(page, FIND_LOGOS);
   const issues: MeasureIssue[] = [];
   for (const logo of found) {
-    if (logo.h < 44 || logo.w < 110) issues.push({ rule: 'logo_small', detail: `logo com ${Math.round(logo.w)}x${Math.round(logo.h)}px (mínimo 110x44)` });
+    // Altura de 44 px e área de um lockup de 110x44: o símbolo quadrado de 72x72 passa; o logo de 100x30 e o de 40x40 não.
+    if (logo.h < 44 || logo.w * logo.h < 110 * 44) issues.push({ rule: 'logo_small', detail: `logo com ${Math.round(logo.w)}x${Math.round(logo.h)}px (mínimo 44 de altura e a área de 110x44)` });
     if (logo.w < 4 || logo.h < 4) continue;
     await page.evaluate(`document.querySelector('[data-logo-i="${logo.i}"]').style.visibility = 'hidden'`);
     const shot = (await page.screenshot({ type: 'png', clip: { x: logo.x, y: logo.y, width: logo.w, height: logo.h }, encoding: 'base64' })) as string;

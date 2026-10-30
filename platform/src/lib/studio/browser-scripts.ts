@@ -47,7 +47,8 @@ export const AUDIT_PAGE = `(function auditPage({ width, height, margin }) {
     for (let node2 = el; node2 && node2 !== document.documentElement; node2 = node2.parentElement) opacity *= Number(getComputedStyle(node2).opacity);
     const issues = [];
     if (!bleed && (r.left < margin - 2 || r.top < margin - 2 || r.right > width - margin + 2 || r.bottom > height - margin + 2)) issues.push('margem');
-    if (r.right > width + 2 || r.bottom > height + 2 || r.left < -2 || r.top < -2) issues.push('fora do quadro');
+    // data-bleed marca o texto que sangra de propósito (numeral gigante, palavra cortada pela borda): vale para a margem e para o quadro.
+    if (!bleed && (r.right > width + 2 || r.bottom > height + 2 || r.left < -2 || r.top < -2)) issues.push('fora do quadro');
     if (el.scrollWidth > el.clientWidth + 2 && cs.overflow !== 'visible') issues.push('texto cortado');
     out.push({ text: text.slice(0, 80), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), size: Math.round(parseFloat(cs.fontSize)), weight: cs.fontWeight, family, color: cs.color, ghost: opacity < 0.4 || (parseFloat(cs.fontSize) >= 160 && text.length <= 3), issues });
   }
