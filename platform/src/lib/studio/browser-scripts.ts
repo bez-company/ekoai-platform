@@ -154,3 +154,45 @@ export const INK_OVERLAP = `(async (base64, a64, b64) => {
       for (let p = 0; p < base.length; p += 4) if (ink(a, p) && ink(b, p)) both += 1;
       return both;
     })`;
+
+// Logo com fundo opaco de uma cor só (um quadrado atrás do ícone): tira essa cor e deixa só o ícone. Só age quando os 4 cantos são opacos e da
+// mesma cor. O ícone é recomposto sem o fundo (a borda suavizada vira transparência, sem aro), então a logo assenta em qualquer fundo do post.
+export const KEY_LOGOS = `(async () => {
+  const keyed = [];
+  for (const img of document.querySelectorAll('img[data-logo]')) {
+    if (img.dataset.keyed) continue;
+    if (!img.complete) await new Promise((r) => { img.onload = r; img.onerror = r; });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h || w > 4096 || h > 4096) continue;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    const im = ctx.getImageData(0, 0, w, h);
+    const d = im.data;
+    const at = (x, y) => { const p = (y * w + x) * 4; return [d[p], d[p + 1], d[p + 2], d[p + 3]]; };
+    const corners = [at(1, 1), at(w - 2, 1), at(1, h - 2), at(w - 2, h - 2)];
+    const bg = corners[0];
+    const dist = (a, b) => Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+    if (corners.some((k) => k[3] < 250 || dist(k, bg) > 18)) continue;
+    // A cor do ícone: a média dos pixels bem distantes do fundo (o ícone é de uma cor só na grande maioria das logos).
+    let maxD = 0;
+    for (let p = 0; p < d.length; p += 4) maxD = Math.max(maxD, dist([d[p], d[p + 1], d[p + 2]], bg));
+    if (maxD < 40) continue;
+    let sr = 0, sg = 0, sb = 0, n = 0;
+    for (let p = 0; p < d.length; p += 4) { if (dist([d[p], d[p + 1], d[p + 2]], bg) > maxD * 0.85) { sr += d[p]; sg += d[p + 1]; sb += d[p + 2]; n += 1; } }
+    const fg = [sr / n, sg / n, sb / n];
+    const span = dist(fg, bg);
+    for (let p = 0; p < d.length; p += 4) {
+      const a = Math.max(0, Math.min(1, dist([d[p], d[p + 1], d[p + 2]], bg) / span));
+      d[p] = fg[0]; d[p + 1] = fg[1]; d[p + 2] = fg[2];
+      d[p + 3] = a < 0.04 ? 0 : Math.round(a * 255);
+    }
+    ctx.putImageData(im, 0, 0);
+    img.src = c.toDataURL('image/png');
+    img.dataset.keyed = '1';
+    await img.decode().catch(() => undefined);
+    keyed.push(1);
+  }
+  return keyed.length;
+})`;

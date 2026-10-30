@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { Browser, Page } from 'puppeteer-core';
 import { FONTS } from '../design/fonts';
 import { fillAssets, sanitizeHtml } from './html';
-import { AUDIT_PAGE, AUTOFIT, FIND_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT, INK_OVERLAP } from './browser-scripts';
+import { AUDIT_PAGE, AUTOFIT, FIND_LOGOS, INK_OVERLAP, KEY_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT } from './browser-scripts';
 import type { MeasureIssue, Ratio } from './model';
 import type { RenderInput, Renderer } from './pipeline';
 
@@ -137,6 +137,8 @@ export function chromiumRenderer(options: ChromiumOptions): Renderer & { close()
         page.on('request', (req) => (req.url().startsWith('data:') || req.url().startsWith('about:') ? void req.continue() : void req.abort()));
         await page.setContent(doc, { waitUntil: 'load', timeout: 30_000 });
         await page.evaluate('document.fonts.ready');
+        // O quadrado de fundo da logo some (fica só o ícone) antes de qualquer medida ou foto.
+        await page.evaluate(`${KEY_LOGOS}()`);
         await run(page, AUTOFIT, null);
         const texts = await run<Measured[]>(page, AUDIT_PAGE, { width: WIDTH, height, margin: MARGIN });
         const logoIssues = await checkLogos(page, !!input.logos && input.logos['on-light'] === input.logos['on-dark']);

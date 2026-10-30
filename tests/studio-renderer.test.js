@@ -73,6 +73,29 @@ describe.skipIf(!renderer)('renderizador Chromium do estúdio', () => {
     expect(rules(await run(160, 56))).not.toContain('logo_small');
   }, 120_000);
 
+  it('logo com quadrado de fundo: a cor do quadrado some e fica só o ícone, no fundo que o post tiver', async () => {
+    const { KEY_LOGOS } = await import('../platform/src/lib/studio/browser-scripts.ts');
+    const puppeteer = (await import('puppeteer-core')).default;
+    const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox'] });
+    try {
+      const page = await browser.newPage();
+      // Quadrado quase preto (#16171A) com um ícone branco, como a logo da Ekoai; o post tem outro fundo (#2A1B3D).
+      const svg = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#16171A"/><circle cx="60" cy="60" r="28" fill="#FFFFFF"/></svg>').toString('base64');
+      await page.setContent(`<body style="margin:0;background:#2A1B3D"><img data-logo src="${svg}" width="120" height="120"></body>`);
+      const keyed = await page.evaluate(`${KEY_LOGOS}()`);
+      expect(keyed).toBe(1);
+      const alpha = await page.evaluate(`(() => { const img = document.querySelector('img'); const c = document.createElement('canvas'); c.width = 120; c.height = 120; const x = c.getContext('2d'); x.drawImage(img, 0, 0); const px = (a, b) => [...x.getImageData(a, b, 1, 1).data]; return { corner: px(3, 3), center: px(60, 60) }; })()`);
+      expect(alpha.corner[3]).toBe(0);
+      expect(alpha.center).toEqual([255, 255, 255, 255]);
+      // Logo sem fundo de uma cor (cantos transparentes) não é tocada.
+      const clear = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><circle cx="60" cy="60" r="28" fill="#FFFFFF"/></svg>').toString('base64');
+      await page.setContent(`<body><img data-logo src="${clear}" width="120" height="120"></body>`);
+      expect(await page.evaluate(`${KEY_LOGOS}()`)).toBe(0);
+    } finally {
+      await browser.close();
+    }
+  }, 90_000);
+
   it('data-fit encolhe o texto até caber na caixa de tamanho fixo', async () => {
     const r = await renderer.render({ ...base, html: doc('<div data-fit="headline" style="position:absolute;left:96px;top:300px;width:400px;height:160px;overflow:hidden;font-size:120px;line-height:1;color:#fff">Uma frase bem longa que não cabe</div>') });
     expect(rules(r)).not.toContain('text_clipped');
