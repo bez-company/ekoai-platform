@@ -127,6 +127,8 @@ export { wakeWorker } from './worker-wake';
 export type PostProgress = {
   id: string;
   effort: Effort; // o nível do pedido: a tela mostra o tempo e os agentes dele
+  fallbackFrom: 'refinado' | 'autoral' | null; // pediu o estúdio e o pedido virou Rápido (BEZ-497)
+  fallbackReason: string | null;
   stage: string | null; // a etapa do estúdio em andamento (só nos níveis com cadeia de agentes)
   status: BriefStatus;
   idea: string;
@@ -152,7 +154,7 @@ function studioStageOf(runs: { step: string; status: string; result?: unknown }[
 }
 
 export async function postProgress(t: TenantDb, briefId: string): Promise<PostProgress | null> {
-  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at,channels,core,network_errors,effort').eq('id', briefId).maybeSingle();
+  const brief = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,error,created_at,channels,core,network_errors,effort,fallback_from,fallback_reason').eq('id', briefId).maybeSingle();
   if (brief.error) throw new Error(`briefs: ${brief.error.message}`);
   if (!brief.data) return null;
   const [runs, pending] = await Promise.all([runsOfBrief(t, briefId), t.select('pending_approvals', 'pending_id,channel').eq('brief_id', briefId)]);
@@ -169,6 +171,8 @@ export async function postProgress(t: TenantDb, briefId: string): Promise<PostPr
     id: String(brief.data.id),
     effort: isEffort(brief.data.effort) ? brief.data.effort : DEFAULT_EFFORT,
     stage: studioStageOf(runs),
+    fallbackFrom: brief.data.fallback_from === 'refinado' || brief.data.fallback_from === 'autoral' ? brief.data.fallback_from : null,
+    fallbackReason: typeof brief.data.fallback_reason === 'string' ? brief.data.fallback_reason : null,
     status,
     idea: String(brief.data.idea),
     kind: isPostKind(brief.data.post_kind) ? brief.data.post_kind : null,

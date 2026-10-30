@@ -118,6 +118,11 @@ export default function GenerationProgress({ initial }: { initial: PostProgress 
           {error && <p className="text-danger">{error}</p>}
         </div>
       )}
+      {active && progress.fallbackFrom && (
+        <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+          <strong>O {levelOf(progress.fallbackFrom).name} não saiu</strong>: {progress.fallbackReason ?? 'o estúdio não conseguiu concluir a peça'}. Estamos criando o Rápido no lugar, em cerca de 1 minuto.
+        </p>
+      )}
       {active && (
         <p className="rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm" role="status">
           {timeSentence(progress.effort)} Você pode sair desta tela: a criação continua e o post aparece em Aprovar quando ficar pronto.

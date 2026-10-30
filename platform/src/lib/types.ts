@@ -40,6 +40,7 @@ export type Generation = {
   alt_text?: string; // texto alternativo da imagem, enviado ao Instagram (BEZ-203)
   slide_alts?: string[]; // o de cada lâmina do carrossel, na ordem das lâminas (SPEC 023)
   directives?: GenerationDirectives; // o que a pessoa pediu sobre a imagem e o que o código fez (SPEC 020)
+  studio_fallback?: { from: 'refinado' | 'autoral'; reason: string | null }; // pediu o estúdio e saiu como Rápido (BEZ-497)
 };
 
 // `items` está na ordem do pedido; `applied` e `notApplied` ficam por compatibilidade com posts anteriores.

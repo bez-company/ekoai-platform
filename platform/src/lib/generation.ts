@@ -57,10 +57,10 @@ export type GenerationOutcome =
   | { status: 'limit'; briefId: string; max: number };
 
 const MAX_COPY_ROUNDS = 3; // a primeira mais 2 voltas do revisor
-type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null; channels: Channel[]; core: Core | null; imageQuality: ImageQuality | null };
+type Brief = { id: string; idea: string; kind: PostKind | null; goal: PostGoal | null; ratio: Ratio; status: string; direction: number; assetId: string | null; photoUsage: PhotoUsage | null; campaignId: string | null; directives: StoredDirectives | null; format: PostFormat; slideCount: number | null; channels: Channel[]; core: Core | null; imageQuality: ImageQuality | null; fallbackFrom: 'refinado' | 'autoral' | null; fallbackReason: string | null };
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count,channels,core,image_quality').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,status,direction,asset_id,photo_usage,campaign_id,directives,format,slide_count,channels,core,image_quality,fallback_from,fallback_reason').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -80,6 +80,8 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<Brief | null> {
     channels: channelsOf(data.channels),
     core: coreOf(data.core),
     imageQuality: isImageQuality(data.image_quality) ? data.image_quality : null,
+    fallbackFrom: data.fallback_from === 'refinado' || data.fallback_from === 'autoral' ? data.fallback_from : null,
+    fallbackReason: typeof data.fallback_reason === 'string' ? data.fallback_reason : null,
   };
 }
 
@@ -725,6 +727,8 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
         ...(igCritic ? { critic: igCritic } : {}),
         variations: [{ id: 1, hook: copy.texts.title, body: copy.caption, hashtags: copy.hashtags, format: carousel ? 'carousel' : 'single', ...(carousel ? { slideUrls: keys.map((key) => mediaUrl(key, deps.mediaBaseUrl)) } : {}) }],
         model: deps.model.config.textModel,
+        // O pedido era do estúdio (Refinado ou Autoral) e saiu como Rápido: a tela de revisão avisa (SPEC 030, decisão 6; BEZ-497).
+        ...(brief.fallbackFrom ? { studio_fallback: { from: brief.fallbackFrom, reason: brief.fallbackReason } } : {}),
         // Texto alternativo (BEZ-203): o do redator; com a foto como está (sem texto por cima), a
         // descrição do banco de imagens quando o redator não mandou.
         alt_text: finalAltText({ fromWriter: copy.altText, photoDescription: photo?.usage === 'as_is' ? photo.asset.description : null, texts: copy.texts, banned: profile.bannedWords }),
