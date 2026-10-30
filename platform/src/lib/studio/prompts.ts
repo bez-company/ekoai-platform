@@ -303,11 +303,11 @@ export function reviewerPrompt(input: ReviewerInput): string {
   const { brand, copy } = input;
   return `Você é o revisor final: lê a peça como um leitor cético, palavra por palavra, antes de ela ir ao cliente. Compare a imagem com o que foi aprovado.
 
-Textos aprovados para a imagem: headline "${copy.headline}"; apoio ${copy.support ? `"${copy.support}"` : 'nenhum'}; extras ${JSON.stringify(copy.extras ?? [])}; assinatura ${brand.handle ? `@${brand.handle}` : brand.name}.
+Textos aprovados para a imagem: headline "${copy.headline}"; apoio ${copy.support ? `"${copy.support}"` : 'nenhum'}; extras ${JSON.stringify(copy.extras ?? [])}. Assinatura da marca (${brand.handle ? `@${brand.handle}` : brand.name}): OPCIONAL, pode aparecer como texto ou só pelo logo; a falta dela nunca é defeito, só reprove se ela aparecer escrita errada.
 Fatos da empresa: ${brand.facts.join(' | ')}
 
 Confira:
-1. text_drift: algum texto da imagem é diferente do aprovado (palavra trocada, faltando, acento errado, letra cortada) ou existe texto que não foi aprovado (rótulo, número, nome, URL inventados)? Liste cada um.
+1. text_drift: algum texto da imagem é diferente do aprovado (palavra trocada, faltando, acento errado, letra cortada; a assinatura da marca não conta como faltando) ou existe texto que não foi aprovado (rótulo, número, nome, URL inventados)? Liste cada um.
 2. ai_artifact: a imagem tem defeito de geração de IA (mão ou dedo deformado, rosto torto, texto ilegível ou inventado dentro da foto, objeto derretido, logo falso)?
 3. logo: o logo aparece correto (não distorcido, não recolorido, não duplicado)? Se a conta não tem logo, a assinatura é só o nome em texto.
 4. legibilidade: algum texto está cortado, colado na borda, ilegível por contraste ou pequeno demais para o celular?

@@ -23,7 +23,7 @@ import { log } from '../log';
 import { CHANNELS } from '../types';
 import { layoutBlocking, type Logos } from './html';
 import { isEffort, isImageQuality, isStyleChoice, usesImage, type Effort, type ImageQuality } from './levels';
-import { STUDIO_MODELS, isStudioEffort } from './config';
+import { MIN_DELIVER_SCORE, STUDIO_MODELS, isStudioEffort } from './config';
 import { studioBrandOf, recentOf } from './context';
 import { runStudio, type Renderer, type StudioModel, type StudioResult } from './pipeline';
 import { runTemplatePost, type TemplatePostResult } from './templates';
@@ -161,10 +161,10 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       made = { engine: 'template', png: r.png, html: r.html, assets: r.assets, caption: r.caption, hashtags: r.hashtags, altText: r.altText, headline: r.headline, territory: deps.library.find((x) => x.id === r.template)?.territory ?? 'modelo', templateId: r.template, score: null, alternatives: [], issues: [], costUsd: r.costUsd, costByStep: model.costByStep };
     } else {
       const r: StudioResult = await runStudio({ model, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, onStage: deps.onStage });
-      const hard = layoutBlocking(r.layoutIssues);
-      if (!r.gate.ok || hard.length) {
+      const problem = chainProblem(r);
+      if (problem) {
         await keepRejected(store, briefId, r.png, r.html);
-        throw new Error(`o estúdio não passou na revisão: revisor=${r.gate.ok ? 'ok' : r.gate.issues.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'reprovou sem motivo'}; layout=${hard.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'ok'}; nota ${r.score} (${r.verdict}); custo US$ ${r.costUsd.toFixed(3)}${r.capped ? '; teto de custo atingido' : ''}`);
+        throw new Error(`o estúdio não entregou: ${problem}`);
       }
       made = { engine: 'chain', png: r.png, html: r.html, assets: r.assets, caption: r.copy.caption, hashtags: r.copy.hashtags, altText: r.copy.altText, headline: r.copy.headline, territory: r.territory, templateId: null, score: r.score, alternatives: r.alternatives, issues: [], costUsd: r.costUsd, costByStep: r.costByStep };
     }
@@ -245,6 +245,17 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
     if (visualRun) await failRun(t, visualRun, e instanceof Error ? e.message : String(e), Date.now() - started).catch(() => undefined);
     return fail(t, brief.id, e);
   }
+}
+
+// O portão da cadeia de agentes (SPEC 030, decisão 12): o revisor aprova o texto, o render não mede defeito de layout e a nota do crítico
+// chega ao mínimo. Devolve o motivo da recusa, ou null se a peça pode ir para Aprovar. Puro: o que é medido fica no resultado.
+export function chainProblem(r: Pick<StudioResult, 'gate' | 'layoutIssues' | 'score' | 'verdict' | 'costUsd' | 'capped'>): string | null {
+  const hard = layoutBlocking(r.layoutIssues);
+  const reviewer = r.gate.ok ? null : r.gate.issues.map((i) => `${i.rule} ${i.detail}`).join('; ') || 'reprovou sem motivo';
+  const low = r.score < MIN_DELIVER_SCORE;
+  if (!reviewer && !hard.length && !low) return null;
+  const parts = [reviewer ? `revisor=${reviewer}` : null, hard.length ? `layout=${hard.map((i) => `${i.rule} ${i.detail}`).join('; ')}` : null, low ? `nota ${r.score} abaixo do mínimo ${MIN_DELIVER_SCORE}` : null].filter(Boolean);
+  return `${parts.join('; ')}; nota ${r.score} (${r.verdict}); custo US$ ${r.costUsd.toFixed(3)}${r.capped ? '; teto de custo atingido' : ''}`;
 }
 
 // O que o estúdio fez e não passou no portão: guarda o PNG e o HTML para quem investiga (o custo já foi pago). Não afeta o pedido.
