@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { levelOf } from '@/lib/studio/levels';
 import StudioMarks from '@/components/posts/studio/StudioMarks';
 import StudioOptions from '@/components/posts/studio/StudioOptions';
+import StudioRetry from '@/components/posts/studio/StudioRetry';
 import { useRouter } from 'next/navigation';
 import FeedFrame, { type FeedRatio } from './FeedFrame';
 import ProfileGrid from './ProfileGrid';
@@ -200,13 +201,16 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
 
         <div className="space-y-4">
           {studioFallback && (
-            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+            <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
               <p>
-                <strong>Você pediu o {levelOf(studioFallback.from).name}, mas este post saiu no Rápido</strong>: {studioFallback.reason ?? 'o estúdio não conseguiu concluir a peça'}. O nível que não saiu não entra no seu consumo.
+                <strong>Este post saiu no Rápido, e não no {levelOf(studioFallback.from).name} que você pediu.</strong> O estúdio tentou mais de uma vez e parou por este motivo: {studioFallback.reason ?? 'não conseguiu concluir a peça'}. O Rápido é o último recurso, e o {levelOf(studioFallback.from).name} não entra no seu consumo.
               </p>
-              <Link href="/criar" className="btn-ghost inline-flex">
-                Criar de novo no {levelOf(studioFallback.from).name}
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                {briefId && <StudioRetry briefId={briefId} levelName={levelOf(studioFallback.from).name} />}
+                <Link href="/criar" className="btn-ghost inline-flex">
+                  Mudar o pedido
+                </Link>
+              </div>
             </div>
           )}
 

@@ -18,6 +18,7 @@ const { generateStudioPost } = await import('../../platform/src/lib/studio/gener
 const { isStudioDesign } = await import('../../platform/src/lib/studio/is-studio.ts');
 const { chooseStudioOption } = await import('../../platform/src/lib/studio/options.ts');
 const { chooseStudioMarks } = await import('../../platform/src/lib/studio/marks.ts');
+const { retryAtRequestedLevel } = await import('../../platform/src/lib/post-requests.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 
 const A = 'it-studio-a';
@@ -276,6 +277,20 @@ describe('opções de design do estúdio (F4)', () => {
     expect((await one('select png_key from post_designs where id = $1', [design.id])).png_key).toBe(variants[0].pngKey);
     await admin.query("update pending_approvals set status = 'approved' where pending_id = $1", [pending.pending_id]);
     await expect(chooseStudioMarks(t, pending.pending_id, { logo: true, handle: false })).rejects.toThrow(/já foi decidido/);
+  });
+
+  it('Tentar de novo no nível pedido: cria o mesmo pedido de novo no Autoral, e só para quem caiu no Rápido', async () => {
+    const t = tenantDb(A);
+    const fell = await brief(A, 'festa de aniversário com bolo personalizado', { effort: 'instantaneo', style: 'cartaz-tipografico' });
+    await admin.query("update briefs set fallback_from = 'autoral', fallback_reason = 'abaixo do mínimo', ratio = '1:1', goal = 'promocao' where id = $1", [fell]);
+    const out = await retryAtRequestedLevel(t, null, fell);
+    expect(out.id).not.toBe(fell);
+    const again = await one('select idea, effort, style, ratio, goal, status, source, fallback_from from briefs where id = $1', [out.id]);
+    expect(again).toMatchObject({ idea: 'festa de aniversário com bolo personalizado', effort: 'autoral', style: 'cartaz-tipografico', ratio: '1:1', goal: 'promocao', status: 'queued', source: 'platform', fallback_from: null });
+    // O pedido que não caiu de nível não tem o que repetir, e pedido de outra conta não existe.
+    const plain = await brief(A, 'pedido comum');
+    await expect(retryAtRequestedLevel(t, null, plain)).rejects.toThrow(/não saiu de um nível mais alto/);
+    await expect(retryAtRequestedLevel(tenantDb(B), null, fell)).rejects.toThrow(/não encontrado/);
   });
 
   it('opção que não existe, post já decidido e post que não é do estúdio são recusados', async () => {
