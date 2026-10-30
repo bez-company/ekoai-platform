@@ -27,7 +27,7 @@ export function fillAssets(html: string, input: { assets?: Record<string, Uint8A
 }
 
 // O que o render mede e conta como defeito de layout: trava a peça até o designer consertar (fonte desconhecida é só aviso).
-export const LAYOUT_BLOCKING = new Set(['safe_margin', 'font_size', 'off_canvas', 'text_clipped', 'logo_small', 'logo_contrast', 'text_overlap', 'arrow_over_text', 'contrast_low']);
+export const LAYOUT_BLOCKING = new Set(['safe_margin', 'font_size', 'off_canvas', 'text_clipped', 'logo_small', 'logo_contrast', 'text_overlap', 'text_covered', 'arrow_over_text', 'contrast_low']);
 
 export const layoutBlocking = (issues: MeasureIssue[]): MeasureIssue[] => issues.filter((i) => LAYOUT_BLOCKING.has(i.rule));
 

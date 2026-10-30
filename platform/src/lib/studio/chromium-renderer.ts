@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { Browser, Page } from 'puppeteer-core';
 import { FONTS } from '../design/fonts';
 import { fillAssets, sanitizeHtml } from './html';
-import { AUDIT_PAGE, AUTOFIT, FIND_LOGOS, INK_OVERLAP, KEY_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT } from './browser-scripts';
+import { AUDIT_PAGE, AUTOFIT, COVERED_TEXT, FIND_LOGOS, INK_OVERLAP, KEY_LOGOS, LOW_CONTRAST, MEAN_LUMINANCE, STROKES_OVER_TEXT } from './browser-scripts';
 import type { MeasureIssue, Ratio } from './model';
 import type { RenderInput, Renderer } from './pipeline';
 
@@ -100,6 +100,8 @@ async function checkCollisions(page: Page, texts: Measured[]): Promise<MeasureIs
       if (await inkOverlap(page, a, b)) issues.push({ rule: 'text_overlap', detail: `"${a.text}" e "${b.text}" se sobrepõem` });
     }
   }
+  const covered = await run<string[]>(page, COVERED_TEXT, solid.map(({ i, x, y, w, h, text }) => ({ i, x, y, w, h, text })));
+  for (const c of covered) issues.push({ rule: 'text_covered', detail: `"${c}" fica coberto por outro elemento (post-it, cartão ou imagem por cima)` });
   const crossings = await run<number[]>(page, STROKES_OVER_TEXT, solid.map(({ x, y, w, h }) => ({ x, y, w, h })));
   if (crossings.length) issues.push({ rule: 'arrow_over_text', detail: `${crossings.length} traço(s) desenhado(s) cruzam texto` });
 

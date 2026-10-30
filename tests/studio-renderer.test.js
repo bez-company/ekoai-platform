@@ -114,6 +114,22 @@ describe.skipIf(!renderer)('renderizador Chromium do estúdio', () => {
     expect(Buffer.from(bare.png).equals(Buffer.from(all.png))).toBe(false);
   }, 90_000);
 
+  it('text_covered: post-it ou cartão por cima do texto reprova; texto por cima, véu transparente e pai transparente não', async () => {
+    const line = (extra) => `<p style="position:absolute;left:96px;top:600px;width:700px;margin:0;font-size:48px;color:#fff;${extra}">Refazer a estrutura inteira</p>`;
+    const note = '<div style="position:absolute;left:500px;top:560px;width:300px;height:200px;background:#e8a33d"><div style="padding:20px;font-size:30px;color:#222">Pedir avaliação</div></div>';
+    const covered = await renderer.render({ ...base, html: doc(`${line('')}${note}`) });
+    expect(rules(covered)).toContain('text_covered');
+    // O mesmo post-it atrás do texto (o texto vem depois): nada escondido.
+    const above = await renderer.render({ ...base, html: doc(`${note}${line('z-index:2')}`) });
+    expect(rules(above)).not.toContain('text_covered');
+    // Elemento por cima sem pintura (véu transparente, caixa vazia) não esconde nada.
+    const clear = await renderer.render({ ...base, html: doc(`${line('')}<div style="position:absolute;left:500px;top:560px;width:300px;height:200px"></div>`) });
+    expect(rules(clear)).not.toContain('text_covered');
+    // O texto dentro do próprio cartão (o cartão é o pai) está ali de propósito.
+    const inside = await renderer.render({ ...base, html: doc('<div style="position:absolute;left:96px;top:560px;width:800px;height:200px;background:#e8a33d"><p style="margin:40px;font-size:48px;color:#222">Refazer a estrutura inteira</p></div>') });
+    expect(rules(inside)).not.toContain('text_covered');
+  }, 90_000);
+
   it('não fala com a rede e tira script: o HTML malicioso renderiza sem efeito', async () => {
     const r = await renderer.render({ ...base, html: doc('<script>document.body.innerHTML="HACK"</script><img src="http://example.invalid/x.png" style="position:absolute;left:96px;top:96px;width:50px;height:50px"><p style="position:absolute;left:96px;top:300px;font-size:80px;color:#fff;margin:0">Intacto</p>') });
     expect(r.texts.map((t) => t.text)).toEqual(['Intacto']);
