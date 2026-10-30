@@ -31,4 +31,7 @@ export const LEVEL_PLANS: Record<StudioEffort, LevelPlan> = {
 export const STUDIO_MODELS: Record<ModelRole, string> = { smart: 'gemini-3.1-pro-preview', fast: 'gemini-3-flash-preview' };
 
 export const SHIP_SCORE = 8;
+// Nota mínima do crítico para entregar a peça no Refinado e no Autoral. O Rápido mede 5,8 e o Refinado 8,0 em média (SPEC 030): abaixo de 7 a peça
+// não passa de um Rápido mais caro, e o pedido cai no Rápido de verdade. Em staging (30/10) as peças de 6,4 eram claras e quase vazias.
+export const MIN_DELIVER_SCORE = 7;
 export const MAX_COPY_ROUNDS = 3;
