@@ -52,7 +52,7 @@ export type MeasureIssue = { rule: string; detail: string };
 export type Fix = { severity: 'alta' | 'media' | 'baixa'; fix: string; target: 'layout' | 'asset'; assetId?: string };
 export type Critique = { scores: Record<string, number>; slop: string[]; regression: string | null; fixes: Fix[]; verdict: 'ship' | 'revise' | 'restart'; summary: string };
 
-export type ReviewIssue = { rule: 'text_drift' | 'ai_artifact' | 'logo' | 'legibilidade' | 'fato'; detail: string; fix: string };
+export type ReviewIssue = { rule: 'text_drift' | 'ai_artifact' | 'logo' | 'legibilidade' | 'fato' | 'pessoa'; detail: string; fix: string };
 export type Review = { ok: boolean; issues: ReviewIssue[] };
 
 // A resposta do designer e do embelezador: notas, pedidos de imagem nova (só o embelezador) e o HTML.

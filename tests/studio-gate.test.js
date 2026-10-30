@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { chainProblem, withRetries } from '../platform/src/lib/studio/generate.ts';
 import { MIN_DELIVER_SCORE } from '../platform/src/lib/studio/config.ts';
 import { designerPrompt, reviewerPrompt } from '../platform/src/lib/studio/prompts.ts';
-import { audienceLabel, parseCopy } from '../platform/src/lib/studio/parse.ts';
+import { audienceLabel, parseCopy, parseReview } from '../platform/src/lib/studio/parse.ts';
 import { extraVariants, handleProblem, marksIn, markKey } from '../platform/src/lib/studio/marks.ts';
 
 const ok = { gate: { ok: true, issues: [] }, layoutIssues: [], score: 8.1, verdict: 'ship', costUsd: 0.25, capped: false };
@@ -120,5 +120,23 @@ describe('logo e @ da marca ligáveis (BEZ-502)', () => {
     expect(handleProblem('<body></body>', 'conta')).toMatch(/data-handle/);
     expect(handleProblem(html, 'conta')).toBeNull();
     expect(handleProblem('<body></body>', null)).toBeNull();
+  });
+});
+
+describe('revisor e a regra de pessoas na imagem (BEZ-506)', () => {
+  const brand = { name: 'Casa', handle: 'casa', facts: [], never: [], profile: {} };
+  const copy = { headline: 'Oi', support: null, extras: [] };
+
+  it('pede para reprovar criança em qualquer ângulo e rosto reconhecível', () => {
+    const prompt = reviewerPrompt({ brand, copy });
+    expect(prompt).toMatch(/6\. pessoa:/);
+    expect(prompt).toMatch(/criança \(em qualquer ângulo, mesmo de costas\)/);
+    expect(prompt).toContain('"pessoa"');
+  });
+
+  it('o parser aceita a regra pessoa e continua descartando regra desconhecida', () => {
+    const parsed = parseReview({ ok: false, issues: [{ rule: 'pessoa', detail: 'criança de pijama na porta', fix: 'gerar outra imagem sem pessoas' }, { rule: 'inventada', detail: 'x', fix: 'y' }] });
+    expect(parsed.ok).toBe(true);
+    expect(parsed.value.issues.map((i) => i.rule)).toEqual(['pessoa']);
   });
 });
