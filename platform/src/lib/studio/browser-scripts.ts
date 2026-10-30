@@ -56,6 +56,57 @@ export const AUDIT_PAGE = `(function auditPage({ width, height, margin }) {
   return out;
 })`;
 
+// Texto coberto por outro elemento pintado (post-it, cartão, imagem por cima da lista): em pontos do meio de cada linha do texto (um a cada 6px), o elemento do
+// topo não é o próprio texto nem parente dele e tem pintura. Recebe as caixas do AUDIT_PAGE (o índice liga ao data-audit-i) e devolve os textos cobertos.
+export const COVERED_TEXT = `((boxes) => {
+  const SHAPES = ['svg', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line'];
+  const paints = (el) => {
+    const cs = getComputedStyle(el);
+    if (Number(cs.opacity) < 0.5 || cs.visibility === 'hidden') return false;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'img' || tag === 'canvas' || tag === 'video' || tag === 'image') return true;
+    if (SHAPES.includes(tag)) return (cs.fill && cs.fill !== 'none') || (cs.stroke && cs.stroke !== 'none');
+    const bg = /rgba?\\(([^)]+)\\)/.exec(cs.backgroundColor);
+    const alpha = bg ? (bg[1].split(',').length > 3 ? Number(bg[1].split(',')[3]) : 1) : 0;
+    return alpha > 0.5 || (cs.backgroundImage && cs.backgroundImage !== 'none');
+  };
+  const out = [];
+  for (const b of boxes) {
+    const el = document.querySelector('[data-audit-i="' + b.i + '"]');
+    if (!el) continue;
+    // Linha por linha (a caixa de um parágrafo tem vazios, e ali pode haver outro elemento legítimo).
+    let covered = 0;
+    for (const child of el.childNodes) {
+      if (child.nodeType !== Node.TEXT_NODE || !child.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(child);
+      for (const q of range.getClientRects()) {
+        if (q.width < 4 || q.height < 4) continue;
+        // Um ponto a cada 6px no máximo: 2 pontos cobertos são pelo menos 12px de texto escondido.
+        const steps = Math.max(10, Math.ceil(q.width / 6));
+        for (let k = 0; k < steps; k += 1) {
+          const x = q.left + 2 + ((q.width - 4) * (k + 0.5)) / steps;
+          const y = q.top + q.height / 2;
+          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+          // Tudo o que está acima do texto neste ponto, do topo para baixo: um pai transparente (o texto do post-it) não esconde o post-it pintado.
+          let hidden = false;
+          for (const above of document.elementsFromPoint(x, y)) {
+            if (above === el || el.contains(above)) break;
+            if (above.contains(el)) continue;
+            if (paints(above)) {
+              hidden = true;
+              break;
+            }
+          }
+          if (hidden) covered += 1;
+        }
+      }
+    }
+    if (covered >= 2) out.push(b.text);
+  }
+  return out;
+})`;
+
 // Os logos da página (img[data-logo]) com posição e tom.
 export const FIND_LOGOS = `(() => [...document.querySelectorAll('img[data-logo]')].map((el, i) => {
     el.setAttribute('data-logo-i', String(i));

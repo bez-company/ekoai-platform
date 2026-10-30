@@ -63,6 +63,7 @@ const HTML_RULES = (ratio: string): string => `Regras do HTML (a peça é render
 - Legibilidade no celular: nenhum texto abaixo de 26px; título principal com pelo menos 72px; contraste de 4.5:1 sobre o que estiver por baixo (use véu, cor chapada ou área calma da imagem).
 - Margem de segurança de 64px em todas as bordas para texto e logo. Só fundos, imagens e formas decorativas podem sangrar; se um texto grande sangra de propósito, ponha data-bleed no elemento.
 - O logo aparece pequeno mas legível, bem assentado (altura de 56 a 96px, largura mínima de 140px), nunca esticado, nunca recolorido, sem caixa branca em volta. Se a conta tem logo, ele aparece uma vez.
+- Post-it, cartão, etiqueta ou imagem por cima nunca esconde texto, nem a ponta de uma palavra: o render mede (text_covered) e reprova. Se um elemento passa por cima de um texto, o texto vem depois dele no HTML ou os dois ficam em áreas separadas.
 - Setas, círculos e anotações à mão nunca cruzam nem tocam texto: deixe 24px de folga e desenhe a seta contornando.
 - Nada de JavaScript, <link>, @import, animações.`;
 
