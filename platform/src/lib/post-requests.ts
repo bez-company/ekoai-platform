@@ -13,6 +13,7 @@ import { IDEA_MAX } from './post-limits';
 import { parsePhotoChoice, type PhotoUsage } from './photo-question-model';
 import { getMediaAsset } from './media-assets';
 import { canUseInPost } from './media-asset-model';
+import { isPhotoUsage } from './photo-question-model';
 import { MAX_SLIDES, MIN_SLIDES } from './design/model';
 import { CHANNELS, type Channel } from './types';
 import { DEFAULT_EFFORT, DEFAULT_STYLE, isEffort, isImageQuality, isStyleChoice, kindForStyle, levelAvailable, levelOf, usesImage, type Effort, type ImageQuality } from './studio/levels';
@@ -209,6 +210,31 @@ export async function requestAnotherDirection(t: TenantDb, briefId: string): Pro
   if (del.error) throw new Error(`pendências: ${del.error.message}`);
   const { error } = await t.update('briefs', { direction, status: 'queued', error: null }).eq('id', briefId);
   if (error) throw new Error(`briefs: ${error.message}`);
+}
+
+// "Tentar de novo" no nível pedido (BEZ-497): o Refinado ou o Autoral caiu no Rápido; um pedido novo, igual ao primeiro, volta à fila no nível que a
+// pessoa tinha escolhido. O post em Rápido continua em Aprovar até ela recusar. Só vale para pedido que caiu (fallback_from).
+export async function retryAtRequestedLevel(t: TenantDb, actor: SessionUser | null, briefId: string): Promise<{ id: string }> {
+  const { data, error } = await t.select('briefs', 'id,idea,post_kind,goal,ratio,format,channels,slide_count,asset_id,photo_usage,campaign_id,style,image_quality,fallback_from').eq('id', briefId).maybeSingle();
+  if (error) throw new Error(`briefs: ${error.message}`);
+  if (!data) throw new UserError('Pedido não encontrado. Recarregue a página.');
+  const from = data.fallback_from;
+  if (from !== 'refinado' && from !== 'autoral') throw new UserError('Este post não saiu de um nível mais alto. Crie um post novo para escolher o nível.');
+  const channels = (Array.isArray(data.channels) ? data.channels : []).filter((c): c is Channel => (CHANNELS as readonly string[]).includes(c as string));
+  return createPostRequest(t, actor, {
+    idea: String(data.idea),
+    kind: isPostKind(data.post_kind) ? data.post_kind : null,
+    goal: isPostGoal(data.goal) ? data.goal : null,
+    ratio: isRatio(data.ratio) ? data.ratio : DEFAULT_RATIO,
+    format: data.format === 'carousel' ? 'carousel' : DEFAULT_FORMAT,
+    slideCount: typeof data.slide_count === 'number' ? data.slide_count : undefined,
+    channels: channels.length ? channels : undefined,
+    photo: data.asset_id ? { assetId: String(data.asset_id), usage: isPhotoUsage(data.photo_usage) ? data.photo_usage : 'inspiration' } : null,
+    campaignId: data.campaign_id ? String(data.campaign_id) : null,
+    effort: from,
+    style: typeof data.style === 'string' ? data.style : DEFAULT_STYLE,
+    imageQuality: isImageQuality(data.image_quality) ? data.image_quality : undefined,
+  });
 }
 
 // Os pedidos em criação (na fila ou em geração), do mais novo ao mais antigo: Aprovar mostra que eles existem e quanto falta.
