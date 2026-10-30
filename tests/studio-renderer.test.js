@@ -44,6 +44,24 @@ describe.skipIf(!renderer)('renderizador Chromium do estúdio', () => {
     expect(rules(right)).not.toContain('logo_contrast');
   }, 60_000);
 
+  it('texto que sangra de propósito (data-bleed) não é defeito; sem a marca, fora do quadro é', async () => {
+    const big = (attr) => doc(`<b ${attr} style="position:absolute;left:600px;top:-120px;font-size:900px;line-height:1;color:#e8522f">1</b><p style="position:absolute;left:96px;top:900px;font-size:48px;color:#fff;margin:0">Linha de contexto</p>`);
+    const marked = await renderer.render({ ...base, html: big('data-bleed') });
+    expect(rules(marked)).not.toContain('off_canvas');
+    expect(rules(marked)).not.toContain('safe_margin');
+    const plain = await renderer.render({ ...base, html: big('') });
+    expect(rules(plain)).toContain('off_canvas');
+  }, 60_000);
+
+  it('logo pequeno: o símbolo quadrado de 72 px passa; 40 px e o lockup baixo de 100x30 reprovam', async () => {
+    const svg = (w, h) => 'data:image/svg+xml;base64,' + Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#eee"/></svg>`).toString('base64');
+    const run = async (w, h) => renderer.render({ ratio: '4:5', assets: {}, logos: { 'on-light': svg(w, h), 'on-dark': svg(w, h) }, html: doc(`<img src="{{logo:on-dark}}" style="position:absolute;left:96px;top:96px;width:${w}px;height:${h}px">`) });
+    expect(rules(await run(72, 72))).not.toContain('logo_small');
+    expect(rules(await run(40, 40))).toContain('logo_small');
+    expect(rules(await run(100, 30))).toContain('logo_small');
+    expect(rules(await run(160, 56))).not.toContain('logo_small');
+  }, 120_000);
+
   it('data-fit encolhe o texto até caber na caixa de tamanho fixo', async () => {
     const r = await renderer.render({ ...base, html: doc('<div data-fit="headline" style="position:absolute;left:96px;top:300px;width:400px;height:160px;overflow:hidden;font-size:120px;line-height:1;color:#fff">Uma frase bem longa que não cabe</div>') });
     expect(rules(r)).not.toContain('text_clipped');
