@@ -102,6 +102,18 @@ describe.skipIf(!renderer)('renderizador Chromium do estúdio', () => {
     expect(r.texts.some((t) => t.text.includes('Uma frase bem longa'))).toBe(true);
   }, 60_000);
 
+  it('hide some a logo e o @ da marca (data-handle ou texto solto) sem mexer no resto', async () => {
+    const dot = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><circle cx="60" cy="60" r="28" fill="#FFFFFF"/></svg>').toString('base64');
+    const html = doc(`<h1 style="position:absolute;left:96px;top:300px;font-size:120px;color:#fff;margin:0">Título</h1><img data-logo src="${dot}" style="position:absolute;left:96px;top:1100px;width:120px;height:120px"><span data-handle style="position:absolute;left:300px;top:1150px;font-size:32px;color:#fff">@marca</span><p style="position:absolute;left:96px;top:1000px;font-size:32px;color:#fff;margin:0">@solta</p>`);
+    const all = await renderer.render({ ...base, html });
+    expect(all.texts.map((t) => t.text)).toEqual(expect.arrayContaining(['Título', '@marca', '@solta']));
+    const bare = await renderer.render({ ...base, html, hide: { logo: true, handle: true } });
+    expect(bare.texts.map((t) => t.text)).toEqual(['Título']);
+    const noLogo = await renderer.render({ ...base, html, hide: { logo: true } });
+    expect(noLogo.texts.map((t) => t.text)).toEqual(expect.arrayContaining(['@marca', '@solta']));
+    expect(Buffer.from(bare.png).equals(Buffer.from(all.png))).toBe(false);
+  }, 90_000);
+
   it('não fala com a rede e tira script: o HTML malicioso renderiza sem efeito', async () => {
     const r = await renderer.render({ ...base, html: doc('<script>document.body.innerHTML="HACK"</script><img src="http://example.invalid/x.png" style="position:absolute;left:96px;top:96px;width:50px;height:50px"><p style="position:absolute;left:96px;top:300px;font-size:80px;color:#fff;margin:0">Intacto</p>') });
     expect(r.texts.map((t) => t.text)).toEqual(['Intacto']);

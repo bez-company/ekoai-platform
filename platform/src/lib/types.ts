@@ -40,7 +40,7 @@ export type Generation = {
   alt_text?: string; // texto alternativo da imagem, enviado ao Instagram (BEZ-203)
   slide_alts?: string[]; // o de cada lâmina do carrossel, na ordem das lâminas (SPEC 023)
   directives?: GenerationDirectives; // o que a pessoa pediu sobre a imagem e o que o código fez (SPEC 020)
-  studio?: { engine?: string; effort?: string; territory?: string; selected?: number; options?: { url: string; score: number | null }[] }; // as opções de design do estúdio (SPEC 030, F4)
+  studio?: { engine?: string; effort?: string; territory?: string; selected?: number; options?: { url: string; score: number | null }[]; marks?: { has: { logo: boolean; handle: boolean }; show: { logo: boolean; handle: boolean }; urls: Record<string, string> } }; // as opções de design do estúdio (SPEC 030, F4)
   studio_fallback?: { from: 'refinado' | 'autoral'; reason: string | null }; // pediu o estúdio e saiu como Rápido (BEZ-497)
 };
 

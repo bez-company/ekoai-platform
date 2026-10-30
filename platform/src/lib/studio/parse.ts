@@ -41,6 +41,10 @@ export function parseDirector(raw: unknown, routes: Route[]): Parsed<DirectorPic
   return { ok: true, value: { index, route: routes[index], why: str(o.why, 600) ?? '', sharpen: str(o.sharpen, 900) ?? '', avoid: (Array.isArray(o.avoid) ? o.avoid : []).map((a) => str(a, 300)).filter((a): a is string => !!a).slice(0, 6) } };
 }
 
+// Rótulo de público do tipo "todo empreendedor que não sabe programar": classifica a pessoa pelo que ela não sabe ou não tem (BEZ-504).
+const AUDIENCE_LABEL = /\bto(?:do|da|dos|das)s?\s+(?:o\s+|a\s+|os\s+|as\s+)?[\p{L}-]+(?:\s+[\p{L}-]+){0,2}\s+que\s+n[aã]o\s+(?:sabe|sabem|entende|entendem|tem|têm|consegue|conseguem|conhece|conhecem|usa|usam)\b/iu;
+export const audienceLabel = (text: string): string | null => AUDIENCE_LABEL.exec(text)?.[0] ?? null;
+
 export function parseCopy(raw: unknown): Parsed<StudioCopy> {
   const o = obj(unwrap(raw));
   if (!o) return fail('O texto não é um objeto.');
@@ -53,6 +57,8 @@ export function parseCopy(raw: unknown): Parsed<StudioCopy> {
   const caption = typeof o.caption === 'string' ? o.caption.trim() : '';
   if (caption.length < COPY_LIMITS.captionMin || caption.length > COPY_LIMITS.caption) return fail(`A legenda tem de ${COPY_LIMITS.captionMin} a ${COPY_LIMITS.caption} caracteres.`);
   const hashtags = (Array.isArray(o.hashtags) ? o.hashtags : []).map((h) => (typeof h === 'string' ? h.trim() : '')).filter((h) => /^#\S{1,60}$/.test(h)).slice(0, COPY_LIMITS.hashtags);
+  const labeled = [headline, support ?? '', ...extras, caption].map(audienceLabel).find((m) => m);
+  if (labeled) return fail(`"${labeled}" rotula o público pelo que ele não sabe ou não tem. Fale com a pessoa, sem classificá-la nem generalizar ("todo X que não...").`);
   const options = (Array.isArray(o.options) ? o.options : []).map((x) => str(x, COPY_LIMITS.headline)).filter((x): x is string => !!x).slice(0, 8);
   return { ok: true, value: { ...(options.length ? { options } : {}), headline, support, extras, caption, hashtags, altText: str(o.altText, COPY_LIMITS.altText) ?? '' } };
 }

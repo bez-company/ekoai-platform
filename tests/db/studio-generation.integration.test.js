@@ -17,6 +17,7 @@ const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
 const { generateStudioPost } = await import('../../platform/src/lib/studio/generate.ts');
 const { isStudioDesign } = await import('../../platform/src/lib/studio/is-studio.ts');
 const { chooseStudioOption } = await import('../../platform/src/lib/studio/options.ts');
+const { chooseStudioMarks } = await import('../../platform/src/lib/studio/marks.ts');
 const profile = await import('../../platform/src/lib/company-profile.ts');
 
 const A = 'it-studio-a';
@@ -250,6 +251,31 @@ describe('opções de design do estúdio (F4)', () => {
     // Dá para voltar para a primeira: nenhuma opção se perde.
     await chooseStudioOption(t, pendingId, 0);
     expect((await one('select png_key from post_designs where id = $1', [designId])).png_key).not.toBe('images/alt-2.png');
+  });
+
+  it('ligar e desligar a logo e o @ aponta o post para a variante já renderizada, sem gerar nada', async () => {
+    const t = tenantDb(A);
+    const id = await brief(A, 'logo e arroba');
+    await generateStudioPost(t, id, deps(fakeModel()));
+    const design = await one('select id, design from post_designs where brief_id = $1', [id]);
+    const pending = await one('select pending_id, generation from pending_approvals where brief_id = $1', [id]);
+    const full = { logo: true, handle: true };
+    const variants = [{ ...full, pngKey: design.design.studio.options[0].pngKey }, { logo: true, handle: false, pngKey: 'images/no-handle.png' }, { logo: false, handle: true, pngKey: 'images/no-logo.png' }, { logo: false, handle: false, pngKey: 'images/bare.png' }];
+    const urls = { 11: 'https://app.test/api/media/main.png', '10': 'https://app.test/api/media/images/no-handle.png', '01': 'https://app.test/api/media/images/no-logo.png', '00': 'https://app.test/api/media/images/bare.png' };
+    await admin.query('update post_designs set design = $2 where id = $1', [design.id, { ...design.design, studio: { ...design.design.studio, marks: { has: full, show: full, variants } } }]);
+    await admin.query('update pending_approvals set generation = $2 where pending_id = $1', [pending.pending_id, { ...pending.generation, studio: { ...pending.generation.studio, marks: { has: full, show: full, urls } } }]);
+
+    const out = await chooseStudioMarks(t, pending.pending_id, { logo: false, handle: false });
+    expect(out).toEqual({ show: { logo: false, handle: false }, url: urls['00'] });
+    const after = await one('select images, generation from pending_approvals where pending_id = $1', [pending.pending_id]);
+    expect(after.images).toEqual([{ id: 1, url: urls['00'], path: 'images/bare.png' }]);
+    expect(after.generation.studio.marks.show).toEqual({ logo: false, handle: false });
+    expect((await one('select png_key from post_designs where id = $1', [design.id])).png_key).toBe('images/bare.png');
+    // Volta para a peça inteira: nenhuma variante se perde.
+    await chooseStudioMarks(t, pending.pending_id, full);
+    expect((await one('select png_key from post_designs where id = $1', [design.id])).png_key).toBe(variants[0].pngKey);
+    await admin.query("update pending_approvals set status = 'approved' where pending_id = $1", [pending.pending_id]);
+    await expect(chooseStudioMarks(t, pending.pending_id, { logo: true, handle: false })).rejects.toThrow(/já foi decidido/);
   });
 
   it('opção que não existe, post já decidido e post que não é do estúdio são recusados', async () => {

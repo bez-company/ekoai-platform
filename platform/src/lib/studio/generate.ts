@@ -28,6 +28,7 @@ import { studioBrandOf, recentOf } from './context';
 import { runStudio, type Renderer, type StudioModel, type StudioResult } from './pipeline';
 import { runTemplatePost, type TemplatePostResult } from './templates';
 import type { PostTemplate } from './model';
+import { extraVariants, handleProblem, markKey, marksIn, type Marks } from './marks';
 
 export type StudioGenerationDeps = {
   // O modelo do estúdio já com os labels da fatura do pedido (vertexStudioModel em produção; um dublê nos testes).
@@ -165,7 +166,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       const out = await withRetries<{ r: StudioResult; model: StudioModel }>(async (n, lessons) => {
         const attemptModel = n === 1 ? model : deps.modelFor({ tenant: t.tenantId, brief: briefId });
         const r: StudioResult = await runStudio({ model: attemptModel, renderer: deps.renderer }, { brand: context.brand, request: brief.idea, effort: brief.effort as 'refinado' | 'autoral', style: brief.style, imageQuality, ratio: brief.ratio, seed: seed + (n - 1) * 7919, recent: context.recent.territories, recentTitles: context.recent.titles, logos: context.logos, lessons: lessons.map(lessonOf), onStage: deps.onStage });
-        const problem = chainProblem(r);
+        const problem = chainProblem(r) ?? handleProblem(r.html, context.brand.handle);
         if (problem) await keepRejected(store, briefId, r.png, r.html, n);
         return { value: { r, model: attemptModel }, problem, costUsd: r.costUsd };
       }, plan);
@@ -193,6 +194,21 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       assetKeys[id] = keyOf('png');
       await store.put(assetKeys[id], bytes, 'image/png');
     }
+    // O mesmo HTML sem a logo e/ou sem o @, para a pessoa ligar e desligar em Aprovar sem custo de modelo (BEZ-502). Variante que não renderiza simplesmente não é oferecida.
+    const has = marksIn(made.html, Object.keys(context.logos).length > 0);
+    const full: Marks = { ...has };
+    const variants: { logo: boolean; handle: boolean; pngKey: string }[] = [{ ...full, pngKey }];
+    for (const v of extraVariants(has)) {
+      try {
+        const r = await deps.renderer.render({ html: made.html, ratio: brief.ratio, assets: made.assets, logos: context.logos, hide: { logo: has.logo && !v.logo, handle: has.handle && !v.handle } });
+        const key = keyOf('png');
+        await store.put(key, r.png, 'image/png');
+        variants.push({ ...v, pngKey: key });
+      } catch (e) {
+        log('warn', 'generation', 'variante sem logo ou @ não saiu', { briefId, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+      }
+    }
+    const marks = variants.length > 1 ? { has, show: full, variants } : null;
     const optionKeys: { pngKey: string; htmlKey: string; score: number }[] = [];
     for (const alt of made.alternatives) {
       const entry = { pngKey: keyOf('png'), htmlKey: keyOf('html'), score: alt.score };
@@ -203,7 +219,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
     const kind = Object.keys(made.assets).length ? 'atmosfera' : 'informativo';
     // Todas as opções de design, a escolhida primeiro (o Autoral entrega até 3): a pessoa troca em Aprovar sem gerar de novo (SPEC 030, F4).
     const allOptions = [{ pngKey, htmlKey, score: made.score }, ...optionKeys];
-    const studio = { engine: made.engine, effort: brief.effort, style: brief.style, territory: made.territory, ...(made.templateId ? { template: made.templateId } : {}), headline: made.headline, htmlKey, assetKeys, ...(made.score !== null ? { score: made.score } : {}), options: allOptions, selected: 0, costUsd: made.costUsd };
+    const studio = { engine: made.engine, effort: brief.effort, style: brief.style, territory: made.territory, ...(made.templateId ? { template: made.templateId } : {}), headline: made.headline, htmlKey, assetKeys, ...(made.score !== null ? { score: made.score } : {}), options: allOptions, selected: 0, ...(marks ? { marks } : {}), costUsd: made.costUsd };
     const design = await t
       .insert('post_designs', { brief_id: brief.id, kind, ratio: brief.ratio, layout: 'studio', design: { layout: 'studio', studio }, visual_key: Object.values(assetKeys)[0] ?? null, png_key: pngKey, review: { issues: [] } })
       .select('id')
@@ -228,7 +244,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
         alt_text: made.altText,
         guardrail_flags: [],
         judge_reason: 'Conferido pelo estúdio: contraste, margens, texto cortado, palavras proibidas e fatos da base.',
-        studio: { engine: made.engine, effort: brief.effort, territory: made.territory, selected: 0, ...(allOptions.length > 1 ? { options: allOptions.map((o) => ({ url: mediaUrl(o.pngKey, deps.mediaBaseUrl), score: o.score })) } : {}) },
+        studio: { engine: made.engine, effort: brief.effort, territory: made.territory, selected: 0, ...(allOptions.length > 1 ? { options: allOptions.map((o) => ({ url: mediaUrl(o.pngKey, deps.mediaBaseUrl), score: o.score })) } : {}), ...(marks ? { marks: { has, show: full, urls: Object.fromEntries(marks.variants.map((v) => [markKey(v), mediaUrl(v.pngKey, deps.mediaBaseUrl)])) } } : {}) },
       },
       top_id: 1,
       images: [{ id: 1, url: mediaUrl(pngKey, deps.mediaBaseUrl), path: pngKey }],

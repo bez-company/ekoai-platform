@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { chainProblem, withRetries } from '../platform/src/lib/studio/generate.ts';
 import { MIN_DELIVER_SCORE } from '../platform/src/lib/studio/config.ts';
 import { designerPrompt, reviewerPrompt } from '../platform/src/lib/studio/prompts.ts';
+import { audienceLabel, parseCopy } from '../platform/src/lib/studio/parse.ts';
+import { extraVariants, handleProblem, marksIn, markKey } from '../platform/src/lib/studio/marks.ts';
 
 const ok = { gate: { ok: true, issues: [] }, layoutIssues: [], score: 8.1, verdict: 'ship', costUsd: 0.25, capped: false };
 
@@ -79,5 +81,44 @@ describe('o designer recebe as lições das tentativas anteriores', () => {
     expect(withLessons).toContain('LIÇÕES DAS TENTATIVAS ANTERIORES');
     expect(withLessons).toContain('text_overlap');
     expect(designerPrompt(base)).not.toContain('LIÇÕES DAS TENTATIVAS ANTERIORES');
+  });
+});
+
+describe('rótulo de público no texto (BEZ-504)', () => {
+  const copy = (over) => ({ headline: 'Seu site em um dia', support: null, extras: [], caption: 'x'.repeat(300), hashtags: ['#site'], altText: 'a', ...over });
+
+  it('reprova "todo X que não ..." no título, no apoio, nos extras e na legenda', () => {
+    for (const bad of ['Para todo empreendedor que não sabe programar', 'Todos os donos de loja que não têm site', 'toda empresa que não usa dados']) {
+      expect(audienceLabel(bad), bad).not.toBeNull();
+      expect(parseCopy(copy({ headline: bad })).ok, bad).toBe(false);
+      expect(parseCopy(copy({ support: bad })).ok, bad).toBe(false);
+      expect(parseCopy(copy({ caption: `${bad} ${'x'.repeat(300)}` })).ok, bad).toBe(false);
+    }
+  });
+
+  it('deixa passar frase que fala com a pessoa', () => {
+    for (const ok of ['Todo mundo erra no começo', 'Quem não sabe programar também cria', 'Seu site em um dia']) expect(parseCopy(copy({ headline: ok })).ok, ok).toBe(true);
+  });
+});
+
+describe('logo e @ da marca ligáveis (BEZ-502)', () => {
+  const html = '<body><img src="{{logo:on-dark}}"><span data-handle>@conta</span></body>';
+
+  it('descobre o que a peça tem para ligar e desligar', () => {
+    expect(marksIn(html, true)).toEqual({ logo: true, handle: true });
+    expect(marksIn(html, false)).toEqual({ logo: false, handle: true });
+    expect(marksIn('<body><p>oi</p></body>', true)).toEqual({ logo: false, handle: false });
+  });
+
+  it('renderiza as outras combinações, nunca a inteira nem a que não existe', () => {
+    expect(extraVariants({ logo: true, handle: true }).map(markKey).sort()).toEqual(['00', '01', '10']);
+    expect(extraVariants({ logo: false, handle: true }).map(markKey)).toEqual(['00']);
+    expect(extraVariants({ logo: false, handle: false })).toEqual([]);
+  });
+
+  it('refuga a peça sem o @ só quando a conta tem @', () => {
+    expect(handleProblem('<body></body>', 'conta')).toMatch(/data-handle/);
+    expect(handleProblem(html, 'conta')).toBeNull();
+    expect(handleProblem('<body></body>', null)).toBeNull();
   });
 });

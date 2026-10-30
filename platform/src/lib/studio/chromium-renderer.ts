@@ -137,6 +137,11 @@ export function chromiumRenderer(options: ChromiumOptions): Renderer & { close()
         page.on('request', (req) => (req.url().startsWith('data:') || req.url().startsWith('about:') ? void req.continue() : void req.abort()));
         await page.setContent(doc, { waitUntil: 'load', timeout: 30_000 });
         await page.evaluate('document.fonts.ready');
+        if (input.hide?.logo || input.hide?.handle) {
+          // Os modelos prontos escrevem o @ como texto solto (sem data-handle, para não mexer no CSS deles): some o nó de texto que é só o @.
+          if (input.hide.handle) await page.evaluate(`(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); const hit = []; while (w.nextNode()) if (/^\\s*@[\\w.]{2,}\\s*$/.test(w.currentNode.nodeValue || '')) hit.push(w.currentNode); hit.forEach((n) => { n.nodeValue = ''; }); })()`);
+          await page.addStyleTag({ content: `${input.hide.logo ? '[data-logo]' : ''}${input.hide.logo && input.hide.handle ? ',' : ''}${input.hide.handle ? '[data-handle]' : ''}{display:none!important}` });
+        }
         // O quadrado de fundo da logo some (fica só o ícone) antes de qualquer medida ou foto.
         await page.evaluate(`${KEY_LOGOS}()`);
         await run(page, AUTOFIT, null);
