@@ -50,6 +50,7 @@ export function brandBlock(brand: StudioBrand): string {
 export const TEXT_RULES = `Regras de texto (valem para tudo o que for escrito):
 - Português do Brasil com acentuação correta. Sentence case (só a inicial maiúscula e nomes próprios), nunca Title Case.
 - Frase curta e concreta. Sem clichê de marketing (soluções completas, o melhor da região, transforme seu negócio, venha conferir, você merece), sem promessa de resultado, sem "garantia", sem exclamação em série, sem emoji na imagem.
+- Não rotule nem generalize o público ("todo empreendedor que não sabe programar", "quem ainda não..." como etiqueta): fale com a pessoa pelo que ela quer fazer, sem classificá-la pelo que ela não sabe ou não tem.
 - Sem travessão nem meia-risca como pontuação (use vírgula, ponto ou dois-pontos).
 - Número, prazo, preço, nome e resultado só se estiverem nos FATOS ou no pedido. Na dúvida, não afirme.
 - Dado de exemplo em mockup (nome, nota, valor, contagem) não pode parecer fato da empresa: sem número, sem nome de pessoa; use rótulos e palavras ("Atleta", "Excelente"), nunca "2 gols" ou "J. S.".`;
@@ -58,7 +59,7 @@ const HTML_RULES = (ratio: string): string => `Regras do HTML (a peça é render
 - Um documento completo. <body style="margin:0;width:1080px;height:${ratio === '1:1' ? 1080 : 1350}px;position:relative;overflow:hidden">. Unidades em px. CSS inline em <style>. SVG inline, filtros, máscaras, gradientes, blend modes e transforms são bem-vindos.
 - Fontes: só as da lista, com os pesos que existem (peso que não existe vira negrito falso, feio). Sem itálico (não há arquivo). Declare font-family pelo nome exato.
 - Imagens: <img src="{{asset:ID}}"> para as imagens geradas e <img src="{{logo:on-light}}"> (logo sobre fundo claro) ou <img src="{{logo:on-dark}}"> (logo sobre fundo escuro) para o logo. Escolha pela cor do que está ATRÁS do logo; o render mede e reprova versão errada. Nenhuma outra imagem nem URL externa.
-- TEXTO: use somente os textos aprovados, palavra por palavra (pode quebrar linha, trocar caixa e aplicar cor em uma palavra). Não invente rótulo, número, nome, marca, URL nem frase. Pode repetir o @ da marca e a assinatura.
+- TEXTO: use somente os textos aprovados, palavra por palavra (pode quebrar linha, trocar caixa e aplicar cor em uma palavra). Não invente rótulo, número, nome, marca, URL nem frase. Se a marca tem @, ele aparece uma vez, discreto, dentro de um elemento próprio com o atributo data-handle (a pessoa liga e desliga o @ depois, então ele não pode ser parte de outro texto).
 - Legibilidade no celular: nenhum texto abaixo de 26px; título principal com pelo menos 72px; contraste de 4.5:1 sobre o que estiver por baixo (use véu, cor chapada ou área calma da imagem).
 - Margem de segurança de 64px em todas as bordas para texto e logo. Só fundos, imagens e formas decorativas podem sangrar; se um texto grande sangra de propósito, ponha data-bleed no elemento.
 - O logo aparece pequeno mas legível, bem assentado (altura de 56 a 96px, largura mínima de 140px), nunca esticado, nunca recolorido, sem caixa branca em volta. Se a conta tem logo, ele aparece uma vez.

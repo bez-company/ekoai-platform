@@ -29,7 +29,8 @@ export interface StudioModel {
   readonly costByStep: Record<string, { calls: number; usd: number }>;
 }
 
-export type RenderInput = { html: string; ratio: Ratio; assets: Record<string, Uint8Array>; logos: Logos };
+// `hide`: some a logo e/ou o @ da marca (elementos com data-logo e data-handle) para gerar as variantes sem eles, sem chamar modelo.
+export type RenderInput = { html: string; ratio: Ratio; assets: Record<string, Uint8Array>; logos: Logos; hide?: { logo?: boolean; handle?: boolean } };
 export interface Renderer {
   // `texts`: os textos visíveis medidos no render (o lint de template confere se sobrou texto fora dos slots).
   render(input: RenderInput): Promise<{ png: Uint8Array; issues: MeasureIssue[]; texts?: { text: string; ghost?: boolean }[] }>;
