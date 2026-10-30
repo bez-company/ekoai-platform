@@ -6,7 +6,7 @@
 
 import type { TenantDb } from '../tenant-db';
 import { log } from '../log';
-import { wakeWorker } from '../worker-wake';
+import { wakeWorkerAndWait } from '../worker-wake';
 import { generateStudioPost, type StudioGenerationDeps, type StudioOutcome } from './generate';
 
 export type JobInput = { tenantId: string; briefId: string };
@@ -33,20 +33,20 @@ export async function heartbeat(t: TenantDb, briefId: string, stage: string): Pr
   await t.update('generation_runs', { result: { stage } }).eq('brief_id', briefId).eq('step', 'render').eq('status', 'reserved');
 }
 
-export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGenerationDeps, options: { wake?: () => void } = {}): Promise<StudioOutcome> {
-  const wake = options.wake ?? wakeWorker;
+export async function runStudioJob(t: TenantDb, input: JobInput, deps: StudioGenerationDeps, options: { wake?: () => void | Promise<void> } = {}): Promise<StudioOutcome> {
+  const wake = options.wake ?? wakeWorkerAndWait;
   let outcome: StudioOutcome;
   try {
     outcome = await generateStudioPost(t, input.briefId, { ...deps, onStage: (stage) => { void heartbeat(t, input.briefId, stage).catch(() => undefined); deps.onStage?.(stage); } });
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     await requeueAsQuick(t, input.briefId, reason);
-    wake();
+    await wake();
     return { status: 'fallback', briefId: input.briefId, reason };
   }
   if (outcome.status === 'fallback') {
     await requeueAsQuick(t, input.briefId, outcome.reason);
-    wake();
+    await wake();
   }
   log('info', 'studio-job', 'execução concluída', { briefId: input.briefId, status: outcome.status });
   return outcome;
