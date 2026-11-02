@@ -2,7 +2,8 @@
 // formulários por seção (mesmos nomes do corpo de PUT /api/profile), progresso do perfil e os
 // textos de resumo. A validação de verdade é do servidor (company-profile-model.ts).
 
-import type { CompanyProfile, Section } from './company-profile-model';
+import { PALETTE_MAX, normalizeHex, type CompanyProfile, type Section } from './company-profile-model';
+import type { SiteRead } from './site-read/extract';
 
 export type AboutForm = { niche: string; offering: string; audience: string; region: string; reach: string; site_url: string; instagram_handle: string };
 export type VoiceForm = {
@@ -120,4 +121,31 @@ export function isVoiceEmpty(f: VoiceForm): boolean {
 
 export function isVisualEmpty(f: VisualForm): boolean {
   return !f.color_primary.trim() && !f.color_accent.trim() && !f.font_heading && !f.font_body && !f.cta_default;
+}
+
+// Põe no formulário do Visual o que a leitura do site achou, SEM sobrescrever o que a pessoa já preencheu: principal e destaque só se
+// estiverem vazios, as demais cores vão para o apoio (até o limite) e as fontes só se estiverem vazias. A pessoa revisa e salva depois.
+export function applySiteRead(form: VisualForm, read: Pick<SiteRead, 'colors' | 'fonts'>, only?: { colors?: string[] }): { form: VisualForm; added: number } {
+  const wanted = (only?.colors ?? read.colors).map(normalizeHex).filter((c): c is string => !!c);
+  const taken = new Set([form.color_primary, form.color_accent, ...form.color_palette].map((c) => normalizeHex(c)).filter((c): c is string => !!c));
+  const fresh = wanted.filter((c, i) => !taken.has(c) && wanted.indexOf(c) === i);
+  let primary = form.color_primary;
+  let accent = form.color_accent;
+  const queue = [...fresh];
+  if (!normalizeHex(primary) && queue.length) primary = queue.shift()!;
+  if (!normalizeHex(accent) && queue.length) accent = queue.shift()!;
+  const kept = form.color_palette.filter((c) => c.trim());
+  const room = Math.max(0, PALETTE_MAX - kept.length);
+  const toApoio = queue.slice(0, room);
+  const palette = [...kept, ...toApoio];
+  const next: VisualForm = {
+    ...form,
+    color_primary: primary,
+    color_accent: accent,
+    color_palette: palette.length ? palette : [''],
+    font_heading: form.font_heading || read.fonts.heading || '',
+    font_body: form.font_body || read.fonts.body || '',
+  };
+  const added = fresh.length - (queue.length - toApoio.length);
+  return { form: next, added };
 }

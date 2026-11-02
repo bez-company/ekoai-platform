@@ -9,6 +9,7 @@ import { ErrorLine, Spinner } from '@/components/auth/ui';
 import {
   CTA_LABEL,
   aboutFromProfile,
+  applySiteRead,
   profileProgress,
   progressText,
   siteLabel,
@@ -19,8 +20,10 @@ import {
   type VisualForm,
   type VoiceForm,
 } from '@/lib/company-profile-form';
+import type { SiteRead } from '@/lib/site-read/extract';
 import { REACH_LABEL, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
 import LogoField, { type LogoIds } from './LogoField';
+import SiteReadCard from './SiteReadCard';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 
 const NONE = <span className="text-muted">Não informado</span>;
@@ -122,6 +125,15 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
 
   const tone = profile ? toneSummary(profile) : '';
 
+  // "Ler minha marca": abre o Visual para revisão (se ainda não está aberto) e põe as sugestões no formulário, sem gravar.
+  function applyRead(read: SiteRead, colors: string[]): number {
+    const base = editing === 'visual' ? visual : visualFromProfile(profile);
+    const { form, added } = applySiteRead(base, read, { colors });
+    if (editing !== 'visual') open('visual');
+    setVisual(form);
+    return added;
+  }
+
   return (
     <div className="space-y-5">
       <section className="card space-y-3">
@@ -187,6 +199,7 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
       </Card>
 
       <Card title="Visual" sub={profile && progress.missing.includes('visual') ? 'Sem logo, cores e fontes ainda.' : 'Usado nas artes da fase 2.'} action={editButton('visual')}>
+        {profile && canEdit && <SiteReadCard initialSite={profile.siteUrl ?? ''} disabled={busy} onApply={applyRead} />}
         {profile && (
           <LogoField
             ids={logoIds}
