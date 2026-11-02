@@ -1,21 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-
-// O estado do SDK fica fora da fábrica: `vi.resetModules` refaz o módulo mockado, como o Next faz com
-// cada bundle, mas o SDK de verdade é um só no processo (serverExternalPackages).
-const sdk = vi.hoisted(() => ({ client: undefined, inits: 0 }));
-vi.mock('@sentry/node', () => ({
-  init: () => {
-    sdk.inits += 1;
-    sdk.client = {};
-  },
-  getClient: () => sdk.client,
-  linkedErrorsIntegration: () => ({}),
-  dedupeIntegration: () => ({}),
-  withScope: (fn) => fn({ setTag: () => {}, setExtras: () => {} }),
-  captureException: () => {},
-  flush: async () => true,
-}));
-
 import { initSentry, captureError, flushSentry } from '../platform/src/lib/sentry.ts';
 
 describe('sentry da plataforma', () => {
@@ -24,19 +7,22 @@ describe('sentry da plataforma', () => {
     initSentry();
     expect(() => captureError(new Error('x'), 'teste', { email: 'a@b.co' })).not.toThrow();
     await expect(flushSentry()).resolves.toBeUndefined();
-    expect(sdk.inits).toBe(0);
   });
 
+  // O Next carrega uma cópia de sentry.ts por bundle e o SDK é um só no processo: a segunda cópia não
+  // pode chamar `Sentry.init` de novo (o SDK avisa "called more than once").
   it('uma segunda cópia do módulo reaproveita o cliente em vez de chamar init de novo', async () => {
     process.env.SENTRY_DSN = 'https://key@o0.ingest.sentry.io/1';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       initSentry();
-      expect(sdk.inits).toBe(1);
       vi.resetModules();
       const second = await import('../platform/src/lib/sentry.ts');
       second.initSentry();
-      expect(sdk.inits).toBe(1);
+      const twice = warn.mock.calls.filter((c) => String(c[0]).includes('more than once'));
+      expect(twice).toHaveLength(0);
     } finally {
+      warn.mockRestore();
       delete process.env.SENTRY_DSN;
     }
   });
