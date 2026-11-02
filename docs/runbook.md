@@ -626,6 +626,7 @@ o Vertex, a Meta e o Cloud Run de verdade. Rode antes de uma release e depois de
 | Evento de produto, por conta | PostHog, projeto Ekoai (674036), painel "Scorecard do produto (BEZ-260)" | segredo `posthog-key` (em branco = no-op; gravado no staging em 23/10/2026, produção ainda em branco) |
 | Cron do Scheduler que falhou | alerta "Cron do Scheduler falhou" (Cloud Monitoring) | `deploy_workloads = true` |
 | Job do Cloud Run que falhou | alerta "Job do Cloud Run falhou" | `deploy_workloads = true` |
+| Conexão do Instagram de um cliente que falhou | alerta "Conexão do Instagram falhou" (e-mail com o passo, o código e o motivo da Meta) | `deploy_workloads = true` |
 
 **Eventos de produto** (ADR 0017): saem do servidor, depois que a ação deu certo, com `distinct_id = tenant:<id>`.
 Cada evento leva `environment`; os tiles do painel abrem por ambiente. `track()` remove da propriedade
