@@ -49,6 +49,7 @@ const EXPECTED = {
   'team/invitations/[id]/resend': ['team.manage'],
   'team/members/[userId]': ['team.manage', 'team.manage'],
   profile: ['profile.view', 'brand.manage'],
+  'profile/site-read': ['brand.manage'],
   onboarding: ['team.manage'],
   'onboarding/answers': ['publishing.manage'],
   'brand/logo': ['profile.view', 'brand.manage', 'brand.manage'],

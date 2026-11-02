@@ -78,3 +78,39 @@ describe('cores de apoio no formulário', () => {
     expect(f.hasVisual(profile({ colorPalette: ['#2F7D6B'] }))).toBe(true);
   });
 });
+
+
+describe('aplicar o que a leitura do site achou (SPEC 033)', () => {
+  const empty = () => f.visualFromProfile(null);
+  const read = (colors, fonts = { heading: null, body: null }) => ({ colors, fonts });
+
+  it('preenche principal, destaque e apoio, nessa ordem, e as fontes vazias', () => {
+    const { form, added } = f.applySiteRead(empty(), read(['#B83262', '#4A2C2A', '#F4C95D', '#2F7D6B'], { heading: 'Playfair Display', body: 'DM Sans' }));
+    expect(form).toMatchObject({ color_primary: '#B83262', color_accent: '#4A2C2A', color_palette: ['#F4C95D', '#2F7D6B'], font_heading: 'Playfair Display', font_body: 'DM Sans' });
+    expect(added).toBe(4);
+  });
+
+  it('não sobrescreve o que a pessoa já preencheu e não repete cor', () => {
+    const base = { ...empty(), color_primary: '#111111', color_palette: ['#F4C95D'], font_body: 'Lato' };
+    const { form, added } = f.applySiteRead(base, read(['#f4c95d', '#B83262', '#B83262'], { heading: 'Lora', body: 'DM Sans' }));
+    expect(form.color_primary).toBe('#111111');
+    expect(form.color_accent).toBe('#B83262');
+    expect(form.color_palette).toEqual(['#F4C95D']);
+    expect(form.font_body).toBe('Lato');
+    expect(form.font_heading).toBe('Lora');
+    expect(added).toBe(1);
+  });
+
+  it('respeita o limite de 6 cores de apoio e conta só o que entrou', () => {
+    const base = { ...empty(), color_primary: '#111111', color_accent: '#222222', color_palette: ['#333333', '#444444', '#555555', '#666666', '#777777'] };
+    const { form, added } = f.applySiteRead(base, read(['#AA0000', '#00AA00', '#0000AA']));
+    expect(form.color_palette).toHaveLength(6);
+    expect(added).toBe(1);
+  });
+
+  it('sem nada achado, o formulário fica como estava (com a linha de apoio vazia)', () => {
+    const { form, added } = f.applySiteRead(empty(), read([]));
+    expect(form).toEqual(empty());
+    expect(added).toBe(0);
+  });
+});
