@@ -67,10 +67,29 @@ describe('contrato da resposta do modelo', () => {
     expect(u.dropped.some((d) => /sem página lida/.test(d))).toBe(true);
   });
 
-  it('no máximo 12 fatos, 5 itens por lista e textos dentro do limite', () => {
+  it('CNPJ, razão social e e-mail de imprensa não viram fato, mesmo com número e página certos', () => {
+    const pages = [{ url: HOME, text: 'Cacau Comércio Eletrônico LTDA 32.143.933/0002-05. Imprensa: imprensa@x.com. Bolo por R$ 12,00. CNPJ 12.345.678/0001-90.' }];
+    const u = parseUnderstanding({ facts: [
+      { text: 'Cacau Comércio Eletrônico LTDA 32.143.933/0002-05', category: 'sobre_a_empresa', page: HOME },
+      { text: 'E-mail para imprensa: imprensa@x.com', category: 'contato_endereco', page: HOME },
+      { text: 'CNPJ 12.345.678/0001-90', category: 'outro', page: HOME },
+      { text: 'Bolo por R$ 12,00', category: 'oferta_preco', page: HOME },
+    ] }, pages);
+    expect(u.facts.map((f) => f.text)).toEqual(['Bolo por R$ 12,00']);
+    expect(u.dropped.filter((d) => /não serve para post/.test(d))).toHaveLength(3);
+  });
+
+  it('o prompt pede os fatos de maior valor e deixa história e CNPJ de fora; dor é do cliente', () => {
+    const prompt = buildUnderstandPrompt({ name: 'X', pages: PAGES });
+    expect(prompt).toMatch(/Fora: história e datas da empresa, CNPJ/);
+    expect(prompt).toMatch(/problemas que o CLIENTE tem/);
+    expect(prompt).toMatch(/os 8 fatos/);
+  });
+
+  it('no máximo 8 fatos, 5 itens por lista e textos dentro do limite', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ text: `Fato ${i} de teste`, category: 'outro', page: HOME }));
     const u = parseUnderstanding({ facts: many, differentiators: Array.from({ length: 9 }, (_, i) => `d${i}`), offering: 'x'.repeat(500) }, PAGES.map((p) => ({ ...p, text: p.text + ' 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19' })));
-    expect(u.facts).toHaveLength(12);
+    expect(u.facts).toHaveLength(8);
     expect(u.differentiators).toHaveLength(5);
     expect(u.about.offering).toHaveLength(280);
   });

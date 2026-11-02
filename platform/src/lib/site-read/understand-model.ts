@@ -7,7 +7,7 @@ import { LIST_ITEM_MAX, LIST_MAX_ITEMS, NICHES } from '../company-profile-model'
 
 export type SitePage = { url: string; text: string };
 
-export const FACTS_MAX = 12;
+export const FACTS_MAX = 8;
 
 export type Understanding = {
   about: { niche: string | null; offering: string | null; audience: string | null; region: string | null };
@@ -34,11 +34,12 @@ export function buildUnderstandPrompt(input: { name: string | null; pages: SiteP
     ' "region": "cidade ou região, até 80 caracteres" (ou null),',
     ' "voice": {"formal": 1 a 5, "technical": 1 a 5, "serious": 1 a 5} (1 = descontraído, simples e bem-humorado; 5 = formal, técnico e sério) pelo jeito que o site escreve,',
     ` "differentiators": até ${LIST_MAX_ITEMS} diferenciais que o texto afirma, curtos,`,
-    ` "pains": até ${LIST_MAX_ITEMS} problemas do cliente que o texto menciona, curtos,`,
+    ` "pains": até ${LIST_MAX_ITEMS} problemas que o CLIENTE tem e que a empresa diz resolver, como o texto os descreve (não conte dificuldades da própria empresa nem da sua história); lista vazia se o texto não fala disso,`,
     ` "facts": até ${FACTS_MAX} fatos concretos: [{"text": "o fato, até ${FACT_MAX} caracteres", "category": ${FACT_CATEGORIES.join(' | ')}, "page": "o endereço exato da página de onde saiu, como está acima"}]}`,
     '',
     '## Fatos',
-    'Só fato concreto que o texto afirma: preço, prazo, horário, número de clientes ou resultado, certificação, regra de entrega ou de pagamento, endereço, contato.',
+    `Escolha os ${FACTS_MAX} fatos que mais ajudam a escrever posts de venda, na ordem de valor: preço e oferta (os mais representativos, não o catálogo inteiro), prazo e horário de atendimento, regra de entrega, pagamento ou troca, número de clientes ou resultado, certificação, endereço e canal de contato que o CLIENTE usa (loja, WhatsApp, telefone de atendimento).`,
+    'Fora: história e datas da empresa, CNPJ e razão social, e-mail de imprensa ou de fornecedor, texto legal, política de privacidade, vaga de emprego.',
     'Copie o número do jeito que está escrito. Não some, não arredonde, não converta. Sem promessa vaga ("o melhor", "qualidade"). Um fato por item.',
     '',
     '## Texto lido',
@@ -64,6 +65,9 @@ function shortList(v: unknown): string[] {
   return out;
 }
 
+// Dado que não serve de fato para post mesmo quando o modelo o devolve: CNPJ, razão social, e-mail de imprensa.
+const JUNK_FACT = /\bcnpj\b|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\bimprensa\b|\bltda\b|\bs\/?a\b\.?$|política de privacidade|trabalhe conosco/i;
+
 const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ');
 const numbersOf = (s: string): string[] => [...s.matchAll(/\d[\d.,]*/g)].map((m) => m[0].replace(/[.,]+$/, ''));
 
@@ -88,6 +92,10 @@ export function parseUnderstanding(json: unknown, pages: SitePage[], today?: str
     if (!f) continue;
     const page = typeof f.page === 'string' ? f.page.trim() : '';
     const body = typeof f.text === 'string' ? f.text : '';
+    if (JUNK_FACT.test(body)) {
+      dropped.push(`fato que não serve para post: ${body.slice(0, 40)}`);
+      continue;
+    }
     if (!urls.has(page)) {
       dropped.push(`fato sem página lida: ${body.slice(0, 40)}`);
       continue;
