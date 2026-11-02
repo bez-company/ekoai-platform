@@ -115,6 +115,14 @@ describe('logo da empresa', () => {
     expect(err?.code).toBe('23514');
   });
 
+  it('o banco aceita JPG como tipo de logo e recusa WebP e GIF (BEZ-526)', async () => {
+    const insert = (type, ext) => admin.query(`insert into brand_assets (tenant_id, kind, variant, storage_path, content_type, byte_size) values ($1, 'logo', 'dark', 'tenants/' || $1 || '/logo/tipo.${ext}', $2, 10) returning id`, [A, type]).then((r) => r.rows[0], (e) => e);
+    const jpeg = await insert('image/jpeg', 'jpg');
+    expect(jpeg.id).toBeTruthy();
+    await admin.query('delete from brand_assets where id = $1', [jpeg.id]);
+    for (const [type, ext] of [['image/webp', 'webp'], ['image/gif', 'gif']]) expect((await insert(type, ext)).code, type).toBe('23514');
+  });
+
   it('remover limpa o perfil, a linha e o arquivo, e é idempotente', async () => {
     await logos.removeLogo(ta, ANA, store);
     expect((await one('select logo_asset_id from company_profiles where tenant_id = $1', [A])).logo_asset_id).toBeNull();

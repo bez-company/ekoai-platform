@@ -61,15 +61,15 @@ describe('SVG', () => {
 });
 
 describe('formato e tamanho', () => {
-  it('o tipo vem dos bytes: JPG, GIF, PDF e HTML são recusados com a lista do que vale', () => {
-    for (const bytes of [new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]), text('GIF89a....'), text('%PDF-1.7'), text('<html><body>oi</body></html>')]) {
-      expect(m.inspectLogo(bytes).error).toMatch(/Não reconhecemos.*PNG ou SVG/);
+  it('o tipo vem dos bytes: GIF, PDF e HTML são recusados com a lista do que vale', () => {
+    for (const bytes of [text('GIF89a....'), text('%PDF-1.7'), text('<html><body>oi</body></html>')]) {
+      expect(m.inspectLogo(bytes).error).toMatch(/Não reconhecemos.*PNG, SVG nem JPG/);
     }
   });
 
   it('vazio e acima de 2 MB', () => {
     expect(m.inspectLogo(new Uint8Array()).error).toBe('O arquivo está vazio.');
-    expect(m.inspectLogo(new Uint8Array(2 * 1024 * 1024 + 1)).error).toBe('O arquivo tem 2,0 MB. Use PNG ou SVG de até 2 MB.');
+    expect(m.inspectLogo(new Uint8Array(2 * 1024 * 1024 + 1)).error).toBe('O arquivo tem 2,0 MB. Use PNG, SVG ou JPG de até 2 MB.');
   });
 
   it('chave do bucket fica debaixo da pasta da conta', () => {

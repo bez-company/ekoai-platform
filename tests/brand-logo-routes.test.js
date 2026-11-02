@@ -99,7 +99,7 @@ describe('POST /api/brand/logo', () => {
   });
 
   it('arquivo que não é PNG nem SVG, ou vazio', async () => {
-    expect((await (await upload(new TextEncoder().encode('%PDF-1.7'), 'a.png')).json()).error).toMatch(/PNG ou SVG/);
+    expect((await (await upload(new TextEncoder().encode('%PDF-1.7'), 'a.png')).json()).error).toMatch(/PNG, SVG ou JPG/);
     expect((await upload(new Uint8Array())).status).toBe(400);
   });
 

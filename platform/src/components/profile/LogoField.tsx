@@ -42,7 +42,7 @@ export default function LogoField({ ids, canEdit, onChange }: Props) {
     const variant = target.current;
     setError('');
     if (file.size > MAX) {
-      setError(`O arquivo tem ${(file.size / 1048576).toFixed(1).replace('.', ',')} MB. Use PNG ou SVG de até 2 MB.`);
+      setError(`O arquivo tem ${(file.size / 1048576).toFixed(1).replace('.', ',')} MB. Use PNG, SVG ou JPG de até 2 MB.`);
       return;
     }
     setBusy(variant);
@@ -82,8 +82,8 @@ export default function LogoField({ ids, canEdit, onChange }: Props) {
       <p className="text-sm font-semibold">
         Logo<span className="ml-1.5 font-normal text-muted">(opcional)</span>
       </p>
-      <p className="text-sm text-muted">Envie a logo principal e, se tiver, versões para fundo escuro, fundo claro e só o símbolo. A Ekoai escolhe a que se lê melhor em cada post.</p>
-      <input ref={input} type="file" accept="image/png,image/svg+xml,.png,.svg" className="sr-only" tabIndex={-1} aria-label="Arquivo da logo" onChange={(e) => e.target.files?.[0] && void send(e.target.files[0])} />
+      <p className="text-sm text-muted">Envie a logo principal e, se tiver, versões para fundo escuro, fundo claro e só o símbolo. A Ekoai escolhe a que se lê melhor em cada post. PNG, SVG ou JPG, até 2 MB. PNG e SVG com fundo transparente ficam melhor: o JPG leva um retângulo de fundo.</p>
+      <input ref={input} type="file" accept="image/png,image/svg+xml,image/jpeg,.png,.svg,.jpg,.jpeg" className="sr-only" tabIndex={-1} aria-label="Arquivo da logo" onChange={(e) => e.target.files?.[0] && void send(e.target.files[0])} />
       <div className="grid gap-3 pt-2 sm:grid-cols-2 xl:grid-cols-4">
         {SLOTS.map((s) => {
           const url = src(s.id);
