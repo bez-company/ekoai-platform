@@ -15,16 +15,17 @@ vi.mock('@/lib/session', () => {
     requireUserPermission: async (permission) => (await gate(permission), { t: { tenantId: 'acme' }, user: { id: 'u1', name: 'Ana' } }),
   };
 });
-const dataMock = { profile: { siteUrl: 'https://doceponto.com.br' }, read: [], error: null, limited: false, applied: [], applyError: null };
+const dataMock = { instagram: { state: 'not_connected', pages: [] }, instagramFor: [], profile: { siteUrl: 'https://doceponto.com.br' }, read: [], error: null, limited: false, applied: [], applyError: null };
 vi.mock('@/lib/company-profile', () => ({ getProfile: async () => dataMock.profile }));
 vi.mock('@/lib/rate-limit', () => ({
   hit: async () => ({ allowed: !dataMock.limited, hits: 9, retryAfterS: 120 }),
   tooMany: () => new Response(JSON.stringify({ error: 'Muitas leituras. Tente de novo em 2 minutos.' }), { status: 429 }),
 }));
 vi.mock('@/lib/vertex', () => ({ vertexClient: () => ({ fake: 'model' }) }));
+vi.mock('@/lib/site-read/instagram', () => ({ readInstagramPosts: async (t) => (dataMock.instagramFor.push(t.tenantId), dataMock.instagram) }));
 vi.mock('@/lib/site-read/understand', () => ({
   understandSite: async (url, deps) => {
-    dataMock.read.push([url, deps.tenantId, deps.model]);
+    dataMock.read.push([url, deps.tenantId, deps.model, deps.instagram]);
     if (dataMock.error) throw dataMock.error;
     return { read: { url, name: 'Doce Ponto', colors: ['#B83262'], fonts: { heading: null, body: null }, description: null, logoUrl: null }, understanding: null, notice: null };
   },
@@ -47,7 +48,7 @@ const apply = (body) => APPLY(new Request('http://app.test/api/profile/site-read
 
 beforeEach(() => {
   Object.assign(sessionMock, { error: null, calls: [] });
-  Object.assign(dataMock, { profile: { siteUrl: 'https://doceponto.com.br' }, read: [], error: null, limited: false, applied: [], applyError: null });
+  Object.assign(dataMock, { instagram: { state: 'not_connected', pages: [] }, instagramFor: [], profile: { siteUrl: 'https://doceponto.com.br' }, read: [], error: null, limited: false, applied: [], applyError: null });
 });
 
 describe('POST /api/profile/site-read', () => {
@@ -56,7 +57,14 @@ describe('POST /api/profile/site-read', () => {
     expect(res.status).toBe(200);
     expect((await res.json()).read.colors).toEqual(['#B83262']);
     expect(sessionMock.calls).toEqual(['brand.manage']);
-    expect(dataMock.read).toEqual([['outro.com.br', 'acme', { fake: 'model' }]]);
+    expect(dataMock.read).toEqual([['outro.com.br', 'acme', { fake: 'model' }, { state: 'not_connected', pages: [] }]]);
+  });
+
+  it('lê as legendas do Instagram da própria conta e passa para a leitura', async () => {
+    dataMock.instagram = { state: 'ok', pages: [{ url: 'https://www.instagram.com/p/A/', text: 'legenda', source: 'instagram' }] };
+    await post({ site_url: 'x.com.br' });
+    expect(dataMock.instagramFor).toEqual(['acme']);
+    expect(dataMock.read[0][3].state).toBe('ok');
   });
 
   it('sem endereço no corpo, usa o site do perfil; sem nenhum dos dois, pede o site', async () => {

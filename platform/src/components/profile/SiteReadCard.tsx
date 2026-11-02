@@ -24,7 +24,7 @@ export async function readSiteRequest(site: string): Promise<{ ok: true; res: Si
   try {
     const r = await fetch('/api/profile/site-read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ site_url: site }) });
     const data = (await r.json().catch(() => ({}))) as Partial<SiteResponse> & { error?: string };
-    if (r.ok && data.read) return { ok: true, res: { read: data.read, understanding: data.understanding ?? null, notice: data.notice ?? null } };
+    if (r.ok && data.read) return { ok: true, res: { read: data.read, understanding: data.understanding ?? null, notice: data.notice ?? null, instagram: data.instagram } };
     return { ok: false, error: data.error ?? 'Não deu para ler o site agora. Tente de novo em instantes ou preencha à mão.' };
   } catch {
     return { ok: false, error: 'Sem conexão. Confira a rede e tente de novo.' };
