@@ -1,8 +1,8 @@
-// logo-model.ts: o que pode ser logo da empresa (SPEC 011 R3, BEZ-526): PNG, SVG ou JPG, até 2 MB. Puro,
+// logo-model.ts: o que pode ser logo da empresa (SPEC 011 R3, BEZ-526): PNG, SVG, JPG ou WebP, até 2 MB. Puro,
 // sem I/O. O tipo vem dos BYTES, nunca do nome nem do Content-Type que o navegador mandou. O PNG é
 // conferido chunk a chunk e cortado no IEND; o JPG, segmento a segmento, sem EXIF, IPTC nem comentário e
-// cortado no EOI; o SVG passa por svg-sanitize.ts e sai reescrito. WebP fica de fora: o resvg do render
-// (2.6.2) não o desenha e o post sairia sem a logo, sem erro.
+// cortado no EOI; o SVG passa por svg-sanitize.ts e sai reescrito. O WebP é convertido para PNG antes
+// (logo-upload.ts): o resvg do render não o desenha e o post sairia sem a logo, sem erro.
 
 import { sanitizeSvg, SVG_MAX_BYTES } from './svg-sanitize';
 
@@ -15,7 +15,7 @@ export type InspectedLogo = { ok: true; contentType: LogoType; ext: LogoExt; byt
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
-export const WRONG_FORMAT = 'Use PNG, SVG ou JPG de até 2 MB.';
+export const WRONG_FORMAT = 'Use PNG, SVG, JPG ou WebP de até 2 MB.';
 
 function u32(b: Uint8Array, at: number): number {
   return ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0;
@@ -154,7 +154,7 @@ export function inspectLogo(bytes: Uint8Array): InspectedLogo {
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, contentType: 'image/svg+xml', ext: 'svg', bytes: new TextEncoder().encode(result.svg) };
   }
-  return { ok: false, error: `Não reconhecemos este arquivo como PNG, SVG nem JPG. ${WRONG_FORMAT}` };
+  return { ok: false, error: `Não reconhecemos este arquivo como PNG, SVG, JPG nem WebP. ${WRONG_FORMAT}` };
 }
 
 // Chave do arquivo no bucket: sempre debaixo da pasta da conta (a constraint do banco exige).

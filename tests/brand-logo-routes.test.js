@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { WEBP_B64 } from './logo-raster-fixtures.js';
 
 // Sessão e armazenamento simulados: aqui só a ligação da rota (permissão, validação de bytes, o que
 // grava e o que devolve). O banco e a ordem das escritas têm teste em tests/db/brand-logo.integration.test.js.
@@ -91,6 +92,20 @@ describe('POST /api/brand/logo', () => {
     expect(logoMock.saved[0]).toMatchObject({ contentType: 'image/svg+xml', ext: 'svg' });
   });
 
+  it('WebP enviado como logo é guardado como PNG (o render não desenha WebP); animado é recusado (BEZ-527)', async () => {
+    const webp = new Uint8Array(Buffer.from(WEBP_B64, 'base64'));
+    const res = await upload(webp, 'logo.webp', 'image/webp');
+    expect(res.status).toBe(200);
+    expect(logoMock.saved[0]).toMatchObject({ contentType: 'image/png', ext: 'png' });
+    logoMock.saved = [];
+    const animated = new Uint8Array(webp);
+    animated[20] |= 0x02;
+    const bad = await upload(animated, 'logo.webp', 'image/webp');
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).error).toBe('O WebP é animado. Use uma imagem parada.');
+    expect(logoMock.saved).toEqual([]);
+  });
+
   it('SVG hostil é recusado com a mensagem e nada é gravado', async () => {
     const res = await upload(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'a.svg', 'image/svg+xml');
     expect(res.status).toBe(400);
@@ -99,7 +114,7 @@ describe('POST /api/brand/logo', () => {
   });
 
   it('arquivo que não é PNG nem SVG, ou vazio', async () => {
-    expect((await (await upload(new TextEncoder().encode('%PDF-1.7'), 'a.png')).json()).error).toMatch(/PNG, SVG ou JPG/);
+    expect((await (await upload(new TextEncoder().encode('%PDF-1.7'), 'a.png')).json()).error).toMatch(/PNG, SVG, JPG ou WebP/);
     expect((await upload(new Uint8Array())).status).toBe(400);
   });
 

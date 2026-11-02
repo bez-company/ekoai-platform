@@ -35,7 +35,7 @@ const nextConfig = {
   // Imagem para o Cloud Run: servidor autocontido na imagem do container (SPEC 010).
   output: 'standalone',
   // Drivers com código nativo ou carregamento dinâmico ficam fora do bundle.
-  serverExternalPackages: ['pg', '@google-cloud/storage', 'firebase-admin', '@sentry/node', '@resvg/resvg-js'],
+  serverExternalPackages: ['pg', '@google-cloud/storage', 'firebase-admin', '@sentry/node', '@resvg/resvg-js', 'sharp'],
   // O motor de render (lib/design) lê as fontes da lista curada em runtime: entram na imagem standalone.
   outputFileTracingIncludes: { '/**': ['./fonts/**'] },
   // As artes vêm da rota /api/media (bucket privado); as antigas, do raw.githubusercontent.

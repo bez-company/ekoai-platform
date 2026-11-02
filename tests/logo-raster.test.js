@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as m from '../platform/src/lib/logo-model.ts';
-import { JPEG_B64 } from './logo-raster-fixtures.js';
+import { JPEG_B64, WEBP_B64 } from './logo-raster-fixtures.js';
+import { inspectUploadedLogo, looksLikeWebp } from '../platform/src/lib/logo-upload.ts';
 
 const JPEG = new Uint8Array(Buffer.from(JPEG_B64, 'base64'));
 const text = (s) => [...new TextEncoder().encode(s)];
@@ -61,15 +62,43 @@ describe('JPG', () => {
 });
 
 describe('o que continua recusado', () => {
-  it('GIF, PDF, HEIC, WebP e texto qualquer', () => {
-    for (const head of ['GIF89a', '%PDF-1.7', 'ftypheic', 'RIFF\0\0\0\0WEBPVP8 ', 'qualquer coisa']) {
+  it('GIF, PDF, HEIC e texto qualquer (o WebP só passa pela conversão de logo-upload.ts)', () => {
+    for (const head of ['GIF89a', '%PDF-1.7', 'ftypheic', 'qualquer coisa']) {
       const r = m.inspectLogo(new Uint8Array([...text(head), 0, 0, 0, 0]));
       expect(r.ok, head).toBe(false);
-      expect(r.error).toMatch(/Não reconhecemos este arquivo como PNG, SVG nem JPG/);
+      expect(r.error).toMatch(/Não reconhecemos este arquivo como PNG, SVG, JPG nem WebP/);
     }
   });
 
   it('a chave no armazenamento leva a extensão do tipo', () => {
     expect(m.logoKey('acme', 'abc', 'jpg')).toBe('tenants/acme/logo/abc.jpg');
+  });
+});
+
+describe('WebP vira PNG no envio (BEZ-527)', () => {
+  const WEBP = new Uint8Array(Buffer.from(WEBP_B64, 'base64'));
+  const le32 = (n) => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+
+  it('um WebP de verdade vira PNG do mesmo tamanho, sem perfil de cor nem metadados escondidos', async () => {
+    expect(looksLikeWebp(WEBP)).toBe(true);
+    const r = await inspectUploadedLogo(WEBP);
+    expect(r).toMatchObject({ ok: true, contentType: 'image/png', ext: 'png' });
+    expect([...r.bytes.slice(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const view = new DataView(r.bytes.buffer, r.bytes.byteOffset);
+    expect([view.getUint32(16), view.getUint32(20)]).toEqual([96, 32]);
+  });
+
+  it('os outros formatos seguem o caminho de sempre', async () => {
+    expect((await inspectUploadedLogo(JPEG)).contentType).toBe('image/jpeg');
+    expect((await inspectUploadedLogo(new Uint8Array(text('GIF89a....')))).ok).toBe(false);
+  });
+
+  it('WebP animado, cortado ou só com a assinatura é recusado com a mensagem certa', async () => {
+    const animatedFlag = new Uint8Array(WEBP);
+    animatedFlag[20] |= 0x02; // flag de animação no VP8X
+    expect((await inspectUploadedLogo(animatedFlag)).error).toBe('O WebP é animado. Use uma imagem parada.');
+    expect((await inspectUploadedLogo(WEBP.slice(0, 60))).error).toMatch(/WebP está corrompido/);
+    expect((await inspectUploadedLogo(new Uint8Array([...text('RIFF'), ...le32(4), ...text('WEBP')]))).error).toMatch(/WebP está corrompido|Não reconhecemos/);
+    expect((await inspectUploadedLogo(new Uint8Array([...text('RIFF'), ...le32(40), ...text('WEBPVP8 '), ...le32(20), ...new Array(20).fill(7)]))).error).toMatch(/WebP está corrompido/);
   });
 });
