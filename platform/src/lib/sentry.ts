@@ -14,6 +14,12 @@ export function initSentry(): void {
   if (started) return;
   const dsn = process.env.SENTRY_DSN?.trim();
   if (!dsn) return;
+  // O SDK é externo (um só módulo no processo) e os bundles do Next carregam uma cópia deste arquivo
+  // cada: reaproveita o cliente que outra cópia já ligou em vez de chamar `init` de novo.
+  if (Sentry.getClient()) {
+    started = true;
+    return;
+  }
   Sentry.init({
     dsn,
     environment: process.env.SENTRY_ENVIRONMENT || 'local',

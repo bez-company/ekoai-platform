@@ -26,12 +26,18 @@ export function log(level: Level, scope: string, message: string, fields: Record
   else console.info(line);
 }
 
-export function logError(scope: string, e: unknown, fields: Record<string, unknown> = {}): void {
+// Devolve a promessa do envio ao Sentry. No Cloud Run a CPU é cortada quando a resposta sai, então uma
+// rota que responde logo em seguida (ex.: redirect do callback) deve dar `await` para o erro chegar.
+export function logError(scope: string, e: unknown, fields: Record<string, unknown> = {}): Promise<void> {
   const err = e instanceof Error ? { error: e.message, name: e.name, stack: e.stack?.split('\n').slice(0, 5).join('\n') } : { error: String(e) };
   log('error', scope, 'falha', { ...fields, ...err });
   // Erro tratado também vai para o Sentry. Import dinâmico: este módulo pode ser carregado fora
   // do runtime Node, e o SDK só entra onde ele existe.
-  if (process.env.NEXT_RUNTIME === 'nodejs' || process.env.NEXT_RUNTIME === undefined) {
-    void import('./sentry').then((m) => m.captureError(e, scope, fields)).catch((err) => console.warn('[sentry] captura falhou:', err instanceof Error ? err.message : err));
-  }
+  if (process.env.NEXT_RUNTIME !== 'nodejs' && process.env.NEXT_RUNTIME !== undefined) return Promise.resolve();
+  return import('./sentry')
+    .then((m) => {
+      m.captureError(e, scope, fields);
+      return m.flushSentry();
+    })
+    .catch((err) => console.warn('[sentry] captura falhou:', err instanceof Error ? err.message : err));
 }
