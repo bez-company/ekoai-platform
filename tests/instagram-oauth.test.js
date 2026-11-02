@@ -216,6 +216,21 @@ describe('falha da Meta', () => {
   });
 });
 
+describe('texto da recusa da Meta', () => {
+  it('400 com código 100 (sem permissão no objeto) vira refused; o resto continua failed', () => {
+    expect(m.metaFailureFlash({ status: 400, code: 100, type: 'IGApiException' })).toBe('refused');
+    expect(m.metaFailureFlash({ status: 400, code: 190, type: 'OAuthException' })).toBe('failed');
+    expect(m.metaFailureFlash({ status: 400, code: 613, type: 'OAuthException' })).toBe('failed');
+    expect(m.metaFailureFlash({ status: 500, code: null, type: null })).toBe('failed');
+    expect(m.metaFailureFlash({ status: null, code: null, type: null })).toBe('failed');
+  });
+
+  it('refused tem texto próprio e manda a pessoa ao suporte', () => {
+    expect(m.isFlashKey('refused')).toBe(true);
+    expect(m.FLASH.refused.text).toMatch(/suporte/);
+  });
+});
+
 describe('refreshLongToken', () => {
   it('pede a renovação com o token e devolve o prazo novo', async () => {
     const { calls, fetchFn } = fakeMeta([{ body: '{"access_token":"IGQnew","token_type":"bearer","expires_in":5183944}' }]);

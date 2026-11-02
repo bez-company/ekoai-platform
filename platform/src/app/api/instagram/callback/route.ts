@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireUserPermission, ForbiddenError, UnauthorizedError } from '@/lib/session';
 import { appOrigin } from '@/lib/origin';
-import { connectWithCode, instagramApp } from '@/lib/instagram-oauth';
+import { MetaApiError, connectWithCode, instagramApp } from '@/lib/instagram-oauth';
 import { saveInstagramConnection } from '@/lib/social-accounts';
-import { ConnectError, callbackUrl, parseCallbackQuery, stateValid, type FlashKey } from '@/lib/instagram-oauth-model';
+import { ConnectError, callbackUrl, metaFailureFlash, parseCallbackQuery, stateValid, type FlashKey } from '@/lib/instagram-oauth-model';
 import { track } from '@/lib/analytics';
 import { apiError } from '@/lib/api';
 import { logError } from '@/lib/log';
@@ -31,7 +31,12 @@ export async function GET(req: Request) {
   } catch (e) {
     if (e instanceof ConnectError) return back(e.flash);
     if (e instanceof UnauthorizedError || e instanceof ForbiddenError) return apiError(e, 'api/instagram/callback');
-    logError('api/instagram/callback', e);
+    // `await`: o redirect sai logo e o Cloud Run corta a CPU, então o envio ao Sentry precisa terminar antes.
+    if (e instanceof MetaApiError) {
+      await logError('api/instagram/callback', e, { step: e.step, status: e.status, code: e.code, type: e.type });
+      return back(metaFailureFlash(e));
+    }
+    await logError('api/instagram/callback', e);
     return back('failed');
   }
 }

@@ -76,7 +76,7 @@ export function parseCallbackQuery(params: URLSearchParams): CallbackQuery {
 }
 
 // O que a tela de redes mostra depois de voltar da Meta (`?ig=<chave>`).
-export type FlashKey = 'connected' | 'denied' | 'invalid' | 'failed' | 'not_professional' | 'no_publish' | 'limit' | 'networks' | 'taken' | 'unavailable' | 'disconnected';
+export type FlashKey = 'connected' | 'denied' | 'invalid' | 'failed' | 'not_professional' | 'no_publish' | 'limit' | 'networks' | 'taken' | 'unavailable' | 'disconnected' | 'refused';
 
 export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   connected: { tone: 'ok', text: 'Instagram conectado. Os posts aprovados já podem ir para ele.' },
@@ -93,6 +93,7 @@ export const FLASH: Record<FlashKey, { tone: 'ok' | 'warn'; text: string }> = {
   networks: { tone: 'warn', text: 'O plano da conta não inclui mais redes. Desconecte uma rede ou mude de plano para conectar o Instagram.' },
   taken: { tone: 'warn', text: 'Esse Instagram já está conectado a outra conta da Ekoai. Desconecte lá primeiro.' },
   unavailable: { tone: 'warn', text: 'A conexão com o Instagram ainda não está ativa neste ambiente. Avise o suporte.' },
+  refused: { tone: 'warn', text: 'A Meta recusou o acesso desta conta ao app da Ekoai. Avise o suporte e informe o horário da tentativa para liberarmos o seu Instagram.' },
 };
 
 export function isFlashKey(value: unknown): value is FlashKey {
@@ -218,6 +219,13 @@ const PERMANENT_CODES = new Set([102, 190, 458, 459, 460, 463, 464, 467]);
 
 export function isPermanentMetaFailure(f: MetaFailure): boolean {
   return f.code !== null && PERMANENT_CODES.has(f.code);
+}
+
+// O que a pessoa vê quando a Meta recusa um passo da conexão. HTTP 400 com código 100 é "sem permissão no
+// objeto" (conta sem papel no app, por exemplo): não adianta tentar de novo, é a Ekoai que libera. O resto
+// (rede, 5xx, limite de taxa) é passageiro.
+export function metaFailureFlash(f: MetaFailure): FlashKey {
+  return f.status === 400 && f.code === 100 ? 'refused' : 'failed';
 }
 
 // Erro de conexão que a pessoa entende e sabe corrigir: vira `?ig=<chave>` na volta.
