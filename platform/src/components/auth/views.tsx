@@ -4,7 +4,7 @@
 // que o IdentityEntry mandar; quem fala com o Firebase e com o servidor é o IdentityEntry.
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { PASSWORD_MIN, ROLE_COPY, countdown, daysLeft, groupSecret, isEmail, passwordOk, passwordRules } from '@/lib/auth-flow';
+import { PASSWORD_MIN, ROLE_COPY, countdown, daysLeft, groupSecret, isEmail, passwordOk, passwordRules, ruleTone } from '@/lib/auth-flow';
 import { PHONE_ERROR, maskPhone, normalizePhone } from '@/lib/person-profile-model';
 import type { Role } from '@/lib/permissions';
 import { ErrorLine, Field, OtpInput, Spinner, ViewShell } from './ui';
@@ -90,7 +90,10 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
   const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [phoneSeen, setPhoneSeen] = useState(false);
+  const [passwordSeen, setPasswordSeen] = useState(false);
   const rules = passwordRules(password, email);
+  // Regra que falta fica vermelha assim que a pessoa começa a digitar (ou sai do campo); antes disso, cinza.
+  const showMissing = passwordSeen || password !== '';
   const matches = confirm !== '' && confirm === password;
   const problems = {
     name: !name.trim() ? 'Digite seu nome.' : '',
@@ -154,16 +157,20 @@ export function SignupView({ busy, error, lockedEmail, onSubmit, onLogin }: Comm
             value={password}
             onChange={setPassword}
             autoComplete="new-password"
+            onBlur={() => setPasswordSeen(true)}
             disabled={busy}
             below={
               <ul className="grid gap-0.5 text-xs" aria-label="Regras da senha">
-                {rules.map((r) => (
-                  <li key={r.label} className={r.ok ? 'text-success' : 'text-muted'}>
-                    <span aria-hidden="true">{r.ok ? '✓ ' : '• '}</span>
-                    {r.label}
-                    <span className="sr-only">{r.ok ? ' (ok)' : ' (falta)'}</span>
-                  </li>
-                ))}
+                {rules.map((r) => {
+                  const tone = ruleTone(r, showMissing);
+                  return (
+                    <li key={r.label} className={tone === 'ok' ? 'text-success' : tone === 'missing' ? 'text-danger' : 'text-muted'}>
+                      <span aria-hidden="true">{tone === 'ok' ? '✓ ' : tone === 'missing' ? '✕ ' : '• '}</span>
+                      {r.label}
+                      <span className="sr-only">{r.ok ? ' (ok)' : ' (falta)'}</span>
+                    </li>
+                  );
+                })}
               </ul>
             }
           />
