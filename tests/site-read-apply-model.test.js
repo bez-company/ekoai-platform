@@ -18,6 +18,10 @@ describe('corpo de aplicar a leitura', () => {
     });
   });
 
+  it('o @ do Instagram do cadastro rápido passa junto com o negócio', () => {
+    expect(parseApplyBody({ about: { offering: 'Bolos', instagram_handle: ' @doceponto ' } }).about).toEqual({ offering: 'Bolos', instagram_handle: '@doceponto' });
+  });
+
   it('corpo vazio ou inválido não tem nada para aplicar', () => {
     for (const body of [null, 'x', [], {}, { about: {}, facts: [] }]) expect(hasAnythingToApply(parseApplyBody(body)), JSON.stringify(body)).toBe(false);
     expect(hasAnythingToApply(parseApplyBody({ pains: ['x'] }))).toBe(true);

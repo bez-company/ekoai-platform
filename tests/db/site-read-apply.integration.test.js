@@ -48,9 +48,9 @@ describe('aplicar a leitura do site', () => {
     await expect(apply({ about: { offering: 'Só isto' } })).rejects.toThrow(/Escolha o nicho|Diga para quem/);
     await expect(apply({ voice: { formal: 2 } })).rejects.toThrow(/Preencha primeiro/);
     expect(await getProfile(ta)).toBeNull();
-    const res = await apply({ site_url: 'doceponto.com.br', about: FULL_ABOUT });
+    const res = await apply({ site_url: 'doceponto.com.br', about: { ...FULL_ABOUT, instagram_handle: '@doceponto' } });
     expect(res.applied.about).toBe(true);
-    expect(await getProfile(ta)).toMatchObject({ niche: 'Alimentação', offering: 'Bolos sob encomenda.', region: 'Marília, SP', siteUrl: 'https://doceponto.com.br' });
+    expect(await getProfile(ta)).toMatchObject({ niche: 'Alimentação', offering: 'Bolos sob encomenda.', region: 'Marília, SP', siteUrl: 'https://doceponto.com.br', instagramHandle: 'doceponto' });
   });
 
   it('jeito de falar: troca as escalas escolhidas, junta as listas sem repetir e respeita o teto de 5', async () => {
