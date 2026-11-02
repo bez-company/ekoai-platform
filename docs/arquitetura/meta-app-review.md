@@ -9,6 +9,22 @@
 > que já vale para contas com papel no app. O acesso avançado, para clientes de fora, entra neste mesmo
 > pedido. O documento foi escrito antes e dizia "nada de insights"; as seções abaixo já refletem as três permissões.
 
+## Estado no painel da Meta (02/11/2026, cartão BEZ-332)
+
+Lido no app Ekoai (ID `1030505622820702`), sem enviar nada:
+
+| Item | Estado |
+| --- | --- |
+| Business Verification da Bez Company | Verificado |
+| App | Publicado (modo ao vivo); sem ações necessárias abertas |
+| Permissões | `instagram_business_basic`, `instagram_business_content_publish` e `instagram_business_manage_insights` em "Pronto para teste" (acesso padrão) |
+| Rascunho de envio | Existe, "Não enviado". Verificação e Configurações do app concluídas; faltam Uso permitido, Tratamento de dados e Instruções da análise |
+| Permissões no rascunho | Tiradas `instagram_business_manage_messages`, `instagram_manage_comments` e `public_profile` (o app não usa; pedir a mais reprova). Ficam só as três acima |
+| Papéis no app | Administrador (Matheus) e testador `ekoai.app`. Quem não tem papel não conecta até o acesso avançado |
+
+Sintoma que levou a isto: o cliente de fora autoriza no Instagram e a troca do token curto pelo longo volta
+`400`, código `100`, "Unsupported request - method type: get" (BEZ-528). A conta da BEZ, com papel, conecta.
+
 ## O que foi verificado e o que não foi
 
 - **Verificado na página oficial** ([App Review for Instagram API](https://developers.facebook.com/docs/instagram-platform/app-review)):
@@ -140,3 +156,69 @@ cliente. Um vídeo só para esta permissão, uns 3 minutos.
 
 Antes de gravar, rodar o BEZ-326 para confirmar no staging o que a Meta devolve de verdade (formato,
 `timeframe` aceito, existência e fuso de `online_followers`) e ajustar as legendas ao que apareceu.
+
+## Etapas que faltam no rascunho (BEZ-332)
+
+### Tratamento de dados (respostas para o questionário)
+
+Pontos marcados com **(confirmar)** não foram verificados no código nem na infraestrutura; conferir antes de enviar.
+
+| Pergunta | Resposta |
+| --- | --- |
+| Dados da Plataforma que o app recebe | Id, nome de usuário e tipo da conta conectada; mídia e insights por post publicado (alcance, salvamentos, compartilhamentos, visualizações, interações); agregados do público (faixa etária e gênero, com 100 seguidores ou mais). Nenhum seguidor individual é lido nem guardado |
+| Para que usa | Mostrar qual conta está conectada, publicar o que a pessoa aprova, mostrar o desempenho à própria dona da conta (Analytics, Aprendizado, Horários). Nada é vendido, usado em anúncio nem enviado a terceiros para outro fim |
+| Token de acesso | Cifrado com Cloud KMS, em tabela separada da conta, sem leitura pelo navegador. Apagado ao desconectar (gatilho do banco) e nos retornos de desautorização e exclusão da Meta |
+| Prestadores de serviço | Google Cloud (Cloud Run, Cloud SQL, Cloud KMS, Secret Manager). Uso de IA da Google para gerar legendas e sugestões: **(confirmar)** se algum insight da Meta entra no prompt e em que região roda o modelo |
+| Onde ficam os dados | Google Cloud, `southamerica-east1` (São Paulo) para o banco |
+| Retenção | Métricas e público ficam enquanto a conta estiver conectada; apagar a conta ou a exclusão pedida pela Meta remove tudo da conta **(confirmar)** que `metrics_snapshots` e `audience_snapshots` saem junto |
+| Exclusão pedida pela Meta | `POST /api/instagram/data-deletion` (assinatura verificada), devolve URL pública de status e código de confirmação; `POST /api/instagram/deauthorize` revoga a conta |
+| Responsável | Bez Company; e-mail comercial do app. **(confirmar)** se a Meta pede encarregado de dados (LGPD) nomeado |
+
+### Instruções da análise (texto final, em inglês, por permissão)
+
+Cada permissão leva o próprio texto e o próprio vídeo. Credenciais do revisor e da conta de teste vão **só no
+formulário da Meta**, nunca neste arquivo.
+
+> **All permissions, access:** open `https://app.ekoai.com.br`, sign in with the reviewer account (credentials in
+> the form field), go to Settings, Channels (in Portuguese: Configurações, Canais) and click "Conectar" next to
+> Instagram. Log in with the test Instagram account. The language of the UI is Portuguese; every step in the
+> videos has an English caption.
+>
+> **`instagram_business_basic`:** after the login, the app reads the account id, username and account type of the
+> connected account. We show the username in Settings, Channels so the person knows which account is connected,
+> and we reject accounts that are not professional.
+>
+> **`instagram_business_content_publish`:** the person creates a post, reviews the image and caption and clicks
+> "Aprovar" (Approve). Only then do we publish the image with the caption to the connected account through the
+> content publishing endpoints. Nothing is published without that click.
+>
+> **`instagram_business_manage_insights`:** see the text of item 11 above. We read reach, saves, shares, views and
+> interactions of the posts published through Ekoai and, with 100 followers or more, aggregate age and gender.
+> Used only to show results to the account owner and to suggest posting hours.
+
+### Roteiro do vídeo de `instagram_business_basic` (uns 2 minutos)
+
+1. Settings, Channels: mostrar que nenhum Instagram está conectado.
+2. Clicar em "Conectar". Mostrar a tela de login do Instagram e a tela de consentimento listando a permissão.
+   Legenda: "The person logs in and grants access".
+3. Voltar ao app: mostrar o banner "Instagram conectado" e o `@usuário` na tela. Legenda: "The app reads the
+   account id and username (instagram_business_basic) to show which account is connected".
+4. Desconectar e mostrar que o acesso guardado foi apagado. Legenda: "Disconnecting deletes the stored token".
+
+### Roteiro do vídeo de `instagram_business_content_publish` (uns 3 minutos)
+
+1. Criar um post (Criar): escolher o tema e deixar o app gerar imagem e legenda.
+2. Abrir o post em Aprovar: mostrar a pré-visualização na grade e a legenda. Legenda: "Nothing is published until
+   the person approves".
+3. Clicar em "Aprovar". Legenda: "On approval we call the content publishing endpoints".
+4. Mostrar o post publicado no Instagram da conta de teste (abrir `instagram.com` ou o app).
+5. Mostrar em Publicados o status "Publicado" do mesmo post.
+
+Antes de gravar, usar a conta de teste `@ekoai.app` em produção (`PUBLISH_MODE=live`) e apagar o post de teste depois.
+Dado fictício; nenhuma imagem com rosto de criança (regra da SPEC 012).
+
+### Conta do revisor
+
+Conta criada em produção com e-mail da BEZ, sem segundo fator (`MFA_MODE` é opcional em prod desde 27/10/2026),
+plano com Instagram incluído e uma conta de Instagram de teste profissional sem verificação em duas etapas, para
+o revisor conseguir entrar sem receber código.
