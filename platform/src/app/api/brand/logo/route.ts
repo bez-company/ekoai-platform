@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requirePermission, requireUserPermission } from '@/lib/session';
 import { defaultStore, isLogoVariant, logoStatus, readLogo, removeLogo, saveLogo, type LogoVariant } from '@/lib/brand-logo';
-import { LOGO_MAX_BYTES, inspectLogo } from '@/lib/logo-model';
+import { LOGO_MAX_BYTES, WRONG_FORMAT, inspectLogo } from '@/lib/logo-model';
 import { apiError, badRequest } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
 // O logo da empresa só sai por aqui, com sessão (ADR 0014): admin e criador veem (profile.view).
-// O arquivo é um PNG ou um SVG já reescrito pelo sanitizador; mesmo assim vai com cabeçalhos que
+// O arquivo é um PNG ou JPG já limpo de metadados, ou um SVG já reescrito pelo sanitizador; mesmo assim vai com cabeçalhos que
 // impedem script se alguém abrir o endereço direto.
 // `?variant=` escolhe a principal (padrão) ou uma variação (SPEC 026); `?status=1` devolve quais logos a conta tem.
 const variantOf = (v: unknown): LogoVariant | null => (v == null || v === '' ? 'main' : isLogoVariant(v) ? v : null);
@@ -43,13 +43,13 @@ export async function POST(req: Request) {
   try {
     const { t, user } = await requireUserPermission('brand.manage');
     const declared = Number(req.headers.get('content-length') ?? 0);
-    if (declared > LOGO_MAX_BYTES + 64 * 1024) return badRequest('O arquivo passa de 2 MB. Use PNG ou SVG de até 2 MB.');
+    if (declared > LOGO_MAX_BYTES + 64 * 1024) return badRequest(`O arquivo passa de 2 MB. ${WRONG_FORMAT}`);
     const form = await req.formData().catch(() => null);
     const variant = variantOf(form?.get('variant'));
     if (!variant) return badRequest('Escolha principal, fundo escuro, fundo claro ou símbolo.');
     const file = form?.get('file');
-    if (!(file instanceof File)) return badRequest('Escolha um arquivo PNG ou SVG.');
-    if (file.size > LOGO_MAX_BYTES) return badRequest('O arquivo passa de 2 MB. Use PNG ou SVG de até 2 MB.');
+    if (!(file instanceof File)) return badRequest('Escolha um arquivo PNG, SVG ou JPG.');
+    if (file.size > LOGO_MAX_BYTES) return badRequest(`O arquivo passa de 2 MB. ${WRONG_FORMAT}`);
     const inspected = inspectLogo(new Uint8Array(await file.arrayBuffer()));
     if (!inspected.ok) return badRequest(inspected.error);
     const { assetId } = await saveLogo(t, user, inspected, defaultStore(), variant);

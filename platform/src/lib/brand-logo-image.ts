@@ -5,6 +5,7 @@ import type { TenantDb } from './tenant-db';
 import { readLogo, type BlobStore } from './brand-logo';
 import type { Logo, LogoImage } from './design/model';
 import { log } from './log';
+import { rasterSize } from './logo-model';
 
 // Largura e altura do cabeçalho do PNG (IHDR).
 const pngHeaderSize = (png: Uint8Array): { width: number; height: number } => {
@@ -36,6 +37,10 @@ export async function logoFor(t: TenantDb, store: BlobStore): Promise<Logo | nul
 // ou do viewBox/width/height do SVG. Sem medida, assume 3:1 (um lockup horizontal comum).
 export function logoDimensions(bytes: Uint8Array, contentType: string): { width: number; height: number } {
   if (contentType === 'image/png' && bytes.length >= 24) return pngHeaderSize(bytes);
+  if (contentType === 'image/jpeg') {
+    const size = rasterSize(bytes, contentType);
+    if (size && size.width > 0 && size.height > 0) return size;
+  }
   const svg = Buffer.from(bytes).toString('utf8').slice(0, 4000);
   const viewBox = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(svg);
   if (viewBox) return { width: Number(viewBox[1]) || 3, height: Number(viewBox[2]) || 1 };
