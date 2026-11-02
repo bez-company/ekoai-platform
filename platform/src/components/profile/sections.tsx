@@ -6,7 +6,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { BODY_FONTS, CTAS, HEADING_FONTS, LIST_MAX_ITEMS, NICHES, REACHES, REACH_LABEL, BANNED_MAX_ITEMS, type CompanyProfile, type FieldErrors, type Section } from '@/lib/company-profile-model';
 import { CTA_OPTION, sectionBody, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
-import { ChipsField, ColorField, ListField, ScaleField, SelectField, TextAreaField, TextField } from './ui';
+import PaletteField from './PaletteField';
+import { ChipsField, ListField, ScaleField, SelectField, TextAreaField, TextField } from './ui';
 
 // onChange é o setter do estado (aceita função): dois campos mudando no mesmo instante não se sobrescrevem.
 // `onClearError` tira o erro de um campo quando a pessoa o edita: a mensagem não fica contradizendo o valor novo.
@@ -69,10 +70,17 @@ export function VisualSection({ value, onChange, errors, onClearError, disabled 
   };
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <ColorField label="Cor principal" value={value.color_primary} onChange={(color_primary) => set({ color_primary })} error={errors.color_primary} disabled={disabled} />
-        <ColorField label="Cor de destaque" value={value.color_accent} onChange={(color_accent) => set({ color_accent })} error={errors.color_accent} disabled={disabled} />
-      </div>
+      <PaletteField
+        primary={value.color_primary}
+        accent={value.color_accent}
+        support={value.color_palette}
+        errors={errors}
+        disabled={disabled}
+        onChange={(patch) => {
+          set(patch);
+          if (patch.color_palette) Object.keys(errors).filter((k) => k.startsWith('color_palette.')).forEach(onClearError);
+        }}
+      />
       <div className="grid gap-5 sm:grid-cols-2">
         <SelectField label="Fonte dos títulos" value={value.font_heading} onChange={(font_heading) => set({ font_heading })} options={HEADING_FONTS} fontPreview placeholder="Escolha a fonte" error={errors.font_heading} disabled={disabled} />
         <SelectField label="Fonte do texto" value={value.font_body} onChange={(font_body) => set({ font_body })} options={BODY_FONTS} fontPreview placeholder="Escolha a fonte" error={errors.font_body} disabled={disabled} />

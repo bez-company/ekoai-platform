@@ -4,7 +4,7 @@ import * as f from '../platform/src/lib/company-profile-form.ts';
 const profile = (over = {}) => ({
   niche: 'Alimentação', offering: 'Bolos', audience: 'Famílias', region: null, siteUrl: null, instagramHandle: null,
   differentiators: [], pains: [], voiceFormal: null, voiceTechnical: null, voiceSerious: null, bannedWords: [],
-  logoAssetId: null, colorPrimary: null, colorAccent: null, fontHeading: null, fontBody: null, ctaDefault: null, postsPerWeek: null,
+  logoAssetId: null, colorPrimary: null, colorAccent: null, colorPalette: [], fontHeading: null, fontBody: null, ctaDefault: null, postsPerWeek: null,
   updatedAt: '2026-10-20T00:00:00.000Z', ...over,
 });
 
@@ -43,7 +43,7 @@ describe('estado dos formulários', () => {
   it('sem perfil, tudo vazio e uma linha em branco nas listas', () => {
     expect(f.aboutFromProfile(null)).toEqual({ niche: '', offering: '', audience: '', region: '', reach: '', site_url: '', instagram_handle: '' });
     expect(f.voiceFromProfile(null)).toMatchObject({ differentiators: [''], pains: [''], banned_words: [], voice_formal: null });
-    expect(f.visualFromProfile(null)).toEqual({ color_primary: '', color_accent: '', font_heading: '', font_body: '', cta_default: '' });
+    expect(f.visualFromProfile(null)).toEqual({ color_primary: '', color_accent: '', color_palette: [''], font_heading: '', font_body: '', cta_default: '' });
   });
 
   it('com perfil, o @ volta para a tela e o corpo leva a seção', () => {
@@ -63,5 +63,18 @@ describe('passo opcional vazio', () => {
     expect(f.isVisualEmpty(f.visualFromProfile(null))).toBe(true);
     expect(f.isVisualEmpty({ ...f.visualFromProfile(null), cta_default: 'dm' })).toBe(false);
     expect(f.isVisualEmpty({ ...f.visualFromProfile(null), color_primary: '#B83262' })).toBe(false);
+  });
+});
+
+describe('cores de apoio no formulário', () => {
+  it('sem cores, o formulário abre com uma linha de apoio vazia; com cores, mostra as gravadas', () => {
+    expect(f.visualFromProfile(profile()).color_palette).toEqual(['']);
+    expect(f.visualFromProfile(profile({ colorPalette: ['#2F7D6B'] })).color_palette).toEqual(['#2F7D6B']);
+    expect(f.visualFromProfile(null).color_palette).toEqual(['']);
+  });
+
+  it('só uma cor de apoio já conta como visual preenchido', () => {
+    expect(f.hasVisual(profile())).toBe(false);
+    expect(f.hasVisual(profile({ colorPalette: ['#2F7D6B'] }))).toBe(true);
   });
 });

@@ -13,7 +13,7 @@ export type VoiceForm = {
   differentiators: string[];
   pains: string[];
 };
-export type VisualForm = { color_primary: string; color_accent: string; font_heading: string; font_body: string; cta_default: string };
+export type VisualForm = { color_primary: string; color_accent: string; color_palette: string[]; font_heading: string; font_body: string; cta_default: string };
 
 export function aboutFromProfile(p: CompanyProfile | null): AboutForm {
   return {
@@ -42,6 +42,7 @@ export function visualFromProfile(p: CompanyProfile | null): VisualForm {
   return {
     color_primary: p?.colorPrimary ?? '',
     color_accent: p?.colorAccent ?? '',
+    color_palette: p?.colorPalette.length ? p.colorPalette : [''],
     font_heading: p?.fontHeading ?? '',
     font_body: p?.fontBody ?? '',
     cta_default: p?.ctaDefault ?? '',
@@ -57,7 +58,7 @@ export function hasVoice(p: CompanyProfile): boolean {
 }
 
 export function hasVisual(p: CompanyProfile): boolean {
-  return !!(p.logoAssetId || p.colorPrimary || p.colorAccent || p.fontHeading || p.fontBody || p.ctaDefault);
+  return !!(p.logoAssetId || p.colorPrimary || p.colorAccent || p.colorPalette.length || p.fontHeading || p.fontBody || p.ctaDefault);
 }
 
 // Sobre o negócio vale 60%; jeito de falar e visual, 20% cada. "Completo" é 100%.

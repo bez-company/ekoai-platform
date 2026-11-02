@@ -109,6 +109,23 @@ describe('seção Visual', () => {
     for (const bad of [0, 15, 2.5, 'x']) expect(m.parseProfileSection({ section: 'visual', posts_per_week: bad }).fields.posts_per_week, String(bad)).toBeDefined();
   });
 
+  it('cores de apoio: normaliza, tira vazio e repetido (inclusive igual à principal ou ao destaque) e mantém a ordem', () => {
+    const v = ok(m.parseProfileSection({ section: 'visual', color_primary: '#b83262', color_accent: '#4A2C2A', color_palette: ['#f4c95d', '', '#B83262', '2f7d6b', '#F4C95D', '#4a2c2a'] }));
+    expect(v.color_palette).toEqual(['#F4C95D', '#2F7D6B']);
+  });
+
+  it('cor de apoio inválida erra na posição da linha; mais de 6 apoios erra no campo', () => {
+    expect(m.parseProfileSection({ section: 'visual', color_palette: ['#F4C95D', 'verde'] }).fields['color_palette.1']).toMatch(/formato/);
+    const seven = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777'];
+    expect(m.parseProfileSection({ section: 'visual', color_palette: seven }).fields.color_palette).toBe('Use até 6 cores de apoio.');
+    expect(ok(m.parseProfileSection({ section: 'visual', color_palette: seven.slice(0, 6) })).color_palette).toHaveLength(6);
+  });
+
+  it('sem o campo, as cores de apoio não são tocadas; com a lista vazia, são apagadas', () => {
+    expect('color_palette' in ok(m.parseProfileSection({ section: 'visual' }))).toBe(false);
+    expect(ok(m.parseProfileSection({ section: 'visual', color_palette: [''] })).color_palette).toEqual([]);
+  });
+
   it('tudo vazio é válido: a seção é opcional', () => {
     expect(ok(m.parseProfileSection({ section: 'visual' }))).toEqual({
       color_primary: null, color_accent: null, font_heading: null, font_body: null, cta_default: null,

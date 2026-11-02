@@ -119,7 +119,7 @@ export default function ProfileWizard({ initial }: Props) {
           {step === 2 && <VoiceSection value={voice} onChange={setVoice} errors={errors} onClearError={clearError} disabled={busy} />}
           {step === 3 && (
             <div className="space-y-5">
-              <LogoField ids={logo} canEdit onChange={setLogo} onlyMain />
+              <LogoField ids={logo} canEdit onChange={setLogo} />
               <VisualSection value={visual} onChange={setVisual} errors={errors} onClearError={clearError} disabled={busy} />
             </div>
           )}
