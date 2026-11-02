@@ -217,21 +217,6 @@ export function ListField({ label, value, onChange, placeholder, addLabel, itemL
   );
 }
 
-export function ColorField({ value, onChange, ...shell }: Common & { value: string; onChange: (v: string) => void }) {
-  const valid = /^#?[0-9a-fA-F]{6}$/.test(value.trim());
-  const swatch = valid ? (value.trim().startsWith('#') ? value.trim() : `#${value.trim()}`) : undefined;
-  return (
-    <FieldShell {...shell}>
-      {({ id, describedBy, invalid }) => (
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-lg border border-line-strong" style={{ background: swatch }} />
-          <input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="#000000" disabled={shell.disabled} aria-invalid={invalid} aria-describedby={describedBy} className="input font-mono" />
-        </div>
-      )}
-    </FieldShell>
-  );
-}
-
 export function RadioCards<T extends string>({ legend, value, onChange, options, disabled }: { legend: string; value: T | ''; onChange: (v: T | '') => void; options: { value: T; label: string; help: string }[]; disabled?: boolean }) {
   return (
     <fieldset className="space-y-2" disabled={disabled}>

@@ -208,6 +208,7 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
             rows={[
               ['Cor principal', profile.colorPrimary ? <ColorValue key="p" hex={profile.colorPrimary} /> : ''],
               ['Cor de destaque', profile.colorAccent ? <ColorValue key="a" hex={profile.colorAccent} /> : ''],
+              ...(profile.colorPalette.length ? [['Cores de apoio', <span key="s" className="flex flex-wrap gap-x-4 gap-y-1">{profile.colorPalette.map((hex) => <ColorValue key={hex} hex={hex} />)}</span>] as [string, ReactNode]] : []),
               ['Fontes', [profile.fontHeading, profile.fontBody].filter(Boolean).join(' e ')],
               ['Chamada da legenda', profile.ctaDefault ? CTA_LABEL[profile.ctaDefault] : 'Sem chamada final'],
             ]}

@@ -21,10 +21,9 @@ const SLOTS: { id: LogoVariantId; name: string; help: string; bg: string }[] = [
   { id: 'symbol', name: 'Só o símbolo', help: 'Sem o nome: para cantos pequenos e lâminas de carrossel.', bg: 'bg-inset' },
 ];
 
-// `onlyMain`: o cadastro em passos pede só a principal; as variações ficam para Configurações › Empresa.
-type Props = { ids: LogoIds; canEdit: boolean; onChange: (ids: LogoIds) => void; onlyMain?: boolean };
+type Props = { ids: LogoIds; canEdit: boolean; onChange: (ids: LogoIds) => void };
 
-export default function LogoField({ ids, canEdit, onChange, onlyMain = false }: Props) {
+export default function LogoField({ ids, canEdit, onChange }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const target = useRef<LogoVariantId>('main');
   const [busy, setBusy] = useState<LogoVariantId | null>(null);
@@ -83,10 +82,10 @@ export default function LogoField({ ids, canEdit, onChange, onlyMain = false }: 
       <p className="text-sm font-semibold">
         Logo<span className="ml-1.5 font-normal text-muted">(opcional)</span>
       </p>
-      <p className="text-sm text-muted">{onlyMain ? 'PNG ou SVG, até 2 MB. Fundo transparente fica melhor. As versões para fundo escuro, fundo claro e só o símbolo ficam em Configurações.' : 'Envie a logo principal e, se tiver, versões para fundo escuro, fundo claro e só o símbolo. A Ekoai escolhe a que se lê melhor em cada post.'}</p>
+      <p className="text-sm text-muted">Envie a logo principal e, se tiver, versões para fundo escuro, fundo claro e só o símbolo. A Ekoai escolhe a que se lê melhor em cada post.</p>
       <input ref={input} type="file" accept="image/png,image/svg+xml,.png,.svg" className="sr-only" tabIndex={-1} aria-label="Arquivo da logo" onChange={(e) => e.target.files?.[0] && void send(e.target.files[0])} />
-      <div className={`grid gap-3 pt-2 ${onlyMain ? '' : 'sm:grid-cols-2 xl:grid-cols-4'}`}>
-        {SLOTS.filter((s) => !onlyMain || s.id === 'main').map((s) => {
+      <div className="grid gap-3 pt-2 sm:grid-cols-2 xl:grid-cols-4">
+        {SLOTS.map((s) => {
           const url = src(s.id);
           const here = busy === s.id;
           const blocked = s.id !== 'main' && !ids.main;

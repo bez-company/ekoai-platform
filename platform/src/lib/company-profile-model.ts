@@ -55,6 +55,8 @@ export const LIST_ITEM_MAX = 140;
 export const BANNED_MAX_ITEMS = 30;
 export const BANNED_ITEM_MAX = 40;
 export const MIN_CONTRAST = 3;
+// Cores de apoio além da principal e da de destaque (SPEC 033): 8 cores no total.
+export const PALETTE_MAX = 6;
 
 export type ProfileValues = Record<string, string | number | string[] | null>;
 export type FieldErrors = Record<string, string>;
@@ -249,6 +251,26 @@ function visual(b: Record<string, unknown>): ParsedSection {
     if (!accent) c.fail('color_accent', 'Use uma cor no formato #4A2C2A.');
   }
 
+  // Cores de apoio: a posição na lista é a linha da tela, então o erro vem como `color_palette.<n>`. Vazio e repetido (inclusive igual à
+  // principal ou à de destaque) saem sem erro.
+  const palette: string[] = [];
+  const taken = new Set([primary, accent].filter((x): x is string => !!x));
+  const rawPalette = Array.isArray(b.color_palette) ? b.color_palette : [];
+  if (rawPalette.length > PALETTE_MAX + 4) c.fail('color_palette', `Use até ${PALETTE_MAX} cores de apoio.`);
+  rawPalette.slice(0, PALETTE_MAX + 4).forEach((entry, i) => {
+    const text = clean(entry);
+    if (!text) return;
+    const hex = normalizeHex(text);
+    if (!hex) return c.fail(`color_palette.${i}`, 'Use uma cor no formato #2F7D6B.');
+    if (taken.has(hex)) return;
+    taken.add(hex);
+    palette.push(hex);
+  });
+  if (palette.length > PALETTE_MAX) {
+    c.fail('color_palette', `Use até ${PALETTE_MAX} cores de apoio.`);
+    palette.length = PALETTE_MAX;
+  }
+
   const ctaText = clean(b.cta_default);
   let cta: Cta | null = null;
   if (ctaText) {
@@ -268,6 +290,7 @@ function visual(b: Record<string, unknown>): ParsedSection {
   return done(c, 'visual', {
     color_primary: primary,
     color_accent: accent,
+    ...('color_palette' in b ? { color_palette: palette } : {}),
     font_heading: pickFont(c, 'font_heading', b.font_heading, HEADING_FONTS),
     font_body: pickFont(c, 'font_body', b.font_body, BODY_FONTS),
     cta_default: cta,
@@ -301,6 +324,7 @@ export type CompanyProfile = {
   logoAssetId: string | null;
   colorPrimary: string | null;
   colorAccent: string | null;
+  colorPalette: string[];
   fontHeading: string | null;
   fontBody: string | null;
   ctaDefault: Cta | null;
@@ -330,6 +354,7 @@ export function profileFromRow(row: Record<string, unknown>): CompanyProfile {
     logoAssetId: str('logo_asset_id'),
     colorPrimary: str('color_primary'),
     colorAccent: str('color_accent'),
+    colorPalette: list('color_palette'),
     fontHeading: str('font_heading'),
     fontBody: str('font_body'),
     ctaDefault: (str('cta_default') as Cta | null),

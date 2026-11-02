@@ -33,7 +33,7 @@ export function brandBlock(brand: StudioBrand): string {
     `Nunca afirmar: ${brand.never.join('; ') || 'nada específico'}.`,
     `Palavras proibidas: ${(p.bannedWords ?? []).join(', ') || 'nenhuma'}.`,
     `Chamada para ação padrão: ${p.ctaDefault === 'whatsapp' ? 'chamar no WhatsApp' : p.ctaDefault === 'dm' ? 'mandar uma DM' : 'link na bio'}.`,
-    `Cores da marca: principal ${p.colorPrimary}, de destaque ${p.colorAccent}${brand.palette ? `. Paleta completa: ${Object.entries(brand.palette).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}.`,
+    `Cores da marca: principal ${p.colorPrimary}, de destaque ${p.colorAccent}${p.colorPalette?.length ? `, de apoio ${p.colorPalette.join(', ')}` : ''}${brand.palette ? `. Paleta completa: ${Object.entries(brand.palette).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}.`,
     `Fontes da marca: títulos ${p.fontHeading}, texto ${p.fontBody}.`,
   ];
   if (brand.visualLanguage) lines.push(`Linguagem visual da marca: ${brand.visualLanguage}`);

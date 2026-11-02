@@ -67,11 +67,11 @@ describe('perfil da empresa', () => {
 
   it('Jeito de falar e Visual atualizam só os campos da seção', async () => {
     await profile.saveSection(ta, ANA, parse({ section: 'voice', voice_formal: 4, voice_technical: 4, voice_serious: 3, banned_words: ['Imperdível'], differentiators: ['Sem conservantes'], pains: ['Esquece de encomendar'] }));
-    await profile.saveSection(ta, ANA, parse({ section: 'visual', color_primary: '#b83262', font_heading: 'Playfair Display', cta_default: 'whatsapp', posts_per_week: 3 }));
+    await profile.saveSection(ta, ANA, parse({ section: 'visual', color_primary: '#b83262', color_palette: ['#f4c95d', '', '#2f7d6b'], font_heading: 'Playfair Display', cta_default: 'whatsapp', posts_per_week: 3 }));
     expect(await profile.getProfile(ta)).toMatchObject({
       niche: 'Alimentação', region: 'Bauru, SP',
       voiceFormal: 4, voiceSerious: 3, bannedWords: ['imperdível'], differentiators: ['Sem conservantes'], pains: ['Esquece de encomendar'],
-      colorPrimary: '#B83262', fontHeading: 'Playfair Display', ctaDefault: 'whatsapp', postsPerWeek: 3, colorAccent: null,
+      colorPrimary: '#B83262', colorPalette: ['#F4C95D', '#2F7D6B'], fontHeading: 'Playfair Display', ctaDefault: 'whatsapp', postsPerWeek: 3, colorAccent: null,
     });
   });
 
@@ -103,5 +103,6 @@ describe('perfil da empresa', () => {
     expect((await bad({ voice_formal: 9 })).error).toBeTruthy();
     expect((await bad({ cta_default: 'email' })).error).toBeTruthy();
     expect((await bad({ differentiators: ['a', 'b', 'c', 'd', 'e', 'f'] })).error).toBeTruthy();
+    expect((await bad({ color_palette: ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777'] })).error).toBeTruthy();
   });
 });

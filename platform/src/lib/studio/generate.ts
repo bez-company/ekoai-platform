@@ -120,7 +120,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       logo: logo ? { width: logo.width, height: logo.height } : null,
       hasLogoVariants: !!logo?.variants && Object.keys(logo.variants).length > 0,
     });
-    context = { brand, planMax: account?.plan.maxPostsPerMonth ?? 20, logos: logosOf(logo), recent, colors: [profile.colorPrimary, profile.colorAccent].filter((c): c is string => !!c) };
+    context = { brand, planMax: account?.plan.maxPostsPerMonth ?? 20, logos: logosOf(logo), recent, colors: [profile.colorPrimary, profile.colorAccent, ...profile.colorPalette].filter((c): c is string => !!c) };
   } catch (e) {
     return fail(t, brief.id, e);
   }

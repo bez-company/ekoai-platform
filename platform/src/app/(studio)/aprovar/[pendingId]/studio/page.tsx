@@ -28,6 +28,7 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
   const swatches = [
     { label: 'Cor principal da marca', hex: brand.primary },
     { label: 'Cor de destaque da marca', hex: brand.accent },
+    ...(profile?.colorPalette ?? []).map((hex, i) => ({ label: `Cor de apoio ${i + 1} da marca`, hex })),
     { label: 'Cor do texto da marca', hex: brand.ink },
     { label: 'Branco', hex: '#FFFFFF' },
     { label: 'Quase preto', hex: '#1F1A19' },

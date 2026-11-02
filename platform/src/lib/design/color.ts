@@ -54,3 +54,34 @@ export function over(c: Hex, veil: Hex, alpha: number): Hex {
 }
 
 export const fmtContrast = (n: number) => `${n.toFixed(1).replace('.', ',')}:1`;
+
+// Escala de 9 tons (100 a 900) de uma cor da marca (SPEC 033). O 500 é a própria cor; os claros misturam com branco e os escuros com
+// um quase preto quente. Fundos claros, faixas e fundos escuros saem da mesma cor, com o contraste conferido por quem usa.
+export const TONES = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+export type Tone = (typeof TONES)[number];
+
+const SCALE_MIX: Record<Tone, [Hex, number] | null> = {
+  100: ['#FFFFFF', 0.86],
+  200: ['#FFFFFF', 0.68],
+  300: ['#FFFFFF', 0.48],
+  400: ['#FFFFFF', 0.24],
+  500: null,
+  600: ['#141010', 0.2],
+  700: ['#141010', 0.4],
+  800: ['#141010', 0.6],
+  900: ['#141010', 0.78],
+};
+
+export function toneOf(hex: Hex, tone: Tone): Hex {
+  const step = SCALE_MIX[tone];
+  return step ? mix(hex, step[0], step[1]) : hex.toUpperCase();
+}
+
+export function scaleOf(hex: Hex): { tone: Tone; hex: Hex }[] {
+  return TONES.map((tone) => ({ tone, hex: toneOf(hex, tone) }));
+}
+
+// Texto que se lê sobre `bg`: branco ou quase preto, o de maior contraste.
+export function readableOn(bg: Hex): Hex {
+  return contrast(bg, '#FFFFFF') >= contrast(bg, '#18181B') ? '#FFFFFF' : '#18181B';
+}
