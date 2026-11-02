@@ -85,6 +85,14 @@ describe('senha do cadastro', () => {
     expect(rules[0].label).toMatch(/10 caracteres/);
   });
 
+  it('regra que falta fica vermelha só depois que a pessoa mexe no campo', () => {
+    const [len, letter, diff] = f.passwordRules('abc', 'ana@x.com');
+    expect(f.ruleTone(len, false)).toBe('idle');
+    expect(f.ruleTone(len, true)).toBe('missing');
+    expect(f.ruleTone(letter, true)).toBe('missing');
+    expect(f.ruleTone(diff, false)).toBe('ok');
+  });
+
   it('valida o formato do e-mail', () => {
     expect(f.isEmail('ana@empresa.com.br')).toBe(true);
     for (const bad of ['', 'ana', 'ana@', '@x.com', 'a b@x.com', `${'a'.repeat(250)}@x.com`]) expect(f.isEmail(bad)).toBe(false);

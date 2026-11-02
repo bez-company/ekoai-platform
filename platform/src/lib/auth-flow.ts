@@ -143,6 +143,12 @@ export function passwordRules(password: string, email: string): PasswordRule[] {
   ];
 }
 
+// Cor da regra na tela: verde se cumprida; vermelha se falta e a pessoa já mexeu no campo; cinza antes disso.
+export function ruleTone(rule: PasswordRule, touched: boolean): 'ok' | 'missing' | 'idle' {
+  if (rule.ok) return 'ok';
+  return touched ? 'missing' : 'idle';
+}
+
 export function passwordOk(password: string, email: string): boolean {
   return passwordRules(password, email).every((r) => r.ok);
 }
