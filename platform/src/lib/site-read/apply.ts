@@ -12,7 +12,7 @@ import { LIST_MAX_ITEMS, parseProfileSection } from '../company-profile-model';
 import { createAgentFact, listFacts } from '../company-facts';
 import { parseAgentFactInput } from '../company-facts-model';
 import { defaultStore, logoStatus, saveLogo, type BlobStore } from '../brand-logo';
-import { inspectLogo } from '../logo-model';
+import { inspectUploadedLogo } from '../logo-upload';
 import { fetchPublic, ReadFailure, type Transport } from './fetch';
 import { REQUEST_TIMEOUT_MS } from './fetch';
 import { fetchableUrl } from './url-guard';
@@ -42,7 +42,7 @@ async function applyLogo(t: TenantDb, actor: SessionUser, url: string, deps: { s
   try {
     const res = await fetchPublic(allowed.url, { accept: 'image/*', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), transport: deps.transport });
     if (res.status !== 200) return 'logo: o site não entregou o arquivo';
-    const inspected = inspectLogo(new Uint8Array(res.body));
+    const inspected = await inspectUploadedLogo(new Uint8Array(res.body));
     if (!inspected.ok) return `logo: ${inspected.error}`;
     await saveLogo(t, actor, inspected, deps.store ?? defaultStore(), 'main');
     return null;
