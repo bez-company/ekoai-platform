@@ -11,14 +11,15 @@
 
 ## Estado no painel da Meta (02/11/2026, cartão BEZ-332)
 
-Lido no app Ekoai (ID `1030505622820702`), sem enviar nada:
+**Enviado em 02/11/2026** (submissão `1030509909486940`, três permissões: `basic`, `content_publish` e `manage_insights`). Status: "Análise em andamento"; a Meta diz que a maioria sai em até 20 dias. Lido no app Ekoai (ID `1030505622820702`):
 
 | Item | Estado |
 | --- | --- |
 | Business Verification da Bez Company | Verificado |
 | App | Publicado (modo ao vivo); sem ações necessárias abertas |
 | Permissões | `instagram_business_basic`, `instagram_business_content_publish` e `instagram_business_manage_insights` em "Pronto para teste" (acesso padrão) |
-| Rascunho de envio | Existe, "Não enviado". Verificação e Configurações do app concluídas; faltam Uso permitido, Tratamento de dados e Instruções da análise |
+| Envio | Enviado, em análise. As cinco etapas (Verificação, Configurações do app, Uso permitido, Tratamento de dados e Instruções da análise) foram preenchidas |
+| Configurações do app | Domínio `app.ekoai.com.br`, plataforma Site `https://app.ekoai.com.br/` (sem ela as Instruções da análise não abrem) e URL dos Termos `/termos` |
 | Permissões no rascunho | Tiradas `instagram_business_manage_messages`, `instagram_manage_comments` e `public_profile` (o app não usa; pedir a mais reprova). Ficam só as três acima |
 | Papéis no app | Administrador (Matheus) e testador `ekoai.app`. Quem não tem papel não conecta até o acesso avançado |
 
@@ -168,16 +169,17 @@ Pontos marcados com **(confirmar)** não foram verificados no código nem na inf
 | Dados da Plataforma que o app recebe | Id, nome de usuário e tipo da conta conectada; mídia e insights por post publicado (alcance, salvamentos, compartilhamentos, visualizações, interações); agregados do público (faixa etária e gênero, com 100 seguidores ou mais). Nenhum seguidor individual é lido nem guardado |
 | Para que usa | Mostrar qual conta está conectada, publicar o que a pessoa aprova, mostrar o desempenho à própria dona da conta (Analytics, Aprendizado, Horários). Nada é vendido, usado em anúncio nem enviado a terceiros para outro fim |
 | Token de acesso | Cifrado com Cloud KMS, em tabela separada da conta, sem leitura pelo navegador. Apagado ao desconectar (gatilho do banco) e nos retornos de desautorização e exclusão da Meta |
-| Prestadores de serviço | Google Cloud (Cloud Run, Cloud SQL, Cloud KMS, Secret Manager). Uso de IA da Google para gerar legendas e sugestões: **(confirmar)** se algum insight da Meta entra no prompt e em que região roda o modelo |
-| Onde ficam os dados | Google Cloud, `southamerica-east1` (São Paulo) para o banco |
-| Retenção | Métricas e público ficam enquanto a conta estiver conectada; apagar a conta ou a exclusão pedida pela Meta remove tudo da conta **(confirmar)** que `metrics_snapshots` e `audience_snapshots` saem junto |
+| Prestadores de serviço | Google Cloud (Cloud Run, Cloud SQL, Cloud KMS, Secret Manager). Operador declarado no formulário: Google LLC, categoria TI e armazenamento na nuvem, países Brasil e Estados Unidos |
+| Onde ficam os dados | Google Cloud, `southamerica-east1` (São Paulo) para o banco, o Cloud Run e a KMS. O Vertex AI roda em `global` (`VERTEX_LOCATION`), mas não recebe dado da plataforma Meta: só o perfil da empresa e o pedido de post |
+| Retenção | Métricas e público ficam enquanto a conta estiver conectada; apagar a empresa remove tudo (`tenants` em cascata: métricas e público saem junto). Desconectar o Instagram apaga só o token; as métricas já lidas ficam |
 | Exclusão pedida pela Meta | `POST /api/instagram/data-deletion` (assinatura verificada), devolve URL pública de status e código de confirmação; `POST /api/instagram/deauthorize` revoga a conta |
-| Responsável | Bez Company; e-mail comercial do app. **(confirmar)** se a Meta pede encarregado de dados (LGPD) nomeado |
+| Responsável | Pessoa jurídica verificada na Meta (a razão social está no portfólio da Meta, não neste repositório público); país Brasil. Segurança nacional: não; processos para pedidos de autoridades: nenhum formal |
 
 ### Instruções da análise (texto final, em inglês, por permissão)
 
-Cada permissão leva o próprio texto e o próprio vídeo. Credenciais do revisor e da conta de teste vão **só no
-formulário da Meta**, nunca neste arquivo.
+Cada permissão leva o próprio texto e o próprio vídeo. A Meta orienta **não fornecer credenciais do Instagram**: o
+revisor conecta a conta de Instagram profissional dele. Só o login do revisor no Ekoai vai no formulário da Meta,
+nunca neste arquivo.
 
 > **All permissions, access:** open `https://app.ekoai.com.br`, sign in with the reviewer account (credentials in
 > the form field), go to Settings, Channels (in Portuguese: Configurações, Canais) and click "Conectar" next to
@@ -203,7 +205,7 @@ formulário da Meta**, nunca neste arquivo.
    Legenda: "The person logs in and grants access".
 3. Voltar ao app: mostrar o banner "Instagram conectado" e o `@usuário` na tela. Legenda: "The app reads the
    account id and username (instagram_business_basic) to show which account is connected".
-4. Desconectar e mostrar que o acesso guardado foi apagado. Legenda: "Disconnecting deletes the stored token".
+4. (Não gravado.) Desconectar e mostrar o token apagado fica fora do vídeo; está nas instruções do revisor.
 
 ### Roteiro do vídeo de `instagram_business_content_publish` (uns 3 minutos)
 
@@ -214,11 +216,25 @@ formulário da Meta**, nunca neste arquivo.
 4. Mostrar o post publicado no Instagram da conta de teste (abrir `instagram.com` ou o app).
 5. Mostrar em Publicados o status "Publicado" do mesmo post.
 
-Antes de gravar, usar a conta de teste `@ekoai.app` em produção (`PUBLISH_MODE=live`) e apagar o post de teste depois.
+O clique em "Publicar agora" abre uma confirmação ("Publicar agora no Instagram?") e é preciso confirmar. Gravado com a `@ekoai.app` em produção (`PUBLISH_MODE=live`); o post de teste fica no perfil e deve ser apagado depois.
 Dado fictício; nenhuma imagem com rosto de criança (regra da SPEC 012).
 
 ### Conta do revisor
 
-Conta criada em produção com e-mail da BEZ, sem segundo fator (`MFA_MODE` é opcional em prod desde 27/10/2026),
-plano com Instagram incluído e uma conta de Instagram de teste profissional sem verificação em duas etapas, para
-o revisor conseguir entrar sem receber código.
+Conta criada em produção com um alias de e-mail da BEZ (`<usuário>+revisor-meta@<domínio da BEZ>`), sem segundo
+fator (`MFA_MODE` é opcional em prod desde 27/10/2026) e com plano que inclui Instagram. O revisor da Meta usa a
+conta de Instagram dele; a `@ekoai.app` serviu só para gravar os vídeos.
+
+### Como os vídeos foram gravados (02/11/2026)
+
+Playwright (o do `e2e/`) abrindo um Chromium com perfil persistente e `recordVideo`, legenda em inglês e endereço
+da página pintados por cima, convertido para mp4 com `ffmpeg`. Quem opera digita as senhas na janela (a gravação só
+espera). O script ficou em `.context/` (fora do repositório). Armadilhas: antes de gravar o `basic`, remover o app
+"Ekoai - IG" em Instagram > Configurações > Apps e sites, senão a tela de consentimento só mostra "Allow", sem a
+lista de permissões; e `isVisible({ timeout })` do Playwright ignora o timeout (usar `waitFor`).
+
+### O vídeo de insights ficou fraco
+
+Com 1 post e 3 seguidores, o post mostra tudo em 0 e o Analytics mostra "Faltam 12 posts" e "Faltam 97 seguidores".
+Se a Meta reprovar só essa permissão, repetir o pedido de `manage_insights` quando houver uma conta com 12 posts com
+alcance e 100 seguidores (BEZ-326).
