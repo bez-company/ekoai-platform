@@ -3,7 +3,7 @@
 
 export type ApplyInput = {
   siteUrl: string | null;
-  about: { niche?: string; offering?: string; audience?: string; region?: string } | null;
+  about: { niche?: string; offering?: string; audience?: string; region?: string; instagram_handle?: string } | null;
   voice: { formal?: number; technical?: number; serious?: number } | null;
   differentiators: string[];
   pains: string[];
@@ -36,7 +36,7 @@ export function parseApplyBody(body: unknown): ApplyInput {
   const scale = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) ? v : undefined);
   return {
     siteUrl: str(b.site_url, 300) ?? null,
-    about: pick(asObject(b.about), ['niche', 'offering', 'audience', 'region'] as const, (v) => str(v, 300)) as ApplyInput['about'],
+    about: pick(asObject(b.about), ['niche', 'offering', 'audience', 'region', 'instagram_handle'] as const, (v) => str(v, 300)) as ApplyInput['about'],
     voice: pick(asObject(b.voice), ['formal', 'technical', 'serious'] as const, scale) as ApplyInput['voice'],
     differentiators: strings(b.differentiators, 140),
     pains: strings(b.pains, 140),

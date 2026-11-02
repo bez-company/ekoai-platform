@@ -14,6 +14,9 @@ test.describe.serial('onboarding da conta nova', () => {
     await expect(page.getByText('Perfil da empresa', { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Preencher perfil' }).click();
     await expect(page).toHaveURL(/\/boas-vindas$/);
+    // o cadastro rápido (SPEC 033) abre primeiro; este teste segue pelo caminho manual
+    await expect(page.getByRole('heading', { name: 'Vamos conhecer a sua marca' })).toBeVisible();
+    await page.getByRole('button', { name: 'Prefiro preencher à mão' }).click();
     await expect(page.getByRole('heading', { name: 'Conte sobre o negócio' })).toBeVisible();
 
     // o passo Negócio é obrigatório: sem preencher, não avança e diz o que falta
