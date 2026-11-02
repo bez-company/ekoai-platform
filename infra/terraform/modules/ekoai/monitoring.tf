@@ -89,6 +89,42 @@ resource "google_monitoring_alert_policy" "scheduler_failed" {
   depends_on = [google_project_service.api]
 }
 
+# Conexão do Instagram de um cliente que falhou (BEZ-528). O callback registra ERROR quando algo quebra do nosso
+# lado e a Meta recusar um passo (`instagram/oauth`) vira WARNING com `step`, `code` e `reason`. O cron de renovação
+# (`step=refresh`) fica de fora: ele tem o próprio aviso por conta. Código 100 no passo `exchange` é conta sem papel
+# no app enquanto a revisão da Meta (BEZ-332) não aprova o acesso avançado.
+resource "google_monitoring_alert_policy" "instagram_connect_failed" {
+  count                 = var.deploy_workloads ? 1 : 0
+  project               = var.project_id
+  display_name          = "Conexão do Instagram falhou (${var.env})"
+  combiner              = "OR"
+  notification_channels = local.channels
+
+  conditions {
+    display_name = "Callback do Instagram com erro ou recusa da Meta"
+    condition_matched_log {
+      filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${local.name}-platform\" AND ((jsonPayload.scope=\"api/instagram/callback\" AND severity>=ERROR) OR (jsonPayload.scope=\"instagram/oauth\" AND jsonPayload.message=\"a Meta recusou o passo\" AND jsonPayload.step!=\"refresh\"))"
+      label_extractors = {
+        step   = "EXTRACT(jsonPayload.step)"
+        code   = "EXTRACT(jsonPayload.code)"
+        reason = "EXTRACT(jsonPayload.reason)"
+      }
+    }
+  }
+
+  alert_strategy {
+    notification_rate_limit {
+      period = "300s"
+    }
+  }
+
+  documentation {
+    content   = "Um cliente tentou conectar o Instagram e não conseguiu. Passo: $${log.extracted_label.step}, código da Meta: $${log.extracted_label.code}, motivo: $${log.extracted_label.reason}.\n\nCódigo 100 no passo `exchange` quer dizer que a conta não tem papel no app da Meta e o acesso avançado ainda não foi aprovado (BEZ-332): convide a conta como testador do Instagram ou espere a revisão. Outro caso: veja os logs da plataforma na mesma hora (escopos `api/instagram/callback` e `instagram/oauth`, docs/runbook.md, Observabilidade)."
+    mime_type = "text/markdown"
+  }
+  depends_on = [google_project_service.api]
+}
+
 resource "google_monitoring_alert_policy" "sql_disk" {
   project               = var.project_id
   display_name          = "Disco do Cloud SQL acima de 80% (${var.env})"
