@@ -199,7 +199,7 @@ export default function CompanyEditor({ initial, canEdit, logos }: { initial: Co
       </Card>
 
       <Card title="Visual" sub={profile && progress.missing.includes('visual') ? 'Sem logo, cores e fontes ainda.' : 'Usado nas artes da fase 2.'} action={editButton('visual')}>
-        {profile && canEdit && <SiteReadCard initialSite={profile.siteUrl ?? ''} disabled={busy} onApply={applyRead} />}
+        {profile && canEdit && <SiteReadCard initialSite={profile.siteUrl ?? ''} disabled={busy} onApply={applyRead} onApplied={() => router.refresh()} />}
         {profile && (
           <LogoField
             ids={logoIds}

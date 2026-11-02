@@ -195,3 +195,51 @@ export function extractBrand(input: { html: string; css: string[]; url: URL }): 
     logoUrl: logoFrom(html, url),
   };
 }
+
+// ── texto e páginas internas (BEZ-525b) ──
+const TEXT_INPUT_MAX = 400_000;
+
+// O texto que uma pessoa lê na página: sem script, estilo, svg e cabeçalho; uma linha por bloco; até `max` caracteres.
+export function visibleText(html: string, max = 6000): string {
+  const body = html
+    .slice(0, TEXT_INPUT_MAX)
+    .replace(/<(script|style|noscript|svg|template|head)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/?(?:p|div|br|li|h[1-6]|tr|section|article|header|footer|nav|ul|ol|table|main)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  return decode(body)
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter((line) => line.length >= 2)
+    .join('\n')
+    .slice(0, max);
+}
+
+const FILE_EXT = /\.(?:pdf|jpe?g|png|gif|webp|svg|ico|css|js|json|xml|zip|mp4|mp3|docx?|xlsx?)$/i;
+const SKIP_PATH = /login|entrar|signin|sign-in|cadastr|carrinho|cart|checkout|minha-conta|account|politica|privacidade|termos|cookies|lgpd|trabalhe|blog\/.+|wp-admin|wp-json|feed/i;
+const PAGE_SCORES: [RegExp, number][] = [
+  [/sobre|quem-somos|empresa|institucional|historia|about/i, 5],
+  [/produto|cardapio|menu|servico|solucoes|loja|catalogo|colecao|planos/i, 4],
+  [/encomenda|pedido|preco|valores|orcamento|como-funciona/i, 3],
+  [/contato|fale-conosco|onde-estamos|localizacao/i, 2],
+];
+
+// Páginas do mesmo site que mais dizem sobre a empresa (sobre, produtos, encomenda, contato), até `max`, na ordem do que vale mais.
+export function internalLinks(html: string, base: URL, max = 3): string[] {
+  const host = base.hostname.replace(/^www\./, '');
+  const seen = new Set<string>([base.pathname.replace(/\/$/, '') || '/']);
+  const found: { url: string; score: number; order: number }[] = [];
+  for (const a of tagsOf(html.slice(0, TEXT_INPUT_MAX), 'a')) {
+    if (!a.href || /^(?:#|mailto:|tel:|javascript:)/i.test(a.href.trim())) continue;
+    const url = resolveHttps(a.href, base);
+    if (!url) continue;
+    const u = new URL(url);
+    if (u.hostname.replace(/^www\./, '') !== host || FILE_EXT.test(u.pathname) || SKIP_PATH.test(u.pathname)) continue;
+    const path = u.pathname.replace(/\/$/, '') || '/';
+    if (seen.has(path)) continue;
+    seen.add(path);
+    const score = PAGE_SCORES.find(([re]) => re.test(path))?.[1] ?? 0;
+    found.push({ url: `${u.origin}${u.pathname}`, score, order: found.length });
+  }
+  return found.sort((x, y) => y.score - x.score || x.order - y.order).slice(0, max).map((f) => f.url);
+}
