@@ -108,6 +108,31 @@ describe('contrato da resposta do modelo', () => {
   });
 });
 
+describe('legendas do Instagram na leitura', () => {
+  const POSTS = [{ url: 'https://www.instagram.com/p/AAA/', text: 'Bolo de pote por R$ 14,00 e entrega no mesmo dia em Marília, vem provar!', source: 'instagram' }];
+
+  it('o prompt separa o site das legendas e diz que a voz vem mais delas', () => {
+    const prompt = buildUnderstandPrompt({ name: 'Doce Ponto', pages: [...PAGES, ...POSTS] });
+    expect(prompt).toContain('## Legendas recentes do Instagram da empresa');
+    expect(prompt).toContain('### Post: https://www.instagram.com/p/AAA/');
+    expect(prompt.indexOf('### Página: https://doceponto.com.br/')).toBeLessThan(prompt.indexOf('## Legendas recentes'));
+    expect(buildUnderstandPrompt({ name: 'X', pages: PAGES })).not.toContain('Legendas recentes');
+  });
+
+  it('fato tirado de uma legenda entra com fonte "outra" e o link do post; o número vem da legenda', () => {
+    const u = parseUnderstanding({ facts: [
+      { text: 'Bolo de pote por R$ 14,00', category: 'oferta_preco', page: POSTS[0].url },
+      { text: 'Bolo de pote por R$ 12,00', category: 'oferta_preco', page: HOME },
+      { text: 'Bolo de pote por R$ 15,00', category: 'oferta_preco', page: POSTS[0].url },
+    ] }, [...PAGES, ...POSTS]);
+    expect(u.facts.map((f) => [f.text, f.source, f.source_note])).toEqual([
+      ['Bolo de pote por R$ 14,00', 'other', POSTS[0].url],
+      ['Bolo de pote por R$ 12,00', 'site', HOME],
+    ]);
+    expect(u.dropped).toHaveLength(1);
+  });
+});
+
 describe('texto visível e páginas internas', () => {
   const HTML = `<html><head><title>X</title><style>.a{color:red}</style></head><body><script>var segredo = "NAO-LER";</script><nav><a href="/">Início</a></nav>
     <h1>Doce   Ponto</h1><p>Bolos &amp; doces sob encomenda.</p><noscript>sem js</noscript><!-- comentário --><div>Rua A, 10</div><svg><text>ICONE</text></svg></body></html>`;

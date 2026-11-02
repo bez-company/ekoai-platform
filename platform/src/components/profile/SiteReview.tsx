@@ -4,6 +4,7 @@
 // gravação. Dois usos: o cartão "Ler minha marca" do perfil (modo `card`: cores e fontes têm botão próprio e vão para o formulário do Visual)
 // e a confirmação do cadastro rápido (modo `signup`: nicho, o que vende e para quem são obrigatórios, e as cores e fontes entram junto).
 
+import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { Spinner } from '@/components/auth/ui';
 import Select from '@/components/ui/Select';
@@ -11,7 +12,8 @@ import { NICHES } from '@/lib/company-profile-model';
 import type { SiteRead } from '@/lib/site-read/extract';
 import type { Understanding } from '@/lib/site-read/understand-model';
 
-export type SiteResponse = { read: SiteRead; understanding: Understanding | null; notice: string | null };
+export type InstagramInfo = { state: 'ok' | 'not_connected' | 'expired' | 'failed'; count: number };
+export type SiteResponse = { read: SiteRead; understanding: Understanding | null; notice: string | null; instagram?: InstagramInfo };
 
 type Props = {
   res: SiteResponse;
@@ -41,6 +43,25 @@ function Pick({ on, onChange, label, children }: { on: boolean; onChange: (v: bo
       <span className="min-w-0 flex-1">{children}</span>
     </label>
   );
+}
+
+// O que o Instagram trouxe para a leitura: as legendas lidas, ou o que falta para ele entrar. No cadastro não há o que conectar ainda.
+function InstagramLine({ info, link }: { info?: InstagramInfo; link: boolean }) {
+  if (!info) return null;
+  const connect = link ? (
+    <>
+      {' '}
+      <Link href="/configuracoes/canais" className="link">
+        Conectar em Configurações, Redes
+      </Link>
+      .
+    </>
+  ) : null;
+  if (info.state === 'ok' && info.count > 0) return <p className="text-sm text-success">Lemos {info.count} {info.count === 1 ? 'legenda' : 'legendas'} do seu Instagram para afinar o jeito de falar.</p>;
+  if (info.state === 'ok') return <p className="text-sm text-muted">O Instagram conectado ainda tem poucas legendas para ajudar na leitura.</p>;
+  if (info.state === 'expired') return <p className="text-sm text-muted">A conexão do Instagram venceu, então a leitura usou só o site.{connect}</p>;
+  if (info.state === 'failed') return <p className="text-sm text-muted">Não deu para ler o Instagram agora; a leitura usou só o site. Tente de novo em instantes.</p>;
+  return <p className="text-sm text-muted">Com o Instagram conectado a leitura fica mais precisa: ela usa as legendas dos seus posts.{connect}</p>;
 }
 
 const origin = (url: string): string => {
@@ -99,6 +120,7 @@ export default function SiteReview({ res, mode, disabled, submitting, submitLabe
   return (
     <div className="space-y-4" aria-live="polite">
       {res.notice && <p className="text-sm text-muted">{res.notice}</p>}
+      <InstagramLine info={res.instagram} link={!signup} />
       {nothing && !signup && <p className="text-sm text-muted">Achamos pouco em {origin(res.read.url)}: o site quase não declara cores, fontes nem texto. Preencha à mão.</p>}
 
       {(res.read.colors.length > 0 || res.read.fonts.heading || res.read.fonts.body) && (

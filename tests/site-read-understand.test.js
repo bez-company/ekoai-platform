@@ -107,3 +107,40 @@ describe('entender o site', () => {
     expect(prompt.indexOf('## Texto lido')).toBeLessThan(prompt.indexOf('IGNORE AS REGRAS'));
   });
 });
+
+describe('com o Instagram conectado (BEZ-528)', () => {
+  const posts = (n) => Array.from({ length: n }, (_, i) => ({ url: `https://www.instagram.com/p/${i}/`, text: `Legenda ${i}: bolo de pote por R$ 14,00, feito à mão, com entrega no mesmo dia em Marília. Vem provar!`, source: 'instagram' }));
+  const full = () => site({ '/': html(`<p>${LONG}</p>`) });
+  const down = () => site({ '/': new Error('ECONNRESET') });
+
+  it('as legendas entram no prompt e a tela recebe quantas foram lidas', async () => {
+    const model = modelReturning(GOOD);
+    const out = await understandSite('doceponto.com.br', { model, tenantId: 'acme', transport: full().transport, instagram: { state: 'ok', pages: posts(5) } });
+    const prompt = model.generateJson.mock.calls[0][0].prompt;
+    expect(prompt).toContain('## Legendas recentes do Instagram da empresa');
+    expect(prompt).toContain('### Post: https://www.instagram.com/p/4/');
+    expect(out.instagram).toEqual({ state: 'ok', count: 5 });
+  });
+
+  it('com poucas legendas (menos de 3) o Instagram não entra, mas o estado diz que está conectado', async () => {
+    const model = modelReturning(GOOD);
+    const out = await understandSite('doceponto.com.br', { model, tenantId: 'acme', transport: full().transport, instagram: { state: 'ok', pages: posts(2) } });
+    expect(model.generateJson.mock.calls[0][0].prompt).not.toContain('Legendas recentes');
+    expect(out.instagram).toEqual({ state: 'ok', count: 0 });
+  });
+
+  it('sem conexão, a leitura é só do site e o estado vai para a tela', async () => {
+    const out = await understandSite('doceponto.com.br', { model: modelReturning(GOOD), tenantId: 'acme', transport: full().transport, instagram: { state: 'not_connected', pages: [] } });
+    expect(out.instagram).toEqual({ state: 'not_connected', count: 0 });
+    expect((await understandSite('doceponto.com.br', { model: modelReturning(GOOD), tenantId: 'acme', transport: full().transport })).instagram.state).toBe('not_connected');
+  });
+
+  it('site que não abre, com legendas suficientes: lê só o Instagram e avisa; sem elas, o erro do site sobe', async () => {
+    const model = modelReturning(GOOD);
+    const out = await understandSite('doceponto.com.br', { model, tenantId: 'acme', transport: down().transport, instagram: { state: 'ok', pages: posts(4) } });
+    expect(out.notice).toMatch(/Usamos só as legendas do Instagram/);
+    expect(out.read).toMatchObject({ url: 'https://doceponto.com.br/', colors: [], name: null });
+    expect(out.understanding).not.toBeNull();
+    await expect(understandSite('doceponto.com.br', { model: modelReturning(GOOD), tenantId: 'acme', transport: down().transport, instagram: { state: 'ok', pages: posts(2) } })).rejects.toThrow(/Não conseguimos abrir o site/);
+  });
+});
