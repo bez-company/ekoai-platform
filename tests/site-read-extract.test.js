@@ -49,6 +49,12 @@ describe('leitura da marca no HTML e no CSS', () => {
     expect(r.description).toBe('Cacau Show é a maior rede. Preço & sabor é A Água - ok &unknown; &#0;');
   });
 
+  it('as cores padrão de framework (Bootstrap, Material) não são da marca e não entram', () => {
+    const boot = '.btn-primary{background:#007bff}.btn-danger{background:#dc3545}.btn-warning{background:#ffc107}.btn-success{background:#28a745}a{color:#0062cc}:root{--primary:#007bff}.btn-success:hover{background:#1e7e34}.alert-primary{background:#b8daff;color:#004085}';
+    expect(extractBrand({ html: '<html></html>', css: [boot + '.marca{background:#b83262}'], url: URL_ }).colors).toEqual(['#B83262']);
+    expect(extractBrand({ html: '<html></html>', css: [boot], url: URL_ }).colors).toEqual([]);
+  });
+
   it('no máximo 6 cores', () => {
     const many = Array.from({ length: 12 }, (_, i) => `.c${i} { color: hsl(0 0% 0%); background: rgb(${(i * 20) % 255}, ${200 - i * 10}, ${50 + i * 15}) }`).join('\n');
     expect(extractBrand({ html: '<html></html>', css: [many], url: URL_ }).colors.length).toBeLessThanOrEqual(6);

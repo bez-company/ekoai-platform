@@ -77,13 +77,22 @@ const isBrandy = (hex: string): boolean => {
 
 const distance = (a: string, b: string): number => Math.hypot(...[1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)));
 
+// Cores que vêm de um framework de CSS e não da marca: a paleta padrão do Bootstrap 3, 4 e 5 e do Material. Um site que só as repete fica sem cor sugerida.
+const FRAMEWORK_COLORS = new Set([
+  '#007BFF', '#6C757D', '#28A745', '#DC3545', '#FFC107', '#17A2B8', '#0062CC', '#0069D9', '#005CBF', '#545B62', '#218838', '#C82333', '#E0A800', '#138496',
+  '#0D6EFD', '#6610F2', '#6F42C1', '#D63384', '#FD7E14', '#198754', '#20C997', '#0DCAF0', '#E83E8C', '#4285F4', '#337AB7', '#5CB85C', '#5BC0DE', '#F0AD4E', '#D9534F',
+  // sombras de hover e de alerta do Bootstrap 4
+  '#1E7E34', '#117A8B', '#D39E00', '#BD2130', '#B3D7FF', '#004085', '#155724', '#721C24', '#856404', '#0C5460', '#D4EDDA', '#F8D7DA', '#FFF3CD', '#D1ECF1', '#C3E6CB', '#F5C6CB', '#FFEEBA', '#BEE5EB', '#B8DAFF', '#1D2124', '#004085',
+  '#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0', '#E91E63', '#3F51B5', '#009688', '#FFEB3B', '#795548', '#607D8B',
+]);
+
 const COLOR_TOKEN = /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d{1,3}[\s,]+\d{1,3}[\s,]+\d{1,3}[^)]*\)/g;
 
 function rankColors(html: string, css: string[]): string[] {
   const score = new Map<string, number>();
   const add = (raw: string, weight: number) => {
     const hex = parseColor(raw);
-    if (hex && isBrandy(hex)) score.set(hex, (score.get(hex) ?? 0) + weight);
+    if (hex && isBrandy(hex) && !FRAMEWORK_COLORS.has(hex)) score.set(hex, (score.get(hex) ?? 0) + weight);
   };
   for (const key of ['theme-color', 'msapplication-tilecolor']) {
     const v = meta(html, key);
