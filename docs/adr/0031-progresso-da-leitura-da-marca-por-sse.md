@@ -39,7 +39,8 @@ Era preciso escolher como o servidor avisa a tela. A Ekoai roda no Cloud Run, at
 
 ## Consequências
 
-- **Risco não medido:** o Firebase Hosting na frente do Cloud Run pode limitar o tempo da requisição ou guardar a resposta antes de entregá-la. Só se
+- **Testado em staging pelo endereço `run.app` (BEZ-537, 03/11/2026):** o fluxo abriu com 200 e a tela acompanhou os passos; uma leitura de 12 páginas levou 13,7 s.
+- **Risco ainda não medido:** o Firebase Hosting na frente do Cloud Run pode limitar o tempo da requisição ou guardar a resposta antes de entregá-la. Só se
   confirma em staging. Se segurar o fluxo, a tela cai na resposta única sozinha (o comportamento de hoje). `maxDuration` fica em 60 s e a leitura do
   site inteiro tem de caber nele.
 - Cada leitura segura uma requisição aberta até o fim (30 a 60 s). O teto por hora (8 leituras por conta) limita o efeito na concorrência do Cloud Run.

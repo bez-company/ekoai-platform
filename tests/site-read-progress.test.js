@@ -113,4 +113,22 @@ describe('a leitura avisa cada passo', () => {
     const out = await readSitePages('doceponto.com.br', { transport: site({ '/': page({ body: Buffer.from(HOME) }) }) });
     expect(out.read.name).toBe('Doce Ponto');
   });
+
+  it('logo, cores e identidade saem assim que a folha de estilo chega, antes de qualquer página lida', async () => {
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+    const transport = async (url) => {
+      if (url.pathname === '/') return page({ body: Buffer.from(HOME) });
+      if (url.pathname === '/s.css') return page({ contentType: 'text/css', body: Buffer.from('.a{background:#2f7d6b}') });
+      await delay(40);
+      return page({ body: Buffer.from(`<body><p>${text(3)}</p></body>`) });
+    };
+    const events = [];
+    await readSitePages('doceponto.com.br', { transport, probe: (e) => events.push(`${e.type}:${e.kind}`) });
+    const at = (k) => events.indexOf(k);
+    expect(at('result:logo')).toBeGreaterThan(-1);
+    expect(at('result:colors')).toBeLessThan(at('result:page'));
+    expect(at('result:identity')).toBeLessThan(at('result:page'));
+    // o tempo do passo "css" é o do download, não o da leitura toda
+    expect(at('result:css')).toBeLessThan(at('result:page'));
+  });
 });

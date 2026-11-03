@@ -83,7 +83,20 @@ async function load(raw: string, deps: ReadDeps, withPages: boolean): Promise<Pa
     };
     const sheetLinks = stylesheetLinks(html, page.url);
     if (sheetLinks.length) probe({ type: 'started', kind: 'css', label: 'Baixando o estilo da página' });
-    const sheetsPending = Promise.all(sheetLinks.map((href) => fetchText(href, 'text/css')));
+    // A marca (logo, cores, fontes, nome) sai assim que as folhas de estilo chegam, sem esperar as páginas: é o primeiro resultado que a pessoa vê, e o tempo
+    // do passo "css" é só o do download (BEZ-537 mediu 6,6 s quando o resultado esperava as páginas).
+    const brandPending = Promise.all(sheetLinks.map((href) => fetchText(href, 'text/css'))).then((sheets) => {
+      const css = sheets.filter((s): s is string => Boolean(s));
+      if (sheetLinks.length) probe({ type: 'result', kind: 'css', count: css.length });
+      probe({ type: 'started', kind: 'logo', label: 'Pegando o logo' });
+      probe({ type: 'started', kind: 'colors', label: 'Coletando as cores e as fontes' });
+      const brand = extractBrand({ html, css, url: page.url });
+      probe({ type: 'result', kind: 'logo', logoUrl: brand.logoUrl });
+      probe({ type: 'result', kind: 'colors', colors: brand.colors, fonts: brand.fonts });
+      probe({ type: 'result', kind: 'identity', name: brand.name, description: brand.description });
+      return brand;
+    });
+    brandPending.catch(() => undefined);
     let picks: { url: string; label: string }[] = [];
     if (withPages) {
       probe({ type: 'started', kind: 'sitemap', label: 'Procurando o mapa do site' });
@@ -102,15 +115,7 @@ async function load(raw: string, deps: ReadDeps, withPages: boolean): Promise<Pa
       probe({ type: 'result', kind: 'page', url, chars: visible.length });
       return { url, text: visible };
     });
-    const sheets = await sheetsPending;
-    const css = sheets.filter((s): s is string => Boolean(s));
-    if (sheetLinks.length) probe({ type: 'result', kind: 'css', count: css.length });
-    probe({ type: 'started', kind: 'logo', label: 'Pegando o logo' });
-    probe({ type: 'started', kind: 'colors', label: 'Coletando as cores e as fontes' });
-    const read = extractBrand({ html, css, url: page.url });
-    probe({ type: 'result', kind: 'logo', logoUrl: read.logoUrl });
-    probe({ type: 'result', kind: 'colors', colors: read.colors, fonts: read.fonts });
-    probe({ type: 'result', kind: 'identity', name: read.name, description: read.description });
+    const read = await brandPending;
     const home = { url: `${page.url.origin}${page.url.pathname}`, text: visibleText(html) };
     return { read, pages: [home, ...extra].filter((p) => p.text.length >= MIN_TEXT) };
   } catch (e) {
