@@ -9,6 +9,7 @@ import { robotsAllows } from './robots';
 import { SITE_USER_AGENT, parseSiteUrl } from './url-guard';
 import type { SitePage } from './understand-model';
 import { noProbe, type Probe } from './progress-model';
+import { PAGE_CONCURRENCY, PAGE_LABEL, PAGE_TEXT_MAX, discoverPages } from './discover';
 
 export const TOTAL_TIMEOUT_MS = 25_000;
 
@@ -32,8 +33,24 @@ export type PagesRead = { read: SiteRead; pages: SitePage[] };
 
 const MIN_TEXT = 40;
 
-// A página inicial e, com `withPages`, até 3 páginas internas que dizem mais da empresa (sobre, produtos, encomenda, contato), cada uma
-// conferida no robots.txt. Falha numa página extra não derruba a leitura.
+// Roda `fn` sobre a lista com no máximo `limit` ao mesmo tempo, devolvendo os resultados na ordem da lista.
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next;
+      next += 1;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+// A página inicial e, com `withPages`, as páginas que dizem mais da empresa (SPEC 034): o mapa do site e os links da página inicial dão os
+// candidatos, cada um recebe um tipo (sobre, produto, preço, blog...) e só um número limitado é lido (discover.ts), cada uma conferida no
+// robots.txt, algumas ao mesmo tempo. Falha numa página extra não derruba a leitura.
 async function load(raw: string, deps: ReadDeps, withPages: boolean): Promise<PagesRead> {
   const parsed = parseSiteUrl(raw);
   if (!parsed.ok) throw new UserError(parsed.error);
@@ -66,23 +83,26 @@ async function load(raw: string, deps: ReadDeps, withPages: boolean): Promise<Pa
     };
     const sheetLinks = stylesheetLinks(html, page.url);
     if (sheetLinks.length) probe({ type: 'started', kind: 'css', label: 'Baixando o estilo da página' });
-    const extraLinks = (withPages ? internalLinks(html, page.url) : []).filter((href) => !robotsText || robotsAllows(robotsText, new URL(href).pathname, SITE_AGENT));
-    const [sheets, extra] = await Promise.all([
-      Promise.all(sheetLinks.map((href) => fetchText(href, 'text/css'))),
-      Promise.all(
-        extraLinks.map(async (href) => {
-          probe({ type: 'started', kind: 'page', label: 'Lendo uma página do site', url: href });
-          const body = await fetchText(href, 'text/html');
-          if (body === null) {
-            probe({ type: 'failed', kind: 'page', message: 'Esta página não abriu. A leitura segue com as outras.', url: href });
-            return { url: href, text: '' };
-          }
-          const visible = visibleText(body);
-          probe({ type: 'result', kind: 'page', url: href, chars: visible.length });
-          return { url: href, text: visible };
-        }),
-      ),
-    ]);
+    const sheetsPending = Promise.all(sheetLinks.map((href) => fetchText(href, 'text/css')));
+    let picks: { url: string; label: string }[] = [];
+    if (withPages) {
+      probe({ type: 'started', kind: 'sitemap', label: 'Procurando o mapa do site' });
+      const found = await discoverPages({ home: page.url, robotsText, agent: SITE_AGENT, fetchText, navLinks: internalLinks(html, page.url, 20) });
+      picks = found.urls.map((url, i) => ({ url, label: PAGE_LABEL[found.kinds[i]] }));
+      probe({ type: 'result', kind: 'sitemap', found: found.found, chosen: picks.length });
+    }
+    const extra = await mapLimit(picks, PAGE_CONCURRENCY, async ({ url, label }) => {
+      probe({ type: 'started', kind: 'page', label, url });
+      const body = await fetchText(url, 'text/html');
+      if (body === null) {
+        probe({ type: 'failed', kind: 'page', message: 'Esta página não abriu. A leitura segue com as outras.', url });
+        return { url, text: '' };
+      }
+      const visible = visibleText(body, PAGE_TEXT_MAX);
+      probe({ type: 'result', kind: 'page', url, chars: visible.length });
+      return { url, text: visible };
+    });
+    const sheets = await sheetsPending;
     const css = sheets.filter((s): s is string => Boolean(s));
     if (sheetLinks.length) probe({ type: 'result', kind: 'css', count: css.length });
     probe({ type: 'started', kind: 'logo', label: 'Pegando o logo' });

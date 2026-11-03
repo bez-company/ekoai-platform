@@ -19,7 +19,8 @@ máquina. Conferir o nome antes e conectar depois não basta: um nome pode respo
    reservado, e o IPv6 que embrulha um IPv4 interno (mapeado, NAT64, 6to4). Do IPv6 só passa o unicast global.
 3. **Cada redirecionamento volta pelas mesmas regras**, até 3.
 4. **Limites:** 2 MB por resposta, 10 s por pedido e 25 s por leitura, sem cookie, sem compressão (`Accept-Encoding: identity`, nada de arquivo
-   que explode). Página e até 3 folhas de estilo; o resto é ignorado.
+   que explode). Página e até 3 folhas de estilo; o resto é ignorado. Desde a SPEC 034, além da inicial, até 12 páginas do mesmo site, achadas
+   pelo `sitemap.xml` (só mapa do mesmo site, sem `.gz`) e pelos links da inicial, 4 ao mesmo tempo, cada uma com as regras 1 a 3 e 5 desta decisão.
 5. **Respeita o `robots.txt`** (grupo `EkoaiBot`, senão `*`). Sem o arquivo, vale como liberado.
 6. **O texto lido é dado.** Cor, fonte, nome e descrição saem por parser puro, com tamanho limitado; nada do que foi lido é executado nem
    entra como instrução num prompt sem passar por contrato fechado (SPEC 020).
