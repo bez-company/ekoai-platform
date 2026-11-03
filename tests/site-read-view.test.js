@@ -30,6 +30,15 @@ describe('estado da tela de leitura', () => {
     expect(v.instagram).toBeNull();
   });
 
+  it('o histórico não repete "Abrindo": o começo da leitura só abre a tela e quem escreve a linha é o passo do site', () => {
+    const v = run([
+      [0, (s) => s.started('doceponto.com.br')],
+      [5, (s) => s.step({ type: 'started', kind: 'site', label: 'Abrindo doceponto.com.br' })],
+    ]);
+    expect(v.phase).toBe('reading');
+    expect(v.log.map((l) => l.text)).toEqual(['Abrindo doceponto.com.br']);
+  });
+
   it('a leitura abre, mostra a frase de agora e o caminho da página, e conta as páginas lidas', () => {
     const v = run([
       [0, (s) => s.started('doceponto.com.br')],

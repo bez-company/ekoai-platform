@@ -94,6 +94,24 @@ Mantido: o campo "cole seu site" na landing, com o endereço preservado até o c
 Pergunta aberta: ler o Instagram de uma conta pública sem conexão OAuth esbarra nos termos da Meta; o caminho
 seguro é pedir a conexão no onboarding. A decidir.
 
+## Medição da leitura da Ekoai em staging (03/11/2026, BEZ-537)
+
+Uma leitura real de `native.no` (sitemap grande, 12 páginas lidas, Instagram conectado com 1 legenda), pelo endereço `run.app` do staging, com o log
+"tempo por etapa" do BEZ-532:
+
+| Etapa | Tempo |
+|---|---|
+| Abrir o site (robots.txt e página inicial) | 2,4 s |
+| Mapa do site | 2,0 s |
+| 12 páginas, 4 por vez (1,3 a 1,8 s cada) | cerca de 5 s no total |
+| Modelo de texto | 4,7 s |
+| **Total da leitura** | **13,7 s** (a requisição do stream respondeu 200 em 13,8 s) |
+
+Leitura: com 12 páginas o total fica em um quarto do limite de 60 s da rota, então os limites do BEZ-534 (12 páginas, 4 por vez, 4000 caracteres)
+ficam como estão. O gargalo é abrir o site e o modelo, não as páginas. O stream funcionou pelo Cloud Run. **Não testado:** o caminho pelo Firebase
+Hosting (o domínio do app), que pode segurar ou cortar o fluxo. Dois defeitos achados na tela e corrigidos: a marca (logo e cores) só aparecia depois das
+páginas, e a linha "Abrindo" saía duas vezes no histórico.
+
 ## Limites desta análise
 
 Sem pagamento: não vimos o Designer em camadas, a geração sob demanda (Create), anúncios, agenda nem

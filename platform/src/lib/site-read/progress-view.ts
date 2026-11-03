@@ -63,8 +63,9 @@ const NO_IDENTITY = 'O site não diz o nome nem a descrição da empresa.';
 export function applyEvent(view: ReadView, e: ReadEvent): ReadView {
   const v: ReadView = { ...view, elapsedMs: Math.max(view.elapsedMs, e.t) };
   switch (e.type) {
+    // O histórico começa no `step.started` do site ("Abrindo ..."): o `read.started` só abre a tela, sem linha própria (saía duas vezes).
     case 'read.started':
-      return push({ ...v, phase: 'reading', site: e.site, failure: null, result: null, doneMs: null, pages: { read: 0, chosen: 0 }, skipped: 0 }, { seq: e.seq, t: e.t, text: `Abrindo ${e.site}`, tone: 'info' });
+      return { ...v, phase: 'reading', site: e.site, failure: null, result: null, doneMs: null, pages: { read: 0, chosen: 0 }, skipped: 0 };
 
     case 'step.started': {
       const path = pathOf(e.url);
