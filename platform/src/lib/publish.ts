@@ -11,6 +11,9 @@
 //   à Meta se o container virou post antes de qualquer nova tentativa. Resultado incerto nunca é
 //   repetido às cegas, e cada decisão fica em publish_reconciliations.
 // - Os vencidos vêm de app.due_scheduled_posts: já sem contas pausadas e repartidos entre as contas.
+// - Conferência antes de publicar (BEZ-275, publish-preflight.ts): logo antes de chamar a rede, e de novo quando a
+//   reconciliação acha um container pronto, o post é conferido contra os fatos, a campanha e a foto de hoje. O que
+//   mudou depois da aprovação segura o post como falhou, com o motivo, sem chamar a rede.
 
 import { randomUUID } from 'node:crypto';
 import { db } from './db';
@@ -27,6 +30,8 @@ import { isRehearsalResult, publishMode, rehearsalId } from './publish-mode';
 import { getPauseState } from './pause';
 import { UserError } from './errors';
 import { markMediaAssetUsed } from './media-assets';
+import { publishPreflight } from './publish-preflight';
+import { preflightMessage, type PreflightBlock } from './publish-preflight-model';
 import { log, logError } from './log';
 import type { ScheduledPost, Generation, Variation } from './types';
 
@@ -303,6 +308,20 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
   return { ok: true };
 }
 
+// A conferência antes de publicar segurou o post: fica como falhou, com o motivo, e nada foi à rede. Não conta como
+// tentativa (a rede não foi chamada) e não volta para a fila: só sai de novo quando a pessoa corrigir e mandar.
+async function holdForReview(t: TenantDb, s: ScheduledPost, blocks: readonly PreflightBlock[]): Promise<{ ok: boolean; error?: string }> {
+  const msg = preflightMessage(blocks);
+  if (!(await writeWithLease(t, s, { status: 'failed', last_error: msg }))) {
+    log('warn', 'publish', 'lease perdido; a conferência segurou o post, mas não gravou', { scheduled: s.id, tenant: t.tenantId });
+    return { ok: false, error: msg };
+  }
+  log('info', 'publish', 'conferência antes de publicar segurou o post', { scheduled: s.id, tenant: t.tenantId, rules: blocks.map((b) => b.rule).join(',') });
+  await notify(t, { kind: 'publish.held', level: 'warning', title: `O post do ${channelName(s.channel)} não saiu: precisa de revisão`, body: msg, link: '/agenda' });
+  await track(t.tenantId, 'published_failure', { channel: s.channel, attempts: s.attempts ?? 0, reason: 'preflight', rule: blocks[0].rule });
+  return { ok: false, error: msg };
+}
+
 // Tenta publicar UM scheduled_post já travado em 'publishing' (com attempt_id). Em sucesso grava
 // posts + marca published; em falha incrementa attempts e volta pra scheduled
 // (ou marca failed ao esgotar as tentativas). Resposta incerta da Meta no media_publish NÃO volta
@@ -312,6 +331,9 @@ async function finalizePublished(t: TenantDb, s: ScheduledPost, result: Record<s
 async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {}): Promise<{ ok: boolean; error?: string }> {
   let result: Record<string, unknown>;
   try {
+    // Erro ao ler fatos, campanha ou foto cai no catch como falha comum: na dúvida o post não sai e tenta no próximo ciclo.
+    const blocks = await publishPreflight(t, s);
+    if (blocks.length) return await holdForReview(t, s, blocks);
     result = await publishToChannel(t, s, {
       // O container precisa estar gravado antes do media_publish: sem isso o resultado incerto não tem como ser conferido.
       onContainer: async (containerId) => {
@@ -368,7 +390,8 @@ async function processOne(t: TenantDb, s: ScheduledPost, { lastTry = false } = {
 
 export type ReconcileAction = 'marked_published' | 'published_now' | 'requeued' | 'failed_for_review' | 'waiting';
 type Found = 'published' | 'not_published' | 'in_progress' | 'unknown' | 'no_container' | 'unverifiable';
-type Verdict = { found: Found; action: ReconcileAction; detail: string; result?: Record<string, unknown>; note?: string };
+// `held`: a conferência antes de publicar segurou o container pronto (BEZ-275); não é post preso, é post para revisar.
+type Verdict = { found: Found; action: ReconcileAction; detail: string; result?: Record<string, unknown>; note?: string; held?: readonly PreflightBlock[] };
 
 // O que a rede diz sobre o post que ficou sem resposta. Só o Instagram tem como conferir (container
 // com status PUBLISHED); nas outras redes o resultado é incerto de verdade e quem decide é a pessoa.
@@ -423,6 +446,9 @@ async function judge(t: TenantDb, s: ScheduledPost): Promise<Verdict> {
   }
   if (state === 'FINISHED') {
     // Container pronto e não publicado: publicar o mesmo container de novo é seguro (a Meta recusa a segunda vez).
+    // Antes, a mesma conferência do caminho normal: o fato ou a campanha podem ter mudado enquanto o post estava preso.
+    const blocks = await publishPreflight(t, s);
+    if (blocks.length) return { found: 'not_published', action: 'failed_for_review', detail: preflightMessage(blocks), held: blocks };
     try {
       const published = await instagram.publishContainer(creds, containerId);
       return { found: 'not_published', action: 'published_now', detail: 'O container estava pronto e sem publicar; publicado agora.', result: { id: published.id, channel: 'instagram', reconciled: true, container_id: containerId } };
@@ -504,6 +530,11 @@ export async function reconcileOne(t: TenantDb, stale: ScheduledPost, source: 'i
     }
     log('info', 'publish', 'post reconciliado: nada no ar, volta para a fila', { scheduled: s.id, tenant: t.tenantId, source, detail: verdict.detail });
     return { action: 'requeued', error: verdict.detail };
+  }
+
+  if (action === 'failed_for_review' && verdict.held) {
+    await recordReconciliation(t, s, stale.attempt_id ?? null, verdict, 'failed_for_review');
+    return holdForReview(t, s, verdict.held).then((r) => ({ action: 'failed_for_review' as const, error: r.error }));
   }
 
   if (action === 'failed_for_review') {

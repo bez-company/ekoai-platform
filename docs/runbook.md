@@ -35,6 +35,16 @@ O que o reconciliador decide, pelo estado do container na Meta:
 
 Post em conta **pausada** não é reconciliado (a pausa não chama rede); espera a retomada.
 
+### Conferência antes de publicar (BEZ-275)
+
+Logo antes de chamar a rede, e de novo antes de publicar um container `FINISHED` na reconciliação,
+`publish-preflight.ts` confere o post contra o estado de hoje: número que vem de fato vencido, recusado
+ou para revisar, frase em "nunca afirmar", campanha pausada ou encerrada (a do agendado ou a do pedido) e
+foto do banco apagada ou sem autorização de uso de imagem. Se algo mudou, a rede não é chamada: o post fica
+`failed` com o motivo em `last_error`, sem contar tentativa, e a conta recebe o aviso `publish.held`. Não é
+post preso (não dispara o alerta abaixo). A pessoa corrige e usa publicar agora ou reagendar em `/agenda`.
+Log: `conferência antes de publicar segurou o post` (escopo `publish`, com as regras).
+
 ### Alerta
 
 Cada post enviado para conferência escreve uma linha de log `ERROR` com a mensagem
