@@ -6,6 +6,7 @@ import type { ModelClient } from '../vertex';
 import { log } from '../log';
 import { UserError } from '../errors';
 import { readSitePages, type ReadDeps } from './read';
+import { noProbe } from './progress-model';
 import { parseSiteUrl } from './url-guard';
 import type { InstagramState } from './instagram';
 import type { SiteRead } from './extract';
@@ -41,15 +42,19 @@ export async function understandSite(raw: string, deps: ReadDeps & { model: Mode
   const all = [...pages, ...(used ? ig.pages : [])];
   if (all.reduce((n, p) => n + p.text.length, 0) < MIN_TEXT_TOTAL) return { read, understanding: null, notice: siteNotice ?? FEW, instagram };
   const prompt = buildUnderstandPrompt({ name: read.name, pages: all });
+  const probe = deps.probe ?? noProbe;
+  probe({ type: 'started', kind: 'model', label: 'Entendendo o jeito de falar da marca' });
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const out = await deps.model.generateJson({ prompt, labels: { tenant: deps.tenantId, step: 'site-read' }, maxOutputTokens: 4096, temperature: 0 });
       const understanding = parseUnderstanding(out.json, all);
       if (understanding.dropped.length) log('warn', 'site-read', 'partes da leitura descartadas', { dropped: understanding.dropped });
+      probe({ type: 'result', kind: 'model' });
       return { read, understanding, notice: siteNotice ?? (isEmptyUnderstanding(understanding) ? FEW : null), instagram };
     } catch (e) {
       log('warn', 'site-read', 'o modelo não entendeu o site', { attempt, error: e instanceof Error ? e.message : String(e) });
     }
   }
+  probe({ type: 'failed', kind: 'model', message: MODEL_DOWN });
   return { read, understanding: null, notice: siteNotice ?? MODEL_DOWN, instagram };
 }
