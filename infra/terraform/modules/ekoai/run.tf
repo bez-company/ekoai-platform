@@ -91,6 +91,10 @@ resource "google_cloud_run_v2_service" "platform" {
         value = var.signup_mode
       }
       env {
+        name  = "INSTAGRAM_ONBOARDING_CONNECT"
+        value = tostring(var.instagram_onboarding_connect)
+      }
+      env {
         name  = "MFA_MODE"
         value = var.mfa_mode
       }

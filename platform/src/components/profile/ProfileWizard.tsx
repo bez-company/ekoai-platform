@@ -5,12 +5,14 @@
 // pessoa informa o site, a Ekoai lê e ela só confirma; e o manual, com Negócio (obrigatório), Jeito de
 // falar e Visual (opcionais, com "Pular por agora"), em que cada passo grava a própria seção.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { ErrorLine, Spinner } from '@/components/auth/ui';
 import { applySiteRead, isVisualEmpty, isVoiceEmpty, type AboutForm, type VisualForm, type VoiceForm } from '@/lib/company-profile-form';
 import type { FieldErrors } from '@/lib/company-profile-model';
+import type { OnboardingFlash } from '@/lib/instagram-onboarding';
+import InstagramConnectCard from './InstagramConnectCard';
 import LogoField, { type LogoIds } from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 import SiteReview, { type SiteResponse } from './SiteReview';
@@ -35,14 +37,22 @@ const COPY = [
   { title: 'Visual da marca', lead: 'Opcional. Na próxima fase, as artes dos posts saem com o seu logo, as suas cores e as suas fontes.' },
 ] as const;
 
-type Props = { initial: { about: AboutForm; voice: VoiceForm; visual: VisualForm } };
+// O passo do Instagram (SPEC 034): `enabled` vem de INSTAGRAM_ONBOARDING_CONNECT; `flash` é o resultado da volta da Meta (?ig=).
+export type InstagramStep = { enabled: boolean; connected: boolean; handle: string | null; flash: OnboardingFlash | null };
+type Props = { initial: { about: AboutForm; voice: VoiceForm; visual: VisualForm }; instagram?: InstagramStep };
 
-export default function ProfileWizard({ initial }: Props) {
+// O site digitado atravessa a ida à Meta e a volta; só o endereço, nada mais, e só nesta aba.
+const SITE_KEY = 'ekoai.signup.site';
+// A conexão começa na rota de sempre, pedindo a volta ao cadastro. Fica aqui (e não em lib/instagram-onboarding.ts) porque aquele módulo é do servidor: importa o OAuth, que usa node:crypto.
+const CONNECT_PATH = '/api/instagram/connect?dest=onboarding';
+
+export default function ProfileWizard({ initial, instagram }: Props) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('intro');
   const [site, setSite] = useState('');
   const siteRead = useSiteRead();
-  const [handle, setHandle] = useState('');
+  const [handle, setHandle] = useState(instagram?.handle ?? '');
+  const [skipIg, setSkipIg] = useState(false);
   const [res, setRes] = useState<SiteResponse | null>(null);
   const [readError, setReadError] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -55,11 +65,37 @@ export default function ProfileWizard({ initial }: Props) {
   const [busy, setBusy] = useState(false);
   const [logo, setLogo] = useState<LogoIds>({ main: null, dark: null, light: null, symbol: null });
 
+  const igStep = !!instagram?.enabled && !skipIg;
+
+  // Volta da Meta: o site que a pessoa já tinha digitado reaparece.
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(SITE_KEY);
+      if (saved) setSite((current) => current || saved);
+    } catch {
+      // sem sessionStorage (modo privado restrito): a pessoa digita de novo
+    }
+  }, []);
+
+  function connectInstagram() {
+    try {
+      window.sessionStorage.setItem(SITE_KEY, site.trim());
+    } catch {
+      // idem
+    }
+    window.location.assign(CONNECT_PATH);
+  }
+
   const last = step === STEPS.length - 1;
   const clearError = (field: string) => setErrors(({ [field]: _gone, ...rest }) => rest);
 
   // Depois do perfil, as 3 perguntas rápidas (SPEC 017); quem não cuida da publicação segue para o Início.
   function finish() {
+    try {
+      window.sessionStorage.removeItem(SITE_KEY);
+    } catch {
+      // nada a limpar
+    }
     router.push('/boas-vindas/perguntas');
     router.refresh();
   }
@@ -183,6 +219,9 @@ export default function ProfileWizard({ initial }: Props) {
                 <input id="quick-site" className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="seusite.com.br" autoComplete="url" inputMode="url" autoFocus />
                 <p className="text-sm text-muted">Só páginas públicas. A Ekoai lê o site inteiro, a partir do mapa do site.</p>
               </div>
+              {igStep && instagram ? (
+                <InstagramConnectCard connected={instagram.connected} handle={instagram.handle} flash={instagram.flash} onConnect={connectInstagram} onSkip={() => setSkipIg(true)} />
+              ) : (
               <div className="space-y-1.5">
                 <label htmlFor="quick-ig" className="text-sm font-semibold">
                   @ do Instagram<span className="ml-1.5 font-normal text-muted">(opcional)</span>
@@ -190,6 +229,7 @@ export default function ProfileWizard({ initial }: Props) {
                 <input id="quick-ig" className="input" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@suamarca" autoComplete="off" />
                 <p className="text-sm text-muted">Com o Instagram conectado depois, a leitura fica mais precisa: legendas, hashtags e estilo das fotos.</p>
               </div>
+              )}
               <div className="card space-y-2">
                 <p className="text-sm font-semibold">O que a Ekoai lê</p>
                 <ul className="space-y-1.5 text-sm">

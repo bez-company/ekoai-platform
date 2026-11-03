@@ -216,6 +216,12 @@ variable "signup_mode" {
   }
 }
 
+variable "instagram_onboarding_connect" {
+  description = "Passo \"Conecte seu Instagram\" no cadastro (env INSTAGRAM_ONBOARDING_CONNECT, SPEC 034). Até a Meta aprovar o App Review (enviado em 02/11/2026) só contas com papel no app conectam: ligue no staging e deixe desligado em produção até a aprovação. Desligado, o cadastro mantém o @ opcional."
+  type        = bool
+  default     = false
+}
+
 variable "mfa_mode" {
   description = "Segundo fator (env MFA_MODE): `optional` (padrão: não exigido em lugar nenhum; quem ativou em Perfil continua com o desafio) ou `required` (administrador entra, cria e exclui conta com app autenticador, SPEC 009). Só vale com auth_provider = identity."
   type        = string
