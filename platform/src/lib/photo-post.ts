@@ -28,6 +28,8 @@ import { orientedSize, renderPhoto } from './design/photo';
 import { buildPhotoCaptionPrompt, type PhotoPostInput } from './photo-post-model';
 import type { ModelClient } from './vertex';
 import type { Generation, Variation } from './types';
+import { approvalBasisFor } from './approval-basis';
+import { postTexts } from './publish-preflight-model';
 
 export type PhotoPostDeps = { store?: BlobStore; mediaBaseUrl?: string; publish?: typeof publishNow };
 
@@ -120,6 +122,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
   const scheduledFor = now ? new Date().toISOString() : input.when === 'at' && input.scheduledFor ? input.scheduledFor : await nextFreeSlot(t, 'instagram');
   const id = randomUUID();
   const captionFinal = composeCaption(variation);
+  const approvalBasis = await approvalBasisFor(t, { texts: postTexts({ caption_final: captionFinal, variation, generation }), campaignId: null });
   const ins = await t.insert('scheduled_posts', {
     id,
     channel: 'instagram',
@@ -137,6 +140,7 @@ export async function createPhotoPost(t: TenantDb, actor: SessionUser | null, in
     media_asset_id: asset.id,
     media_kind: 'image',
     utm: distributionUtm({ channel: 'instagram', distributionId: id, campaignSlug: null, baseUrl: process.env.SITE_URL }),
+    approval_basis: approvalBasis,
   });
   if (ins.error) throw new Error(`Falha ao agendar: ${ins.error.message}`);
   log('info', 'photo-post', 'foto virou post', { tenant: t.tenantId, asset: asset.id, ratio: input.ratio, when: input.when, actor: actor?.id ?? null });

@@ -117,6 +117,8 @@ export type ScheduledPost = {
   video_url?: string | null;
   document_url?: string | null;
   utm?: Utm | null;
+  // os fatos e a oferta que o post afirmava na aprovação (SPEC 035); lido por parseApprovalBasis
+  approval_basis?: unknown;
   approved_at: string;
   created_at: string;
   updated_at: string;

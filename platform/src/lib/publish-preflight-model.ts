@@ -3,21 +3,25 @@
 // estado de HOJE dos fatos, da campanha e da foto, e diz o que impede o envio. Aprovar não congela a verdade: fato que
 // venceu ou foi recusado, frase que entrou em "nunca afirmar", campanha pausada ou encerrada e foto que perdeu a
 // autorização depois da aprovação seguram o post. Ele fica como "Não publicado" com o motivo, até a pessoa corrigir.
+// Com a base da aprovação (SPEC 035), também fato editado, desligado ou apagado e oferta da campanha alterada.
 
 import { factsForPrompt, type CompanyFact } from './company-facts-model';
 import type { Campaign } from './campaign-model';
 import { canUseInPost, type MediaAsset } from './media-asset-model';
 import { staleFactIssues } from './design/review';
+import { basisBlocks, type ApprovalBasis, type BasisRule } from './approval-basis-model';
 import type { ScheduledPost } from './types';
 
-export type PreflightRule = 'fact_not_valid' | 'never_claim' | 'campaign_paused' | 'campaign_ended' | 'photo_removed' | 'photo_no_consent';
+export type PreflightRule = 'fact_not_valid' | 'never_claim' | 'campaign_paused' | 'campaign_ended' | 'photo_removed' | 'photo_no_consent' | BasisRule;
 export type PreflightBlock = { rule: PreflightRule; message: string };
 
 export type PreflightInput = {
   texts: string[];
   facts: readonly CompanyFact[];
   // A campanha do post como está hoje; null = o post não é de campanha.
-  campaign: Pick<Campaign, 'name' | 'status' | 'endDate' | 'offering'> | null;
+  campaign: Pick<Campaign, 'id' | 'name' | 'status' | 'endDate' | 'offering'> | null;
+  // O que o post afirmava quando foi aprovado (SPEC 035); null = aprovado antes da base existir.
+  basis?: ApprovalBasis | null;
   // linked = o post usa uma foto do banco de imagens; asset null = a foto saiu do banco.
   photo: { linked: boolean; asset: Pick<MediaAsset, 'hasPeople' | 'peopleConsent'> | null };
   today: string; // AAAA-MM-DD, dia local
@@ -48,10 +52,17 @@ export function preflightBlocks(input: PreflightInput): PreflightBlock[] {
     blocks.push({ rule: 'campaign_ended', message: `A campanha "${campaign.name}" terminou${when}, então o post dela não saiu para não anunciar o que já acabou. Revise o texto.` });
   }
 
+  const changed = input.basis
+    ? basisBlocks({ basis: input.basis, texts: input.texts, facts: input.facts, campaign: campaign ? { id: campaign.id, offering: campaign.offering } : null, today })
+    : [];
+  for (const b of changed) blocks.push({ rule: b.rule, message: b.message });
+  // O número que a base já explicou não ganha um segundo aviso pela regra por número.
+  const explained = new Set(changed.flatMap((b) => b.numbers));
+
   const facts = factsForPrompt(input.facts, today);
   const allowed = campaign?.offering && blocks.length === 0 ? [campaign.offering] : [];
   for (const issue of staleFactIssues({ texts: input.texts, facts: facts.facts, allowed, inactive: facts.inactive })) {
-    blocks.push({ rule: 'fact_not_valid', message: `${issue.message}` });
+    if (!explained.has(issue.detail)) blocks.push({ rule: 'fact_not_valid', message: issue.message });
   }
   const all = input.texts.join(' \n ').toLowerCase();
   for (const claim of facts.never) {

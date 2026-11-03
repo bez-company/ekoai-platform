@@ -54,7 +54,7 @@ export type TextReviewInput = {
   scope?: { reach: 'local' | 'national' | 'international' | null; region: string | null; cta: string | null };
 };
 
-function numbersIn(text: string): string[] {
+export function numbersIn(text: string): string[] {
   // "1)" e "1." de lista não são claim; "R$ 36", "36%", "6 a 14" são.
   const cleaned = text.replace(/(^|\s)\d+[.)](?=\s)/g, ' ');
   return cleaned.match(/\d+(?:[.,]\d+)*/g) ?? [];

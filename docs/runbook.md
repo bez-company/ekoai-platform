@@ -45,6 +45,11 @@ foto do banco apagada ou sem autorização de uso de imagem. Se algo mudou, a re
 post preso (não dispara o alerta abaixo). A pessoa corrige e usa publicar agora ou reagendar em `/agenda`.
 Log: `conferência antes de publicar segurou o post` (escopo `publish`, com as regras).
 
+Desde a SPEC 035 (BEZ-543), a aprovação grava em `scheduled_posts.approval_basis` os fatos que o post repete e a oferta
+da campanha. A conferência também segura fato editado, desligado ou apagado e oferta alterada (regras `fact_changed`,
+`fact_off`, `fact_removed`, `offering_changed`). Agendado com `approval_basis` nulo (aprovado antes, ou base que falhou ao
+montar, com o log `base da aprovação não montada`) segue só a regra por número.
+
 ### Alerta
 
 Cada post enviado para conferência escreve uma linha de log `ERROR` com a mensagem
