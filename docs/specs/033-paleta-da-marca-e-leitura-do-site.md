@@ -1,6 +1,7 @@
 # SPEC 033: paleta da marca com seletor de cor e leitura do site ou Instagram
 
-- **Status:** decisões do Matheus de 02/11/2026 aplicadas; protótipo no Claude Design em andamento
+- **Status:** em produção desde a release de 02/11/2026 (`main` em `dda5301`). Protótipo v29 aprovado em 02/11/2026. PRs #321 a
+  #330 (BEZ-523 a 528). Segue aberto: BEZ-529 (estilo das fotos do Instagram, precisa de visão do modelo)
 - **Data:** 2026-11-02
 - **Cards:** BEZ-524 (paleta e seletor), BEZ-525 (leitura do site ou Instagram); pai BEZ-522
 - **Origem:** feedback do Matheus ao testar o cadastro e o perfil (31/10/2026)

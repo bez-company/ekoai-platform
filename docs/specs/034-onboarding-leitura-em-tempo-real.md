@@ -1,6 +1,10 @@
 # SPEC 034: leitura da marca em tempo real no onboarding, site inteiro e Instagram conectado
 
-- **Status:** rascunho com as decisões do Matheus de 03/11/2026; protótipo v30 publicado no Claude Design, aguardando aprovação (sem ela não há código de tela)
+- **Status:** na `staging` desde 03/11/2026, falta a release. Protótipo v30 aprovado em 03/11/2026. PRs #333 a #340 (BEZ-531 a
+  538). Medido em staging (BEZ-537): 13,7 a 14,4 s para 12 páginas, logo e cores na tela por volta de 4 s. Falta: testar o progresso
+  pelo Firebase Hosting (BEZ-537), o cadastro de conta nova de ponta a ponta e, em produção, a conexão do Instagram por conta sem
+  papel no app, que depende do App Review da Meta (BEZ-332). Na queda da conexão a tela faz uma leitura nova; não há retomada pelo
+  `Last-Event-ID`
 - **Data:** 2026-11-03
 - **Cards:** BEZ-532 (medir), BEZ-533 (tela por etapas), BEZ-534 (site inteiro), BEZ-535 (progresso por evento), BEZ-536 (Instagram no onboarding); origem BEZ-531
 - **Origem:** análise do concorrente Native (`docs/analises/2026-11-03-native-no-engenharia-reversa.md`)
