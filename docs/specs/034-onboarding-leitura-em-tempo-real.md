@@ -38,10 +38,9 @@ A leitura da marca (SPEC 033) já preenche o cadastro, mas:
    (`kind`: site, css, page, sitemap, logo, colors, text, model, instagram; `label`; `url` quando for página), `step.result`
    (carga parcial por `kind`), `step.failed` (`kind`, motivo em português e próximo passo), `read.done` (resultado completo),
    `read.failed`. Cada evento tem `seq` crescente.
-2. **Transporte:** SSE sobre uma rota nova, com retomada por `Last-Event-ID`. Decisão final no ADR 0031, que compara SSE com
-   Realtime (Firestore ou Postgres). Risco a medir antes: limite de tempo e buffer do Firebase Hosting na frente do Cloud Run
-   (a leitura passa de 25s quando lê o site inteiro). Se o Hosting cortar o fluxo, reconectar com `Last-Event-ID` ou publicar
-   os eventos em outro canal.
+2. **Transporte:** SSE sobre `POST /api/profile/site-read/stream` (ADR 0031), lido por `fetch`. Sem reenvio no servidor: se a conexão cai, a
+   tela mantém o que já chegou, avisa e lê de novo uma vez. Risco a medir em staging: limite de tempo e buffer do Firebase Hosting na frente do
+   Cloud Run; se ele segurar o fluxo, a tela cai na resposta única de hoje.
 3. **Mesma permissão da leitura atual** (`brand.manage`) e o mesmo limite por hora por conta. A rota declara a permissão
    (`tests/route-permissions.test.js`).
 4. Quem não consegue abrir o fluxo cai no comportamento de hoje (uma requisição, resultado no fim). Nenhum passo do cadastro
@@ -88,8 +87,7 @@ aviso de etapa que falhou, falha total, passo do Instagram (conectar, pular, fal
 - **Parser do evento:** formato, `seq` crescente, motivo de falha presente, rejeição de evento mal formado.
 - **Descoberta de páginas:** sitemap simples, índice de sitemaps, sitemap grande, sitemap fora do domínio (recusado), sem sitemap.
 - **Classificação e orçamento:** URL de produto, blog e preço recebem tipo e prioridade; respeita limites de página, tempo e texto.
-- **Rota de stream:** ordem dos eventos com transporte falso, falha de uma página sem derrubar a leitura, retomada por
-  `Last-Event-ID`, permissão e limite por hora.
+- **Rota de stream:** ordem dos eventos com transporte falso, falha de uma página sem derrubar a leitura, permissão e limite por hora.
 - **Instagram:** `state` com destino fora da lista é recusado; volta para o onboarding; passo some com a variável desligada.
 - **E2E do cadastro** no navegador real, com site que tem blog e produtos, medindo o tempo do primeiro evento e do primeiro
   resultado. Verificação honesta: o Hosting real na frente do Cloud Run só se testa em staging; a conexão do Instagram de

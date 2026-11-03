@@ -8,7 +8,7 @@ import { UserError } from '../errors';
 import { readSitePages, type ReadDeps } from './read';
 import { noProbe } from './progress-model';
 import { parseSiteUrl } from './url-guard';
-import type { InstagramState } from './instagram';
+import type { InstagramPosts, InstagramState } from './instagram';
 import type { SiteRead } from './extract';
 import { buildUnderstandPrompt, isEmptyUnderstanding, parseUnderstanding, type SitePage, type Understanding } from './understand-model';
 
@@ -21,23 +21,30 @@ const MIN_TEXT_TOTAL = 200;
 const FEW = 'Achamos pouco texto no site para entender a empresa. Mostramos o que deu para ler; o resto você completa.';
 const MODEL_DOWN = 'Lemos as cores e as fontes, mas não deu para ler os textos agora. Tente de novo em instantes.';
 
-// `instagram`: as legendas já lidas da conta (instagram.ts) e o estado da conexão, para a tela dizer se a leitura as usou. Com 3 legendas ou
+// `instagram`: as legendas já lidas da conta (instagram.ts) e o estado da conexão, para a tela dizer se a leitura as usou; pode ser a promessa da
+// leitura, que roda ao mesmo tempo que a do site (só é esperada na hora de usar). Com 3 legendas ou
 // mais a leitura segue mesmo que o site não abra (bloqueado, fora do ar): só o Instagram já entende a voz e alguns fatos.
-export async function understandSite(raw: string, deps: ReadDeps & { model: ModelClient; tenantId: string; instagram?: { state: InstagramState; pages: SitePage[] } }): Promise<Understood> {
-  const ig = deps.instagram ?? { state: 'not_connected' as const, pages: [] };
-  const used = ig.state === 'ok' && ig.pages.length >= MIN_POSTS;
-  const instagram = { state: ig.state, count: used ? ig.pages.length : 0 };
+export async function understandSite(raw: string, deps: ReadDeps & { model: ModelClient; tenantId: string; instagram?: InstagramPosts | Promise<InstagramPosts> }): Promise<Understood> {
+  const igPending = Promise.resolve(deps.instagram).catch(() => null);
   let read: SiteRead;
   let pages: SitePage[];
   let siteNotice: string | null = null;
+  let siteError: unknown = null;
   try {
     ({ read, pages } = await readSitePages(raw, deps));
   } catch (e) {
-    if (!(e instanceof UserError) || !used) throw e;
+    siteError = e;
+    read = emptyRead('');
+    pages = [];
+  }
+  const ig: InstagramPosts = (await igPending) ?? { state: 'not_connected', pages: [] };
+  const used = ig.state === 'ok' && ig.pages.length >= MIN_POSTS;
+  const instagram = { state: ig.state, count: used ? ig.pages.length : 0 };
+  if (siteError) {
+    if (!(siteError instanceof UserError) || !used) throw siteError;
     const parsed = parseSiteUrl(raw);
     read = emptyRead(parsed.ok ? parsed.url.toString() : '');
-    pages = [];
-    siteNotice = `${e.message} Usamos só as legendas do Instagram.`;
+    siteNotice = `${siteError.message} Usamos só as legendas do Instagram.`;
   }
   const all = [...pages, ...(used ? ig.pages : [])];
   if (all.reduce((n, p) => n + p.text.length, 0) < MIN_TEXT_TOTAL) return { read, understanding: null, notice: siteNotice ?? FEW, instagram };
