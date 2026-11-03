@@ -24,7 +24,7 @@ export const RULES = {
   designAsk: { bucket: 'design.ask', windowS: HOUR, limit: 30 },
   // Sugerir ideias no Criar post (SPEC 025): uma chamada de texto por clique, por conta.
   starterIdeas: { bucket: 'ideas.starter', windowS: HOUR, limit: 12 },
-  // Ler o site da empresa (SPEC 033): o servidor busca até 5 páginas e faz uma chamada de texto por leitura, por conta.
+  // Ler o site da empresa (SPEC 033): o servidor busca até 12 páginas (SPEC 034) e faz uma chamada de texto por leitura, por conta.
   siteRead: { bucket: 'site.read', windowS: HOUR, limit: 8 },
 } as const satisfies Record<string, RateRule>;
 

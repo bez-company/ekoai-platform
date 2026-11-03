@@ -51,8 +51,9 @@ A leitura da marca (SPEC 033) já preenche o cadastro, mas:
 1. **Descoberta de páginas:** `sitemap.xml` (e índice de sitemaps) citado no `robots.txt` ou em `/sitemap.xml`; sem sitemap, os
    links da home como hoje.
 2. **Escolha por tipo e orçamento:** classificar a URL (produto, serviço, blog, sobre, preços, FAQ, contato) e ler primeiro o que
-   diz mais da empresa; blog entra com as páginas mais recentes. Limite de páginas, de tempo total e de texto enviado ao
-   modelo, **definidos depois da medição do BEZ-532**.
+   diz mais da empresa; blog entra com as páginas mais recentes. Ponto de partida (BEZ-534): até 12 páginas além da inicial, com cota por
+   tipo (sobre 2, produto 4, serviço 2, preço 2, FAQ 1, contato 1, blog 3, outras 2), 4 leituras ao mesmo tempo, 25 s para buscar e 4000
+   caracteres de texto por página. **Os valores se ajustam com o tempo real medido pelo BEZ-532 em staging.**
 3. **Mesmas proteções do ADR 0030:** só `https`, SSRF, `robots.txt` por página, 2 MB por página, sem cookie. Leituras em
    paralelo com teto de concorrência.
 4. **Fato só entra citando página lida**, com os números presentes no texto, como hoje. O custo da leitura entra no consumo da

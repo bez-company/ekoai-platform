@@ -29,7 +29,7 @@ const modelReturning = (...outs) => {
 const GOOD = { niche: 'Alimentação', offering: 'Bolos sob encomenda.', audience: 'Famílias.', voice: { formal: 2, technical: 2, serious: 3 }, facts: [{ text: 'Bolo de pote por R$ 12,00', category: 'oferta_preco', page: 'https://doceponto.com.br/' }] };
 
 describe('páginas lidas', () => {
-  it('lê a inicial e até 3 páginas internas, respeitando o robots.txt de cada uma', async () => {
+  it('lê a inicial e as páginas internas que dizem mais da empresa, respeitando o robots.txt de cada uma', async () => {
     const { transport, calls } = site({
       '/robots.txt': page({ contentType: 'text/plain', body: Buffer.from('User-agent: *\nDisallow: /admin') }),
       '/': html(`<a href="/sobre">s</a><a href="/admin/painel">a</a><a href="/produtos">p</a><a href="/contato">c</a><a href="/encomendas">e</a><p>${LONG}</p>`),
@@ -39,9 +39,8 @@ describe('páginas lidas', () => {
       '/contato': html(`<p>Fale conosco pelo WhatsApp. ${LONG}</p>`),
     });
     const { read, pages } = await readSitePages('doceponto.com.br', { transport });
-    // as 3 páginas de mais valor são sobre, produtos e encomendas; a que falha não é trocada pela quarta (contato)
-    expect(pages.map((p) => new URL(p.url).pathname)).toEqual(['/', '/sobre', '/produtos']);
-    expect(calls).not.toContain('/contato');
+    // a que falha (encomendas) fica de fora sem derrubar a leitura; contato entra porque o limite agora é maior que 3
+    expect(pages.map((p) => new URL(p.url).pathname)).toEqual(['/', '/sobre', '/produtos', '/contato']);
     expect(calls).not.toContain('/admin/painel');
     expect(read.colors).toEqual(['#B83262']);
   });

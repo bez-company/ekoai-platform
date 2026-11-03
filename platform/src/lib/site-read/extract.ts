@@ -224,7 +224,7 @@ export function visibleText(html: string, max = 6000): string {
     .slice(0, max);
 }
 
-const FILE_EXT = /\.(?:pdf|jpe?g|png|gif|webp|svg|ico|css|js|json|xml|zip|mp4|mp3|docx?|xlsx?)$/i;
+export const FILE_EXT = /\.(?:pdf|jpe?g|png|gif|webp|svg|ico|css|js|json|xml|zip|mp4|mp3|docx?|xlsx?)$/i;
 const SKIP_PATH = /login|entrar|signin|sign-in|cadastr|carrinho|cart|checkout|minha-conta|account|politica|privacidade|termos|cookies|lgpd|trabalhe|blog\/.+|wp-admin|wp-json|feed/i;
 const PAGE_SCORES: [RegExp, number][] = [
   [/sobre|quem-somos|empresa|institucional|historia|about/i, 5],
