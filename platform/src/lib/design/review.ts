@@ -67,6 +67,22 @@ function staleMessage(n: string, f: InactiveFact): string {
   return `O número ${n} vem de um fato ${STALE_LABEL[f.reason]}${since}: "${f.text}". ${f.reason === 'rejected' ? 'Tire o número do post.' : 'Confirme ou atualize o fato para usá-lo.'}`;
 }
 
+// Só a regra do fato que não vale hoje, para a conferência antes de publicar (BEZ-275): lá o pedido da pessoa já
+// não está à mão, e número fora dos fatos já passou pela revisão quando o post foi gerado e aprovado.
+export function staleFactIssues(input: { texts: string[]; facts: string[]; allowed?: string[]; inactive: InactiveFact[] }): Issue[] {
+  const text = input.texts.join(' \n ');
+  const allowed = `${input.facts.join(' ')} ${(input.allowed ?? []).join(' ')} ${text.match(/#\S+/g)?.join(' ') ?? ''}`;
+  const issues: Issue[] = [];
+  const seen = new Set<string>();
+  for (const n of numbersIn(text)) {
+    if (seen.has(n) || allowed.includes(n)) continue;
+    seen.add(n);
+    const stale = input.inactive.find((f) => f.text.includes(n));
+    if (stale) issues.push({ rule: 'fact_not_valid', detail: n, message: staleMessage(n, stale), where: 'caption' });
+  }
+  return issues;
+}
+
 export function reviewText(input: TextReviewInput): Issue[] {
   const issues: Issue[] = [];
   const image = input.imageTexts.join(' \n ');
