@@ -4,7 +4,9 @@ import { apiError, badRequest } from '@/lib/api';
 import { getProfile } from '@/lib/company-profile';
 import { RULES } from '@/lib/rate-limit-model';
 import { hit, tooMany } from '@/lib/rate-limit';
+import { log } from '@/lib/log';
 import { readInstagramPosts } from '@/lib/site-read/instagram';
+import { stepTimer } from '@/lib/site-read/progress-model';
 import { understandSite } from '@/lib/site-read/understand';
 import { vertexClient } from '@/lib/vertex';
 
@@ -24,8 +26,14 @@ export async function POST(req: Request) {
     const site = typed || (await getProfile(t))?.siteUrl || '';
     if (!site) return badRequest('Informe o site da empresa para a Ekoai ler.');
     // As legendas do Instagram que a conta conectou entram na leitura (mais precisão); sem conexão, a leitura segue só com o site.
+    const timer = stepTimer();
+    timer.probe({ type: 'started', kind: 'instagram', label: 'Lendo as legendas do Instagram' });
     const instagram = await readInstagramPosts(t);
-    return NextResponse.json(await understandSite(site, { model: vertexClient(), tenantId: t.tenantId, instagram }));
+    timer.probe({ type: 'result', kind: 'instagram', state: instagram.state, count: instagram.pages.length });
+    const out = await understandSite(site, { model: vertexClient(), tenantId: t.tenantId, instagram, probe: timer.probe });
+    // Quanto cada passo levou (BEZ-532): é com isso que se escolhem os limites da leitura do site inteiro.
+    log('info', 'site-read', 'tempo por etapa', { ...timer.summary() });
+    return NextResponse.json(out);
   } catch (e) {
     return apiError(e, 'api/profile/site-read');
   }
