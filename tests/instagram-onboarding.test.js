@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as m from '../platform/src/lib/instagram-oauth-model.ts';
 
-// A rota abaixo usa uma versão da variável controlada pelo teste; a regra de verdade se testa pelo módulo real.
-const { instagramOnboardingEnabled, onboardingFlash } = await vi.importActual('../platform/src/lib/instagram-onboarding.ts');
+// As mensagens se testam pelo módulo real (as rotas abaixo mockam outras partes).
+const { onboardingFlash } = await vi.importActual('../platform/src/lib/instagram-onboarding.ts');
 const input = { tenantId: 't1', secret: 'segredo', now: 1_000_000 };
 
 describe('destino da volta, dentro do state assinado', () => {
@@ -49,12 +49,7 @@ describe('destino da volta, dentro do state assinado', () => {
   });
 });
 
-describe('passo do Instagram no cadastro', () => {
-  it('só liga com INSTAGRAM_ONBOARDING_CONNECT=true', () => {
-    expect(instagramOnboardingEnabled({ INSTAGRAM_ONBOARDING_CONNECT: 'true' })).toBe(true);
-    for (const v of [undefined, '', 'false', '1', 'TRUE', 'yes']) expect(instagramOnboardingEnabled({ INSTAGRAM_ONBOARDING_CONNECT: v }), String(v)).toBe(false);
-  });
-
+describe('mensagens do passo do Instagram no cadastro', () => {
   it('o aviso da volta diz o que houve e o próximo passo, sem culpar a pessoa', () => {
     expect(onboardingFlash('denied')).toMatchObject({ tone: 'warn', text: expect.stringMatching(/Sem problema.*só com o site.*Configurações, Redes/) });
     expect(onboardingFlash('refused').text).toMatch(/ainda está liberando contas novas/);
@@ -70,7 +65,6 @@ describe('passo do Instagram no cadastro', () => {
 
 // ── rotas ──
 const session = { error: null };
-const flag = { on: true };
 const app = { appId: 'app', appSecret: 'segredo' };
 const calls = { saved: 0 };
 vi.mock('@/lib/session', () => {
@@ -94,7 +88,6 @@ vi.mock('@/lib/instagram-oauth', () => ({ instagramApp: () => app, connectWithCo
 vi.mock('@/lib/social-accounts', () => ({ saveInstagramConnection: async () => { calls.saved += 1; } }));
 vi.mock('@/lib/analytics', () => ({ track: async () => {} }));
 vi.mock('@/lib/log', async (orig) => ({ ...(await orig()), logError: async () => {}, log: () => {} }));
-vi.mock('@/lib/instagram-onboarding', async (orig) => ({ ...(await orig()), instagramOnboardingEnabled: () => flag.on }));
 
 const { GET: connect } = await import('../platform/src/app/api/instagram/connect/route.ts');
 const { GET: callback } = await import('../platform/src/app/api/instagram/callback/route.ts');
@@ -102,7 +95,6 @@ const { GET: callback } = await import('../platform/src/app/api/instagram/callba
 const where = (res) => new URL(res.headers.get('location'));
 beforeEach(() => {
   session.error = null;
-  flag.on = true;
   calls.saved = 0;
 });
 
@@ -124,17 +116,6 @@ describe('GET /api/instagram/connect', () => {
     expect(m.readState(where(res).searchParams.get('state'), { tenantId: 't1', secret: app.appSecret }).dest).toBe('canais');
   });
 
-  it('com a variável desligada o cadastro não abre a conexão: volta ao cadastro com o aviso', async () => {
-    flag.on = false;
-    const res = await connect(new Request('https://app.test/api/instagram/connect?dest=onboarding'));
-    expect(where(res).pathname + where(res).search).toBe('/boas-vindas?ig=unavailable');
-  });
-
-  it('a tela de redes não depende da variável', async () => {
-    flag.on = false;
-    const res = await connect(new Request('https://app.test/api/instagram/connect'));
-    expect(where(res).origin).toBe('https://www.instagram.com');
-  });
 });
 
 describe('GET /api/instagram/callback', () => {
