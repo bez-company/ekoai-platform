@@ -12,6 +12,8 @@ import { splitThread } from './thread';
 import type { Channel, PendingApproval, Variation, ImageRef, MediaKind } from './types';
 import { UserError } from './errors';
 import { campaignIdOf } from './campaigns';
+import { approvalBasisFor } from './approval-basis';
+import { postTexts } from './publish-preflight-model';
 import { captionEdited, type ReviewEffort } from './review-effort-model';
 
 const NOT_FOUND = 'Post agendado não encontrado, ou já mudou de estado. Recarregue a página.';
@@ -85,6 +87,9 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
   const campaignSlug = typeof p.seed?.campaign === 'string' ? p.seed.campaign : null;
   const campaignId = campaignSlug ? await findCampaignId(t, campaignSlug) : null;
   const utm = distributionUtm({ channel: p.channel, distributionId: id, campaignSlug, baseUrl: process.env.SITE_URL });
+  // A campanha do post (a do agendado ou a do pedido) e a base do que ele afirma hoje (SPEC 035).
+  const postCampaignId = await campaignIdOf(t, { campaignId, briefId: p.brief_id }).catch(() => null);
+  const approvalBasis = await approvalBasisFor(t, { texts: postTexts({ caption_final: captionFinal, variation, generation: p.generation }), campaignId: postCampaignId });
 
   const { data, error } = await t
     .insert('scheduled_posts', {
@@ -110,6 +115,7 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       campaign_id: campaignId,
       media_kind: mediaKindOf(p.channel, variation, imageUrl, captionFinal),
       utm,
+      approval_basis: approvalBasis,
     })
     .select('id')
     .single();
@@ -136,7 +142,7 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
   const effort: ReviewEffort = {
     savedAt: p.saved_at ?? null,
     channel: p.channel,
-    campaignId: await campaignIdOf(t, { campaignId, briefId: p.brief_id }).catch(() => null),
+    campaignId: postCampaignId,
     captionEdited: captionEdited(captionFinal, composeCaption(variation)),
   };
   return { scheduledFor, id: data!.id as string, requestedMissed, effort };

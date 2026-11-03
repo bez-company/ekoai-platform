@@ -15,6 +15,7 @@ vi.mock('../../platform/src/lib/social-accounts.ts', async (orig) => ({ ...(awai
 const admin = new pg.Pool({ connectionString: url, max: 4 });
 const { runPublishDue, publishNow, reconcileStalePublishing, LEASE_TTL_MS } = await import('../../platform/src/lib/publish.ts');
 const { tenantDb } = await import('../../platform/src/lib/tenant-db.ts');
+const { approvePending } = await import('../../platform/src/lib/scheduling.ts');
 const A = 'it-preflight-a';
 
 // ── Meta dublê: cria container pronto e publica; guarda o que publicou ──────────────────────────
@@ -68,7 +69,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   meta = { containers: new Map(), seq: 0, createCalls: 0, publishCalls: 0 };
   vi.stubGlobal('fetch', fakeFetch);
-  for (const tb of ['publish_reconciliations', 'post_events', 'post_variants', 'posts', 'notifications', 'scheduled_posts', 'company_facts', 'briefs', 'campaigns', 'media_assets', 'publishing_controls']) {
+  for (const tb of ['publish_reconciliations', 'post_events', 'post_variants', 'posts', 'notifications', 'scheduled_posts', 'pending_approvals', 'company_facts', 'briefs', 'campaigns', 'media_assets', 'publishing_controls']) {
     await admin.query(`delete from ${tb} where tenant_id = $1`, [A]);
   }
 });
@@ -142,5 +143,46 @@ describe('conferência antes de publicar', () => {
     const recs = (await admin.query('select found, action from publish_reconciliations where scheduled_post_id = $1', [id])).rows;
     expect(recs).toEqual([{ found: 'not_published', action: 'failed_for_review' }]);
     expect((await notices()).map((n) => n.kind)).toEqual(['publish.held']);
+  });
+});
+
+// SPEC 035 (BEZ-543): a aprovação grava os fatos que o post afirma; a mudança depois dela segura o post.
+describe('base da aprovação', () => {
+  async function approved(caption) {
+    await admin.query(
+      `insert into pending_approvals (tenant_id, pending_id, channel, generation, images, post_kind)
+       values ($1, 'p-base', 'instagram', $2, $3, 'informativo')`,
+      [A, JSON.stringify({ variations: [{ id: 1, hook: 'Bolo de pote', body: 'Corpo' }] }), JSON.stringify([{ id: 1, url: 'https://app.test/api/media/images/a.png' }])],
+    );
+    const { id } = await approvePending(tenantDb(A), { pendingId: 'p-base', captionId: 1, artId: 1, captionText: caption, scheduledFor: new Date(Date.now() - 60_000).toISOString() });
+    return id;
+  }
+  const factId = async () => (await admin.query('select id from company_facts where tenant_id = $1', [A])).rows[0].id;
+
+  it('aprovar grava o fato que o post repete', async () => {
+    await fact(null);
+    const id = await approved('Bolo de pote por R$ 18 só esta semana');
+    const { approval_basis } = (await admin.query('select approval_basis from scheduled_posts where id = $1', [id])).rows[0];
+    expect(approval_basis).toMatchObject({ facts: [{ id: await factId(), text: 'Bolo de pote por R$ 18' }], campaign: null });
+  });
+
+  it('o preço foi editado depois da aprovação: não chama a Meta e diz o antes e o depois', async () => {
+    await fact(null);
+    const id = await approved('Bolo de pote por R$ 18 só esta semana');
+    await admin.query("update company_facts set text = 'Bolo de pote por R$ 20' where tenant_id = $1", [A]);
+    expect(await runPublishDue()).toMatchObject({ picked: 1, published: 0, failed: 1 });
+    expect(meta.createCalls).toBe(0);
+    expect((await row(id)).last_error).toContain('era "Bolo de pote por R$ 18", agora é "Bolo de pote por R$ 20"');
+  });
+
+  it('o fato foi desligado depois da aprovação: segura; sem mudança, publica', async () => {
+    await fact(null);
+    const held = await approved('Bolo de pote por R$ 18 só esta semana');
+    await admin.query('update company_facts set active = false where tenant_id = $1', [A]);
+    await runPublishDue();
+    expect((await row(held)).last_error).toContain('foi desligado');
+    await admin.query('update company_facts set active = true where tenant_id = $1', [A]);
+    expect((await publishNow(tenantDb(A), held)).ok).toBe(true);
+    expect(meta.publishCalls).toBe(1);
   });
 });
