@@ -14,12 +14,14 @@ import type { FieldErrors } from '@/lib/company-profile-model';
 import LogoField, { type LogoIds } from './LogoField';
 import { AboutSection, VisualSection, VoiceSection, saveProfileSection } from './sections';
 import SiteReview, { type SiteResponse } from './SiteReview';
-import { applyRequest, readSiteRequest } from './SiteReadCard';
+import { applyRequest } from './site-read-api';
+import SiteReadProgress from './SiteReadProgress';
+import { useSiteRead } from './useSiteRead';
 
 const STEPS = ['Conta', 'Negócio', 'Jeito de falar', 'Visual'] as const;
 // O cadastro rápido (SPEC 033): informar o site, a Ekoai ler e a pessoa confirmar.
 const QUICK_STEPS = ['Conta', 'Sua marca', 'Confirmar'] as const;
-type Phase = 'intro' | 'reading' | 'confirm' | 'steps';
+type Phase = 'intro' | 'reading' | 'ready' | 'confirm' | 'steps';
 const READS = [
   ['Cores e logo', 'do site e do arquivo de ícone'],
   ['Textos e jeito de falar', 'tom e palavras que a marca usa'],
@@ -39,6 +41,7 @@ export default function ProfileWizard({ initial }: Props) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('intro');
   const [site, setSite] = useState('');
+  const siteRead = useSiteRead();
   const [handle, setHandle] = useState('');
   const [res, setRes] = useState<SiteResponse | null>(null);
   const [readError, setReadError] = useState('');
@@ -94,10 +97,10 @@ export default function ProfileWizard({ initial }: Props) {
   async function read() {
     setPhase('reading');
     setReadError('');
-    const out = await readSiteRequest(site);
+    const out = await siteRead.start(site.trim());
     if (out.ok) {
       setRes(out.res);
-      setPhase('confirm');
+      setPhase('ready');
     } else setReadError(out.error);
   }
 
@@ -167,7 +170,7 @@ export default function ProfileWizard({ initial }: Props) {
         </button>
       </header>
 
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 md:py-12">
+      <main className={`mx-auto w-full flex-1 px-4 py-8 md:py-12 ${phase === 'reading' || phase === 'ready' ? 'max-w-5xl' : 'max-w-xl'}`}>
         {phase === 'intro' && (
           <>
             <h1 className="text-2xl font-semibold">Vamos conhecer a sua marca</h1>
@@ -178,7 +181,7 @@ export default function ProfileWizard({ initial }: Props) {
                   Site da empresa
                 </label>
                 <input id="quick-site" className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="seusite.com.br" autoComplete="url" inputMode="url" autoFocus />
-                <p className="text-sm text-muted">Só páginas públicas. A Ekoai lê a página inicial e até 3 do menu.</p>
+                <p className="text-sm text-muted">Só páginas públicas. A Ekoai lê o site inteiro, a partir do mapa do site.</p>
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="quick-ig" className="text-sm font-semibold">
@@ -208,12 +211,21 @@ export default function ProfileWizard({ initial }: Props) {
         )}
 
         {phase === 'reading' && !readError && (
-          <div role="status" aria-live="polite">
-            <h1 className="text-2xl font-semibold">Lendo o seu site</h1>
-            <p className="mt-1 text-sm leading-relaxed text-muted">A Ekoai abre a página inicial e as principais do menu, lê as cores e os textos e monta um resumo para você conferir. Leva cerca de 1 minuto.</p>
-            <div className="mt-8 flex items-center gap-3 text-sm">
-              <Spinner />
-              <span>Lendo {site.trim()}</span>
+          <div className="max-w-5xl">
+            <h1 className="text-2xl font-semibold">Lendo {site.trim()}</h1>
+            <p className="mt-1 text-sm leading-relaxed text-muted">Você pode acompanhar aqui. A Ekoai lê o site inteiro, começa pelo logo e pelas cores e monta um resumo para você conferir.</p>
+            <div className="mt-6">
+              <SiteReadProgress view={siteRead.view} mode={siteRead.mode} reconnecting={siteRead.reconnecting} site={site.trim()} />
+            </div>
+          </div>
+        )}
+
+        {phase === 'ready' && (
+          <div className="max-w-5xl">
+            <h1 className="text-2xl font-semibold">Lemos {site.trim()}</h1>
+            <p className="mt-1 text-sm leading-relaxed text-muted">Confira o que encontramos no próximo passo. Nada é salvo antes de você confirmar.</p>
+            <div className="mt-6">
+              <SiteReadProgress view={siteRead.view} mode={siteRead.mode} reconnecting={false} site={site.trim()} />
             </div>
           </div>
         )}
@@ -284,8 +296,12 @@ export default function ProfileWizard({ initial }: Props) {
             Voltar
           </button>
         ) : phase === 'confirm' ? (
-          <button type="button" className="btn-ghost" disabled={confirming} onClick={() => setPhase('intro')}>
+          <button type="button" className="btn-ghost" disabled={confirming} onClick={() => setPhase('ready')}>
             Voltar
+          </button>
+        ) : phase === 'ready' ? (
+          <button type="button" className="btn-ghost" onClick={() => setPhase('intro')}>
+            Trocar o endereço
           </button>
         ) : phase === 'steps' ? (
           <button type="button" className="btn-ghost" disabled={busy} onClick={() => setPhase('intro')}>
@@ -295,9 +311,14 @@ export default function ProfileWizard({ initial }: Props) {
           <span />
         )}
         <div className="flex gap-2">
-          {(phase === 'intro' || phase === 'reading' || phase === 'confirm') && (
-            <button type="button" className="btn-ghost" disabled={confirming} onClick={() => { setError(''); setReadError(''); setStep(1); setPhase('steps'); }}>
+          {(phase === 'intro' || phase === 'reading' || phase === 'ready' || phase === 'confirm') && (
+            <button type="button" className="btn-ghost" disabled={confirming} onClick={() => { siteRead.cancel(); setError(''); setReadError(''); setStep(1); setPhase('steps'); }}>
               Prefiro preencher à mão
+            </button>
+          )}
+          {phase === 'ready' && (
+            <button type="button" className="btn-primary" onClick={() => setPhase('confirm')}>
+              Conferir o que lemos
             </button>
           )}
           {phase === 'intro' && (
