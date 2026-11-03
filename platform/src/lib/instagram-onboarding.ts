@@ -1,10 +1,8 @@
-// instagram-onboarding.ts (server-only: importa o OAuth, que usa node:crypto; a tela só importa os TIPOS daqui): o passo "Conecte seu Instagram" do cadastro (SPEC 034, BEZ-536). Puro. Fica atrás de INSTAGRAM_ONBOARDING_CONNECT: até a Meta aprovar o App
-// Review (enviado em 02/11/2026) só contas com papel no app conectam, e quem não tem papel veria o erro da Meta no meio do cadastro. Ligado no ambiente de
-// teste e desligado em produção até a aprovação; desligado, vale o @ opcional de sempre.
+// instagram-onboarding.ts (server-only: importa o OAuth, que usa node:crypto; a tela só importa os TIPOS daqui): o passo "Conecte seu Instagram" do
+// cadastro (SPEC 034, BEZ-536, BEZ-538). Puro. O passo está sempre ligado: até a Meta aprovar o App Review (enviado em 02/11/2026) só contas com papel
+// no app conectam, e quem não tem papel recebe a recusa da Meta, que a tela explica sem travar o cadastro ("Seguir só com o site").
 
 import { FLASH, isFlashKey, type FlashKey } from './instagram-oauth-model';
-
-export const instagramOnboardingEnabled = (env: Record<string, string | undefined> = process.env): boolean => env.INSTAGRAM_ONBOARDING_CONNECT === 'true';
 
 // O que o cadastro diz quando volta da Meta (`?ig=<chave>`). Nunca culpa a pessoa e sempre diz o próximo passo: seguir só com o site é sempre possível.
 const TEXT: Partial<Record<FlashKey, string>> = {

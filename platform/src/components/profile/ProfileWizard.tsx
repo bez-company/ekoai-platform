@@ -37,8 +37,8 @@ const COPY = [
   { title: 'Visual da marca', lead: 'Opcional. Na próxima fase, as artes dos posts saem com o seu logo, as suas cores e as suas fontes.' },
 ] as const;
 
-// O passo do Instagram (SPEC 034): `enabled` vem de INSTAGRAM_ONBOARDING_CONNECT; `flash` é o resultado da volta da Meta (?ig=).
-export type InstagramStep = { enabled: boolean; connected: boolean; handle: string | null; flash: OnboardingFlash | null };
+// O passo do Instagram (SPEC 034): `flash` é o resultado da volta da Meta (?ig=).
+export type InstagramStep = { connected: boolean; handle: string | null; flash: OnboardingFlash | null };
 type Props = { initial: { about: AboutForm; voice: VoiceForm; visual: VisualForm }; instagram?: InstagramStep };
 
 // O site digitado atravessa a ida à Meta e a volta; só o endereço, nada mais, e só nesta aba.
@@ -65,7 +65,7 @@ export default function ProfileWizard({ initial, instagram }: Props) {
   const [busy, setBusy] = useState(false);
   const [logo, setLogo] = useState<LogoIds>({ main: null, dark: null, light: null, symbol: null });
 
-  const igStep = !!instagram?.enabled && !skipIg;
+  const igStep = !!instagram && !skipIg;
 
   // Volta da Meta: o site que a pessoa já tinha digitado reaparece.
   useEffect(() => {

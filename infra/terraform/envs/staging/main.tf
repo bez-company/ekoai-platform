@@ -75,8 +75,6 @@ module "ekoai" {
   # Produção segue com senha única e cadastro por convite até haver limite de taxa no cadastro.
   auth_provider = "identity"
   signup_mode   = "open"
-  # Passo "Conecte seu Instagram" no cadastro (SPEC 034): ligado aqui para testar com contas que têm papel no app; em produção só depois do App Review.
-  instagram_onboarding_connect = true
   # E-mail dos convites pelo Gmail API (BEZ-28, ADR 0027). Remetente e resposta são endereços do produto.
   # `mail_provider` só vira "gmail" depois dos passos do runbook (segredo, delegação de domínio, "Enviar e-mail
   # como"): ligado antes, o convite falha em vez de devolver o link para copiar. Staging ligado em 28/10/2026.

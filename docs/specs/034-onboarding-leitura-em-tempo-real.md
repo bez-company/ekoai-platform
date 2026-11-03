@@ -71,10 +71,10 @@ A leitura da marca (SPEC 033) já preenche o cadastro, mas:
    (`deauthorize`), antes do botão. O texto sai do que foi declarado no App Review.
 4. **Depois de conectar**, a leitura das legendas roda no mesmo fluxo de eventos ("Lendo as suas legendas do Instagram") e melhora
    o resultado (BEZ-528).
-5. **Restrição de lançamento:** o App Review do Instagram foi enviado em 02/11/2026 (análise de até cerca de 20 dias). Até a
-   aprovação só contas com papel no app conectam; quem não tem papel recebe o erro da Meta. Por isso o passo fica atrás de uma
-   variável de ambiente (`INSTAGRAM_ONBOARDING_CONNECT`), ligada para contas de teste e desligada para o público até a aprovação.
-   Com o passo desligado, vale o @ opcional de hoje.
+5. **Sempre ligado (decisão do Matheus, 03/11/2026).** O App Review do Instagram foi enviado em 02/11/2026 (análise de até cerca de 20
+   dias). Até a aprovação só contas com papel no app conectam; quem não tem papel recebe a recusa da Meta, que a tela explica sem culpar e
+   sem travar ("Seguir só com o site"). Não há variável de ambiente que desligue o passo (a primeira versão tinha
+   `INSTAGRAM_ONBOARDING_CONNECT`, removida no BEZ-538).
 6. **Fora:** raspagem de perfil público de terceiros sem conexão (continua não sendo feita, SPEC 033).
 
 ## Protótipo (obrigatório antes de codar)
