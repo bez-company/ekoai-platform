@@ -24,6 +24,7 @@ export default function FeedbackForm({
   scheduledPostId,
   postId,
   mode = 'feedback',
+  reviewMs,
   onCancel,
 }: {
   channel: Channel;
@@ -32,6 +33,8 @@ export default function FeedbackForm({
   scheduledPostId?: string;
   postId?: string;
   mode?: 'feedback' | 'reject';
+  // Rejeitar em Aprovar: quanto tempo o post ficou aberto (BEZ-544), lido na hora de enviar.
+  reviewMs?: () => number | null;
   onCancel?: () => void;
 }) {
   const router = useRouter();
@@ -65,7 +68,7 @@ export default function FeedbackForm({
       ? await fetch('/api/reject', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pendingId, feedback }),
+          body: JSON.stringify({ pendingId, feedback, reviewMs: reviewMs?.() ?? null }),
         })
       : await fetch('/api/feedback', {
           method: 'POST',

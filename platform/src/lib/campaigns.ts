@@ -50,6 +50,16 @@ export async function getCampaign(t: TenantDb, id: string): Promise<Campaign> {
   return campaignFromRow(data);
 }
 
+// A campanha de um post: a gravada nele ou, sem ela, a do pedido que o gerou (SPEC 018). Usada pela conferência
+// antes de publicar (BEZ-275) e pelos eventos de Aprovar (BEZ-544).
+export async function campaignIdOf(t: TenantDb, ref: { campaignId?: string | null; briefId?: string | null }): Promise<string | null> {
+  if (ref.campaignId) return ref.campaignId;
+  if (!ref.briefId) return null;
+  const { data, error } = await t.select('briefs', 'campaign_id').eq('id', ref.briefId).maybeSingle();
+  if (error) throw new Error(`campanha do pedido: ${error.message}`);
+  return (data?.campaign_id as string | null) ?? null;
+}
+
 // A campanha que o coordenador usa hoje: ativa, confirmada e dentro do prazo (no máximo uma por conta).
 export async function activeCampaign(t: TenantDb, today: string = todayLocal()): Promise<Campaign | null> {
   const { data, error } = await t

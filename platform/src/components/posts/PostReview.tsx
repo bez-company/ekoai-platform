@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from 'react';
 import { useInjectedText, useTextDraft } from './approve-draft';
+import { useReviewTimer } from './use-review-timer';
 import { splitHashtagLine } from '@/lib/signal-text';
 import Link from 'next/link';
 import { levelOf } from '@/lib/studio/levels';
@@ -64,6 +65,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
   const [busy, setBusy] = useState<string>('');
   const [error, setError] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const reviewMs = useReviewTimer(pending.pending_id);
   const [directionAsked, setDirectionAsked] = useState(false);
   const [publishAsked, setPublishAsked] = useState(false);
   // A versão do design em uso: aprovar leva esta versão e para se outra pessoa salvou uma nova (SPEC 019).
@@ -137,7 +139,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
     setBusy(publishNow ? 'publish' : 'approve');
     setError('');
     try {
-      const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow, ...(designVersion ? { designVersion } : {}) }) });
+      const j = await call('/api/approve', { body: JSON.stringify({ pendingId: pending.pending_id, captionId: 1, artId: 1, captionText: caption, publishNow, reviewMs: reviewMs(), ...(designVersion ? { designVersion } : {}) }) });
       // Publicado vai para o Histórico; agendado, na fila ou com falha na publicação, para a Agenda.
       router.push(publishNow && j.published ? '/historico' : '/agenda');
       router.refresh();
@@ -374,7 +376,7 @@ export default function PostReview({ pending, suggested, nextSlot, handle, accou
             <section className="card space-y-2 border-danger/30">
               <h2 className="text-base font-semibold">Recusar este post?</h2>
               <p className="text-sm text-muted">Diga o que não funcionou. A Ekoai aprende com o motivo e evita nos próximos posts.</p>
-              <FeedbackForm mode="reject" channel={pending.channel} pendingId={pending.pending_id} excerpt={title} onCancel={() => setRejecting(false)} />
+              <FeedbackForm mode="reject" channel={pending.channel} pendingId={pending.pending_id} excerpt={title} reviewMs={reviewMs} onCancel={() => setRejecting(false)} />
             </section>
           )}
 

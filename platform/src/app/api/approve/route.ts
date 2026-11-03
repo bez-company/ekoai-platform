@@ -3,6 +3,7 @@ import { track } from '@/lib/analytics';
 import { approvePending } from '@/lib/scheduling';
 import { assertDesignVersion, markDesignApproved } from '@/lib/post-design-revisions';
 import { approvedProps } from '@/lib/design-edit-events';
+import { reviewEffortProps } from '@/lib/review-effort-model';
 import { assertPublishingOn, publishNow } from '@/lib/publish';
 import { requirePermission } from '@/lib/session';
 import { parseApprove } from '@/lib/route-input';
@@ -22,11 +23,12 @@ export async function POST(req: Request) {
     const design = await assertDesignVersion(t, parsed.value.pendingId, parsed.value.designVersion);
     const result = await approvePending(t, parsed.value);
     if (design) await markDesignApproved(t, design.designId);
-    await track(t.tenantId, 'post_approved', approvedProps(design));
-    if (!parsed.value.publishNow) return NextResponse.json({ ok: true, ...result });
+    await track(t.tenantId, 'post_approved', { ...approvedProps(design), ...reviewEffortProps(result.effort, parsed.value.reviewMs) });
+    const { effort: _effort, ...body } = result;
+    if (!parsed.value.publishNow) return NextResponse.json({ ok: true, ...body });
     // Aprovado já está: se a publicação falhar, o post fica na Agenda como falhou, com o erro.
     const published = await publishNow(t, result.id);
-    return NextResponse.json({ ok: true, ...result, published: published.ok, error: published.error });
+    return NextResponse.json({ ok: true, ...body, published: published.ok, error: published.error });
   } catch (e) {
     return apiError(e, 'api/approve');
   }

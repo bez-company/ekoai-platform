@@ -64,6 +64,9 @@ export type ProductEvent =
 // `published_success` (channel, attempts, recorded, latency_ms) e `published_failure` (channel, attempts, reason:
 // classe do erro, nunca a mensagem) saem de publish.ts desde o BEZ-258. Substituem `post_published` e
 // `post_publish_failed`, que nunca chegaram ao PostHog (a chave só entrou no staging em 23/10/2026).
+// `post_approved` e `post_rejected` levam o esforço da pessoa (BEZ-544, review-effort-model.ts): `wait_ms` (da chegada em
+// Aprovar à decisão), `review_ms` (tempo com o post aberto, do navegador), `channel`, `campaign_id` e, ao aprovar,
+// `caption_edited`. `published_failure` com `reason: 'preflight'` leva a `rule` que segurou o post (BEZ-275).
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
