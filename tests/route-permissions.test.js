@@ -50,6 +50,7 @@ const EXPECTED = {
   'team/members/[userId]': ['team.manage', 'team.manage'],
   profile: ['profile.view', 'brand.manage'],
   'profile/site-read': ['brand.manage'],
+  'profile/site-read/stream': ['brand.manage'],
   'profile/site-read/apply': ['brand.manage'],
   onboarding: ['team.manage'],
   'onboarding/answers': ['publishing.manage'],

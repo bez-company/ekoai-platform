@@ -25,7 +25,7 @@ vi.mock('@/lib/vertex', () => ({ vertexClient: () => ({ fake: 'model' }) }));
 vi.mock('@/lib/site-read/instagram', () => ({ readInstagramPosts: async (t) => (dataMock.instagramFor.push(t.tenantId), dataMock.instagram) }));
 vi.mock('@/lib/site-read/understand', () => ({
   understandSite: async (url, deps) => {
-    dataMock.read.push([url, deps.tenantId, deps.model, deps.instagram]);
+    dataMock.read.push([url, deps.tenantId, deps.model, await deps.instagram]);
     if (dataMock.error) throw dataMock.error;
     return { read: { url, name: 'Doce Ponto', colors: ['#B83262'], fonts: { heading: null, body: null }, description: null, logoUrl: null }, understanding: null, notice: null };
   },

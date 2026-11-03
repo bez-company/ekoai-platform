@@ -36,7 +36,8 @@ export function parseCaptions(json: unknown): SitePage[] {
   return pages;
 }
 
-type Deps = { fetchFn?: typeof fetch; credentials?: (t: TenantDb) => Promise<InstagramCredentials> };
+// `onReading`: avisa que a conexão existe e a leitura vai começar (a tela mostra "Lendo as legendas" só para quem conectou).
+type Deps = { fetchFn?: typeof fetch; credentials?: (t: TenantDb) => Promise<InstagramCredentials>; onReading?: () => void };
 
 export async function readInstagramPosts(t: TenantDb, deps: Deps = {}): Promise<InstagramPosts> {
   let creds: InstagramCredentials;
@@ -46,6 +47,7 @@ export async function readInstagramPosts(t: TenantDb, deps: Deps = {}): Promise<
     if (!(e instanceof UserError)) throw e;
     return { state: /venceu/i.test(e.message) ? 'expired' : 'not_connected', pages: [] };
   }
+  deps.onReading?.();
   try {
     const url = new URL(`${GRAPH_URL}/${creds.accountId}/media`);
     url.searchParams.set('fields', 'caption,permalink,timestamp,media_type');
