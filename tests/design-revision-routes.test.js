@@ -56,7 +56,7 @@ vi.mock('@/lib/post-design-revisions', async () => {
 vi.mock('@/lib/rate-limit', () => ({ hit: async () => dataMock.rate, tooMany: (r) => new Response(JSON.stringify({ error: 'Muitas tentativas seguidas.' }), { status: 429, headers: { 'retry-after': String(r.retryAfterS) } }) }));
 const ruleMock = { proposed: [], fail: false };
 vi.mock('@/lib/design-rules', () => ({ proposeDesignRules: async () => { if (ruleMock.fail) throw new Error('banco fora'); return ruleMock.proposed; } }));
-vi.mock('@/lib/scheduling', () => ({ approvePending: async () => ({ id: 's1', scheduledFor: null, requestedMissed: false }) }));
+vi.mock('@/lib/scheduling', () => ({ approvePending: async () => ({ id: 's1', scheduledFor: null, requestedMissed: false, effort: { savedAt: null, channel: 'instagram', campaignId: null, captionEdited: false } }) }));
 vi.mock('@/lib/publish', () => ({ publishNow: async () => ({ ok: true }) }));
 const events = [];
 vi.mock('@/lib/analytics', () => ({ track: async (tenant, event, props) => void events.push([tenant, event, props]) }));
@@ -198,8 +198,8 @@ describe('eventos de produto (BEZ-269)', () => {
     expect(events.map((e) => e[1])).toEqual(['design_revision_restored', 'design_revision_saved']);
     expect(events[0][2]).toEqual({ brief_id: ID, from_version: 1, to_version: 4 });
     events.length = 0;
-    await APPROVE(post({ pendingId: 'plat-1', captionId: 1, artId: 1, designVersion: 3 }));
-    expect(events).toEqual([['acme', 'post_approved', { brief_id: 'brief-1', design_version: 3, edited: true }]]);
+    await APPROVE(post({ pendingId: 'plat-1', captionId: 1, artId: 1, designVersion: 3, reviewMs: 95_000 }));
+    expect(events).toEqual([['acme', 'post_approved', { brief_id: 'brief-1', design_version: 3, edited: true, channel: 'instagram', wait_ms: null, review_ms: 95_000, caption_edited: false }]]);
   });
 
   it('o sinal da tela pede content.edit, valida e manda o evento', async () => {

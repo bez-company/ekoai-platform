@@ -11,6 +11,8 @@ import { distributionUtm } from './utm';
 import { splitThread } from './thread';
 import type { Channel, PendingApproval, Variation, ImageRef, MediaKind } from './types';
 import { UserError } from './errors';
+import { campaignIdOf } from './campaigns';
+import { captionEdited, type ReviewEffort } from './review-effort-model';
 
 const NOT_FOUND = 'Post agendado não encontrado, ou já mudou de estado. Recarregue a página.';
 
@@ -54,7 +56,7 @@ export type ApproveInput = {
   publishNow?: boolean; // agenda para agora; a rota publica em seguida
 };
 
-export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string | null; id: string; requestedMissed: boolean }> {
+export async function approvePending(t: TenantDb, input: ApproveInput): Promise<{ scheduledFor: string | null; id: string; requestedMissed: boolean; effort: ReviewEffort }> {
   const p = await loadPending(t, input.pendingId);
   if (!p) throw new UserError('Pendência não encontrada (já resolvida?).');
 
@@ -129,7 +131,15 @@ export async function approvePending(t: TenantDb, input: ApproveInput): Promise<
       link: '/agenda',
     });
   }
-  return { scheduledFor, id: data!.id as string, requestedMissed };
+  // Para os eventos de Aprovar (BEZ-544): só tempo, rede, campanha e se a legenda mudou. A campanha do pedido vale
+  // quando o agendado não tem a dele.
+  const effort: ReviewEffort = {
+    savedAt: p.saved_at ?? null,
+    channel: p.channel,
+    campaignId: await campaignIdOf(t, { campaignId, briefId: p.brief_id }).catch(() => null),
+    captionEdited: captionEdited(captionFinal, composeCaption(variation)),
+  };
+  return { scheduledFor, id: data!.id as string, requestedMissed, effort };
 }
 
 // O horário que quem mandou para Aprovar pediu (seed.requested_for), se for uma data válida.
@@ -140,7 +150,7 @@ export function requestedTime(seed: Record<string, unknown> | null | undefined):
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
-export async function rejectPending(t: TenantDb, pendingId: string, reason?: string): Promise<void> {
+export async function rejectPending(t: TenantDb, pendingId: string, reason?: string): Promise<ReviewEffort> {
   const p = await loadPending(t, pendingId);
   if (!p) throw new UserError('Pendência não encontrada (já resolvida?).');
   const top = (p.generation?.variations || []).find((v) => v.id === p.top_id) || p.generation?.variations?.[0];
@@ -160,6 +170,7 @@ export async function rejectPending(t: TenantDb, pendingId: string, reason?: str
     body: reason || undefined,
     link: '/aprendizado',
   });
+  return { savedAt: p.saved_at ?? null, channel: p.channel, campaignId: await campaignIdOf(t, { briefId: p.brief_id }).catch(() => null) };
 }
 
 export async function reschedulePost(t: TenantDb, id: string, scheduledFor: string): Promise<void> {

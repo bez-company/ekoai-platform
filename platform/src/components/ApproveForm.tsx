@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useInjectedText, useTextDraft } from '@/components/posts/approve-draft';
+import { useReviewTimer } from '@/components/posts/use-review-timer';
 import { useRouter } from 'next/navigation';
 import { fmtDateTime, isoToLocalInput, localInputToIso } from '@/lib/format';
 import { splitThread } from '@/lib/thread';
@@ -53,6 +54,7 @@ export default function ApproveForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const reviewMs = useReviewTimer(pending.pending_id);
 
   const chosenVariation = useMemo(() => variations.find((v) => v.id === captionId), [variations, captionId]);
   const tweets = useMemo(() => (pending.channel === 'twitter' ? splitThread(captionText) : []), [pending.channel, captionText]);
@@ -70,7 +72,7 @@ export default function ApproveForm({
     const res = await fetch('/api/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pendingId: pending.pending_id, captionId, artId, captionText, scheduledFor, noImage }),
+      body: JSON.stringify({ pendingId: pending.pending_id, captionId, artId, captionText, scheduledFor, noImage, reviewMs: reviewMs() }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(false);
@@ -245,6 +247,7 @@ export default function ApproveForm({
             channel={pending.channel}
             pendingId={pending.pending_id}
             excerpt={chosenVariation?.hook}
+            reviewMs={reviewMs}
             onCancel={() => setRejecting(false)}
           />
         </section>

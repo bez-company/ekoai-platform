@@ -4,6 +4,7 @@
 
 import { CHANNELS, type Channel } from './types';
 import { isTenantId } from './tenant';
+import { parseReviewMs } from './review-effort-model';
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -41,6 +42,8 @@ export type ApproveBody = {
   publishNow: boolean;
   // A versão do design que a pessoa estava vendo (SPEC 019): se mudou, aprovar devolve 409.
   designVersion?: number;
+  // Quanto a pessoa ficou com o post aberto antes de aprovar, medido no navegador (BEZ-544); null se não veio ou é absurdo.
+  reviewMs: number | null;
 };
 
 export function parseApprove(body: unknown): Parsed<ApproveBody> {
@@ -69,6 +72,7 @@ export function parseApprove(body: unknown): Parsed<ApproveBody> {
       scheduledFor,
       publishNow: b.publishNow === true,
       ...(typeof rawVersion === 'number' ? { designVersion: rawVersion } : {}),
+      reviewMs: parseReviewMs(b.reviewMs),
     },
   };
 }
@@ -130,11 +134,11 @@ export function parsePause(body: unknown): Parsed<{ paused: boolean; reason: str
   return { ok: true, value: { paused: b.paused, reason: text(b.reason, 500) ?? null } };
 }
 
-export function parseReject(body: unknown): Parsed<{ pendingId: string; reason?: string; feedback?: unknown }> {
+export function parseReject(body: unknown): Parsed<{ pendingId: string; reason?: string; feedback?: unknown; reviewMs: number | null }> {
   const b = obj(body);
   const pendingId = text(b.pendingId, 200);
   if (!pendingId) return { ok: false, error: 'Pendência não encontrada. Recarregue a página.' };
-  return { ok: true, value: { pendingId, reason: text(b.reason, 1000), feedback: b.feedback || undefined } };
+  return { ok: true, value: { pendingId, reason: text(b.reason, 1000), feedback: b.feedback || undefined, reviewMs: parseReviewMs(b.reviewMs) } };
 }
 
 // Arquivar um post de Aprovar ou desfazer (SPEC 017, decisão 12).
