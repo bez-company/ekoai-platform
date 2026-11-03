@@ -41,24 +41,51 @@ export function callbackUrl(origin: string): string {
 // O `state` não usa cookie: o Firebase Hosting só repassa `__session` ao Cloud Run (ADR 0020), então um
 // cookie próprio nunca chegaria ao callback. O `state` é assinado com o segredo do app (HMAC) e amarrado à
 // empresa que iniciou o fluxo: um `state` de outra empresa, adulterado ou vencido não passa.
-function stateSignature(secret: string, tenantId: string, nonce: string, expiresAt: string): Buffer {
-  return createHmac('sha256', secret).update(`${tenantId}.${nonce}.${expiresAt}`).digest();
+// Para onde a volta leva (SPEC 034, BEZ-536): a tela de redes ou o cadastro. O destino vai DENTRO do `state` assinado e só pode ser um destes: nunca uma
+// URL vinda da pessoa, então não há redirecionamento aberto. O `state` de redes continua no formato de sempre (3 partes); o do cadastro leva o destino.
+export const CONNECT_DESTS = ['canais', 'onboarding'] as const;
+export type ConnectDest = (typeof CONNECT_DESTS)[number];
+export const DEFAULT_DEST: ConnectDest = 'canais';
+
+// Qualquer valor fora da lista (ausente, inventado, outra URL) vira a tela de redes.
+export function parseDest(value: unknown): ConnectDest {
+  return typeof value === 'string' && (CONNECT_DESTS as readonly string[]).includes(value) ? (value as ConnectDest) : DEFAULT_DEST;
 }
 
-export function createState(input: { tenantId: string; secret: string; now?: number; nonce?: string }): string {
+function stateSignature(secret: string, tenantId: string, nonce: string, expiresAt: string, dest?: ConnectDest): Buffer {
+  return createHmac('sha256', secret).update(dest ? `${tenantId}.${nonce}.${expiresAt}.${dest}` : `${tenantId}.${nonce}.${expiresAt}`).digest();
+}
+
+// O caminho de cada destino, sem a consulta.
+export const destPath = (dest: ConnectDest): string => (dest === 'onboarding' ? '/boas-vindas' : '/configuracoes/canais');
+
+export function createState(input: { tenantId: string; secret: string; now?: number; nonce?: string; dest?: ConnectDest }): string {
   const nonce = input.nonce ?? randomBytes(12).toString('hex');
   const expiresAt = String(Math.floor((input.now ?? Date.now()) / 1000) + STATE_TTL_SECONDS);
-  const signature = stateSignature(input.secret, input.tenantId, nonce, expiresAt).toString('hex');
-  return `${nonce}.${expiresAt}.${signature}`;
+  const dest = input.dest && input.dest !== DEFAULT_DEST ? input.dest : undefined;
+  const signature = stateSignature(input.secret, input.tenantId, nonce, expiresAt, dest).toString('hex');
+  return dest ? `${nonce}.${expiresAt}.${dest}.${signature}` : `${nonce}.${expiresAt}.${signature}`;
+}
+
+// Confere o `state` e diz para onde voltar. Inválido, vencido ou de outra empresa: `valid: false` e a tela de redes.
+export function readState(state: string | null | undefined, input: { tenantId: string; secret: string; now?: number }): { valid: boolean; dest: ConnectDest } {
+  const parts = (state ?? '').split('.');
+  const no = { valid: false, dest: DEFAULT_DEST } as const;
+  if (parts.length !== 3 && parts.length !== 4) return no;
+  const [nonce, expiresAt, ...tail] = parts;
+  const signature = tail[tail.length - 1];
+  const dest = tail.length === 2 ? (CONNECT_DESTS as readonly string[]).find((d) => d === tail[0] && d !== DEFAULT_DEST) : undefined;
+  if (tail.length === 2 && !dest) return no;
+  if (!nonce || !expiresAt || !signature || !/^\d+$/.test(expiresAt)) return no;
+  if (Number(expiresAt) < Math.floor((input.now ?? Date.now()) / 1000)) return no;
+  const expected = stateSignature(input.secret, input.tenantId, nonce, expiresAt, dest as ConnectDest | undefined);
+  const given = Buffer.from(signature, 'hex');
+  const ok = given.length === expected.length && timingSafeEqual(given, expected);
+  return ok ? { valid: true, dest: (dest as ConnectDest | undefined) ?? DEFAULT_DEST } : no;
 }
 
 export function stateValid(state: string | null | undefined, input: { tenantId: string; secret: string; now?: number }): boolean {
-  const [nonce, expiresAt, signature, ...rest] = (state ?? '').split('.');
-  if (!nonce || !expiresAt || !signature || rest.length > 0 || !/^\d+$/.test(expiresAt)) return false;
-  if (Number(expiresAt) < Math.floor((input.now ?? Date.now()) / 1000)) return false;
-  const expected = stateSignature(input.secret, input.tenantId, nonce, expiresAt);
-  const given = Buffer.from(signature, 'hex');
-  return given.length === expected.length && timingSafeEqual(given, expected);
+  return readState(state, input).valid;
 }
 
 export type CallbackQuery =
