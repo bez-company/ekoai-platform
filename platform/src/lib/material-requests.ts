@@ -13,6 +13,7 @@ import { getMediaAsset, updateMediaAsset } from './media-assets';
 import { canUseInPost, isSuggestable, type MediaAsset } from './media-asset-model';
 import { materialAsk, needsReminder, requestFromRow, PAUSE_DAYS, type ConfirmAnswer, type MaterialRequest, type PlanSuggestion } from './material-request-model';
 import { notify } from './notifications';
+import { ROUTES } from './app-routes';
 import { isPostGoal } from './post-goals';
 import type { SessionUser } from './accounts';
 import type { TenantDb } from './tenant-db';
@@ -22,7 +23,7 @@ const DAY = 86_400_000;
 const PLAN_AHEAD_DAYS = 8;
 const GONE = 'Este pedido já foi respondido ou venceu. Recarregue a página.';
 
-const link = (r: Pick<MaterialRequest, 'id'>) => `/pedidos/${r.id}`;
+const link = (r: Pick<MaterialRequest, 'id'>) => ROUTES.request(r.id);
 
 // Os pedidos que o Início mostra: abertos e no prazo, o que vence primeiro no topo.
 export async function listOpenRequests(t: TenantDb, now: Date = new Date()): Promise<MaterialRequest[]> {
@@ -134,16 +135,22 @@ async function close(t: TenantDb, actor: SessionUser, req: MaterialRequest, valu
   await track(t.tenantId, 'material_answered', { kind: req.kind, outcome, wait_ms: Math.max(0, now.getTime() - Date.parse(req.createdAt)) });
 }
 
-// A foto (enviada pelo banco de imagens ou escolhida nele) responde o pedido: ganha a etiqueta pedida e entra na sugestão
-// ligada, se a sugestão ainda está aberta e a foto pode entrar em post (pessoas só com autorização de uso de imagem).
-export async function answerPhoto(t: TenantDb, actor: SessionUser, id: string, assetId: string, now: Date = new Date()): Promise<{ usedInPost: boolean }> {
+// As fotos (enviadas pelo banco de imagens ou escolhidas nele) respondem o pedido: todas ganham a etiqueta pedida, e a
+// primeira que pode entrar em post (pessoas só com autorização de uso de imagem) entra na sugestão ligada, se ela ainda
+// está aberta.
+export async function answerPhoto(t: TenantDb, actor: SessionUser, id: string, assetIds: readonly string[], now: Date = new Date()): Promise<{ usedInPost: boolean }> {
   const req = await openRequest(t, id, 'photo', now);
-  let asset = await getMediaAsset(t, assetId);
-  if (!asset) throw new UserError('Esta foto não está mais no banco de imagens. Envie de novo.');
-  if (req.needTag && !asset.tags.includes(req.needTag)) asset = await updateMediaAsset(t, actor, asset.id, { tags: [...asset.tags, req.needTag].slice(0, 7) });
-  await close(t, actor, req, { status: 'answered', outcome: 'photo', answered_asset_id: asset.id }, now);
-  if (!req.suggestionId || !canUseInPost(asset)) return { usedInPost: false };
-  const linked = await t.update('content_suggestions', { asset_id: asset.id }).eq('id', req.suggestionId).eq('status', 'suggested').select('id');
+  const assets: MediaAsset[] = [];
+  for (const assetId of assetIds) {
+    let asset = await getMediaAsset(t, assetId);
+    if (!asset) throw new UserError('Uma das fotos não está mais no banco de imagens. Envie de novo.');
+    if (req.needTag && !asset.tags.includes(req.needTag)) asset = await updateMediaAsset(t, actor, asset.id, { tags: [...asset.tags, req.needTag].slice(0, 7) });
+    assets.push(asset);
+  }
+  const usable = assets.find((a) => canUseInPost(a)) ?? null;
+  await close(t, actor, req, { status: 'answered', outcome: 'photo', answered_asset_id: (usable ?? assets[0]).id }, now);
+  if (!req.suggestionId || !usable) return { usedInPost: false };
+  const linked = await t.update('content_suggestions', { asset_id: usable.id }).eq('id', req.suggestionId).eq('status', 'suggested').select('id');
   if (linked.error) throw new Error(`sugestões: ${linked.error.message}`);
   return { usedInPost: !!linked.data?.length };
 }

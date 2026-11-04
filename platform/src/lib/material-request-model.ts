@@ -170,10 +170,15 @@ const obj = (b: unknown): Record<string, unknown> => (b && typeof b === 'object'
 
 export const isRequestId = (id: unknown): id is string => typeof id === 'string' && UUID.test(id);
 
-export function parseAnswerPhoto(body: unknown): Parsed<{ assetId: string }> {
-  const assetId = obj(body).assetId;
-  if (!isRequestId(assetId)) return { ok: false, error: 'Escolha ou envie uma foto antes de responder.' };
-  return { ok: true, value: { assetId } };
+export const PHOTOS_PER_ANSWER = 4;
+
+// Até 4 fotos por resposta (as do envio ou as escolhidas no banco), sem repetir.
+export function parseAnswerPhoto(body: unknown): Parsed<{ assetIds: string[] }> {
+  const raw = obj(body).assetIds;
+  const ids = Array.isArray(raw) ? [...new Set(raw)] : [];
+  if (!ids.length || !ids.every(isRequestId)) return { ok: false, error: 'Escolha ou envie uma foto antes de responder.' };
+  if (ids.length > PHOTOS_PER_ANSWER) return { ok: false, error: `Responda com até ${PHOTOS_PER_ANSWER} fotos.` };
+  return { ok: true, value: { assetIds: ids as string[] } };
 }
 
 export type ConfirmAnswer = { action: 'keep'; validUntil: unknown } | { action: 'edit'; text: unknown; validUntil: unknown } | { action: 'off' };
