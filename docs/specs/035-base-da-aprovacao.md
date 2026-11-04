@@ -1,6 +1,6 @@
 # SPEC 035: a aprovação guarda os fatos e a oferta que o post afirma
 
-- **Status:** em implementação (04/11/2026)
+- **Status:** na `staging` desde 04/11/2026 (PR #345, migration 0063); falta a release
 - **Data:** 2026-11-04
 - **Cards:** BEZ-543 (esta spec); pai BEZ-542 (roadmap AI-native)
 - **Origem:** EKO-03 em [`docs/analises/2026-11-03-documentacao-mestra-ai-native.md`](../analises/2026-11-03-documentacao-mestra-ai-native.md) (seções 14.2 e 19.4)
