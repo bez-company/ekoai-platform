@@ -121,8 +121,11 @@ describe('coordenador de conteúdo', () => {
 
   it('o job passa pelas contas com horário e pula a pausada', async () => {
     const summary = await coord.runContentPlanning({ now, models: null });
-    expect(summary).toEqual({ accounts: 1, suggested: 0, paused: 1, failed: 0, skipped: 0, fallback: 0, costUsd: 0 });
+    expect(summary).toEqual({ accounts: 1, suggested: 0, paused: 1, failed: 0, skipped: 0, fallback: 0, costUsd: 0, requested: 1 });
     expect(await rows('select id from content_suggestions where tenant_id = $1', [C])).toEqual([]);
+    // A conta planejada tem sugestão de produto e nenhuma foto de produto que possa ser sugerida: a rodada pede (SPEC 036).
+    expect(await rows("select kind, need_tag from material_requests where tenant_id = $1 and status = 'open'", [A])).toEqual([{ kind: 'photo', need_tag: 'produto' }]);
+    expect(await rows('select id from material_requests where tenant_id = $1', [C])).toEqual([]);
   });
 
   it('o banco recusa objetivo fora da lista e duas sugestões abertas no mesmo horário', async () => {
