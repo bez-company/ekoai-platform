@@ -3,6 +3,9 @@ import StaleApprovals from '@/components/onboarding/StaleApprovals';
 import { LastPublishedCard, NextStepBar, Shortcuts, ThisWeek, type Shortcut } from '@/components/home/Panel';
 import Suggestions, { type SuggestionView } from '@/components/home/Suggestions';
 import PlanBanner from '@/components/home/PlanBanner';
+import MaterialRequests from '@/components/home/MaterialRequests';
+import { listOpenRequests } from '@/lib/material-requests';
+import { requestView, type RequestView } from '@/lib/material-request-view';
 import { CampaignInvite, CampaignProgressCard } from '@/components/campaigns/CampaignCards';
 import { campaignInEffect } from '@/lib/campaign-model';
 import { shortCampaignName } from '@/lib/campaign-view';
@@ -95,10 +98,16 @@ export default async function HomePage() {
 
     const today = new Date(nowMs);
     const active = campaigns.find((c) => campaignInEffect(c, todayLocalDay(today))) ?? null;
-    const [progress, plan] = await Promise.all([
+    const [progress, plan, requests] = await Promise.all([
       active ? campaignProgress(t, active.id, today).catch(() => null) : Promise.resolve(null),
       planningState(t, today).catch(() => ({ failed: false, simple: false })),
+      // Pedidos de material (SPEC 036): só para quem cria post. Falha de leitura vira aviso, não derruba o painel.
+      create ? listOpenRequests(t, today).catch(() => null) : Promise.resolve([]),
     ]);
+    const bySuggestion = new Map(suggestions.map((s) => [s.id, { idea: s.idea, goalLabel: s.goalLabel, slotAt: s.slotAt }]));
+    const asks: RequestView[] = (requests ?? []).slice(0, 2).map((r) =>
+      requestView(r, { now: nowMs, tz, post: r.suggestionId ? bySuggestion.get(r.suggestionId) ?? null : null, campaignName: r.campaignId ? names.get(r.campaignId) ?? null : null }),
+    );
     const [allMedia, unusedMedia] = media;
     const mediaTotal = allMedia.count ?? 0;
     const shortcuts: Shortcut[] = [
@@ -125,6 +134,13 @@ export default async function HomePage() {
         {/* "Aprovar posts" já leva o aviso de post esquecido; o aviso solto só aparece quando outro passo vem antes. */}
         {summary.next?.id !== 'pending' && <StaleApprovals pending={view.pending} />}
         <NextStepBar step={summary.next?.id === 'pending' ? { ...summary.next, detail: pendingDetail(summary.next.detail, view.pending) } : summary.next} />
+        {requests === null ? (
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+            <strong>Não conseguimos carregar os pedidos da Ekoai.</strong> Suas sugestões e posts estão salvos. Recarregue a página em instantes.
+          </div>
+        ) : (
+          canAct && <MaterialRequests items={asks} />
+        )}
         <Shortcuts items={shortcuts} />
         {plan.failed && sugg.length === 0 && <PlanBanner kind="failed" canRetry={canAct} withCampaign={!!active} />}
         {!plan.failed && plan.simple && sugg.length > 0 && <PlanBanner kind="simple" canRetry={false} withCampaign={!!active} />}

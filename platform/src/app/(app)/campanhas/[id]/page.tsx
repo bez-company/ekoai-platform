@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import CampaignActions from '@/components/campaigns/CampaignActions';
 import { StatusBadge } from '@/components/campaigns/Badge';
 import Suggestions, { type SuggestionView } from '@/components/home/Suggestions';
+import CampaignRequests from '@/components/campaigns/CampaignRequests';
+import { listCampaignRequests } from '@/lib/material-requests';
+import { requestView, type RequestView } from '@/lib/material-request-view';
 import { pageError } from '@/lib/api';
 import { campaignInEffect, isCampaignId, type Campaign, type CampaignProgress } from '@/lib/campaign-model';
 import { ENGAGEMENT_NOTE, STATUS_BADGE, daysLeftLabel, elapsedPercent, engagementView, kindLabel, periodLabel, shortCampaignName } from '@/lib/campaign-view';
@@ -39,6 +42,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   let campaign: Campaign;
   let progress: CampaignProgress | null = null;
   let suggestions: SuggestionView[] = [];
+  let requests: RequestView[] = [];
+  let requestsFailed = false;
   let failed = false;
   try {
     campaign = await getCampaign(t, id);
@@ -56,7 +61,19 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     try {
       progress = await campaignProgress(t, id, new Date(nowMs));
       const name = shortCampaignName(campaign.name);
-      suggestions = (await listSuggestions(t, new Date(nowMs))).map((s) => ({ id: s.id, ...slotParts(s.slotAt, tz), goalLabel: s.goalLabel, idea: s.idea, reason: s.reason, assetId: s.assetId, campaignName: s.campaignId === id ? name : null }));
+      const all = await listSuggestions(t, new Date(nowMs));
+      suggestions = all.map((s) => ({ id: s.id, ...slotParts(s.slotAt, tz), goalLabel: s.goalLabel, idea: s.idea, reason: s.reason, assetId: s.assetId, campaignName: s.campaignId === id ? name : null }));
+      // Pedidos de material da campanha (SPEC 036): falha de leitura só esconde o cartão.
+      if (create) {
+        const bySuggestion = new Map(all.map((s) => [s.id, { idea: s.idea, goalLabel: s.goalLabel, slotAt: s.slotAt }]));
+        requests = await listCampaignRequests(t, id)
+          .then((list) => list.map((r) => requestView(r, { now: nowMs, tz, post: r.suggestionId ? bySuggestion.get(r.suggestionId) ?? null : null, campaignName: name })))
+          .catch((e) => {
+            pageError(e, 'page/campaigns/detail');
+            requestsFailed = true;
+            return [];
+          });
+      }
     } catch (e) {
       pageError(e, 'page/campaigns/detail');
       failed = true;
@@ -149,6 +166,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           <p className="px-1 text-sm text-muted">{mine === 1 ? '1 das sugestões serve a esta campanha' : `${mine} das ${suggestions.length} sugestões servem a esta campanha`}. Nada é criado sem você pedir.</p>
         </div>
       )}
+
+      {create && progress && (campaign.status === 'active' || requests.length > 0 || requestsFailed) && <CampaignRequests items={requests} failed={requestsFailed} />}
 
       {progress && campaign.status !== 'draft' && (
         <section className="card space-y-2">
