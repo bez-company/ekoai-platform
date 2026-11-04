@@ -53,6 +53,7 @@ import {
   type PlanRule,
   type PlannedSuggestion,
 } from './content-plan-model';
+import { askAfterPlanning } from './material-requests';
 
 const DAY = 86_400_000;
 const HISTORY_DAYS = 30;
@@ -479,7 +480,7 @@ export async function createFromSuggestion(
   return { kind: 'generate', briefId };
 }
 
-export type PlanningSummary = { accounts: number; suggested: number; paused: number; failed: number; skipped: number; fallback: number; costUsd: number };
+export type PlanningSummary = { accounts: number; suggested: number; paused: number; failed: number; skipped: number; fallback: number; costUsd: number; requested: number };
 
 // Teto de custo da execução, em dólares (PLAN_BUDGET_USD_PER_RUN). Sem a variável, não há teto por execução: o
 // teto por conta e dia vale do mesmo jeito.
@@ -497,7 +498,7 @@ export async function runContentPlanning(deps: CoordinatorDeps = {}): Promise<Pl
   const now = deps.now ?? new Date();
   const day = todayLocal(now);
   const monday = new Date(now.getTime() + tzOffsetHours() * 3_600_000).getUTCDay() === 1;
-  const summary: PlanningSummary = { accounts: 0, suggested: 0, paused: 0, failed: 0, skipped: 0, fallback: 0, costUsd: 0 };
+  const summary: PlanningSummary = { accounts: 0, suggested: 0, paused: 0, failed: 0, skipped: 0, fallback: 0, costUsd: 0, requested: 0 };
   const cap = runBudget();
   const budget = deps.budget ?? (cap === null ? undefined : { remainingUsd: () => cap - summary.costUsd });
   for (const tenantId of new Set((data ?? []).map((r) => String(r.tenant_id)))) {
@@ -532,6 +533,13 @@ export async function runContentPlanning(deps: CoordinatorDeps = {}): Promise<Pl
           link: '/inicio',
           audience: 'team',
         });
+      }
+      // Pedido de material (SPEC 036): com as sugestões gravadas, vence e lembra os abertos e pede no máximo um novo.
+      // Falha aqui não derruba a rodada: as sugestões já estão salvas.
+      try {
+        if (await askAfterPlanning(t, await listMediaAssets(t, { filter: 'all', tag: null, limit: 500 }), now)) summary.requested += 1;
+      } catch (e) {
+        log('warn', 'content-coordinator', 'não conferiu os pedidos de material', { tenant: tenantId, error: e instanceof Error ? e.message : String(e) });
       }
     } catch (e) {
       summary.failed += 1;

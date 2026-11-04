@@ -59,7 +59,10 @@ export type ProductEvent =
   | 'design_rule_proposed'
   | 'design_rule_accepted'
   | 'design_rule_dismissed'
-  | 'design_rule_disabled';
+  | 'design_rule_disabled'
+  // Pedido de material (SPEC 036, BEZ-549): tipo e resultado, nunca o texto do pedido.
+  | 'material_requested'
+  | 'material_answered';
 
 // `published_success` (channel, attempts, recorded, latency_ms) e `published_failure` (channel, attempts, reason:
 // classe do erro, nunca a mensagem) saem de publish.ts desde o BEZ-258. Substituem `post_published` e
