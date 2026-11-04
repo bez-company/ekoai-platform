@@ -7,6 +7,7 @@ export const TENANT_TABLES = [
   'bandit_snapshots',
   'brand_assets',
   'briefs',
+  'business_events',
   'campaigns',
   'company_facts',
   'company_profiles',
