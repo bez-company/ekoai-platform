@@ -2,6 +2,7 @@
 // um chat diferente; quando uma rota mudar, muda aqui.
 
 export const ROUTES = {
+  home: '/inicio',
   create: '/criar',
   createProgress: (briefId: string) => `/criar/${briefId}`,
   photo: '/foto',
@@ -15,4 +16,5 @@ export const ROUTES = {
   inbox: '/aprovar',
   history: '/historico',
   company: '/configuracoes/empresa',
+  facts: '/configuracoes/fatos',
 } as const;

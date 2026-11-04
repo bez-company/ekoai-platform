@@ -9,6 +9,9 @@ const PATHS = {
   heart: 'M12 20s-7-4.4-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.6-9 9-9 9z',
   comment: 'M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.6A8 8 0 1 1 21 12z',
   bookmark: 'M6 4h12v17l-6-4-6 4z',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  check: 'M5 12l5 5 9-11',
+  upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
 } as const;
 
 export type IconName = keyof typeof PATHS;
