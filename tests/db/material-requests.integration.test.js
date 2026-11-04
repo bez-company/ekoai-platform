@@ -108,19 +108,29 @@ describe('responder', () => {
     const s = await suggestion('produto');
     const req = await round();
     const asset = await photo([]);
-    expect(await mr.answerPhoto(t, ANA, req.id, asset, now)).toEqual({ usedInPost: true });
+    expect(await mr.answerPhoto(t, ANA, req.id, [asset], now)).toEqual({ usedInPost: true });
     expect(await reqRow(req.id)).toMatchObject({ status: 'answered', outcome: 'photo', answered_asset_id: asset });
     expect((await admin.query('select tags from media_assets where id = $1', [asset])).rows[0].tags).toEqual(['produto']);
     expect((await admin.query('select asset_id from content_suggestions where id = $1', [s])).rows[0].asset_id).toBe(asset);
-    await expect(mr.answerPhoto(t, ANA, req.id, asset, now)).rejects.toThrow(/já foi respondido/);
+    await expect(mr.answerPhoto(t, ANA, req.id, [asset], now)).rejects.toThrow(/já foi respondido/);
   });
 
   it('foto com pessoas sem autorização responde, mas não entra no post', async () => {
     const s = await suggestion('produto');
     const req = await round();
     const asset = await photo(['produto'], { hasPeople: true, consent: false });
-    expect(await mr.answerPhoto(t, ANA, req.id, asset, now)).toEqual({ usedInPost: false });
+    expect(await mr.answerPhoto(t, ANA, req.id, [asset], now)).toEqual({ usedInPost: false });
     expect((await admin.query('select asset_id from content_suggestions where id = $1', [s])).rows[0].asset_id).toBeNull();
+  });
+
+  it('duas fotos: as duas ganham a etiqueta, e a que pode entrar em post vai para a sugestão', async () => {
+    const s = await suggestion('produto');
+    const req = await round();
+    const withPeople = await photo([], { hasPeople: true, consent: false });
+    const clean = await photo([]);
+    expect(await mr.answerPhoto(t, ANA, req.id, [withPeople, clean], now)).toEqual({ usedInPost: true });
+    expect((await admin.query('select array_agg(tags[1] order by id) as t from media_assets where id = any($1)', [[withPeople, clean]])).rows[0].t).toEqual(['produto', 'produto']);
+    expect((await admin.query('select asset_id from content_suggestions where id = $1', [s])).rows[0].asset_id).toBe(clean);
   });
 
   it('"Não tenho agora" fecha o pedido e a rodada não pede de novo por 14 dias', async () => {

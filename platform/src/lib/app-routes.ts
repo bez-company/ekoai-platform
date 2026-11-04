@@ -7,6 +7,8 @@ export const ROUTES = {
   photo: '/foto',
   photoFrom: (assetId: string, idea: string) => `/foto?asset=${assetId}&idea=${encodeURIComponent(idea)}`,
   media: '/midia',
+  // Pedido de material (SPEC 036): enviar fotos ou confirmar um fato.
+  request: (id: string) => `/pedidos/${id}`,
   mediaUnused: '/midia?filter=unused',
   calendar: '/agenda',
   slots: '/agenda?edit=slots',

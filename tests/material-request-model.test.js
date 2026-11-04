@@ -106,9 +106,12 @@ describe('needsReminder', () => {
 });
 
 describe('respostas', () => {
-  it('foto: precisa do id da foto', () => {
-    expect(parseAnswerPhoto({ assetId: '7d3f0c1e-2b4a-4c5d-8e9f-0a1b2c3d4e5f' })).toEqual({ ok: true, value: { assetId: '7d3f0c1e-2b4a-4c5d-8e9f-0a1b2c3d4e5f' } });
-    expect(parseAnswerPhoto({ assetId: 'x' }).ok).toBe(false);
+  it('foto: de 1 a 4 fotos, sem repetir', () => {
+    const id = (n) => `7d3f0c1e-2b4a-4c5d-8e9f-0a1b2c3d4e5${n}`;
+    expect(parseAnswerPhoto({ assetIds: [id(1), id(1), id(2)] })).toEqual({ ok: true, value: { assetIds: [id(1), id(2)] } });
+    expect(parseAnswerPhoto({ assetIds: ['x'] }).ok).toBe(false);
+    expect(parseAnswerPhoto({ assetIds: [] }).ok).toBe(false);
+    expect(parseAnswerPhoto({ assetIds: [1, 2, 3, 4, 5].map(id) }).ok).toBe(false);
   });
 
   it('confirmar: continua, mudou ou não vale mais', () => {
