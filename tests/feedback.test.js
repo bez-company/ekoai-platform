@@ -34,7 +34,7 @@ describe('validação na plataforma (learning.ts)', () => {
   it('regra: exige texto e aspecto', () => {
     expect(parseRuleInput({ rule: 'Sem emoji', aspect: 'tom', channel: 'todas' })).toEqual({
       ok: true,
-      value: { rule: 'Sem emoji', aspect: 'tom', channel: null },
+      value: { rule: 'Sem emoji', aspect: 'tom', channel: null, campaign_id: null },
     });
     expect(parseRuleInput({ rule: '', aspect: 'tom' }).ok).toBe(false);
     expect(parseRuleInput({ rule: 'x', aspect: 'humor' }).ok).toBe(false);
@@ -44,7 +44,7 @@ describe('validação na plataforma (learning.ts)', () => {
     const id = '3f2a9c1e-7b4d-4e2a-9c11-aa00bb11cc22';
     expect(parseRulePatch({ id, active: false })).toEqual({ ok: true, value: { id, active: false } });
     const edit = parseRulePatch({ id, rule: 'Nova', aspect: 'cta', channel: 'twitter' });
-    expect(edit.ok && edit.value.input).toEqual({ rule: 'Nova', aspect: 'cta', channel: 'twitter' });
+    expect(edit.ok && edit.value.input).toEqual({ rule: 'Nova', aspect: 'cta', channel: 'twitter', campaign_id: null });
     expect(parseRulePatch({ id }).ok).toBe(false);
     expect(parseRulePatch({ id: 'x', active: true }).ok).toBe(false);
   });

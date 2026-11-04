@@ -40,7 +40,8 @@ const TEXT_ASPECTS = ['texto', 'tom'];
 async function learnedVoice(t: TenantDb): Promise<{ rules: string[]; avoid: string[] }> {
   const since = new Date(Date.now() - 14 * 86400 * 1000).toISOString();
   const [rules, feedback] = await Promise.all([
-    t.select('style_rules', 'rule,aspect').eq('active', true).limit(30),
+    // Comentário não é de campanha: só as regras da marca toda (SPEC 037).
+    t.select('style_rules', 'rule,aspect').eq('active', true).is('campaign_id', null).limit(30),
     t
       .select('feedback', 'note,aspect')
       .eq('sentiment', 'negativo')
