@@ -191,8 +191,9 @@ resource "google_cloud_run_v2_service" "platform" {
   }
 
   lifecycle {
-    # O deploy do CI troca a imagem a cada merge; o Terraform não a desfaz.
-    ignore_changes = [template[0].containers[0].image, client, client_version]
+    # O deploy do CI troca a imagem e o nome da revisão (o SHA, lido por /api/version e pelo Sentry) a cada merge; o
+    # Terraform não desfaz nenhum dos dois (BEZ-559).
+    ignore_changes = [template[0].containers[0].image, template[0].revision, client, client_version]
   }
 
   depends_on = [
