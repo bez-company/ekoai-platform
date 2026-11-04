@@ -1,6 +1,7 @@
 # SPEC 036: a Ekoai pede o material que falta para o post
 
-- **Status:** protótipo v31 aprovado pelo Matheus em 04/11/2026; servidor em implementação (PR a), tela depois (PR b)
+- **Status:** na `staging` desde 04/11/2026 (PR #348, com o servidor da #347 e a migration 0064); protótipo v31 aprovado em
+  04/11/2026. Falta a release
 - **Data:** 2026-11-04
 - **Cards:** BEZ-549 (esta spec); pai BEZ-542 (roadmap AI-native)
 - **Origem:** EKO-16 em [`docs/analises/2026-11-03-documentacao-mestra-ai-native.md`](../analises/2026-11-03-documentacao-mestra-ai-native.md) (seções 13 e 17.4)
