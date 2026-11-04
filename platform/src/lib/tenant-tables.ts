@@ -39,6 +39,7 @@ export const TENANT_TABLES = [
   'rejected_posts',
   'scheduled_posts',
   'social_accounts',
+  'style_rule_versions',
   'style_rules',
   'vision_calls',
 ] as const;

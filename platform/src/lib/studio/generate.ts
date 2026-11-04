@@ -11,7 +11,7 @@ import { accountOf } from '../accounts';
 import { getProfile } from '../company-profile';
 import { listFacts } from '../company-facts';
 import { factsForPrompt } from '../company-facts-model';
-import { getRules } from '../feedback';
+import { rulesForCampaign } from '../feedback';
 import { voiceLine } from '../agents';
 import { defaultStore, type BlobStore } from '../brand-logo';
 import { completeRun, failRun, monthlyUsage, reserveRun } from '../generation-db';
@@ -47,13 +47,13 @@ export type StudioOutcome =
   | { status: 'limit'; briefId: string; max: number }
   | { status: 'failed'; briefId: string; error: string };
 
-type StudioBrief = { id: string; idea: string; ratio: Ratio; goal: string | null; effort: Effort; style: string; imageQuality: ImageQuality | null; channels: string[]; format: string; hasPhoto: boolean };
+type StudioBrief = { id: string; idea: string; ratio: Ratio; goal: string | null; effort: Effort; style: string; imageQuality: ImageQuality | null; channels: string[]; format: string; hasPhoto: boolean; campaignId: string | null };
 
 const mediaUrl = (key: string, base = process.env.MEDIA_BASE_URL ?? '/api/media') => `${base.replace(/\/$/, '')}/${key}`;
 const seedOf = (text: string): number => [...text].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7) % 100000;
 
 async function loadBrief(t: TenantDb, briefId: string): Promise<StudioBrief | null> {
-  const { data, error } = await t.select('briefs', 'id,idea,ratio,goal,effort,style,image_quality,channels,format,asset_id').eq('id', briefId).maybeSingle();
+  const { data, error } = await t.select('briefs', 'id,idea,ratio,goal,effort,style,image_quality,channels,format,asset_id,campaign_id').eq('id', briefId).maybeSingle();
   if (error) throw new Error(`briefs: ${error.message}`);
   if (!data) return null;
   return {
@@ -67,6 +67,7 @@ async function loadBrief(t: TenantDb, briefId: string): Promise<StudioBrief | nu
     channels: (Array.isArray(data.channels) ? data.channels : ['instagram']).filter((c): c is string => (CHANNELS as string[]).includes(c as string)),
     format: String(data.format ?? 'single'),
     hasPhoto: !!data.asset_id,
+    campaignId: (data.campaign_id as string | null) ?? null,
   };
 }
 
@@ -107,7 +108,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
 
   let context: { brand: ReturnType<typeof studioBrandOf>; planMax: number; logos: Logos; recent: Awaited<ReturnType<typeof recentStudio>>; colors: string[] };
   try {
-    const [account, profile, factRows, ruleRows, logo, recent] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t), logoFor(t, store), recentStudio(t)]);
+    const [account, profile, factRows, ruleRows, logo, recent] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), rulesForCampaign(t, brief.campaignId), logoFor(t, store), recentStudio(t)]);
     if (!profile) throw new UserError('Preencha o perfil da empresa (nicho, o que vende e para quem) antes de pedir um post.');
     const facts = factsForPrompt(factRows);
     const brand = studioBrandOf({
@@ -116,7 +117,7 @@ export async function generateStudioPost(t: TenantDb, briefId: string, deps: Stu
       profile,
       voice: voiceLine(profile),
       facts: facts.facts,
-      never: [...facts.never, ...ruleRows.filter((r) => r.active).map((r) => r.rule)],
+      never: [...facts.never, ...ruleRows],
       logo: logo ? { width: logo.width, height: logo.height } : null,
       hasLogoVariants: !!logo?.variants && Object.keys(logo.variants).length > 0,
     });

@@ -30,6 +30,7 @@ import type { ModelClient } from './vertex';
 import type { Generation, Variation } from './types';
 import { approvalBasisFor } from './approval-basis';
 import { postTexts } from './publish-preflight-model';
+import { rulesFor } from './rule-scope';
 
 export type PhotoPostDeps = { store?: BlobStore; mediaBaseUrl?: string; publish?: typeof publishNow };
 
@@ -168,7 +169,7 @@ export async function photoCaption(t: TenantDb, input: { assetId: string; idea: 
   const file = await readMediaAssetBytes(t, asset.id, store);
   if (!file) throw new UserError('Esta foto não está mais no banco de imagens. Escolha outra.');
   const facts = factsForPrompt(factRows);
-  const prompt = buildPhotoCaptionPrompt({ profile, facts: facts.facts, never: facts.never, rules: ruleRows.filter((r) => r.active).map((r) => r.rule), description: asset.description, idea: input.idea });
+  const prompt = buildPhotoCaptionPrompt({ profile, facts: facts.facts, never: facts.never, rules: rulesFor(ruleRows, null), description: asset.description, idea: input.idea });
   const out = await withVisionBudget(t, 'photo_caption', asset.id, () =>
     deps.model.generateJson({
       prompt,

@@ -4,6 +4,9 @@ import CampaignActions from '@/components/campaigns/CampaignActions';
 import { StatusBadge } from '@/components/campaigns/Badge';
 import Suggestions, { type SuggestionView } from '@/components/home/Suggestions';
 import CampaignRequests from '@/components/campaigns/CampaignRequests';
+import CampaignRules from '@/components/campaigns/CampaignRules';
+import { getRules } from '@/lib/feedback';
+import type { StyleRule } from '@/lib/learning';
 import { listCampaignRequests } from '@/lib/material-requests';
 import { requestView, type RequestView } from '@/lib/material-request-view';
 import { pageError } from '@/lib/api';
@@ -44,6 +47,15 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   let suggestions: SuggestionView[] = [];
   let requests: RequestView[] = [];
   let requestsFailed = false;
+  // Regras só desta campanha (SPEC 037): falha de leitura só mostra o aviso no cartão.
+  let campaignRules: StyleRule[] = [];
+  let rulesFailed = false;
+  try {
+    campaignRules = (await getRules(t)).filter((r) => r.campaign_id === id);
+  } catch (e) {
+    pageError(e, 'page/campaigns/detail');
+    rulesFailed = true;
+  }
   let failed = false;
   try {
     campaign = await getCampaign(t, id);
@@ -168,6 +180,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )}
 
       {create && progress && (campaign.status === 'active' || requests.length > 0 || requestsFailed) && <CampaignRequests items={requests} failed={requestsFailed} />}
+      <CampaignRules campaignId={campaign.id} rules={campaignRules} canManage={manage && !!user && campaign.status !== 'ended' && campaign.status !== 'archived'} inEffect={inEffect} failed={rulesFailed} />
 
       {progress && campaign.status !== 'draft' && (
         <section className="card space-y-2">

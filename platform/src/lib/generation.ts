@@ -12,6 +12,7 @@ import { accountOf } from './accounts';
 import { getProfile } from './company-profile';
 import { profileFromRow, type CompanyProfile } from './company-profile-model';
 import { listFacts } from './company-facts';
+import { rulesFor } from './rule-scope';
 import { getCampaign } from './campaigns';
 import type { Campaign } from './campaign-model';
 import { factsForPrompt } from './company-facts-model';
@@ -510,7 +511,7 @@ export async function retryNetwork(t: TenantDb, briefId: string, channel: Channe
   const document = slideKeys.length > 1 ? await carouselDocument(store, slideKeys, await Promise.all(slideKeys.map((k) => store.get(k))).catch(() => []), brief.idea, deps.mediaBaseUrl) : null;
   try {
     const pendingId = await produceLinkedIn(t, deps, brief, {
-      profile, facts: factsForPrompt(factRows), rules: ruleRows.filter((r) => r.active).map((r) => r.rule), planMax: account?.plan.maxPostsPerMonth ?? 20, campaign, core: brief.core,
+      profile, facts: factsForPrompt(factRows), rules: rulesFor(ruleRows, campaign), planMax: account?.plan.maxPostsPerMonth ?? 20, campaign, core: brief.core,
       designId: String(d.id), kind: d.kind as PostKind, layout: d.layout as DesignSpec['layout'], imageKey: String(d.png_key), document,
     });
     await setNetworkError(t, briefId, channel, null);
@@ -603,13 +604,13 @@ export async function generatePost(t: TenantDb, briefId: string, deps: Generatio
     const profile = profileRow;
     const planMax = account?.plan.maxPostsPerMonth ?? 20;
     const facts = factsForPrompt(factRows);
-    const rules = ruleRows.filter((r) => r.active).map((r) => r.rule);
-
     const photo = await photoOf(t, brief, store);
     // Instruções explícitas do pedido (SPEC 020): lidas uma vez, guardadas e obedecidas por código.
     const directives = brief.directives ?? (await readDirectives(t, deps, brief, { name: account?.name ?? profile.niche, hasLogo: !!logo, handle: profile.instagramHandle ? profile.instagramHandle.replace(/^@/, '') : null }, planMax));
     log('info', 'generation', 'instruções do pedido', { briefId: brief.id, status: directives.status, keys: Object.keys(directives.directives) });
     const campaign = await campaignOf(t, brief.campaignId);
+    // As regras da marca e, com campanha em vigor, as dela (SPEC 037).
+    const rules = rulesFor(ruleRows, campaign);
     // Com foto anexada o pedido segue o fluxo da foto: as instruções de composição não se aplicam.
     const situation = { kind: brief.kind, hasLogo: !!logo, hasHandle: !!profile.instagramHandle, brandName: account?.name ?? null };
     const plan = !photo && brief.format !== 'carousel' && directives.status === 'ok' && hasDirectives(directives.directives) ? planDirectives(directives.directives, situation) : null;
@@ -800,7 +801,7 @@ export async function writeCarouselSlides(t: TenantDb, briefId: string, deps: Pi
   const [account, profile, factRows, ruleRows] = await Promise.all([accountOf(t.tenantId), getProfile(t), listFacts(t), getRules(t)]);
   if (!profile) throw new UserError('Preencha o perfil da empresa antes.');
   const campaign = await campaignOf(t, brief.campaignId);
-  const { copy, issues } = await writeCopy(t, deps as GenerationDeps, { ...brief, format: 'carousel', slideCount: null }, profile, factsForPrompt(factRows), ruleRows.filter((r) => r.active).map((r) => r.rule), account?.plan.maxPostsPerMonth ?? 20, null, campaign, null);
+  const { copy, issues } = await writeCopy(t, deps as GenerationDeps, { ...brief, format: 'carousel', slideCount: null }, profile, factsForPrompt(factRows), rulesFor(ruleRows, campaign), account?.plan.maxPostsPerMonth ?? 20, null, campaign, null);
   if (!copy.slides) throw new UserError('A Ekoai não conseguiu escrever as lâminas agora. Tente de novo.');
   return { slides: copy.slides, issues };
 }

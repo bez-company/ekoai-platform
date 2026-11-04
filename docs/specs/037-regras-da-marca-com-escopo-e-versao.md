@@ -1,6 +1,6 @@
 # SPEC 037: regras da marca com escopo (campanha ou marca) e versão
 
-- **Status:** rascunho de 04/11/2026; protótipo v32 no Claude Design aguardando aprovação (sem ela não há código de tela)
+- **Status:** protótipo v32 aprovado pelo Matheus em 04/11/2026; implementado na PR do BEZ-547 (migration 0065)
 - **Data:** 2026-11-04
 - **Cards:** BEZ-547 (esta spec); pai BEZ-542 (roadmap AI-native)
 - **Origem:** EKO-09 em [`docs/analises/2026-11-03-documentacao-mestra-ai-native.md`](../analises/2026-11-03-documentacao-mestra-ai-native.md) (seções 7.2, 7.5 e 11.9)
@@ -47,7 +47,7 @@ Versão 32 (`version_id` 1793796020-8b23) do artifact único da Ekoai, https://c
   campanha encerrada, sem regras, carregando e falha ao carregar.
 - **Campanha: regras desta campanha:** com regras e sem regras.
 
-Fonte em `.context/proto-037` do workspace (`phase15.js`, `phase15.css`, `build.py` sobre a v31). Aguarda a aprovação do Matheus.
+Fonte em `.context/proto-037` do workspace (`phase15.js`, `phase15.css`, `build.py` sobre a v31). Aprovado em 04/11/2026.
 
 ## Modelo de dados
 

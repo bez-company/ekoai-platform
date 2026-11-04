@@ -45,6 +45,8 @@ export type StyleRule = {
   source: RuleSource;
   active: boolean;
   evidence: { samples?: number; edits?: number; feedback?: number } | null;
+  // SPEC 037: null = marca toda; o id = só nos posts daquela campanha, enquanto ela estiver em vigor.
+  campaign_id: string | null;
   created_at: string;
 };
 
@@ -94,7 +96,7 @@ export function parseFeedbackInput(body: unknown): Parsed<FeedbackInput> {
   };
 }
 
-export type RuleInput = { rule: string; aspect: Aspect; channel: Channel | null };
+export type RuleInput = { rule: string; aspect: Aspect; channel: Channel | null; campaign_id: string | null };
 
 export function parseRuleInput(body: unknown): Parsed<RuleInput> {
   const b = (body ?? {}) as Record<string, unknown>;
@@ -104,7 +106,18 @@ export function parseRuleInput(body: unknown): Parsed<RuleInput> {
   if (!ASPECTS.includes(b.aspect as Aspect)) return { ok: false, error: 'Escolha o aspecto da regra.' };
   const channel = parseChannel(b.channel);
   if (!channel.ok) return channel;
-  return { ok: true, value: { rule, aspect: b.aspect as Aspect, channel: channel.value } };
+  // Onde vale (SPEC 037): ausente, vazio ou "marca" = marca toda; senão o id da campanha (a rota confere que é da conta).
+  const scope = b.campaign_id;
+  if (scope != null && scope !== '' && scope !== 'marca' && !optUuid(scope)) return { ok: false, error: 'Campanha não encontrada. Escolha de novo onde a regra vale.' };
+  return { ok: true, value: { rule, aspect: b.aspect as Aspect, channel: channel.value, campaign_id: optUuid(scope) } };
+}
+
+// Restaurar uma versão (SPEC 037): o id da regra e o número da versão.
+export function parseRestore(body: unknown): Parsed<{ version: number }> {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const v = Number(b.version);
+  if (!Number.isInteger(v) || v < 1) return { ok: false, error: 'Versão não encontrada. Recarregue a página.' };
+  return { ok: true, value: { version: v } };
 }
 
 // PATCH: liga/desliga e/ou reescreve. Reescrever vira regra manual (o reflect não a desliga).
