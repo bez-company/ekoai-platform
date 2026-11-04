@@ -108,6 +108,8 @@ const EXPECTED = {
   'campaigns/[id]/resume': ['brand.manage'],
   'campaigns/[id]/end': ['brand.manage'],
   'campaigns/[id]/progress': ['content.view'],
+  'business-events': ['content.create'],
+  'business-events/[id]': ['content.create'],
   'material-requests': ['content.create'],
   'material-requests/[id]/photo': ['content.create'],
   'material-requests/[id]/dismiss': ['content.create'],

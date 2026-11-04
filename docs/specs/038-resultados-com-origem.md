@@ -1,6 +1,6 @@
 # SPEC 038: resultados comerciais com origem (observada, declarada ou desconhecida)
 
-- **Status:** rascunho de 04/11/2026; protótipo v32 no Claude Design aguardando aprovação (sem ela não há código de tela)
+- **Status:** protótipo v32 aprovado pelo Matheus em 04/11/2026; implementado na PR do BEZ-551 (migration 0066)
 - **Data:** 2026-11-04
 - **Cards:** BEZ-551 (esta spec); pai BEZ-542 (roadmap AI-native); vizinho BEZ-276 (eventos de campanha e fatos no PostHog)
 - **Origem:** EKO-19 em [`docs/analises/2026-11-03-documentacao-mestra-ai-native.md`](../analises/2026-11-03-documentacao-mestra-ai-native.md) (seção 15)
@@ -44,7 +44,7 @@ Versão 32 (`version_id` 1793796020-8b23) do artifact único da Ekoai, https://c
 - **Campanha: resultados:** com resultados (resumo por origem), sem resultados, registrando, falha ao salvar e carregando.
 - **Publicado: registrar resultado do post:** formulário com o post e registrado.
 
-Fonte em `.context/proto-037` do workspace (`phase15.js`, `phase15.css`, `build.py` sobre a v31). Aguarda a aprovação do Matheus.
+Fonte em `.context/proto-037` do workspace (`phase15.js`, `phase15.css`, `build.py` sobre a v31). Aprovado em 04/11/2026.
 
 ## Modelo de dados
 

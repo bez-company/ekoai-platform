@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import CampaignActions from '@/components/campaigns/CampaignActions';
 import { StatusBadge } from '@/components/campaigns/Badge';
+import BusinessResults, { type ResultPost } from '@/components/results/BusinessResults';
+import { campaignPosts, listCampaignEvents } from '@/lib/business-events';
+import type { BusinessEvent } from '@/lib/business-event-model';
+import { todayLocal } from '@/lib/company-facts-model';
 import Suggestions, { type SuggestionView } from '@/components/home/Suggestions';
 import CampaignRequests from '@/components/campaigns/CampaignRequests';
 import CampaignRules from '@/components/campaigns/CampaignRules';
@@ -69,6 +73,18 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     );
   }
   const tz = tzOffsetHours();
+  // Resultados com origem (SPEC 038): falha de leitura só tira o cartão, com aviso no log.
+  let results: BusinessEvent[] = [];
+  let resultPosts: ResultPost[] = [];
+  let resultsFailed = false;
+  if (campaign.status !== 'draft') {
+    try {
+      [results, resultPosts] = await Promise.all([listCampaignEvents(t, id), campaignPosts(t, id)]);
+    } catch (e) {
+      pageError(e, 'page/campaigns/detail');
+      resultsFailed = true;
+    }
+  }
   if (campaign.status !== 'draft') {
     try {
       progress = await campaignProgress(t, id, new Date(nowMs));
@@ -181,6 +197,14 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
       {create && progress && (campaign.status === 'active' || requests.length > 0 || requestsFailed) && <CampaignRequests items={requests} failed={requestsFailed} />}
       <CampaignRules campaignId={campaign.id} rules={campaignRules} canManage={manage && !!user && campaign.status !== 'ended' && campaign.status !== 'archived'} inEffect={inEffect} failed={rulesFailed} />
+      {campaign.status !== 'draft' &&
+        (resultsFailed ? (
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+            <strong>Não foi possível carregar os resultados.</strong> Eles estão salvos. Recarregue a página em instantes.
+          </div>
+        ) : (
+          <BusinessResults events={results} title="Resultados" campaignId={campaign.id} posts={resultPosts} showSummary canRecord={create && !!user} canManage={manage} userId={user?.id ?? null} today={todayLocal(new Date(nowMs))} />
+        ))}
 
       {progress && campaign.status !== 'draft' && (
         <section className="card space-y-2">

@@ -10,7 +10,11 @@ import { fmtDateTime } from '@/lib/format';
 import { networkLabel } from '@/lib/networks-model';
 import { fmtCount, fmtRate, getPublished, type PublishedItem } from '@/lib/published-feed';
 import { isUuid } from '@/lib/route-input';
-import { can, pageTenant } from '@/lib/session';
+import { can, pageTenant, requireSession } from '@/lib/session';
+import BusinessResults from '@/components/results/BusinessResults';
+import { listPostEvents } from '@/lib/business-events';
+import type { BusinessEvent } from '@/lib/business-event-model';
+import { todayLocal } from '@/lib/company-facts-model';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +74,13 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
   }
   if (err) return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{err}</div>;
   if (!p) notFound();
-  const [canFeedback, canRemove] = await Promise.all([can('content.feedback'), can('content.approve')]);
+  const [canFeedback, canRemove, canRecord, canManage] = await Promise.all([can('content.feedback'), can('content.approve'), can('content.create'), can('brand.manage')]);
+  const { user } = await requireSession();
+  // Resultados deste post (SPEC 038): falha de leitura deixa a lista vazia e vai para o log.
+  const results: BusinessEvent[] = await listPostEvents(t, p.id).catch((e) => {
+    pageError(e, 'page/history/[id]');
+    return [];
+  });
 
   return (
     <div className="space-y-4">
@@ -96,6 +106,8 @@ export default async function PublishedPage({ params }: { params: Promise<{ id: 
               </p>
             )}
           </section>
+
+          <BusinessResults events={results} title="Resultados deste post" campaignId={null} post={{ id: p.id, title: p.title }} showSummary={false} canRecord={canRecord && !!user} canManage={canManage} userId={user?.id ?? null} today={todayLocal()} />
 
           {canRemove && (
             <section className="card flex flex-wrap items-center justify-between gap-3">
