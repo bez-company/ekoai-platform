@@ -1,0 +1,8 @@
+{
+  "name": "ekoai-video-tools",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}
