@@ -1,0 +1,37 @@
+id,semana,data,dia,pilar,tema,ativo,instagram,linkedin,x,cta,depende_de
+p01,s01,2026-11-10,terça,Demonstração,Ekoai em 48 segundos,vídeo 1,Reels,vídeo nativo + texto de 5 linhas,vídeo + pergunta,Pedir acesso piloto (direct ou link com UTM),vídeo 1 conferido na staging
+p02,s01,2026-11-12,quinta,Dor e rotina,3 sinais de que o seu Instagram parou,carrossel de 5,carrossel,documento PDF,post com 1 pergunta,Pedir acesso piloto (direct ou link com UTM),
+p03,s01,2026-11-13,sexta,Visão,Por que criamos a Ekoai,imagem Citação,imagem,texto do fundador,thread curta de 4 posts,Pedir acesso piloto (direct ou link com UTM),D3
+p04,s02,2026-11-17,terça,Dor e rotina,Quanto custa um Instagram parado,vídeo 2,Reels,vídeo nativo + lista dos 4 motivos,vídeo + enquete de motivo,Pedir acesso piloto (direct ou link com UTM),
+p05,s02,2026-11-19,quinta,Dor e rotina,O que postar na segunda quando você não tem ideia,carrossel de 6,carrossel,documento PDF,3 versões de post,Pedir acesso piloto (direct ou link com UTM),
+p06,s02,2026-11-20,sexta,Dor e rotina,Postar quando dá não é rotina,imagem Citação,imagem,texto curto com pergunta,post provocativo,Pedir acesso piloto (direct ou link com UTM),
+p07,s03,2026-11-24,terça,Demonstração,Cole o site e a Ekoai lê a sua marca,carrossel de 5 + trecho do vídeo 1,carrossel e Reels do trecho,documento PDF,clipe de 20 s,Pedir acesso piloto (direct ou link com UTM),SPEC 034 em produção
+p08,s03,2026-11-26,quinta,Bastidor técnico,Como lemos uma marca em 1 minuto,carrossel de 5,carrossel,texto técnico,thread de 7 posts,Pedir acesso piloto (direct ou link com UTM),SPEC 034 em produção
+p09,s03,2026-11-27,sexta,Dor e rotina,Por que cada post seu parece de uma empresa diferente,imagem Antes e depois,imagem,texto com situação concreta,post provocativo,Pedir acesso piloto (direct ou link com UTM),Meta pode responder nesta semana
+p10,s04,2026-12-01,terça,Bastidor técnico,Fato vencido não entra no post,vídeo 5,Reels,vídeo nativo + texto,vídeo + pergunta,Pedir acesso piloto (direct ou link com UTM),gerar vídeo 5
+p11,s04,2026-12-03,quinta,Bastidor técnico,Preço e prazo errado: o erro mais caro do post,carrossel de 5,carrossel,documento PDF,post com escolha entre duas opções,Pedir acesso piloto (direct ou link com UTM),
+p12,s04,2026-12-04,sexta,Visão,O que erramos nas 4 primeiras semanas,imagem Bilhete post-it,imagem,texto honesto,thread de 5 posts,Pedir acesso piloto (direct ou link com UTM),revisar o posicionamento (semana 4)
+p13,s05,2026-12-08,terça,Demonstração,Post de IA não precisa ter cara de IA,vídeo 3,Reels,vídeo nativo + texto técnico,vídeo + pergunta,Pedir acesso piloto (direct ou link com UTM),SPEC 030 em produção
+p14,s05,2026-12-10,quinta,Bastidor técnico,"Oito agentes, um post",carrossel de 8,carrossel,documento PDF,thread de 7 posts,Pedir acesso piloto (direct ou link com UTM),SPEC 030 em produção
+p15,s05,2026-12-11,sexta,Bastidor técnico,O que acontece nos 10 minutos de um post,carrossel de 5,carrossel,texto longo,thread,Pedir acesso piloto (direct ou link com UTM),gerar vídeo 10 em 16:9
+p16,s06,2026-12-15,terça,Demonstração,Você escolhe entre até 3 opções de design,imagem Antes e depois,imagem,texto curto,imagem + pergunta,Pedir acesso piloto (direct ou link com UTM),
+p17,s06,2026-12-17,quinta,Dor e rotina,Aprovação parada é post parado,carrossel de 5,carrossel,documento PDF (foco em agências),post com pergunta para agências,Pedir acesso piloto (direct ou link com UTM),entra o público secundário
+p18,s06,2026-12-18,sexta,Demonstração,Peça ajuste escrevendo. Só aquilo muda,carrossel de 4,carrossel,texto curto,clipe de 20 s,Pedir acesso piloto (direct ou link com UTM),
+p19,s07,2026-12-22,terça,Demonstração,Campanha de fim de ano em 5 posts,vídeo 7,Reels,vídeo nativo,vídeo + pergunta,Pedir acesso piloto (direct ou link com UTM),gerar vídeo 7
+p20,s07,2026-12-24,quinta,Dor e rotina,"Melhor horário não existe, existe o do seu público",carrossel de 5,carrossel,documento PDF,post com pergunta,Pedir acesso piloto (direct ou link com UTM),SPEC 022 em produção
+p21,s07,2026-12-25,sexta,Visão,O que vem depois do Instagram,imagem Pôster retrô,imagem,texto de visão,post de visão,Pedir acesso piloto (direct ou link com UTM),só se LinkedIn e X tiverem data
+p22,s08,2026-12-29,terça,Demonstração,O seu público posta quando?,vídeo 8,Reels,vídeo nativo,vídeo,Pedir acesso piloto (direct ou link com UTM),gerar vídeo 8
+p23,s08,2026-12-31,quinta,Bastidor técnico,Como o revisor trava contraste ruim,carrossel de 5,carrossel,texto técnico,thread curta,Pedir acesso piloto (direct ou link com UTM),
+p24,s08,2027-01-01,sexta,Dor e rotina,5 posts de uma semana que se repetem todo mês,carrossel de 5,carrossel,documento PDF,post com pergunta,Pedir acesso piloto (direct ou link com UTM),
+p25,s09,2027-01-05,terça,Prova,Antes e depois de um post de [negócio piloto],imagem Antes e depois,imagem,texto com caso,imagem + pergunta,Pedir acesso piloto (direct ou link com UTM),D4 (autorização)
+p26,s09,2027-01-07,quinta,Prova,O que [negócio piloto] aprovou na primeira semana,carrossel de 5,carrossel,documento PDF,thread,Pedir acesso piloto (direct ou link com UTM),D4 (autorização)
+p27,s09,2027-01-08,sexta,Bastidor técnico,O que a Ekoai aprendeu com os primeiros [n] posts,carrossel de 5,carrossel,texto com números reais,post com número,Pedir acesso piloto (direct ou link com UTM),dados reais da conta
+p28,s10,2027-01-12,terça,Dor e rotina,Agendador ou gerente de Instagram: qual a diferença,carrossel de 6,carrossel,"documento PDF, sem citar concorrente",post provocativo,Pedir acesso piloto (direct ou link com UTM),
+p29,s10,2027-01-14,quinta,Demonstração,Carrossel sem abrir o Canva,vídeo 9,Reels,vídeo nativo,clipe,Pedir acesso piloto (direct ou link com UTM),gerar vídeo 9
+p30,s10,2027-01-15,sexta,Visão,Por que escrevemos nada sai sem a sua aprovação,imagem Citação,imagem,texto curto,post de visão,Pedir acesso piloto (direct ou link com UTM),
+p31,s11,2027-01-19,terça,Visão,Os números da conta da Ekoai na Ekoai,carrossel de 5,carrossel,texto com números reais,thread,Pedir acesso piloto (direct ou link com UTM),dados reais
+p32,s11,2027-01-21,quinta,Bastidor técnico,"Custo, tempo e qualidade do post: o que medimos",carrossel de 5,carrossel,texto longo,thread,Pedir acesso piloto (direct ou link com UTM),dados reais
+p33,s11,2027-01-22,sexta,Prova,Depoimento de piloto,imagem Citação,imagem,texto com depoimento,post,Pedir acesso piloto (direct ou link com UTM),D4 (autorização)
+p34,s12,2027-01-26,terça,Demonstração,A plataforma em 30 segundos,vídeo 4,Reels,vídeo nativo,vídeo,Pedir acesso piloto (direct ou link com UTM),vídeo 4 conferido na staging
+p35,s12,2027-01-28,quinta,Demonstração,Como começar em 10 minutos,carrossel de 5,carrossel,documento PDF,post com passo a passo,Pedir acesso piloto (direct ou link com UTM),D1 e D2
+p36,s12,2027-01-29,sexta,Visão,Abrimos para novos negócios,imagem de anúncio,imagem,texto de abertura,post de abertura,Pedir acesso piloto (direct ou link com UTM),"D1, D2 e aprovação da Meta"
