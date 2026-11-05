@@ -2,7 +2,7 @@
 
 > Os 4 primeiros estão renderizados em 1080x1920, 30 fps, H.264 com áudio. Funcionam sem som (a mensagem está na
 > tela). Os MP4 e as capas não estão no Git (pesam, usam telas de protótipo e a trilha não tem licença): ficam
-> anexados ao card BEZ-562 do ClickUp. O gerador está em [video-pipeline/](video-pipeline/README.md).
+> no repositório privado `bez-company/ekoai-marketing-assets` (e os 4 MP4 também anexados ao card BEZ-562). O gerador está em [video-pipeline/](video-pipeline/README.md).
 
 ## 1. Os vídeos prontos
 
@@ -194,7 +194,7 @@ O gerador está em [video-pipeline/](video-pipeline/README.md) (README com o pas
 | `render-all.sh` | Renderiza todos em `out/` |
 
 Ficam fora do Git: `takes/`, `src/assets/` (GSAP, fontes e trilha), `projects/` e `out/`. O protótipo v29 e os takes
-estão anexados ao BEZ-562.
+estão no repositório privado `bez-company/ekoai-marketing-assets`.
 
 Receita para criar um vídeo novo:
 
