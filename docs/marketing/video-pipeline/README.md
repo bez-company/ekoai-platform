@@ -11,8 +11,8 @@ Gera vídeos verticais (1080x1920, 30 fps) com [HyperFrames](https://hyperframes
 | `src/assets/` | `gsap.min.js`, fontes Sora e DM Mono (`assets/fonts/`), trilha `music.mp3` | GSAP por npm ou CDN (3.15); fontes em `ekoai-website/src/fonts`; trilha licenciada à escolha |
 | `projects/`, `out/` | Projetos gerados e vídeos renderizados | `node src/build.mjs` e `./render-all.sh` |
 
-O protótipo v29 (HTML de 1,3 MB, dados fictícios da "Doce Ponto") está anexado ao card BEZ-562 do ClickUp e publicado
-como artifact no Claude Design.
+O protótipo v29 (HTML de 1,3 MB, dados fictícios da "Doce Ponto") está em `prototipo/index-v29.html` do repositório privado
+`bez-company/ekoai-marketing-assets` (junto com os takes zipados e os vídeos) e publicado como artifact no Claude Design.
 
 ## Passo a passo
 
