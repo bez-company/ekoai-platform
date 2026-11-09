@@ -2,6 +2,7 @@ import Link from 'next/link';
 import StatusBadge from '@/components/console/StatusBadge';
 import { pageError } from '@/lib/api';
 import { listAccounts } from '@/lib/console-accounts';
+import { listAgencyRequests, type AgencyRequest } from '@/lib/console-agency';
 import { KIND_LABEL, STATUS_FILTERS, parseAccountQuery } from '@/lib/console-model';
 import { fmtDate } from '@/lib/format';
 
@@ -11,8 +12,9 @@ export const dynamic = 'force-dynamic';
 export default async function ConsoleAccounts({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const query = parseAccountQuery(await searchParams);
   let data;
+  let requests: AgencyRequest[];
   try {
-    data = await listAccounts(query);
+    [data, requests] = await Promise.all([listAccounts(query), listAgencyRequests()]);
   } catch (e) {
     return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/console')}</div>;
   }
@@ -36,6 +38,35 @@ export default async function ConsoleAccounts({ searchParams }: { searchParams: 
           Criar conta
         </Link>
       </div>
+
+      {requests.some((r) => !r.isAgency) && (
+        <section className="card space-y-3" aria-labelledby="c-pedidos-agencia">
+          <div>
+            <h2 id="c-pedidos-agencia" className="text-lg font-semibold">
+              Pedidos de Agência
+            </h2>
+            <p className="text-sm text-muted">Feitos em Perfil › Conta e plano › Falar com a Ekoai. Abra a conta e ligue o plano em Agência.</p>
+          </div>
+          <ul className="divide-y divide-line">
+            {requests
+              .filter((r) => !r.isAgency)
+              .map((r) => (
+                <li key={r.tenantId} className="flex flex-wrap items-start justify-between gap-2 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <Link href={`/console/contas/${r.tenantId}`} className="font-semibold hover:underline">
+                      {r.name}
+                    </Link>
+                    <p className="text-muted">
+                      {r.brands ? `${r.brands} ${r.brands === 1 ? 'marca' : 'marcas'}` : 'Marcas não informadas'}
+                      {r.note ? ` · ${r.note}` : ''}
+                    </p>
+                  </div>
+                  <small className="shrink-0 text-xs text-muted">{fmtDate(r.requestedAt)}</small>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <form action="/console" method="get" role="search" className="max-w-xs flex-1">

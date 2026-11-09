@@ -9,6 +9,8 @@ import { accountOf, personProfiles } from '@/lib/accounts';
 import { noticeWhen, toneOf } from '@/lib/notice-view';
 import { listNotices, unreadCount } from '@/lib/notifications';
 import { TIER_NAME, tierOf } from '@/lib/account-plan-model';
+import { agencyContext, switchableAccounts } from '@/lib/agency';
+import { accountDetail, groupAccounts, type SwitchGroup } from '@/lib/agency-model';
 import { ROLE_COPY } from '@/lib/auth-flow';
 import { can, pageSession } from '@/lib/session';
 import { SCREENS, screensFor } from '@/lib/screens';
@@ -18,9 +20,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { t, role, user } = await pageSession();
-  const permissions = [...new Set(SCREENS.map((s) => s.permission))];
+  const permissions = [...new Set([...SCREENS.map((s) => s.permission), 'billing.manage' as Permission])];
   const granted = new Set<Permission>((await Promise.all(permissions.map(async (p) => ((await can(p)) ? p : null)))).filter((p): p is Permission => p !== null));
-  const links = screensFor((p) => granted.has(p));
+  let links = screensFor((p) => granted.has(p));
   let badges = { pendings: 0, failed: 0 };
   let pause: PauseState | null = null;
   try {
@@ -34,9 +36,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let account: { name: string; detail: string } | null = null;
   let notices: NoticeView[] = [];
   let unread = 0;
+  // Agência (SPEC 039): o item Clientes no menu e o seletor com as contas da pessoa (a agência e os clientes dela).
+  let accounts: SwitchGroup[] = [];
   try {
-    const [acct, rows, count] = await Promise.all([accountOf(t.tenantId), listNotices(t, role, user?.id ?? null, 5), unreadCount(t, role, user?.id ?? null)]);
-    if (acct) account = { name: acct.name, detail: role === 'viewer' ? 'Você acompanha como leitor' : `Plano ${TIER_NAME[tierOf(acct.kind)]}` };
+    const [acct, rows, count, agency, mine] = await Promise.all([
+      accountOf(t.tenantId),
+      listNotices(t, role, user?.id ?? null, 5),
+      unreadCount(t, role, user?.id ?? null),
+      agencyContext(t.tenantId),
+      user ? switchableAccounts(user.id) : Promise.resolve([]),
+    ]);
+    if (acct) account = { name: acct.name, detail: accountDetail({ role, isAgency: agency.isAgency, agencyName: agency.agency?.name ?? null, tierName: TIER_NAME[tierOf(acct.kind, acct.plan.id)] }) };
+    if (agency.isAgency && granted.has('billing.manage')) links = [{ href: '/clientes', label: 'Clientes', icon: 'users', permission: 'billing.manage' }, ...links];
+    if (mine.length > 1) accounts = groupAccounts(mine);
     const now = Date.now();
     notices = rows.map((n) => ({ id: n.id, title: n.title, body: n.body, link: n.link, tone: toneOf(n.level), unread: n.unread, when: noticeWhen(n.createdAt, now) }));
     unread = count;
@@ -59,6 +71,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         links={links}
         badges={badges}
         account={account}
+        accounts={accounts}
+        currentAccountId={t.tenantId}
         person={person}
         canCreate={granted.has('content.create')}
         bellSide={<NoticeBell key="side" notices={notices} unread={unread} placement="side" />}

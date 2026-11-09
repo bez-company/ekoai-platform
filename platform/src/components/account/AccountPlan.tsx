@@ -4,6 +4,7 @@
 // pedido de contato da Agência. Só quem tem billing.manage vê os botões; os outros papéis leem o plano e a quem pedir.
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/Modal';
 import { ErrorLine, Field, Spinner } from '@/components/auth/ui';
@@ -11,7 +12,21 @@ import { TIER_COPY, type PlanTier } from '@/lib/account-plan-model';
 
 type Dialog = null | 'time' | 'agency';
 
-export default function AccountPlan({ accountName, tier, canManage, adminName, email }: { accountName: string; tier: PlanTier; canManage: boolean; adminName: string | null; email: string }) {
+export default function AccountPlan({
+  accountName,
+  tier,
+  agencyName = null,
+  canManage,
+  adminName,
+  email,
+}: {
+  accountName: string;
+  tier: PlanTier;
+  agencyName?: string | null;
+  canManage: boolean;
+  adminName: string | null;
+  email: string;
+}) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +60,19 @@ export default function AccountPlan({ accountName, tier, canManage, adminName, e
     }
   }
 
+  // Conta de cliente de uma agência (SPEC 039): o plano é da agência; aqui não se troca nada.
+  if (agencyName) {
+    return (
+      <div className="space-y-5">
+        <Header accountName={accountName} />
+        <section className="card space-y-2">
+          <h2 className="text-lg font-semibold">Cliente de {agencyName}</h2>
+          <p className="text-sm text-muted">Esta conta faz parte do plano Agência de {agencyName}. O plano e a cobrança ficam na conta da agência.</p>
+        </section>
+      </div>
+    );
+  }
+
   if (!canManage) {
     return (
       <div className="space-y-5">
@@ -75,6 +103,10 @@ export default function AccountPlan({ accountName, tier, canManage, adminName, e
           <button type="button" className="btn-primary" onClick={() => setDialog('time')}>
             Fazer upgrade
           </button>
+        ) : tier === 'agencia' ? (
+          <Link href="/clientes" className="btn-primary">
+            Ver clientes
+          </Link>
         ) : (
           <span className="chip border-success/40 text-success">Plano atual</span>
         )}
@@ -96,13 +128,17 @@ export default function AccountPlan({ accountName, tier, canManage, adminName, e
             <button type="button" className="btn-primary" onClick={() => setDialog('time')}>
               Mudar para Time
             </button>
+          ) : tier === 'agencia' ? (
+            <button type="button" className="btn-ghost" disabled>
+              Incluído na Agência
+            </button>
           ) : (
             <button type="button" className="btn-ghost" disabled>
               Plano atual
             </button>
           )}
         </section>
-        <section className="card space-y-2">
+        <section className={`card space-y-2 ${tier === 'agencia' ? 'border-accent ring-2 ring-accent/30' : ''}`}>
           <h3 className="text-base font-semibold">Agência</h3>
           <p className="text-sm text-muted">Várias marcas, uma equipe.</p>
           <p className="text-lg font-bold">
@@ -113,9 +149,15 @@ export default function AccountPlan({ accountName, tier, canManage, adminName, e
             <li>Uma conta do Instagram por marca.</li>
             <li>Não volta a Time com mais de uma marca.</li>
           </ul>
-          <button type="button" className="btn-ghost" onClick={() => setDialog('agency')}>
-            Falar com a Ekoai
-          </button>
+          {tier === 'agencia' ? (
+            <button type="button" className="btn-ghost" disabled>
+              Plano atual
+            </button>
+          ) : (
+            <button type="button" className="btn-ghost" onClick={() => setDialog('agency')}>
+              Falar com a Ekoai
+            </button>
+          )}
         </section>
       </div>
 

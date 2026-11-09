@@ -3,17 +3,19 @@
 
 import type { AccountKind } from './account-model';
 
-export type PlanTier = 'individual' | 'time';
+export type PlanTier = 'individual' | 'time' | 'agencia';
 
 // Conta "Só eu" é Individual; Empresa é Time (o plano `inicial` do banco, 5 pessoas, até a cobrança real existir).
-export const tierOf = (kind: AccountKind): PlanTier => (kind === 'pessoa' ? 'individual' : 'time');
+// A conta no plano `agencia` (migration 0067, SPEC 039) é Agência, qualquer que seja o tipo.
+export const tierOf = (kind: AccountKind, planId?: string | null): PlanTier => (planId === 'agencia' ? 'agencia' : kind === 'pessoa' ? 'individual' : 'time');
 
 // Nome do plano na tela. O banco chama os planos de `Pessoa` e `Inicial`; quem usa o produto vê Individual e Time.
-export const TIER_NAME: Record<PlanTier, string> = { individual: 'Individual', time: 'Time' };
+export const TIER_NAME: Record<PlanTier, string> = { individual: 'Individual', time: 'Time', agencia: 'Agência' };
 
 export const TIER_COPY: Record<PlanTier, { title: string; summary: string }> = {
   individual: { title: 'Plano Individual', summary: 'Uma pessoa, um perfil. Você paga só pelos posts.' },
   time: { title: 'Plano Time', summary: 'Quem cria e quem aprova. O primeiro usuário é grátis e cada usuário adicional custa R$ 10 por mês.' },
+  agencia: { title: 'Plano Agência', summary: 'Vários clientes, uma equipe. Cada cliente tem a própria marca, agenda e Instagram.' },
 };
 
 export const AGENCY_BRANDS_MAX = 100;

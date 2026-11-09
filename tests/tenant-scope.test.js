@@ -38,6 +38,8 @@ const RAW_DB_ALLOWED = {
   'lib/account-plan.ts': 1, // upgrade de Individual para Time: troca o tipo e o plano da própria linha em `tenants` (SPEC 025, BEZ-376)
   'lib/notification-prefs.ts': 2, // preferências de aviso da pessoa: vale para todas as contas dela, tabela sem tenant_id de propósito (BEZ-366, migration 0046)
   'lib/social-accounts.ts': 1, // tokens das redes: tabela sem tenant_id de propósito (SPEC 011 R5, migration 0018)
+  'lib/agency.ts': 5, // a agência lê e cria as contas dos clientes dela, filtrando pela agência da sessão (SPEC 039, BEZ-265)
+  'lib/console-agency.ts': 4, // o plano Agência no console: pedidos de todas as contas e a troca do plano (SPEC 039, BEZ-265)
   'app/api/health/route.ts': 1, // ping do banco, sem dado de tenant
 };
 

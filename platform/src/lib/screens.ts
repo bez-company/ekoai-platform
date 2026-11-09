@@ -4,7 +4,7 @@
 
 import type { Permission } from './permissions';
 
-export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'flag' | 'chart' | 'image' | 'spark' | 'settings';
+export type ScreenIcon = 'home' | 'inbox' | 'calendar' | 'flag' | 'chart' | 'image' | 'spark' | 'settings' | 'users';
 
 export type Screen = { href: string; label: string; icon: ScreenIcon; permission: Permission };
 

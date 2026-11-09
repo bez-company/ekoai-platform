@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AccountActions from '@/components/console/AccountActions';
+import AgencyToggle from '@/components/console/AgencyToggle';
+import { consoleAgencyOf, type ConsoleAgency } from '@/lib/console-agency';
 import StatusBadge from '@/components/console/StatusBadge';
 import { pageError } from '@/lib/api';
 import { ROLE_COPY } from '@/lib/auth-flow';
@@ -16,8 +18,9 @@ export default async function ConsoleAccount({ params }: { params: Promise<{ id:
   const { id } = await params;
   if (!isAccountId(id)) notFound();
   let a;
+  let agency: ConsoleAgency;
   try {
-    a = await getAccount(id);
+    [a, agency] = await Promise.all([getAccount(id), consoleAgencyOf(id)]);
   } catch (e) {
     return <div className="card border-warning/30 bg-warning/10 text-sm text-warning">{pageError(e, 'page/console/conta')}</div>;
   }
@@ -122,6 +125,41 @@ export default async function ConsoleAccount({ params }: { params: Promise<{ id:
                 </div>
               ))}
             </dl>
+          </section>
+
+          <section className="card space-y-3" aria-labelledby="c-agencia">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 id="c-agencia" className="text-lg font-semibold">
+                  Agência
+                </h2>
+                <p className="text-sm text-muted">
+                  {agency.agency
+                    ? `Cliente da agência ${agency.agency.name}.`
+                    : agency.isAgency
+                      ? `${agency.clients.length} ${agency.clients.length === 1 ? 'cliente' : 'clientes'}, sem limite.`
+                      : 'Conta comum. Como agência, ela cadastra clientes, cada um com a própria marca e Instagram.'}
+                </p>
+              </div>
+              {!agency.agency && <AgencyToggle id={a.id} isAgency={agency.isAgency} hasClients={agency.clients.length > 0} />}
+            </div>
+            {agency.agency && (
+              <Link href={`/console/contas/${agency.agency.id}`} className="link text-sm">
+                Abrir a agência
+              </Link>
+            )}
+            {agency.clients.length > 0 && (
+              <ul className="divide-y divide-line">
+                {agency.clients.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                    <Link href={`/console/contas/${c.id}`} className="font-semibold hover:underline">
+                      {c.name}
+                    </Link>
+                    <span className={c.instagram ? '' : 'text-muted'}>{c.instagram ? `@${c.instagram.replace(/^@/, '')}` : 'Instagram não conectado'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="card space-y-3" aria-labelledby="c-redes">

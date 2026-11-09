@@ -33,6 +33,8 @@ describe('pedido da Agência', () => {
 
 describe('nome do plano na tela', () => {
   it('Individual e Time, não os nomes internos do banco', () => {
-    expect(TIER_NAME).toEqual({ individual: 'Individual', time: 'Time' });
+    expect(TIER_NAME).toEqual({ individual: 'Individual', time: 'Time', agencia: 'Agência' });
+    expect(tierOf('empresa', 'agencia')).toBe('agencia');
+    expect(tierOf('empresa', 'inicial')).toBe('time');
   });
 });
