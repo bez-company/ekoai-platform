@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
 import { isActive, MOBILE_PRIMARY, type Screen } from '@/lib/screens';
+import type { SwitchGroup } from '@/lib/agency-model';
 
 // Casca sem header (SPEC 017, decisão 2): no desktop, a barra lateral em ameixa (data-theme="dark"
 // mesmo no tema claro) leva o sino, a conta, "Criar post", o menu e a pessoa com "Sair". No celular,
@@ -22,6 +23,9 @@ const ICONS: Record<string, string> = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7M18 14a6 6 0 0 1 4 7',
+  chevrons: 'M8 9l4-4 4 4M8 15l4 4 4-4',
+  check: 'M5 12l5 5L20 7',
 };
 
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -104,6 +108,111 @@ function UserMenu({ person, pathname, canSettings, onLogout }: { person: NavPers
   );
 }
 
+// Trocar de conta (SPEC 039): a mesma rota do login (POST /api/auth/tenant) assina a sessão na conta escolhida e a tela volta
+// ao Início dela. Erro (conta suspensa, sem acesso) aparece no próprio menu.
+function useSwitchAccount() {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  async function go(tenantId: string) {
+    setBusy(tenantId);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/tenant', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId }) });
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(j.error ?? 'Não deu para trocar de conta agora. Tente de novo.');
+        return;
+      }
+      router.push('/inicio');
+      router.refresh();
+    } catch {
+      setError('Sem conexão. Confira a internet e tente de novo.');
+    } finally {
+      setBusy(null);
+    }
+  }
+  return { busy, error, go };
+}
+
+function AccountList({ groups, currentId, busy, onPick }: { groups: SwitchGroup[]; currentId: string; busy: string | null; onPick: (id: string) => void }) {
+  return (
+    <>
+      {groups.map((g, gi) => (
+        <div key={g.label ?? gi} className="space-y-0.5">
+          {g.label && <p className="truncate px-3 pb-0.5 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{g.label}</p>}
+          {g.accounts.map((a, i) => {
+            const current = a.id === currentId;
+            const indent = g.label && i > 0 && a.agencyId ? 'pl-6' : '';
+            return (
+              <button
+                key={a.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={current}
+                disabled={busy !== null}
+                onClick={() => (current ? undefined : onPick(a.id))}
+                className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition hover:bg-inset focus-visible:bg-inset ${indent} ${current ? 'font-semibold text-accent-text' : ''}`}
+              >
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                {a.isAgency && <span className="chip shrink-0 text-[11px]">Agência</span>}
+                {current && <Icon name="check" size={16} />}
+                {busy === a.id && <span className="text-xs text-muted">Abrindo…</span>}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AccountSwitcher({ account, groups, currentId }: { account: NavAccount; groups: SwitchGroup[]; currentId: string }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const { busy, error, go } = useSwitchAccount();
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const outside = (e: MouseEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', esc);
+    document.addEventListener('mousedown', outside);
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.removeEventListener('mousedown', outside);
+    };
+  }, [open]);
+  return (
+    <div ref={root} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Conta ${account.name}. Trocar de conta`}
+        className="flex w-full items-center gap-2.5 rounded-lg border border-line px-2.5 py-2 text-left transition hover:bg-raised"
+      >
+        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-on-accent">
+          {initials(account.name)}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <strong className="block truncate text-[13px]">{account.name}</strong>
+          <small className="block truncate text-xs text-muted">{account.detail}</small>
+        </span>
+        <Icon name="chevrons" size={16} />
+      </button>
+      {open && (
+        <div role="menu" aria-label="Trocar de conta" className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-[60vh] space-y-1 overflow-y-auto rounded-xl border border-line bg-raised p-1.5 shadow-lg">
+          <AccountList groups={groups} currentId={currentId} busy={busy} onPick={(id) => void go(id)} />
+          {error && <p className="px-3 py-1.5 text-xs text-danger">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export type NavAccount = { name: string; detail: string };
 export type NavPerson = { name: string; role: string };
 
@@ -113,6 +222,8 @@ export default function Nav({
   bellSide,
   bellTop,
   account,
+  accounts = [],
+  currentAccountId = '',
   person,
   canCreate = false,
 }: {
@@ -121,11 +232,14 @@ export default function Nav({
   bellSide?: React.ReactNode;
   bellTop?: React.ReactNode;
   account?: NavAccount | null;
+  accounts?: SwitchGroup[];
+  currentAccountId?: string;
   person?: NavPerson | null;
   canCreate?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const mobileSwitch = useSwitchAccount();
   const [more, setMore] = useState(false);
 
   // Trocar de tela fecha o "Mais".
@@ -161,7 +275,8 @@ export default function Nav({
           {bellSide}
         </div>
 
-        {account && (
+        {account && accounts.length > 0 && <AccountSwitcher account={account} groups={accounts} currentId={currentAccountId} />}
+        {account && accounts.length === 0 && (
           <div className="flex items-center gap-2.5 rounded-lg border border-line px-2.5 py-2">
             <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-on-accent">
               {initials(account.name)}
@@ -229,13 +344,19 @@ export default function Nav({
             role="dialog"
             aria-label="Mais opções"
             onClick={(e) => e.stopPropagation()}
-            className="absolute inset-x-3 bottom-20 space-y-1 rounded-xl border border-line bg-raised p-2 shadow-lg"
+            className="absolute inset-x-3 bottom-20 max-h-[calc(100dvh-10rem)] space-y-1 overflow-y-auto rounded-xl border border-line bg-raised p-2 shadow-lg"
           >
             {account && (
               <p className="truncate px-3 pb-1 pt-2 text-xs text-muted">
                 {account.name}
                 {person ? ` · ${person.name}` : ''}
               </p>
+            )}
+            {accounts.length > 0 && (
+              <div role="menu" aria-label="Trocar de conta" className="max-h-[30vh] overflow-y-auto border-b border-line pb-1">
+                <AccountList groups={accounts} currentId={currentAccountId} busy={mobileSwitch.busy} onPick={(id) => void mobileSwitch.go(id)} />
+                {mobileSwitch.error && <p className="px-3 py-1.5 text-xs text-danger">{mobileSwitch.error}</p>}
+              </div>
             )}
             {canCreate && (
               <Link href="/criar" className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-semibold text-accent-text hover:bg-inset">

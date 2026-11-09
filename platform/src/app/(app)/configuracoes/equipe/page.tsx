@@ -21,7 +21,7 @@ export default async function TeamPage() {
         members={team.members}
         invitations={invitations}
         meId={user.id}
-        planName={TIER_NAME[tierOf(account.kind)]}
+        planName={TIER_NAME[tierOf(account.kind, account.plan.id)]}
         seats={seats}
         canInvite={account.kind === 'empresa'}
         canManagePlan={canManagePlan}

@@ -17,7 +17,7 @@ const PUBLIC = new Set(['login', 'logout', 'health', 'version', 'live', 'ambient
 
 // As rotas do console do administrador da plataforma (BEZ-303) não usam a matriz de papéis das contas: cada
 // uma passa por requirePlatformAdmin(), o portão de uma pessoa só (docs/arquitetura/ultra-admin.md).
-const CONSOLE = new Set(['console/accounts', 'console/accounts/[id]/suspend', 'console/accounts/[id]/reactivate', 'console/accounts/[id]/discount', 'console/pricing', 'console/fx-rate']);
+const CONSOLE = new Set(['console/accounts', 'console/accounts/[id]/suspend', 'console/accounts/[id]/reactivate', 'console/accounts/[id]/discount', 'console/accounts/[id]/agency', 'console/pricing', 'console/fx-rate']);
 
 const EXPECTED = {
   approve: ['content.approve'],
@@ -43,6 +43,7 @@ const EXPECTED = {
   'next-slot': ['content.view'],
   'auth/me': ['content.view'],
   'auth/tenant': ['content.view'],
+  'agency/clients': ['billing.manage'],
   'auth/logout-all': ['content.view'],
   me: ['content.view'],
   'fonts/[file]': ['content.view'],

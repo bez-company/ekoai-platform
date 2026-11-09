@@ -40,6 +40,7 @@ export type ProductEvent =
   | 'ideas_suggested'
   | 'plan_upgraded'
   | 'plan_agency_requested'
+  | 'agency_client_created'
   | 'post_ready'
   | 'post_generation_failed'
   | 'suggestion_viewed'

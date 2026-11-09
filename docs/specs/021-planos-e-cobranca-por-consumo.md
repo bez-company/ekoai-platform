@@ -242,7 +242,7 @@ ficou de fora.
 4. **Carência da mensalidade:** quantas tentativas e quantos dias antes de bloquear (proposta: 3 tentativas em até 7 dias).
 5. **Teto de segurança interno** da BEZ contra abuso e cartão roubado, além do teto de recarga do cliente (proposta: invisível no uso normal).
 6. **Limite técnico de gerações** por minuto e por dia da conta, só contra robô (proposta: invisível no uso normal).
-7. **Marca da agência:** perfil dentro da conta ou conta por cliente (BEZ-265).
+7. **Marca da agência:** perfil dentro da conta ou conta por cliente (BEZ-265). **Decidido em 09/11/2026: conta por cliente** ([ADR 0032](../adr/0032-agencia-como-grupo-de-contas.md), [SPEC 039](039-agencia-com-clientes.md)).
 8. **Gateway, Pix e nota fiscal:** Asaas está citado em `docs/arquitetura` e a taxa foi levantada (ver "Imposto e gateway"). Falta decidir o
    gateway, abrir a conta, conferir as taxas do contrato, ver o Pix Automático para a mensalidade (a página de preços não traz taxa) e a nota
    de serviço (NFS-e).

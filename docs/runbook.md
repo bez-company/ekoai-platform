@@ -654,6 +654,7 @@ código atrás de propriedade com nome de dado pessoal.
 | `post_requested` | pedido de post gravado (tela ou sugestão) | `source`, `brief_id`, `goal`, `kind`, `ratio`, `with_photo`, `format` |
 | `plan_upgraded` | a conta passou de Individual para Time (SPEC 025) | `to` |
 | `plan_agency_requested` | pedido de contato da Agência (SPEC 025) | `brands` |
+| `agency_client_created` | a agência cadastrou um cliente (SPEC 039) | |
 | `ideas_suggested` | "Sugerir ideias" devolveu as ideias do Criar post (SPEC 025) | `count` |
 | `post_ready` | worker terminou o post | `brief_id`, `direction`, `regenerated`, `kind`, `goal`, `ratio`, `latency_ms`, `cost_usd` |
 | `post_generation_failed` | worker falhou ou bateu no limite do plano | as de `post_ready` mais `outcome` |
@@ -709,6 +710,10 @@ convite devolve o link para copiar.
 **Trocar o usuário que envia** (por exemplo, quando houver licença para um usuário só do envio): passo 2 com o
 novo e-mail, passo 5 na caixa dele e uma nova revisão. Sem mudança de código.
 
-## Pedido de contato da Agência (SPEC 025)
+## Pedido de contato da Agência e clientes da agência (SPEC 025, SPEC 039)
 
-`POST /api/account/plan/agency` não cobra nada: grava `plan.agency_requested` na auditoria da conta (`audit_events`, com as marcas e o recado), avisa os administradores da conta e emite o evento `plan_agency_requested`. A equipe da Ekoai lê esses pedidos na auditoria ou no PostHog e responde pelo e-mail do administrador; ainda não há tela de console para eles.
+`POST /api/account/plan/agency` não cobra nada: grava `plan.agency_requested` na auditoria da conta (`audit_events`, com as marcas e o recado), avisa os administradores da conta e emite o evento `plan_agency_requested`. O pedido aparece no **Console › Contas**, no cartão "Pedidos de Agência", enquanto a conta não é agência.
+
+Para atender: abra a conta no console e clique em **Tornar agência** (`POST /api/console/accounts/<id>/agency` com `{"on": true}`). A conta vai para o plano `agencia`, os administradores recebem o aviso e o menu ganha **Clientes**. Lá, o administrador cadastra cada cliente (`POST /api/agency/clients`); cada cliente é uma conta com `tenants.agency_id` e o próprio Instagram, conectado em Configurações › Redes da conta do cliente. Sem limite de clientes; a cobrança por marca ainda não existe. Voltar ao Time (`{"on": false}`) só sem clientes: o banco recusa (gatilho `tenants_check_agency`, migration 0067).
+
+O console só abre para o administrador da plataforma: `PLATFORM_ADMIN_EMAIL` definido no serviço, a pessoa em `platform_admins` (`gcloud run jobs execute ekoai-platform-admin --args=platform-admin,--email,<e-mail>,--grant`, depois de ela entrar uma vez) e, com `MFA_MODE=required`, duas etapas ligadas. Qualquer "não" responde 404 em `/console`.
