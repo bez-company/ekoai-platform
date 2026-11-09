@@ -92,6 +92,9 @@ locals {
     # E-mail do usuário do Workspace que a delegação de domínio representa ao enviar (BEZ-28). Fica em segredo
     # porque é e-mail de pessoa e o repositório é público.
     "mail-impersonate",
+    # E-mail do administrador da plataforma, o único que abre o console (docs/arquitetura/ultra-admin.md). Em segredo
+    # pelo mesmo motivo; vazio, ninguém entra no console. Só a plataforma lê (os jobs não abrem o console).
+    "platform-admin-email",
   ]
 
   # Variável de ambiente => segredo. Plataforma e jobs leem os mesmos.
@@ -121,6 +124,7 @@ locals {
     PLATFORM_PASSWORD    = "platform-password" # gitleaks:allow (nome do segredo, não o valor)
     INSTAGRAM_APP_ID     = "instagram-app-id"
     INSTAGRAM_APP_SECRET = "instagram-app-secret" # gitleaks:allow (nome do segredo, não o valor)
+    PLATFORM_ADMIN_EMAIL = "platform-admin-email"
   })
 
   # Modelos da geração de posts (SPEC 012, decisão 6; números da prova de conceito, BEZ-74).
