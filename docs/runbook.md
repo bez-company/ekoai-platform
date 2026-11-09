@@ -716,4 +716,12 @@ novo e-mail, passo 5 na caixa dele e uma nova revisão. Sem mudança de código.
 
 Para atender: abra a conta no console e clique em **Tornar agência** (`POST /api/console/accounts/<id>/agency` com `{"on": true}`). A conta vai para o plano `agencia`, os administradores recebem o aviso e o menu ganha **Clientes**. Lá, o administrador cadastra cada cliente (`POST /api/agency/clients`); cada cliente é uma conta com `tenants.agency_id` e o próprio Instagram, conectado em Configurações › Redes da conta do cliente. Sem limite de clientes; a cobrança por marca ainda não existe. Voltar ao Time (`{"on": false}`) só sem clientes: o banco recusa (gatilho `tenants_check_agency`, migration 0067).
 
-O console só abre para o administrador da plataforma: `PLATFORM_ADMIN_EMAIL` definido no serviço, a pessoa em `platform_admins` (`gcloud run jobs execute ekoai-platform-admin --args=platform-admin,--email,<e-mail>,--grant`, depois de ela entrar uma vez) e, com `MFA_MODE=required`, duas etapas ligadas. Qualquer "não" responde 404 em `/console`.
+O console só abre para o administrador da plataforma: `PLATFORM_ADMIN_EMAIL` definido no serviço (segredo `platform-admin-email`, que o Terraform cria vazio; o e-mail entra com `read "EMAIL?E-mail: "; printf '%s' "$EMAIL" | gcloud secrets versions add platform-admin-email --data-file=- --project <projeto>` e uma revisão nova do serviço), a pessoa em `platform_admins` (`gcloud run jobs execute ekoai-platform-admin --args=platform-admin,--email,<e-mail>,--grant`, depois de ela entrar uma vez) e, com `MFA_MODE=required`, duas etapas ligadas. Qualquer "não" responde 404 em `/console`.
+
+Em produção o segredo nasceu à mão em 09/11/2026, antes de estar no Terraform. Antes do próximo apply de produção, importe o segredo e a versão que tem o e-mail, para o Terraform não criar uma versão vazia por cima (confira o número da versão em `gcloud secrets versions list platform-admin-email --project ekoai-prod`):
+
+```bash
+cd infra/terraform/envs/prod
+terraform import 'module.ekoai.google_secret_manager_secret.s["platform-admin-email"]' projects/ekoai-prod/secrets/platform-admin-email
+terraform import 'module.ekoai.google_secret_manager_secret_version.integration_placeholder["platform-admin-email"]' projects/ekoai-prod/secrets/platform-admin-email/versions/<n>
+```
