@@ -20,6 +20,8 @@ WORKDIR /app
 # Saída standalone: servidor e node_modules rastreados, sem o resto do projeto.
 COPY --from=build --chown=node:node /app/platform/.next/standalone ./
 COPY --from=build --chown=node:node /app/platform/.next/static ./.next/static
+# Arquivos estáticos de /public (ex.: banner da assinatura de e-mail em /email/).
+COPY --from=build --chown=node:node /app/platform/public ./public
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
