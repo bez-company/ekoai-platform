@@ -26,3 +26,4 @@ firebase-debug*.log
 tfplan
 *.auto.tfvars
 platform/dist-job
+!platform/public/email/*.png
